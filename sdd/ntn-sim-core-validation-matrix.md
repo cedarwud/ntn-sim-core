@@ -1,0 +1,99 @@
+# NTN Sim Core — Validation Matrix
+
+**Version:** 0.1.0  
+**Date:** 2026-03-20  
+**Status:** Planned
+
+---
+
+## 1. Purpose
+
+This matrix defines the validation checks required before `ntn-sim-core` can make research claims or rely on visualization for interpretation.
+
+Operational merge, benchmark, and showcase acceptance rules are further constrained by:
+
+1. `sdd/ntn-sim-core-development-constraints.md`
+2. `sdd/ntn-sim-core-acceptance-gates.md`
+3. `sdd/ntn-sim-core-assumption-policy.md`
+
+---
+
+## 2. Validation IDs
+
+| ID | Category | Check | Phase |
+|---|---|---|---|
+| `VAL-ARCH-001` | architecture | `src/core/**` contains no React/Three imports | 0 |
+| `VAL-ARCH-002` | architecture | physical parameters and visual-only parameters are separated | 0 |
+| `VAL-CONF-001` | config | profile + override resolution is serializable and deterministic | 0 |
+| `VAL-TRACE-001` | traceability | each run emits manifest, resolved config, and source-trace skeleton | 0 |
+| `VAL-RNG-001` | reproducibility | same seed/profile yields identical orbit snapshots | 1 |
+| `VAL-ORB-001` | orbit | synthetic orbit positions are stable across headless and frontend paths | 1 |
+| `VAL-ORB-002` | geometry | slant range, azimuth, and elevation outputs match formula checks | 1 |
+| `VAL-VIZ-001` | visualization | replayed orbit timeline matches stored trace ordering and time offsets | 1 |
+| `VAL-CHAN-001` | channel | FSPL baseline matches reference calculations | 2 |
+| `VAL-CHAN-002` | channel | 3GPP NTN large-scale loss composition is traceable by profile | 2 |
+| `VAL-BEAM-001` | beam geometry | earth-moving beam footprint projection matches the declared access-profile geometry contract | 2 |
+| `VAL-HO-001` | handover | hard HO baseline is deterministic under fixed seed/config | 2 |
+| `VAL-HO-002` | handover | A3/A4 or CHO/MC-HO trigger reasons appear in event traces | 2 |
+| `VAL-KPI-001` | KPI | KPI totals are identical between headless and replay-based recomputation | 2 |
+| `VAL-GOLDEN-001` | golden cases | profile-specific access golden cases exist for orbit/channel/HO reference points | 2 |
+| `VAL-MB-001` | multibeam | active-beam restriction changes serviceability deterministically | 3 |
+| `VAL-SINR-001` | signal | interference-aware multi-beam SINR path matches profile-selected formula family | 3 |
+| `VAL-EE-001` | energy | energy layer 1 outputs appear in benchmark artifacts and are reproducible | 3 |
+| `VAL-GOLDEN-002` | golden cases | profile-specific multibeam golden cases exist for HOBS-style signal and active-beam paths | 3 |
+| `VAL-RT-001` | real-trace | TLE-derived replay uses the same channel/HO/KPI stack as synthetic mode | 4 |
+| `VAL-RT-002` | replay | replay manifest reconstructs the same selected time window and event timing | 4 |
+| `VAL-CUR-001` | curation | showcase window selection is deterministic and recorded in metadata | 4 |
+| `VAL-BH-001` | beam hopping | BH scheduler decisions are explicit per slot and replayable | 5 |
+| `VAL-EE-002` | energy | energy layer 2 can block service independently of geometry | 5 |
+| `VAL-EXP-001` | explainability | overlays can distinguish low-SINR, inactive-beam, and energy-blocked service loss | 5 |
+| `VAL-DAPS-001` | continuity | DAPS/DC-like state transitions are logged and replayable | 6 |
+| `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
+
+---
+
+## 3. Reference Numeric Checkpoints
+
+These checks are formula-level checkpoints with explicit assumptions. They are intentionally narrower than full paper-result replication.
+
+| Ref ID | Assumptions | Expected Result |
+|---|---|---|
+| `REF-ORB-001` | circular orbit, `R_E = 6378.137 km`, `h = 550 km`, `mu = 398600.4418 km^3/s^2` | orbital period `≈ 95.65 min`, speed `≈ 7.585 km/s` |
+| `REF-CHAN-001` | FSPL with `f = 2000 MHz`, `d = 600 km` slant range | path loss `≈ 154.03 dB` |
+
+Global SINR checkpoints are not defined here, because SINR depends on the full parameter stack:
+
+1. antenna gain family
+2. interference set
+3. beam activity
+4. bandwidth and noise assumptions
+5. large-scale and optional small-scale model choices
+
+Paper-family SINR targets should therefore be implemented as `golden cases`, not as context-free global constants.
+
+---
+
+## 4. Gate Usage
+
+### Phase Gate
+
+Each phase must pass:
+
+1. all earlier-phase validation IDs
+2. all validation IDs assigned to the current phase
+
+### Research Claim Gate
+
+Any figure or table intended for a paper must be supported by:
+
+1. the corresponding phase gate
+2. saved manifests and artifacts
+3. source-trace references for every KPI-impacting model family used in that result
+
+### Showcase Gate
+
+Any showcase/demo sequence must additionally prove:
+
+1. the replay window was selected deterministically
+2. visual controls did not alter physical outcomes
+3. the event sequence can be regenerated from replay metadata

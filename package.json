@@ -1,0 +1,44 @@
+{
+  "name": "ntn-sim-core",
+  "version": "1.0.0",
+  "description": "Research-grade NTN/LEO simulation shell with 3D visualization foundations",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit",
+    "validate:structure": "node scripts/validate-structure.mjs",
+    "validate:trace": "node scripts/validate-traceability-placeholders.mjs",
+    "validate:profiles": "node scripts/validate-profile-layout.mjs",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles"
+  },
+  "keywords": [
+    "3d",
+    "research",
+    "ntn",
+    "leo",
+    "satellite",
+    "visualization",
+    "spatial",
+    "interactive"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@react-three/drei": "^10.7.6",
+    "@react-three/fiber": "^9.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/three": "^0.180.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "sass": "^1.93.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

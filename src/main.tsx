@@ -1,0 +1,16 @@
+import { StrictMode } from 'react';
+import ReactDOM from 'react-dom/client';
+import { AppShell } from '@/app/AppShell';
+import './styles/main.scss';
+
+const root = document.getElementById('root');
+
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+ReactDOM.createRoot(root).render(
+  <StrictMode>
+    <AppShell />
+  </StrictMode>
+);
