@@ -1,0 +1,117 @@
+/**
+ * Trace-related type definitions for ntn-sim-core.
+ *
+ * Governance:
+ *   - SDD: sdd/ntn-sim-core-sdd.md §9.5, §10, §11
+ *   - Constraints: sdd/ntn-sim-core-development-constraints.md §3, §4.2
+ *   - Assumption policy: sdd/ntn-sim-core-assumption-policy.md §4-5
+ *   - This file must not import React, Three.js, or scene code.
+ */
+
+import type {
+  PresentationMode,
+  OrbitMode,
+  SourceReference,
+  KpiBundleShell,
+} from '@/core/common/types';
+
+// Re-export so consumers can get KpiBundleShell from trace module
+export type { KpiBundleShell };
+
+// ---------------------------------------------------------------------------
+// Run Manifest
+// ---------------------------------------------------------------------------
+
+export interface RunManifest {
+  runId: string;
+  timestamp: string;
+  profileId: string;
+  profileFamily: string;
+  presentationMode: PresentationMode;
+  orbitMode: OrbitMode;
+  seed: number;
+  durationSec: number;
+  stepSec: number;
+  engineVersion: string;
+}
+
+// ---------------------------------------------------------------------------
+// Resolved Config
+// ---------------------------------------------------------------------------
+
+export interface ResolvedConfig {
+  manifest: RunManifest;
+  profileSnapshot: Record<string, unknown>;
+  overrides: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Source Trace
+// ---------------------------------------------------------------------------
+
+export interface SourceTraceEntry {
+  modelFamily: string;
+  source: SourceReference;
+  claimScope: string;
+}
+
+export interface SourceTrace {
+  entries: SourceTraceEntry[];
+}
+
+// ---------------------------------------------------------------------------
+// Event Log
+// ---------------------------------------------------------------------------
+
+export interface EventRecord {
+  tick: number;
+  timeSec: number;
+  type: string;
+  payload: Record<string, unknown>;
+}
+
+export interface EventLog {
+  events: EventRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Replay Manifest
+// ---------------------------------------------------------------------------
+
+export interface ReplayManifest {
+  runId: string;
+  windowStartSec: number;
+  windowEndSec: number;
+  selectionCriteria: string;
+  selectionMethod: 'deterministic-search' | 'manual-override';
+  presentationMode: PresentationMode;
+}
+
+// ---------------------------------------------------------------------------
+// Run Artifact Bundle
+// ---------------------------------------------------------------------------
+
+export interface RunArtifactBundle {
+  manifest: RunManifest;
+  resolvedConfig: ResolvedConfig;
+  sourceTrace: SourceTrace;
+  eventLog: EventLog;
+  kpiBundle: KpiBundleShell;
+  replayManifest?: ReplayManifest;
+}
+
+// ---------------------------------------------------------------------------
+// Assumption Record (assumption-policy §4-5)
+// ---------------------------------------------------------------------------
+
+export interface AssumptionRecord {
+  id: string;
+  category: 'parameter' | 'range-selection' | 'placeholder' | 'curation';
+  affectedModule: string;
+  chosenValue: string;
+  unit?: string;
+  rationale: string;
+  impactScope: string;
+  claimScope: string;
+  replacementTarget?: string;
+}

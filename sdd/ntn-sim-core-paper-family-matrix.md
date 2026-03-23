@@ -1,0 +1,126 @@
+# NTN Sim Core — Paper Family Matrix
+
+**Version:** 0.1.0  
+**Date:** 2026-03-23  
+**Status:** Draft v0
+
+---
+
+## 1. Purpose
+
+This document maps paper clusters, profile families, donor repos, and claim scope into one planning matrix.
+
+It exists to prevent two failure modes:
+
+1. implementing many formulas without a clear paper-family target;
+2. claiming paper-grade validity from a mixed stack whose intended literature family is unclear.
+
+---
+
+## 2. Role in the SDD Set
+
+This document complements, but does not replace:
+
+1. `sdd/ntn-sim-core-sdd.md` for normative architecture;
+2. `sdd/ntn-sim-core-profile-baselines.md` for parameter envelopes;
+3. `sdd/ntn-sim-core-validation-matrix.md` for validation IDs;
+4. `sdd/ntn-sim-core-reproduction-protocol.md` for artifact and tolerance policy;
+5. `sdd/ntn-sim-core-donor-integration-map.md` for repo-to-module transfer rules.
+
+If a conflict appears:
+
+1. SDD defines the layer contract;
+2. profile baselines define the parameter family;
+3. this document defines the intended paper family and claim ceiling.
+
+---
+
+## 3. Family Definition Rules
+
+1. A `paper family` is a reproducible literature-aligned environment, not necessarily an exact single-paper replication.
+2. Multiple papers may belong to one family if they share the same orbit truth style, beam semantics, and KPI meaning.
+3. A family may remain active for engineering and benchmark use even when its `paper-claim` ceiling is still blocked.
+4. Exact paper replication requires all explicit source-paper parameters to match or be disclosed as assumptions.
+5. TLE-backed studies do not create a separate radio/beam family by themselves; they inherit channel, beam, and scheduler contracts from a synthetic family.
+
+---
+
+## 4. Canonical Research Families
+
+| Family ID | Primary Profile / Mode | Primary Paper Cluster | Orbit Truth | Beam Semantics | Main Model Focus | KPI / Claim Scope | Primary Donors | Current Claim Blockers |
+|---|---|---|---|---|---|---|---|---|
+| `FAM-ACCESS-SYNTH` | `case9-access-baseline` | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2024-MCCHO-CORE`, `PAP-2025-TIMERCHO-CORE` | synthetic Walker / analytic LEO | earth-moving access beams | Tier 0-2 access channel, event-based HO, deterministic KPI path | access SINR, HO events, throughput proxy, fairness; first access benchmark family | `beamHO-bench`, `leo-beam-sim` | `C1`, `C2`, `C3` |
+| `FAM-MB-HOBS-SYNTH` | `hobs-multibeam-baseline` | `PAP-2024-HOBS`, `PAP-2024-MADRL-CORE`, `PAP-2021-SHADOWED-RICIAN` | synthetic Walker / analytic LEO | earth-moving multibeam | interference-aware SINR, active-beam truth, Bessel-family gain, energy layer 1 | multi-beam SINR, beam switching, EE-L1, overlap/serviceability | `leo-beam-sim`, `beamHO-bench` | `C1`, `M2`, `M3`, `M4`, `M8` |
+| `FAM-BH-SYNTH` | `bh-resource-baseline` | `PAP-2026-BHFREQREUSE`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-EEBH-UPLINK`, `PAP-2024-QMIXBH` | synthetic LEO shell | earth-fixed / BH-slot | scheduler truth, reuse policy, cell-slot activity, energy layer 2 | BH scheduling, per-cell service, resource efficiency, later EE-L2 | `beamHO-bench`, `leo-beam-sim` | `M3`, `M4`, `M7`, `P3`, `MS4` |
+| `FAM-RT-ACCESS-VALID` | `real-trace-validation` + access family | TLE-backed access / HO validation papers | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-ACCESS-SYNTH` | orbit realism, timing realism, replay curation, cross-mode parity | validates access-family timing realism; does not define new beam/channel family | `beamHO-bench`, `ntn-stack`, `leo-simulator` | Phase 4 wiring gaps plus `FAM-ACCESS-SYNTH` blockers |
+| `FAM-RT-MB-VALID` | `real-trace-validation` + multibeam or BH family | real-trace multibeam / BH validation studies | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-MB-HOBS-SYNTH` or `FAM-BH-SYNTH` | cross-mode parity under real constellation timing | validates whether multibeam/BH conclusions survive real-trace orbit timing | `ntn-stack`, `leo-simulator`, `beamHO-bench` | Phase 4 wiring gaps plus inherited family blockers |
+
+---
+
+## 5. Catalog Intake Mapping
+
+The paper catalog should be triaged into the following intake buckets before implementation work is scoped:
+
+| Catalog Tendency | Default Family | Intake Rule |
+|---|---|---|
+| synthetic access / handover / 3GPP-style SINR papers | `FAM-ACCESS-SYNTH` | map into `case9-access-baseline` unless the paper requires a different explicit orbit or observer contract |
+| synthetic multibeam / HOBS / EE-L1 papers | `FAM-MB-HOBS-SYNTH` | map into `hobs-multibeam-baseline` with declared beam-gain family and power-control rule |
+| synthetic beam-hopping / resource / EE-L2 papers | `FAM-BH-SYNTH` | map into `bh-resource-baseline` and declare scheduler family plus cell semantics |
+| TLE-backed access validation papers | `FAM-RT-ACCESS-VALID` | inherit radio and HO contracts from access family; do not invent radio parameters from TLE |
+| TLE-backed multibeam or BH validation papers | `FAM-RT-MB-VALID` | inherit channel and scheduler contracts from the synthetic family being validated |
+| channel-only, fading-only, or formula donor papers | donor-only | use as formula or parameter donors; do not treat them as standalone benchmark families |
+
+---
+
+## 6. Family Activation Order
+
+The recommended activation order remains phase-aligned:
+
+1. `FAM-ACCESS-SYNTH`
+2. `FAM-MB-HOBS-SYNTH`
+3. `FAM-RT-ACCESS-VALID`
+4. `FAM-BH-SYNTH`
+5. `FAM-RT-MB-VALID`
+
+Rationale:
+
+1. access family establishes the first trustworthy HO + KPI path;
+2. HOBS multibeam is the first direct target-topic family;
+3. real-trace access validation proves orbit realism without changing radio semantics;
+4. BH should land after the benchmark core and replay contracts are credible;
+5. real-trace multibeam / BH validation depends on both earlier family correctness and Phase 4 replay integrity.
+
+---
+
+## 7. Claim Ceilings by Family
+
+| Family | Engineering / Debug | Benchmark Artifact | Family-Faithful Reproduction | Paper Claim |
+|---|---|---|---|---|
+| `FAM-ACCESS-SYNTH` | allowed | allowed after phase gates | allowed after `C1`, deterministic HO trace, and golden cases | blocked until `C1`, `C2`, `C3` are cleared for the relevant claim |
+| `FAM-MB-HOBS-SYNTH` | allowed | allowed after multibeam validation gates | allowed after interference, beam geometry, and Ka-band channel gaps are controlled | blocked until `C1`, `M2`, `M3`, `M4`, `M8` are cleared for the relevant claim |
+| `FAM-BH-SYNTH` | allowed | allowed for engineering BH studies with disclosure | allowed after scheduler semantics, traffic inputs, and energy assumptions are explicit | blocked until BH-specific scheduler and energy fidelity gaps are cleared |
+| `FAM-RT-ACCESS-VALID` | allowed | allowed for parity and timing studies | allowed after synthetic access family is already credible and Phase 4 parity passes | blocked until both access family and real-trace parity gates pass |
+| `FAM-RT-MB-VALID` | allowed | allowed for exploratory cross-mode checks | allowed only after the inherited synthetic family and Phase 4 parity both pass | blocked until inherited family blockers and replay parity blockers are cleared |
+
+---
+
+## 8. Per-Family Required Records
+
+Before a family is treated as active for benchmark use, it should have:
+
+1. one explicit profile owner in `src/core/profiles`;
+2. one source-paper cluster list;
+3. one donor integration entry per imported model family;
+4. one validation bundle in `ntn-sim-core-validation-matrix.md`;
+5. one reproduction record template entry under `ntn-sim-core-reproduction-protocol.md`.
+
+---
+
+## 9. Non-Goals for This Matrix
+
+This document does not:
+
+1. lock final numeric tolerances;
+2. declare a remediation item fixed;
+3. replace per-paper audit work in `/home/u24/papers/catalog/`;
+4. authorize paper-claim usage by itself.

@@ -11,6 +11,9 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
 5. `ntn-sim-core-development-constraints.md` defines implementation-time prohibitions.
 6. `ntn-sim-core-acceptance-gates.md` defines merge/result acceptance.
 7. `ntn-sim-core-assumption-policy.md` defines how assumptions are allowed and recorded.
+8. `ntn-sim-core-paper-family-matrix.md` defines the canonical literature families and claim ceilings.
+9. `ntn-sim-core-donor-integration-map.md` defines how the other project repos are absorbed and checked.
+10. `ntn-sim-core-reproduction-protocol.md` defines artifact bundles, claim levels, and tolerance status policy.
 
 ## Document Set
 
@@ -32,6 +35,14 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - merge gate, benchmark gate, paper-claim gate, and showcase gate
 9. `ntn-sim-core-assumption-policy.md`
    - assumption categories, metadata, and claim limits
+10. `ntn-sim-core-academic-remediation.md`
+   - academic compliance gap analysis, donor transfer map, and remediation priority order
+11. `ntn-sim-core-paper-family-matrix.md`
+   - maps paper clusters to canonical baseline families, donors, and claim ceilings
+12. `ntn-sim-core-donor-integration-map.md`
+   - defines repo-to-module donor roles, transfer classes, and parity requirements
+13. `ntn-sim-core-reproduction-protocol.md`
+   - defines claim levels, artifact bundles, tolerance lifecycle, and blocker-aware reproduction rules
 
 ## Working Rule
 
@@ -39,5 +50,6 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - the SDD
    - the roadmap
    - the validation matrix
+   - the paper family / reproduction contract when relevant
 2. Architecture changes should update the blueprint under `docs/architecture/` in the same change set.
 3. Benchmark-capable changes should also satisfy the development constraints, acceptance gates, and assumption policy.

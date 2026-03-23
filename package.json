@@ -11,7 +11,12 @@
     "validate:structure": "node scripts/validate-structure.mjs",
     "validate:trace": "node scripts/validate-traceability-placeholders.mjs",
     "validate:profiles": "node scripts/validate-profile-layout.mjs",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles"
+    "validate:core-purity": "node scripts/validate-core-purity.mjs",
+    "validate:final": "node scripts/validate-final.mjs",
+    "validate:runtime": "node scripts/validate-runtime.mjs",
+    "validate:golden-orbit": "node scripts/golden-case-orbit.mjs",
+    "validate:golden-channel": "node scripts/golden-case-channel.mjs",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:golden-orbit && npm run validate:golden-channel"
   },
   "keywords": [
     "3d",
@@ -30,6 +35,7 @@
     "@react-three/fiber": "^9.4.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "satellite.js": "^6.0.2",
     "three": "^0.180.0"
   },
   "devDependencies": {

@@ -1,0 +1,171 @@
+/**
+ * Profile loader, resolver, serializer, and validator.
+ *
+ * Governance:
+ *   - SDD: sdd/ntn-sim-core-sdd.md §6
+ *   - Constraints: sdd/ntn-sim-core-development-constraints.md §4.2, §4.3
+ *   - This file must not import React, Three.js, or scene code.
+ */
+
+import type { ProfileConfig, ValidationResult } from './types';
+import { DEFAULT_PROFILES } from './defaults';
+
+// ---------------------------------------------------------------------------
+// Load
+// ---------------------------------------------------------------------------
+
+/**
+ * Load a profile by ID from the built-in defaults.
+ * Throws if the profile ID is not found.
+ */
+export function loadProfile(id: string): ProfileConfig {
+  const profile = DEFAULT_PROFILES[id];
+  if (!profile) {
+    const known = Object.keys(DEFAULT_PROFILES).join(', ');
+    throw new Error(`Unknown profile "${id}". Known profiles: ${known}`);
+  }
+  // Return a deep copy to prevent mutation of defaults
+  return JSON.parse(JSON.stringify(profile)) as ProfileConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Resolve (deep merge)
+// ---------------------------------------------------------------------------
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function deepMerge<T extends Record<string, unknown>>(
+  base: T,
+  overrides: Partial<T>,
+): T {
+  const result = { ...base };
+  for (const key of Object.keys(overrides) as Array<keyof T>) {
+    const ov = overrides[key];
+    if (ov === undefined) continue;
+    const bv = base[key];
+    if (isPlainObject(bv) && isPlainObject(ov)) {
+      (result as Record<string, unknown>)[key as string] = deepMerge(
+        bv as Record<string, unknown>,
+        ov as Record<string, unknown>,
+      );
+    } else {
+      (result as Record<string, unknown>)[key as string] = ov;
+    }
+  }
+  return result;
+}
+
+/**
+ * Resolve a profile by deep-merging overrides onto a base profile.
+ * Arrays (e.g. sourceMap) are replaced wholesale, not merged element-wise.
+ */
+export function resolveProfile(
+  base: ProfileConfig,
+  overrides: Partial<ProfileConfig>,
+): ProfileConfig {
+  return deepMerge(
+    base as unknown as Record<string, unknown>,
+    overrides as unknown as Partial<Record<string, unknown>>,
+  ) as unknown as ProfileConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Serialize
+// ---------------------------------------------------------------------------
+
+/**
+ * Serialize a profile to a deterministic JSON string for manifests.
+ */
+export function serializeProfile(config: ProfileConfig): string {
+  return JSON.stringify(config, null, 2);
+}
+
+// ---------------------------------------------------------------------------
+// Validate
+// ---------------------------------------------------------------------------
+
+const REQUIRED_TOP_LEVEL: Array<keyof ProfileConfig> = [
+  'id',
+  'family',
+  'version',
+  'orbitMode',
+  'beamSemantics',
+  'observer',
+  'timeControl',
+  'seed',
+  'orbital',
+  'rf',
+  'antenna',
+  'beam',
+  'channel',
+  'handover',
+  'energy',
+  'ueConfig',
+  'sourceMap',
+];
+
+/**
+ * Validate a profile config for required fields and tier consistency.
+ */
+export function validateProfile(config: ProfileConfig): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Check required top-level fields
+  for (const field of REQUIRED_TOP_LEVEL) {
+    if (config[field] === undefined || config[field] === null) {
+      errors.push(`Missing required field: ${field}`);
+    }
+  }
+
+  // sourceMap must be non-empty
+  if (!config.sourceMap || config.sourceMap.length === 0) {
+    errors.push('sourceMap must contain at least one SourceReference');
+  }
+
+  // tier0_fspl must always be true
+  if (config.channel && config.channel.tier0_fspl !== true) {
+    errors.push('channel.tier0_fspl must be true (FSPL is mandatory for all profiles)');
+  }
+
+  // Multi-beam profiles must have tier3_beam_gain enabled
+  if (config.beam && config.beam.num_beams > 1 && config.channel && !config.channel.tier3_beam_gain) {
+    warnings.push('Multi-beam profile has tier3_beam_gain disabled — beam gain is mandatory for multi-beam/BH studies');
+  }
+
+  // Ka-band profiles should have tier4_atmospheric
+  if (config.rf && config.rf.frequency_ghz >= 26 && config.channel && !config.channel.tier4_atmospheric) {
+    warnings.push('Ka-band frequency detected but tier4_atmospheric is disabled');
+  }
+
+  // debug-only sources must not appear in benchmark-grade profiles
+  if (config.sourceMap) {
+    const hasDebugOnly = config.sourceMap.some((s) => s.tier === 'debug-only');
+    if (hasDebugOnly) {
+      warnings.push('sourceMap contains debug-only references — not valid for benchmark mode');
+    }
+  }
+
+  // Seed must be a finite integer
+  if (config.seed !== undefined && (!Number.isFinite(config.seed) || config.seed !== Math.floor(config.seed))) {
+    errors.push('seed must be a finite integer');
+  }
+
+  // timeControl sanity
+  if (config.timeControl) {
+    if (config.timeControl.durationSec <= 0) {
+      errors.push('timeControl.durationSec must be positive');
+    }
+    if (config.timeControl.stepSec <= 0) {
+      errors.push('timeControl.stepSec must be positive');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}

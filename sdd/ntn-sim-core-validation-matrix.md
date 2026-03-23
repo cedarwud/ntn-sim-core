@@ -50,6 +50,36 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-DAPS-001` | continuity | DAPS/DC-like state transitions are logged and replayable | 6 |
 | `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
 
+### Remediation Gates (added 2026-03-21, from academic-remediation.md)
+
+| ID | Category | Check | Remediation Item |
+|---|---|---|---|
+| `VAL-SINR-002` | signal | each interfering satellite uses its own slant range for path loss computation | C1 |
+| `VAL-HO-003` | handover | CHO state transitions (cho-prepared, cho-executing) appear in event traces | C2 |
+| `VAL-HO-004` | handover | MC-HO dual-connectivity events appear in event traces | C2 |
+| `VAL-UE-001` | multi-UE | N>1 UEs produce distinct SINR values per tick | C3 |
+| `VAL-UE-002` | multi-UE | Jain fairness index < 1.0 for N>1 UEs with different positions | C3 |
+| `VAL-CHAN-003` | channel | Ka-band profile uses Ka-band shadow fading parameters, not S-band | M3 |
+| `VAL-CHAN-004` | channel | Tier 4 atmospheric loss > 0 when enabled for Ka-band | M4 |
+| `VAL-FADING-001` | channel | Tier 5 Shadowed-Rician fading produces non-zero variance under non-deterministic channel | MS1 |
+| `VAL-PROFILE-001` | profiles | all profile altitude_km values match cited source papers | profile fix |
+
+### Physics Model Gates (added 2026-03-21, from academic-remediation.md §9)
+
+| ID | Category | Check | Remediation Item |
+|---|---|---|---|
+| `VAL-DOPPLER-001` | channel | Doppler shift computation produces ±24 kHz at S-band / ±336 kHz at Ka-band for LEO 550km | P1 |
+| `VAL-DELAY-001` | handover | handover TTT includes propagation delay (RTT) from slant range | P2 |
+| `VAL-TRAFFIC-001` | traffic | BH scheduler receives non-zero per-cell demand from traffic generator | P3 |
+| `VAL-MOBILITY-001` | UE | UE position changes over time when speed_kmh > 0 | P4 |
+
+### Methodology Gates (added 2026-03-21, from academic-remediation.md §10)
+
+| ID | Category | Check | Remediation Item |
+|---|---|---|---|
+| `VAL-REPRO-001` | reproduction | at least one reference paper result reproduced within stated tolerance | MG1 |
+| `VAL-POLICY-001` | RL interface | engine exposes getObservation() and applyAction() for external policy | MG2 |
+
 ---
 
 ## 3. Reference Numeric Checkpoints
