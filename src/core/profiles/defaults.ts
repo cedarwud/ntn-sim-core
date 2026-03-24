@@ -287,6 +287,8 @@ export const REAL_TRACE_VALIDATION = {
   version: '0.1.0',
 
   orbitMode: 'real-trace',
+  tleDataPath: 'fixtures/starlink-shell1-50.json',
+  tleMaxSatellites: 50,
   beamSemantics: 'earth-moving',
 
   observer: BEIJING_OBSERVER,

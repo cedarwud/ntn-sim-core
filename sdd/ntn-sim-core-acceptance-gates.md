@@ -1,8 +1,8 @@
 # NTN Sim Core — Acceptance Gates
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Drafted
+**Version:** 0.2.0  
+**Date:** 2026-03-24  
+**Status:** Active Companion-Updated Gates
 
 ---
 
@@ -37,6 +37,12 @@ Any code change may be merged only if all of the following are true:
 3. any new KPI-impacting model path has a declared source tier;
 4. required docs are updated if architecture, profile, or trace contracts changed;
 5. `npm run validate:stage` passes.
+
+If the change affects Phase 3 to Phase 5 frontend beam delivery, it must also update:
+
+1. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` when the rendering contract changes;
+2. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` when closure evidence rules change;
+3. `sdd/ntn-sim-core-frontend-donor-mapping.md` when donor ownership changes.
 
 If the change introduces a new core contract, it must also add or update:
 
@@ -114,6 +120,8 @@ A replay, demo, or presentation sequence may be treated as a valid showcase only
 3. the selection process is deterministic;
 4. the output is explicitly labeled `showcase`;
 5. it can be regenerated from stored replay metadata without manual scene editing.
+6. any beam-related showcase satisfies `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`;
+7. closure evidence includes browser-visible proof, not only script output.
 
 Showcase outputs may prioritize readability, but not by changing physics.
 

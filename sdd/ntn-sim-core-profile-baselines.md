@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Draft Baseline Companion
+**Version:** 1.0.0
+**Date:** 2026-03-25
+**Status:** Active — HOBS/BH profiles corrected after engine validation
 
 ---
 

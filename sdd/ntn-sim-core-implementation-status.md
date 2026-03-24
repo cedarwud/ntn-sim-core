@@ -1,7 +1,7 @@
 # NTN Sim Core — Implementation Status
 
 **Version:** 3.0.0
-**Date:** 2026-03-23
+**Date:** 2026-03-25
 **Status:** Remediation Complete — L2 Ready
 
 ---
@@ -14,7 +14,7 @@
 | 1 | Synthetic Orbit + Visual | ✅ complete | Walker propagation, Kepler solver, trajectory cache, satellite sky layer | — |
 | 2 | Channel + Handover + KPI | ✅ complete | FSPL, S/Ka-band SF/CL, beam gain, A3/A4/CHO/Timer-CHO/MC-HO/DAPS FSMs, 19 KPI metrics, per-interferer SINR, multi-UE (Phase A: shared serving) | — |
 | 3 | Multi-Beam + Energy L1 | ✅ complete | hex beam layout, FRF coloring + semantics, beam selection, EE/DPC, per-interferer SINR, slant-range θ_3dB, spherical off-axis, Ka-band SF tables, atmospheric loss, Tier 5 SR fading | — |
-| 4 | Real-Trace + Replay | ⚠️ partial | TLE/SGP4 loader exists, pass ranking exists, window curation exists | benchmark-runner and useSimulation only build Walker constellations (TLE path not wired); replay controller returns empty snapshots |
+| 4 | Real-Trace + Replay | ⚠️ partial | TLE/SGP4 loader, pass ranking, window curation, **benchmark-runner TLE path wired** (2026-03-25) | useSimulation frontend hook still Walker-only; replay controller returns empty snapshots |
 | 5 | Beam Hopping + Energy L2 | ⚠️ partial | BH scheduler (4 generic strategies), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel | **M6:** BH scheduler strategies are generic baselines, none matches a specific paper; beam visualization is schematic (not physically accurate) |
 | 6 | DAPS/DC-Like | ⚠️ partial | DAPS dual-active FSM, engine dual-link SINR path (SC, M5 fixed), benchmark comparison runner | DAPS replay path not verified |
 
@@ -49,7 +49,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | ID | Module | Status |
 |---|---|---|
 | MS1 | Tier 5 small-scale fading (Shadowed-Rician, Loo) | ✅ implemented (2026-03-23, SR model) |
-| MS2 | Multi-UE engine | ❌ not started |
+| MS2 | Multi-UE engine Phase B (independent HO per UE) | ❌ not started — SDD §9.3.2 spec ready, `ueConfig.independentHandover` type defined |
 | MS3 | Beam visualization (oblique cone from satellite to ground) | ⚠️ schematic only |
 | MS4 | Earth-fixed cell grid visualization | ❌ not started |
 | MS5 | Proper thermal noise model (noise figure) | ✅ implemented (2026-03-23) |
@@ -74,6 +74,9 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `sdd/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | active (v1.0) |
 | `sdd/ntn-sim-core-reproduction-protocol.md` | reproduction ladder, artifact policy, tolerance status | active (v1.0) |
 | `sdd/ntn-sim-core-reproduction-targets.md` | 3 reference paper reproduction targets | active (v0.1) |
+| `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` | frontend beam-rendering contract + implementation checklist | active (v0.1) |
+| `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | active (v0.1) |
+| `sdd/ntn-sim-core-frontend-donor-mapping.md` | frontend donor repo → module mapping | active (v0.1) |
 | `sdd/ntn-sim-core-implementation-status.md` | this file | active |
 | `sdd/README.md` | document index | active |
 
@@ -183,8 +186,8 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 2. ~~**CHO/MC-HO missing (C2):**~~ Fixed 2026-03-23. CHO, Timer-CHO, and MC-HO implemented in cho.ts and mc-ho.ts with proper FSMs and event traces.
 3. ~~**Single-UE only (C3):**~~ Fixed 2026-03-23 (Phase A). Engine generates N UEs within beam footprint (uniform/clustered/hotspot). Each UE gets per-UE SINR from beam gain roll-off. Shared serving satellite (Phase A). Phase B (independent HO per UE) deferred.
 4. ~~**Ka-band channel wrong (M3+M4):**~~ Fixed 2026-03-23. Ka-band shadow fading tables added; atmospheric loss model implemented for frequencies ≥10 GHz.
-5. **Real-trace not wired (Phase 4):** TLE loader and SGP4 adapter exist as modules but benchmark-runner and useSimulation only build Walker constellations.
+5. **Real-trace partially wired (Phase 4):** Headless benchmark-runner supports TLE/OMM → SGP4 path (2026-03-25). Frontend useSimulation hook still Walker-only.
 6. **Replay skeleton only (Phase 4):** replay controller returns empty snapshots.
 7. **Beam visualization schematic:** BeamFootprintLayer shows a 7-beam schematic at satellite dome position, not physically accurate beam projection.
-8. **Validation scripts test formulas in isolation:** they do not test the actual engine code paths, so passing them does not prove the engine is correct.
+8. **Validation has two levels:** `-F` scripts test formulas in isolation; `-E` golden-case-engine.ts runs actual engine tick loop with locked KPI expectations. Both levels pass, but `-E` only covers 2 profiles × 300s.
 9. **Profile parameter aligned:** case9-access-baseline defaults.ts altitude corrected to 600km (matches profile-baselines.md and source papers).

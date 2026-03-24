@@ -1,0 +1,32 @@
+{
+  "profile": "real-trace-validation",
+  "seed": 42,
+  "durationSec": 300,
+  "stepSec": 1,
+  "totalSatellites": 50,
+  "passesFound": 3,
+  "maxSatsVisible": 3,
+  "cacheTimeMs": 26,
+  "simTimeMs": 15,
+  "kpi": {
+    "totalTicks": 237,
+    "wallClockMs": 15.327228999999988,
+    "durationSec": 299,
+    "totalHandovers": 18,
+    "handoverFailures": 0,
+    "unnecessaryHandovers": 0,
+    "pingPongCount": 10,
+    "handoverRate": 3.6120401337792645,
+    "meanHandoverInterruptionMs": 0,
+    "meanSinrDb": -2.534000986107795,
+    "sinrPercentile5Db": -25.372586039403473,
+    "sinrPercentile50Db": 3.759100477180673,
+    "sinrPercentile95Db": 12.829030343647908,
+    "outageRatio": 0.39016877637130803,
+    "meanThroughputMbps": 34.642913444195045,
+    "cellEdgeThroughputMbps": 0.08362121362944246,
+    "meanServiceTimeSec": 236,
+    "serviceAvailability": 0.79,
+    "jainFairnessIndex": 0.8974872108810362
+  }
+}

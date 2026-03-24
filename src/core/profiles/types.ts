@@ -149,6 +149,10 @@ export interface UeConfig {
   distribution: UeDistribution;
   /** UE speed in km/h (0 for static). */
   speed_kmh: number;
+  /** Phase B: each UE has independent serving satellite and HO manager.
+   *  When false (default), all UEs share the same serving satellite (Phase A).
+   *  @see SDD §9.3.2 */
+  independentHandover?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +168,10 @@ export interface ProfileConfig {
   version: string;
 
   orbitMode: OrbitMode;
+  /** Path to OMM JSON file for real-trace mode. Required when orbitMode === 'real-trace'. */
+  tleDataPath?: string;
+  /** Max satellites to load from TLE (performance limit). Default 200. */
+  tleMaxSatellites?: number;
   beamSemantics: BeamSemantics;
 
   observer: ObserverLocation;

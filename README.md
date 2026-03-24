@@ -83,6 +83,9 @@ npm run preview
 7. [驗收與研究聲明 gate](./sdd/ntn-sim-core-acceptance-gates.md)
 8. [assumption policy](./sdd/ntn-sim-core-assumption-policy.md)
 9. [實作狀態](./sdd/ntn-sim-core-implementation-status.md)
+10. [前端波束視覺 SDD](./sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
+11. [前端波束視覺驗收](./sdd/ntn-sim-core-frontend-beam-visual-acceptance.md)
+12. [前端 donor 對應表](./sdd/ntn-sim-core-frontend-donor-mapping.md)
 
 ### 可用指令
 
@@ -319,6 +322,9 @@ The dev server auto-opens the browser and binds to `0.0.0.0:3000`, making it acc
 7. [Acceptance gates](./sdd/ntn-sim-core-acceptance-gates.md)
 8. [Assumption policy](./sdd/ntn-sim-core-assumption-policy.md)
 9. [Implementation status](./sdd/ntn-sim-core-implementation-status.md)
+10. [Frontend beam visual SDD](./sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
+11. [Frontend beam visual acceptance](./sdd/ntn-sim-core-frontend-beam-visual-acceptance.md)
+12. [Frontend donor mapping](./sdd/ntn-sim-core-frontend-donor-mapping.md)
 
 ### Available Scripts
 

@@ -1,8 +1,8 @@
 # NTN Sim Core — Assumption Policy
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Drafted
+**Version:** 1.0.0
+**Date:** 2026-03-25
+**Status:** Active — assumption register added §9
 
 ---
 

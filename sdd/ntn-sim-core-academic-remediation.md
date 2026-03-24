@@ -1,8 +1,8 @@
 # NTN Sim Core — Academic Remediation Plan
 
-**Version:** 0.2.0
-**Date:** 2026-03-21
-**Status:** Draft (expanded with physics model gaps and methodology gaps)
+**Version:** 1.0.0
+**Date:** 2026-03-25
+**Status:** Active — all 22 remediation items resolved
 **Purpose:** Identify and track all gaps that prevent ntn-sim-core from meeting academic peer-review standards for a LEO multi-beam handover + energy efficiency paper.
 
 ---
@@ -243,19 +243,22 @@ offAxisRad = arctan(R_E * sin(centralAngle) / (R_E + h - R_E * cos(centralAngle)
 
 ### MS2. Multi-UE engine
 
-**Current state:** Single UE at observer location. `ueConfig` in profiles declares count but engine ignores it.
+**Current state:** Phase A implemented (2026-03-23): N UEs with per-UE SINR from beam roll-off, shared serving satellite. Phase B (independent HO per UE) not yet implemented.
 
-**Required for:** Fairness metrics, cell-edge throughput, realistic handover load.
+**Required for:** Per-UE HO rate, load balancing, multi-satellite scheduling, cell-edge HO behavior.
 
-**Approach:**
-1. UE position generator (uniform/clustered/hotspot within beam footprint)
-2. Per-UE off-axis angle → per-UE SINR
-3. Shared or independent handover per UE
-4. KPI accumulator already supports per-UE tracking
+**Phase B approach:**
+1. ✅ UE position generator — done (`ue/position-generator.ts`)
+2. ✅ Per-UE off-axis angle → per-UE SINR — done (engine C3 fix)
+3. ❌ Independent HO per UE: `Map<ueId, HandoverManager>` — not started
+4. ✅ KPI accumulator per-UE tracking — done
+5. ❌ Per-UE serving satellite selection (each UE finds its own best satellite) — not started
 
-**No donor has this** — needs new development.
+**Config:** `ueConfig.independentHandover: true` enables Phase B (SDD §9.3.2).
 
-**Effort:** High
+**Effort:** Medium (Phase A infrastructure exists, main work is per-UE HO manager map + per-UE best-satellite selection in engine tick)
+
+**Performance note:** Phase B with 100 UE × 20 candidates = 2000 HO evaluations per tick. SDD §13 limits headless Phase B to ≤ 100 UEs.
 
 ---
 

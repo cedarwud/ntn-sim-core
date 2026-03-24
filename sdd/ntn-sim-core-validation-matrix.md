@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Planned
+**Version:** 1.0.0
+**Date:** 2026-03-25
+**Status:** Active — F-level + E-level passing
 
 ---
 
@@ -59,6 +59,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-HO-004` | handover | MC-HO dual-connectivity events appear in event traces | C2 |
 | `VAL-UE-001` | multi-UE | N>1 UEs produce distinct SINR values per tick | C3 |
 | `VAL-UE-002` | multi-UE | Jain fairness index < 1.0 for N>1 UEs with different positions | C3 |
+| `VAL-UE-003` | multi-UE | Phase B: N>1 UEs have different serving satellite IDs when `independentHandover: true` | MS2 |
 | `VAL-CHAN-003` | channel | Ka-band profile uses Ka-band shadow fading parameters, not S-band | M3 |
 | `VAL-CHAN-004` | channel | Tier 4 atmospheric loss > 0 when enabled for Ka-band | M4 |
 | `VAL-FADING-001` | channel | Tier 5 Shadowed-Rician fading produces non-zero variance under non-deterministic channel | MS1 |
@@ -116,7 +117,7 @@ Each validation check operates at one of two levels:
 | VAL-ARCH-001 | structural | validate-core-purity.mjs |
 | VAL-ARCH-002 | structural | validate-structure.mjs |
 
-**Note:** All current checks are **Formula-level (-F)** or **structural**. Engine-level (-E) checks require a headless benchmark runner that exercises the full `engine.ts → KPI` path. This is tracked as future work — the `-F` level already covers mathematical correctness of individual formulas.
+**Note:** Formula-level (-F) checks use standalone `.mjs` scripts. Engine-level (-E) checks use `golden-case-engine.ts` (via `npx tsx`) which runs the actual `engine.ts` tick loop with fixed seed and locked KPI expectations. Both levels are included in `validate:stage` and currently pass. The `-E` level covers 2 golden cases (case9-access + hobs-multibeam, 300s each, seed=42).
 
 ---
 

@@ -16,6 +16,8 @@ import { loadProfile, resolveProfile } from '@/core/profiles/loader';
 import { generateWalkerConstellation } from '@/core/orbit/walker';
 import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
 import { createSimEngine } from '@/core/engine';
+import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
+import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import {
   createRunManifest,
   createResolvedConfig,
@@ -35,6 +37,8 @@ export interface BenchmarkRunConfig {
   presentationMode?: PresentationMode;
   /** Custom seed override. */
   seedOverride?: number;
+  /** OMM JSON records for real-trace mode. Caller is responsible for loading from file. */
+  tleOmmData?: import('@/core/orbit/tle-loader').OmmRecord[];
 }
 
 export interface BenchmarkRunResult {
@@ -79,9 +83,25 @@ function now(): number {
 }
 
 /**
- * Build Walker constellation elements and trajectory cache from a profile.
+ * Build constellation elements from profile (Walker synthetic or TLE real-trace).
  */
-function buildConstellation(profile: ProfileConfig) {
+function buildElements(
+  profile: ProfileConfig,
+  tleOmmData?: import('@/core/orbit/tle-loader').OmmRecord[],
+): { elements: import('@/core/orbit/types').OrbitElement[]; epochUtcMs: number } {
+  if (profile.orbitMode === 'real-trace' && tleOmmData) {
+    // Real-trace: use provided TLE/OMM data
+    let records = loadOmmRecords(tleOmmData);
+    const maxSats = profile.tleMaxSatellites ?? 200;
+    if (records.length > maxSats) {
+      records = sampleRecords(records, maxSats, profile.seed);
+    }
+    const satrecs = ommToSatrecs(records);
+    const elements = satrecsToOrbitElements(satrecs);
+    return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
+  }
+
+  // Synthetic: Walker constellation
   const elements = generateWalkerConstellation({
     shells: [
       {
@@ -94,6 +114,17 @@ function buildConstellation(profile: ProfileConfig) {
     ],
     epochUtcMs: profile.timeControl.epochUtcMs,
   });
+  return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
+}
+
+/**
+ * Build trajectory cache from profile elements.
+ */
+function buildConstellation(
+  profile: ProfileConfig,
+  tleOmmData?: import('@/core/orbit/tle-loader').OmmRecord[],
+) {
+  const { elements } = buildElements(profile, tleOmmData);
 
   const cache = buildTrajectoryCache({
     elements,
@@ -139,7 +170,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
   const presentationMode = config.presentationMode ?? 'benchmark';
 
   // 3. Build constellation + trajectory cache
-  const trajectoryCache = buildConstellation(profile);
+  const trajectoryCache = buildConstellation(profile, config.tleOmmData);
 
   // 4. Create engine
   const engine = createSimEngine({ profile, trajectoryCache });

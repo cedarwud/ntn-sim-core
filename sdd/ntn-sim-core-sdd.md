@@ -1,8 +1,8 @@
 # NTN Sim Core — Software Design Document
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Planned Baseline
+**Version:** 1.0.0
+**Date:** 2026-03-25
+**Status:** Active — Remediation Complete
 
 ---
 
@@ -99,28 +99,20 @@ Core invariant:
 | viz presenters | `src/viz/presenters/` | benchmark/showcase-specific presentation contracts |
 | scripts | `scripts/` | validation, profile audit, precompute, replay tools |
 
-### 4.1 Current Landed Scope
+### 4.1 Current Landed Scope (updated 2026-03-25)
 
-The following architecture slices are already landed after the preflight refactor:
+All core layers are implemented:
 
-1. `src/app`
-2. `src/assets`
-3. `src/config`
-4. `src/viz`
-5. `scripts/validate-*`
+1. `src/core/` — 58 modules: orbit, channel (6 tiers), handover (7 types), beam, energy (L1+L2), KPI, UE (multi-UE + mobility), traffic, policy interface, trace
+2. `src/runner/headless/` — benchmark runner with end-to-end tick loop, KPI bundle output
+3. `src/runner/replay/` — skeleton only (controller returns empty snapshots)
+4. `src/runner/curation/` — pass ranker and window selector exist
+5. `src/app/`, `src/viz/` — frontend shell and visualization layers
+6. `scripts/` — 9 validation scripts including formula-level (-F) and engine-level (-E) tests
 
-The following layers currently exist only as placeholders and are not yet simulation-truth implementations:
-
-1. `src/core/**`
-2. `src/runner/**`
-
-Legacy shell paths removed by preflight:
-
-1. `src/App.tsx`
-2. `src/components/**`
-3. mixed physical + visual config in a single `ntpu.config.ts`
-
-This means the codebase now matches the SDD's top-level ownership model, but it does not yet contain the research runtime.
+Not yet wired:
+1. `src/runner/headless/benchmark-runner.ts` only builds Walker synthetic constellations (TLE path not wired)
+2. `src/runner/replay/controller.ts` returns empty snapshots
 
 ---
 
@@ -332,6 +324,19 @@ Must support:
 
 All handover types support propagation delay (RTT) in TTT calculation: `effectiveTTT = baseTTT + 2·propagationDelayMs`.
 
+#### 9.3.2 Multi-UE Handover Modes
+
+| Mode | Config | Behavior | Use Case |
+|---|---|---|---|
+| Phase A (shared serving) | `ueConfig.independentHandover: false` (default) | All UEs share the same serving satellite and HO decision. Per-UE SINR differs by off-axis angle. | SINR CDF, throughput fairness, beam-level EE studies |
+| Phase B (independent HO) | `ueConfig.independentHandover: true` | Each UE has its own serving satellite and HO manager. UEs near beam edge may be served by different satellites. | Per-UE HO rate, load balancing, multi-satellite scheduling, cell-edge HO behavior |
+
+Phase B implications:
+1. N UE × 1 `HandoverManager` each → N independent HO state machines
+2. Each UE selects its best serving satellite based on its own position → own SINR
+3. HO events are per-UE → total HO count scales with UE count
+4. KPI accumulator already supports per-UE tracking (no change needed)
+
 #### 9.3.1 Handover Type Summary
 
 | Type | Module | FSM States | Key Config | Paper Source |
@@ -344,7 +349,7 @@ All handover types support propagation delay (RTT) in TTT calculation: `effectiv
 | mc-ho | `mc-ho.ts` | idle → attached → mc-preparing → mc-dual-active → attached | mc_max_dual_sec | PAP-2024-MCCHO-CORE |
 | daps | `daps.ts` | idle → single-active → prepared → dual-active → path-switched → single-active | preparationTimeSec, maxDualActiveSec | PAP-2025-DAPS-CORE |
 
-#### 9.3.2 Continuity Literature Roles
+#### 9.3.3 Continuity Literature Roles
 
 Core implementation references:
 
@@ -486,7 +491,8 @@ Defines scale limits per simulation mode. Exceeding these limits risks framerate
 |---|---|---|
 | Satellites | ≤ 2000 | Memory for trajectory cache |
 | Beams per satellite | ≤ 37 | 37-beam = 3 hex rings |
-| UEs | ≤ 500 | O(N×M) SINR loop feasibility |
+| UEs (Phase A shared HO) | ≤ 500 | O(N×M) SINR loop, 1 HO manager |
+| UEs (Phase B independent HO) | ≤ 100 | O(N×M) SINR + N HO managers × M candidates per tick |
 | Tick rate | unconstrained | No framerate requirement |
 | Cache build time | ≤ 60 s | CI/CD budget |
 

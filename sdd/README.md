@@ -45,6 +45,12 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - defines claim levels, artifact bundles, tolerance lifecycle, and blocker-aware reproduction rules
 14. `ntn-sim-core-reproduction-targets.md`
    - defines 3 reference paper reproduction targets with profiles, tolerances, and comparison workflow
+15. `ntn-sim-core-frontend-beam-visual-sdd.md`
+   - normative frontend beam-rendering contract + §12 implementation checklist (MS3, MS4, TLE frontend, replay)
+16. `ntn-sim-core-frontend-beam-visual-acceptance.md`
+   - acceptance criteria for beam visualization (7 role semantics, browser screenshot evidence)
+17. `ntn-sim-core-frontend-donor-mapping.md`
+   - donor repo → frontend module mapping (leo-beam-sim, leo-simulator, beamHO-bench)
 
 ## Working Rule
 

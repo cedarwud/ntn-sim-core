@@ -7,11 +7,16 @@
  * Usage: npx tsx scripts/run-baseline.ts [profileId] [durationSec]
  */
 
-import { CASE9_ACCESS_BASELINE, HOBS_MULTIBEAM_BASELINE, BH_RESOURCE_BASELINE } from '../src/core/profiles/defaults';
+import { CASE9_ACCESS_BASELINE, HOBS_MULTIBEAM_BASELINE, BH_RESOURCE_BASELINE, REAL_TRACE_VALIDATION } from '../src/core/profiles/defaults';
 import { generateWalkerConstellation } from '../src/core/orbit/walker';
 import { buildTrajectoryCache } from '../src/core/orbit/trajectory-cache';
+import { loadOmmRecords, ommToSatrecs, sampleRecords } from '../src/core/orbit/tle-loader';
+import { satrecsToOrbitElements } from '../src/core/orbit/sgp4-adapter';
 import { createSimEngine } from '../src/core/engine';
 import type { ProfileConfig } from '../src/core/profiles/types';
+import type { OrbitElement } from '../src/core/orbit/types';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -25,6 +30,7 @@ const PROFILES: Record<string, unknown> = {
   'case9-access-baseline': CASE9_ACCESS_BASELINE,
   'hobs-multibeam-baseline': HOBS_MULTIBEAM_BASELINE,
   'bh-resource-baseline': BH_RESOURCE_BASELINE,
+  'real-trace-validation': REAL_TRACE_VALIDATION,
 };
 const profileObj = PROFILES[profileId];
 if (!profileObj) {
@@ -53,16 +59,31 @@ console.log();
 console.log('Building constellation...');
 const t0 = performance.now();
 
-const elements = generateWalkerConstellation({
-  shells: [{
-    id: `${profile.id}-shell`,
-    altitudeKm: profile.orbital.altitude_km,
-    inclinationDeg: profile.orbital.inclination_deg,
-    planes: profile.orbital.num_planes,
-    satsPerPlane: profile.orbital.sats_per_plane,
-  }],
-  epochUtcMs: profile.timeControl.epochUtcMs,
-});
+let elements: OrbitElement[];
+if (profile.orbitMode === 'real-trace' && profile.tleDataPath) {
+  // TLE/OMM path
+  const raw = JSON.parse(readFileSync(resolve(profile.tleDataPath), 'utf-8'));
+  let records = loadOmmRecords(raw);
+  const maxSats = profile.tleMaxSatellites ?? 200;
+  if (records.length > maxSats) {
+    records = sampleRecords(records, maxSats, profile.seed);
+  }
+  const satrecs = ommToSatrecs(records);
+  elements = satrecsToOrbitElements(satrecs);
+  console.log(`  TLE loaded: ${records.length} records → ${elements.length} elements`);
+} else {
+  // Walker synthetic
+  elements = generateWalkerConstellation({
+    shells: [{
+      id: `${profile.id}-shell`,
+      altitudeKm: profile.orbital.altitude_km,
+      inclinationDeg: profile.orbital.inclination_deg,
+      planes: profile.orbital.num_planes,
+      satsPerPlane: profile.orbital.sats_per_plane,
+    }],
+    epochUtcMs: profile.timeControl.epochUtcMs,
+  });
+}
 
 console.log(`  Satellites: ${elements.length}`);
 
