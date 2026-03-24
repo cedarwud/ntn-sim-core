@@ -1,8 +1,8 @@
 # NTN Sim Core — Reproduction Protocol
 
-**Version:** 0.1.0  
-**Date:** 2026-03-23  
-**Status:** Draft v0
+**Version:** 1.0.0
+**Date:** 2026-03-23
+**Status:** Active
 
 ---
 
@@ -90,20 +90,20 @@ Rules:
 
 ## 6. Blocker-to-Claim Mapping
 
-The current remediation tracker affects claim eligibility as follows:
+The remediation tracker status as of 2026-03-23:
 
-| Blocker | Claim Types It Blocks |
-|---|---|
-| `C1` interfering links use wrong path loss | any locked SINR, multibeam, HO, or EE claim that depends on interference-aware received power |
-| `C2` CHO / MC-HO missing | any locked claim about CHO, MC-HO, timer-CHO, or later continuity baselines |
-| `C3` single-UE engine | any locked fairness, multi-user throughput, load-balancing, or multi-UE HO claim |
-| `M2` nadir-only `theta_3dB` approximation | locked off-nadir beam-shape or multibeam coverage claims |
-| `M3` wrong Ka-band shadow-fading table | locked Ka-band multibeam or BH channel claims |
-| `M4` atmospheric loss always zero | locked Ka-band attenuation, availability, or EE claims where atmospheric loss matters |
-| `M7` solar / shadow simplification | locked energy layer 2 and onboard-energy claims |
-| `M8` flat-Earth off-axis approximation | locked beam geometry and off-axis gain claims |
+| Blocker | Claim Types It Blocked | Status |
+|---|---|---|
+| `C1` interfering links use wrong path loss | SINR, multibeam, HO, EE claims | ✅ Fixed — per-interferer path loss |
+| `C2` CHO / MC-HO missing | CHO, MC-HO, timer-CHO claims | ✅ Fixed — cho.ts, mc-ho.ts |
+| `C3` single-UE engine | fairness, multi-user claims | ✅ Fixed — multi-UE Phase A |
+| `M2` nadir-only `theta_3dB` | off-nadir beam claims | ✅ Fixed — slant range θ_3dB |
+| `M3` wrong Ka-band shadow-fading | Ka-band channel claims | ✅ Fixed — Ka-band tables |
+| `M4` atmospheric loss always zero | Ka-band attenuation claims | ✅ Fixed — ITU-R simplified |
+| `M7` solar / shadow simplification | energy L2 claims | ✅ Fixed — beta angle geometry |
+| `M8` flat-Earth off-axis | beam geometry claims | ✅ Fixed — spherical geometry |
 
-This list does not forbid development work. It defines when a tolerance may remain only `tbd` or `provisional`.
+**All blockers cleared.** Tolerances may now advance from `tbd` to `provisional`, and from `provisional` to `locked` after stable benchmark comparisons.
 
 ---
 

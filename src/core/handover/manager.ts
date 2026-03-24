@@ -87,10 +87,16 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
   /** Track previous serving sat for ping-pong detection. */
   let previousServingSatId: string | null = null;
 
-  const tttSec = config.ttt_ms / 1000;
+  const baseTttSec = config.ttt_ms / 1000;
 
   const checkCondition =
     config.type === 'a3-event' ? a3Condition : a4Condition;
+
+  /** Effective TTT accounts for propagation RTT (P2 fix). */
+  function effectiveTttSec(delayMs?: number): number {
+    if (!delayMs) return baseTttSec;
+    return baseTttSec + 2 * delayMs / 1000; // add RTT
+  }
 
   function emit(event: HandoverEvent): void {
     state.events.push(event);
@@ -148,7 +154,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
         reason: 'handover condition met, TTT started',
       });
       // For hard-ho (ttt=0), fall through to execute immediately
-      if (tttSec <= 0) {
+      if (baseTttSec <= 0) {
         return tickPreparing(input, eligible);
       }
       return { type: 'none', reason: 'TTT started' };
@@ -177,9 +183,9 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     // Update pending target to current best (it may have changed)
     state.pendingTarget = best!;
 
-    // Check TTT expiry
+    // Check TTT expiry (P2: accounts for propagation RTT)
     const elapsed = input.timeSec - state.tttStartTimeSec!;
-    if (elapsed < tttSec) {
+    if (elapsed < effectiveTttSec(input.propagationDelayMs)) {
       return { type: 'none', reason: 'TTT running' };
     }
 

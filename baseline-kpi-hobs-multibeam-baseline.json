@@ -1,0 +1,32 @@
+{
+  "profile": "hobs-multibeam-baseline",
+  "seed": 42,
+  "durationSec": 300,
+  "stepSec": 1,
+  "totalSatellites": 528,
+  "passesFound": 37,
+  "maxSatsVisible": 28,
+  "cacheTimeMs": 128,
+  "simTimeMs": 94,
+  "kpi": {
+    "totalTicks": 300,
+    "wallClockMs": 93.54586400000002,
+    "durationSec": 299,
+    "totalHandovers": 1,
+    "handoverFailures": 0,
+    "unnecessaryHandovers": 1,
+    "pingPongCount": 0,
+    "handoverRate": 0.20066889632107024,
+    "meanHandoverInterruptionMs": 0,
+    "meanSinrDb": -10.398111197545827,
+    "sinrPercentile5Db": -23.59477458383014,
+    "sinrPercentile50Db": -10.981624377634255,
+    "sinrPercentile95Db": 6.079012685086748,
+    "outageRatio": 0.6711333333333334,
+    "meanThroughputMbps": 44.2078106823615,
+    "cellEdgeThroughputMbps": 0.6291437149090988,
+    "meanServiceTimeSec": 299,
+    "serviceAvailability": 1,
+    "jainFairnessIndex": 0.29911248066564583
+  }
+}

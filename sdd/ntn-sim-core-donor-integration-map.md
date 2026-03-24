@@ -1,8 +1,8 @@
 # NTN Sim Core — Donor Integration Map
 
-**Version:** 0.1.0  
-**Date:** 2026-03-23  
-**Status:** Draft v0
+**Version:** 1.0.0
+**Date:** 2026-03-23
+**Status:** Active
 
 ---
 

@@ -16,7 +16,9 @@
     "validate:runtime": "node scripts/validate-runtime.mjs",
     "validate:golden-orbit": "node scripts/golden-case-orbit.mjs",
     "validate:golden-channel": "node scripts/golden-case-channel.mjs",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:golden-orbit && npm run validate:golden-channel"
+    "validate:golden-engine": "npx tsx scripts/golden-case-engine.ts",
+    "validate:baseline": "npx tsx scripts/run-baseline.ts",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine"
   },
   "keywords": [
     "3d",

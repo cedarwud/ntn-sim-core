@@ -1,8 +1,8 @@
 # NTN Sim Core — Paper Family Matrix
 
-**Version:** 0.1.0  
-**Date:** 2026-03-23  
-**Status:** Draft v0
+**Version:** 1.0.0
+**Date:** 2026-03-23
+**Status:** Active
 
 ---
 
@@ -49,11 +49,11 @@ If a conflict appears:
 
 | Family ID | Primary Profile / Mode | Primary Paper Cluster | Orbit Truth | Beam Semantics | Main Model Focus | KPI / Claim Scope | Primary Donors | Current Claim Blockers |
 |---|---|---|---|---|---|---|---|---|
-| `FAM-ACCESS-SYNTH` | `case9-access-baseline` | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2024-MCCHO-CORE`, `PAP-2025-TIMERCHO-CORE` | synthetic Walker / analytic LEO | earth-moving access beams | Tier 0-2 access channel, event-based HO, deterministic KPI path | access SINR, HO events, throughput proxy, fairness; first access benchmark family | `beamHO-bench`, `leo-beam-sim` | `C1`, `C2`, `C3` |
-| `FAM-MB-HOBS-SYNTH` | `hobs-multibeam-baseline` | `PAP-2024-HOBS`, `PAP-2024-MADRL-CORE`, `PAP-2021-SHADOWED-RICIAN` | synthetic Walker / analytic LEO | earth-moving multibeam | interference-aware SINR, active-beam truth, Bessel-family gain, energy layer 1 | multi-beam SINR, beam switching, EE-L1, overlap/serviceability | `leo-beam-sim`, `beamHO-bench` | `C1`, `M2`, `M3`, `M4`, `M8` |
-| `FAM-BH-SYNTH` | `bh-resource-baseline` | `PAP-2026-BHFREQREUSE`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-EEBH-UPLINK`, `PAP-2024-QMIXBH` | synthetic LEO shell | earth-fixed / BH-slot | scheduler truth, reuse policy, cell-slot activity, energy layer 2 | BH scheduling, per-cell service, resource efficiency, later EE-L2 | `beamHO-bench`, `leo-beam-sim` | `M3`, `M4`, `M7`, `P3`, `MS4` |
-| `FAM-RT-ACCESS-VALID` | `real-trace-validation` + access family | TLE-backed access / HO validation papers | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-ACCESS-SYNTH` | orbit realism, timing realism, replay curation, cross-mode parity | validates access-family timing realism; does not define new beam/channel family | `beamHO-bench`, `ntn-stack`, `leo-simulator` | Phase 4 wiring gaps plus `FAM-ACCESS-SYNTH` blockers |
-| `FAM-RT-MB-VALID` | `real-trace-validation` + multibeam or BH family | real-trace multibeam / BH validation studies | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-MB-HOBS-SYNTH` or `FAM-BH-SYNTH` | cross-mode parity under real constellation timing | validates whether multibeam/BH conclusions survive real-trace orbit timing | `ntn-stack`, `leo-simulator`, `beamHO-bench` | Phase 4 wiring gaps plus inherited family blockers |
+| `FAM-ACCESS-SYNTH` | `case9-access-baseline` | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2024-MCCHO-CORE`, `PAP-2025-TIMERCHO-CORE` | synthetic Walker / analytic LEO | earth-moving access beams | Tier 0-5 access channel, event-based HO (A3/A4/CHO/Timer-CHO/MC-HO/DAPS), multi-UE, deterministic KPI path | access SINR, HO events, throughput proxy, fairness | `beamHO-bench`, `leo-beam-sim` | ✅ none (C1/C2/C3 fixed 2026-03-23) |
+| `FAM-MB-HOBS-SYNTH` | `hobs-multibeam-baseline` | `PAP-2024-HOBS`, `PAP-2024-MADRL-CORE`, `PAP-2021-SHADOWED-RICIAN` | synthetic Walker / analytic LEO | earth-moving multibeam | interference-aware SINR (per-interferer), active-beam truth, Bessel/3GPP gain, EE-L1, Tier 5 SR fading | multi-beam SINR, beam switching, EE-L1, overlap/serviceability | `leo-beam-sim`, `beamHO-bench` | ✅ none (C1/M2/M3/M4/M8 fixed 2026-03-23) |
+| `FAM-BH-SYNTH` | `bh-resource-baseline` | `PAP-2026-BHFREQREUSE`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-EEBH-UPLINK`, `PAP-2024-QMIXBH` | synthetic LEO shell | earth-fixed / BH-slot | scheduler truth, reuse policy (FRF formalized), cell-slot activity, EE-L2 with beta angle, traffic model | BH scheduling, per-cell service, resource efficiency, EE-L2 | `beamHO-bench`, `leo-beam-sim` | ✅ none (M3/M4/M7/P3 fixed 2026-03-23); MS4 (cell viz) deferred — viz only |
+| `FAM-RT-ACCESS-VALID` | `real-trace-validation` + access family | TLE-backed access / HO validation papers | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-ACCESS-SYNTH` | orbit realism, timing realism, replay curation, cross-mode parity | validates access-family timing realism; does not define new beam/channel family | `beamHO-bench`, `ntn-stack`, `leo-simulator` | Phase 4 wiring gaps (TLE path not wired in runner) |
+| `FAM-RT-MB-VALID` | `real-trace-validation` + multibeam or BH family | real-trace multibeam / BH validation studies | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-MB-HOBS-SYNTH` or `FAM-BH-SYNTH` | cross-mode parity under real constellation timing | validates whether multibeam/BH conclusions survive real-trace orbit timing | `ntn-stack`, `leo-simulator`, `beamHO-bench` | Phase 4 wiring gaps |
 
 ---
 
@@ -96,11 +96,11 @@ Rationale:
 
 | Family | Engineering / Debug | Benchmark Artifact | Family-Faithful Reproduction | Paper Claim |
 |---|---|---|---|---|
-| `FAM-ACCESS-SYNTH` | allowed | allowed after phase gates | allowed after `C1`, deterministic HO trace, and golden cases | blocked until `C1`, `C2`, `C3` are cleared for the relevant claim |
-| `FAM-MB-HOBS-SYNTH` | allowed | allowed after multibeam validation gates | allowed after interference, beam geometry, and Ka-band channel gaps are controlled | blocked until `C1`, `M2`, `M3`, `M4`, `M8` are cleared for the relevant claim |
-| `FAM-BH-SYNTH` | allowed | allowed for engineering BH studies with disclosure | allowed after scheduler semantics, traffic inputs, and energy assumptions are explicit | blocked until BH-specific scheduler and energy fidelity gaps are cleared |
-| `FAM-RT-ACCESS-VALID` | allowed | allowed for parity and timing studies | allowed after synthetic access family is already credible and Phase 4 parity passes | blocked until both access family and real-trace parity gates pass |
-| `FAM-RT-MB-VALID` | allowed | allowed for exploratory cross-mode checks | allowed only after the inherited synthetic family and Phase 4 parity both pass | blocked until inherited family blockers and replay parity blockers are cleared |
+| `FAM-ACCESS-SYNTH` | allowed | allowed | ✅ allowed — all blockers cleared (C1/C2/C3), reproduction target RT-1/RT-3 defined | allowed with `provisional` tolerance; advance to `locked` after stable benchmark |
+| `FAM-MB-HOBS-SYNTH` | allowed | allowed | ✅ allowed — all blockers cleared (C1/M2/M3/M4/M8), reproduction target RT-2 defined | allowed with `provisional` tolerance |
+| `FAM-BH-SYNTH` | allowed | allowed | ✅ allowed — scheduler/traffic/energy gaps cleared, FRF formalized | allowed with `provisional` tolerance; scheduler is generic baseline (disclosed) |
+| `FAM-RT-ACCESS-VALID` | allowed | allowed for parity studies | allowed after Phase 4 TLE wiring | blocked until Phase 4 TLE path wired in runner |
+| `FAM-RT-MB-VALID` | allowed | allowed for exploratory checks | allowed after Phase 4 parity | blocked until Phase 4 replay parity |
 
 ---
 

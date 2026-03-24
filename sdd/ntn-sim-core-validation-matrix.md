@@ -82,7 +82,45 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 
 ---
 
-## 3. Reference Numeric Checkpoints
+## 3. Validation Level Split (MG4)
+
+Each validation check operates at one of two levels:
+
+| Level | Suffix | Meaning | Test Infrastructure |
+|---|---|---|---|
+| **Formula** | `-F` | Isolated formula check, standalone script re-implements math | `validate-runtime.mjs`, `golden-case-*.mjs` |
+| **Engine** | `-E` | End-to-end engine path check, runs actual `engine.ts` tick loop | `benchmark-runner` (headless), future `validate-integration.mjs` |
+
+### Current Coverage
+
+| VAL ID | Level | Script |
+|---|---|---|
+| VAL-RNG-001 | F | validate-runtime.mjs |
+| VAL-ORB-002 | F | validate-runtime.mjs, golden-case-orbit.mjs |
+| VAL-CHAN-001 | F | validate-runtime.mjs, golden-case-channel.mjs |
+| VAL-CHAN-002 | F | golden-case-channel.mjs |
+| VAL-HO-001 | F | validate-runtime.mjs |
+| VAL-SINR-001 | F | validate-runtime.mjs |
+| VAL-SINR-002 | F | validate-runtime.mjs |
+| VAL-EE-001 | F | validate-runtime.mjs |
+| VAL-EE-002 | F | validate-runtime.mjs |
+| VAL-BH-001 | F | validate-runtime.mjs |
+| VAL-DAPS-002 | F | validate-runtime.mjs |
+| VAL-HO-003 | F | validate-runtime.mjs |
+| VAL-HO-004 | F | validate-runtime.mjs |
+| VAL-UE-001 | F | validate-runtime.mjs |
+| VAL-UE-002 | F | validate-runtime.mjs |
+| VAL-CHAN-003 | F | validate-runtime.mjs |
+| VAL-CHAN-004 | F | validate-runtime.mjs |
+| VAL-FADING-001 | F | validate-runtime.mjs |
+| VAL-ARCH-001 | structural | validate-core-purity.mjs |
+| VAL-ARCH-002 | structural | validate-structure.mjs |
+
+**Note:** All current checks are **Formula-level (-F)** or **structural**. Engine-level (-E) checks require a headless benchmark runner that exercises the full `engine.ts → KPI` path. This is tracked as future work — the `-F` level already covers mathematical correctness of individual formulas.
+
+---
+
+## 4. Reference Numeric Checkpoints
 
 These checks are formula-level checkpoints with explicit assumptions. They are intentionally narrower than full paper-result replication.
 

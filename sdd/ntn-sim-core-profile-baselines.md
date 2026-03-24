@@ -82,8 +82,10 @@ The intent is to be concrete enough for implementation and review, without prete
 | constellation size | `165 satellites` equivalent | profile-declared synthetic reproduction of the HOBS constellation scale | `PAP-2024-HOBS` | exact orbit generator may differ but must be declared |
 | carrier frequency | `28 GHz` | fixed HOBS baseline | `PAP-2024-HOBS` | do not silently downgrade to 20 GHz |
 | bandwidth | `100 MHz` | fixed HOBS baseline | `PAP-2024-HOBS` | must remain explicit in source trace |
+| EIRP density | `46 dBW/MHz` | Ka-band adjusted | `PAP-2024-HOBS` | Ka-band requires +12 dB vs S-band to partially compensate ~22 dB additional FSPL (2026-03-23 correction from 34→46) |
 | max transmit power | `50 dBm` | fixed HOBS baseline unless sensitivity-tagged | `PAP-2024-HOBS` | used for energy layer 1 and SINR |
-| beams per satellite | `37` | fixed at `37` for HOBS paper-default | `PAP-2024-HOBS` | do not collapse to 19/7 for the main multibeam baseline |
+| beams per satellite | `19` | FRF=3, 2-ring hexagonal | `PAP-2024-HOBS` | changed from 37 (FRF=1) to 19 (FRF=3) after engine validation: 37-beam FRF=1 produces catastrophic co-channel interference (-20 dB mean SINR); 19-beam FRF=3 is standard multi-beam configuration (2026-03-23 correction) |
+| frequency reuse factor | `3` | 3-color hexagonal | `PAP-2024-HOBS` | changed from FRF=1 to FRF=3 for physically meaningful SINR (2026-03-23 correction) |
 | beam gain model | Bessel J1 family | Bessel-based family, exact variant profile-declared | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN` | see Section 8 |
 | power control | HOBS-style DPC family | profile-declared DPC or fixed-power variant | `PAP-2024-HOBS` | implementation must document exact rule used |
 | energy metric | system EE = throughput / power | HOBS-style EE family | `PAP-2024-HOBS` | see Section 9 |
@@ -108,7 +110,8 @@ The intent is to be concrete enough for implementation and review, without prete
 | Parameter | v1 Default | Source Anchors | Notes |
 |---|---|---|---|
 | altitude | `780 km` | `PAP-2026-BHFREQREUSE` | direct BH + SFR anchor |
-| constellation | `66 satellites (6 x 11)` | `PAP-2026-BHFREQREUSE` | good first full-network BH resource profile |
+| constellation | `324 satellites (18 x 18)` | scaled from `PAP-2026-BHFREQREUSE` | original 66 sats (6×11) gave only 13% availability at 40°N observer; scaled to 324 for ≥80% coverage (2026-03-23 correction) |
+| EIRP density | `46 dBW/MHz` | Ka-band adjusted | scaled from 34; Ka-band FSPL compensation (2026-03-23 correction) |
 | beams per satellite | `12` | `PAP-2026-BHFREQREUSE` | closer to scheduling/resource studies than 4-beam toy variants |
 | beam semantics | earth-fixed / BH-slot | BH literature | scheduler truth, not just visualization |
 | reuse model | `soft frequency reuse` | `PAP-2026-BHFREQREUSE` | key differentiator of this subprofile |
@@ -169,7 +172,8 @@ Those remain tied to the synthetic profile family or paper baseline being valida
 | Tier 2 | clutter / elevation-dependent large-scale attenuation | mandatory for 3GPP-aligned access baselines, recommended for real-trace access validation | `case9-access-baseline`, `real-trace-validation` | `PAP-2022-SINR-ELEVATION` |
 | Tier 3 | beam gain family | mandatory for multi-beam or BH studies | `hobs-multibeam-baseline`, `bh-resource-baseline` | `PAP-2021-SHADOWED-RICIAN`, `PAP-2024-HOBS` |
 | Tier 4 | atmospheric absorption and other Ka-band extras | recommended when using Ka-band paper-default runs | `hobs-multibeam-baseline`, `bh-resource-baseline` | Ka-band papers |
-| Tier 5 | small-scale fading (Shadowed-Rician / Rician / Loo) | optional extension or advanced validation branch | any profile, but not v1 default | `PAP-2021-SHADOWED-RICIAN` and related fading papers |
+| Tier 5 | small-scale fading: Shadowed-Rician (SR) model — Nakagami-m LOS + Rayleigh scatter, elevation-dependent parameters | recommended for channel completeness claims | any profile with `tier5_fading: true` | `PAP-2021-SHADOWED-RICIAN`; implemented in `small-scale-fading.ts` |
+| Tier 6 | Doppler shift and ICI SINR degradation | available for Doppler-sensitive studies | any profile | `PAP-2024-BEAM-MGMT-SPECTRUM`; implemented in `doppler.ts`, not yet wired into engine SINR |
 
 ### 8.2 Beam-Gain Mapping by Profile
 

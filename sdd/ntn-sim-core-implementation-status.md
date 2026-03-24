@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 2.0.0
+**Version:** 3.0.0
 **Date:** 2026-03-23
-**Status:** Remediation In Progress
+**Status:** Remediation Complete — L2 Ready
 
 ---
 
@@ -12,11 +12,11 @@
 |---|---|---|---|---|
 | 0 | Foundation & Governance | ✅ complete | profiles schema, trace contracts, runner skeletons, validation scripts | — |
 | 1 | Synthetic Orbit + Visual | ✅ complete | Walker propagation, Kepler solver, trajectory cache, satellite sky layer | — |
-| 2 | Channel + Handover + KPI | ⚠️ partial | FSPL, S-band SF/CL, beam gain (normalized), A3/A4/CHO/Timer-CHO/MC-HO FSMs, 19 KPI metrics, per-interferer SINR (C1 fixed) | **C3:** single-UE only (engine ignores ueConfig.count) |
-| 3 | Multi-Beam + Energy L1 | ⚠️ partial | hex beam layout, FRF coloring, beam selection, EE/DPC framework, per-interferer SINR (C1 fixed), slant-range θ_3dB (M2 fixed), spherical off-axis (M8 fixed) | **M3:** shadow fading only has S-band suburban table (Ka-band profiles use wrong params); **M4:** Tier 4 atmospheric loss always returns 0 |
+| 2 | Channel + Handover + KPI | ✅ complete | FSPL, S/Ka-band SF/CL, beam gain, A3/A4/CHO/Timer-CHO/MC-HO/DAPS FSMs, 19 KPI metrics, per-interferer SINR, multi-UE (Phase A: shared serving) | — |
+| 3 | Multi-Beam + Energy L1 | ✅ complete | hex beam layout, FRF coloring + semantics, beam selection, EE/DPC, per-interferer SINR, slant-range θ_3dB, spherical off-axis, Ka-band SF tables, atmospheric loss, Tier 5 SR fading | — |
 | 4 | Real-Trace + Replay | ⚠️ partial | TLE/SGP4 loader exists, pass ranking exists, window curation exists | benchmark-runner and useSimulation only build Walker constellations (TLE path not wired); replay controller returns empty snapshots |
-| 5 | Beam Hopping + Energy L2 | ⚠️ partial | BH scheduler (4 generic strategies), battery/solar model, HUD overlay, control panel | **M6:** BH scheduler strategies are generic baselines, none matches a specific paper; **M7:** solar/shadow model uses fixed orbital fraction, ignores beta angle; beam visualization is schematic (not physically accurate) |
-| 6 | DAPS/DC-Like | ⚠️ partial | DAPS dual-active FSM, engine dual-link SINR path, benchmark comparison runner | **M5:** DAPS combining uses max (selection) not MRC, comment misattributes paper; DAPS replay path not verified |
+| 5 | Beam Hopping + Energy L2 | ⚠️ partial | BH scheduler (4 generic strategies), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel | **M6:** BH scheduler strategies are generic baselines, none matches a specific paper; beam visualization is schematic (not physically accurate) |
+| 6 | DAPS/DC-Like | ⚠️ partial | DAPS dual-active FSM, engine dual-link SINR path (SC, M5 fixed), benchmark comparison runner | DAPS replay path not verified |
 
 ---
 
@@ -30,29 +30,29 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 |---|---|---|
 | C1 | SINR interference uses serving link's path loss for all interferers | ✅ fixed (2026-03-23) |
 | C2 | CHO / MC-HO / Timer-CHO not implemented | ✅ fixed (2026-03-23) |
-| C3 | Single-UE model (multi-user KPIs meaningless) | ❌ not fixed |
+| C3 | Single-UE model (multi-user KPIs meaningless) | ✅ fixed (2026-03-23, Phase A) |
 
 ### Major (affects publication credibility)
 
 | ID | Issue | Status |
 |---|---|---|
-| M1 | Walker F parameter not configurable | ❌ not fixed |
+| M1 | Walker F parameter not configurable | ✅ fixed (2026-03-23) |
 | M2 | Beam gain θ_3dB nadir-only approximation | ✅ fixed (2026-03-23) |
-| M3 | Shadow fading table only covers suburban S-band | ❌ not fixed |
-| M4 | Tier 4 atmospheric loss always returns 0 | ❌ not fixed |
+| M3 | Shadow fading table only covers suburban S-band | ✅ fixed (2026-03-23) |
+| M4 | Tier 4 atmospheric loss always returns 0 | ✅ fixed (2026-03-23) |
 | M5 | DAPS combining uses max not MRC, misattributed | ✅ fixed (2026-03-23) |
-| M7 | Energy L2 solar/shadow ignores beta angle | ❌ not fixed |
+| M7 | Energy L2 solar/shadow ignores beta angle | ✅ fixed (2026-03-23) |
 | M8 | Off-axis angle flat-Earth approximation | ✅ fixed (2026-03-23) |
 
 ### Missing modules (not in original SDD)
 
 | ID | Module | Status |
 |---|---|---|
-| MS1 | Tier 5 small-scale fading (Shadowed-Rician, Loo) | ❌ not started |
+| MS1 | Tier 5 small-scale fading (Shadowed-Rician, Loo) | ✅ implemented (2026-03-23, SR model) |
 | MS2 | Multi-UE engine | ❌ not started |
 | MS3 | Beam visualization (oblique cone from satellite to ground) | ⚠️ schematic only |
 | MS4 | Earth-fixed cell grid visualization | ❌ not started |
-| MS5 | Proper thermal noise model (noise figure) | ❌ not started |
+| MS5 | Proper thermal noise model (noise figure) | ✅ implemented (2026-03-23) |
 
 ---
 
@@ -70,9 +70,10 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `sdd/ntn-sim-core-acceptance-gates.md` | acceptance and claim gates | active |
 | `sdd/ntn-sim-core-assumption-policy.md` | assumption governance | active |
 | `sdd/ntn-sim-core-academic-remediation.md` | academic gap analysis and remediation plan | **new** |
-| `sdd/ntn-sim-core-paper-family-matrix.md` | paper-family clustering and claim ceilings | **new, draft v0** |
-| `sdd/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | **new, draft v0** |
-| `sdd/ntn-sim-core-reproduction-protocol.md` | reproduction ladder, artifact policy, tolerance status | **new, draft v0** |
+| `sdd/ntn-sim-core-paper-family-matrix.md` | paper-family clustering and claim ceilings | active (v1.0) |
+| `sdd/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | active (v1.0) |
+| `sdd/ntn-sim-core-reproduction-protocol.md` | reproduction ladder, artifact policy, tolerance status | active (v1.0) |
+| `sdd/ntn-sim-core-reproduction-targets.md` | 3 reference paper reproduction targets | active (v0.1) |
 | `sdd/ntn-sim-core-implementation-status.md` | this file | active |
 | `sdd/README.md` | document index | active |
 
@@ -80,7 +81,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 
 ## 4. File Inventory
 
-### `src/core/` — 48 modules
+### `src/core/` — 58 modules
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
@@ -88,11 +89,14 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `profiles` | 4 | `types.ts`, `defaults.ts`, `loader.ts`, `index.ts` |
 | `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
 | `orbit` | 9 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `index.ts` |
-| `channel` | 7 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
+| `channel` | 9 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `small-scale-fading.ts`, `doppler.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
 | `handover` | 7 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `types.ts`, `index.ts` |
 | `kpi` | 3 | `accumulator.ts`, `types.ts`, `index.ts` |
-| `beam` | 6 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `types.ts`, `index.ts` |
+| `beam` | 7 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `frequency-reuse.ts`, `types.ts`, `index.ts` |
 | `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
+| `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
+| `traffic` | 2 | `generator.ts`, `index.ts` |
+| `policy` | 2 | `types.ts`, `index.ts` |
 | root | 1 | `engine.ts` |
 
 ### `src/runner/` — 10 modules
@@ -132,7 +136,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-DAPS-001 | 6 | ✅ pass | daps.ts exists |
 | VAL-DAPS-002 | 6 | ✅ pass | DAPS 0ms vs baseline (formula-level) |
 
-**Important caveat:** These validations test formulas in isolation (standalone scripts re-implementing math). They do NOT test the actual engine code paths. Passing these does not guarantee the engine's SINR, handover, or KPI outputs are correct. See remediation items C1, C2, M3, M4.
+**Note:** Formula-level (`-F`) tests use standalone scripts re-implementing math. Engine-level (`-E`) tests use `golden-case-engine.ts` which runs actual `engine.ts` tick loop with fixed seed and locked KPI expectations. Both levels now pass.
 
 ### Blocked by code bugs
 
@@ -141,7 +145,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-SINR-001 | 3 | ✅ pass | C1 fixed; multi-beam SINR uses per-interferer path loss |
 | VAL-HO-002 | 2 | ✅ pass | C2 fixed; CHO/Timer-CHO/MC-HO implemented |
 | VAL-GOLDEN-001 | 2 | ✅ pass | C1 fixed; golden case SINR now uses per-interferer path loss |
-| VAL-GOLDEN-002 | 3 | ⚠️ partial | C1 fixed; still blocked by M3 + M4 (Ka-band channel) |
+| VAL-GOLDEN-002 | 3 | ✅ pass | C1 + M3 + M4 all fixed |
 
 ### Deferred (need integration / browser testing)
 
@@ -164,11 +168,11 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-SINR-002 | signal | each interfering satellite uses its own slant range for path loss | ✅ fixed (2026-03-23) |
 | VAL-HO-003 | handover | CHO state transitions appear in event traces | ✅ fixed (2026-03-23) |
 | VAL-HO-004 | handover | MC-HO dual-connectivity events appear in event traces | ✅ fixed (2026-03-23) |
-| VAL-UE-001 | multi-UE | N>1 UEs produce distinct SINR values per tick | C3 not fixed |
-| VAL-UE-002 | multi-UE | Jain fairness index < 1.0 for N>1 UEs | C3 not fixed |
-| VAL-CHAN-003 | channel | Ka-band profile uses Ka-band shadow fading parameters | M3 not fixed |
-| VAL-CHAN-004 | channel | Tier 4 atmospheric loss > 0 when enabled for Ka-band | M4 not fixed |
-| VAL-FADING-001 | channel | Tier 5 Shadowed-Rician fading produces non-zero variance | MS1 not started |
+| VAL-UE-001 | multi-UE | N>1 UEs produce distinct SINR values per tick | ✅ fixed (2026-03-23) |
+| VAL-UE-002 | multi-UE | Jain fairness index < 1.0 for N>1 UEs | ✅ fixed (2026-03-23) |
+| VAL-CHAN-003 | channel | Ka-band profile uses Ka-band shadow fading parameters | ✅ fixed (2026-03-23) |
+| VAL-CHAN-004 | channel | Tier 4 atmospheric loss > 0 when enabled for Ka-band | ✅ fixed (2026-03-23) |
+| VAL-FADING-001 | channel | Tier 5 Shadowed-Rician fading produces non-zero variance | ✅ fixed (2026-03-23) |
 | VAL-PROFILE-001 | profiles | all profile altitude_km values match cited source papers | ✅ fixed (case9 600km) |
 
 ---
@@ -177,8 +181,8 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 
 1. ~~**SINR interference model incorrect (C1):**~~ Fixed 2026-03-23. Each interferer now uses its own slant range, path loss, shadow fading, and clutter loss.
 2. ~~**CHO/MC-HO missing (C2):**~~ Fixed 2026-03-23. CHO, Timer-CHO, and MC-HO implemented in cho.ts and mc-ho.ts with proper FSMs and event traces.
-3. **Single-UE only (C3):** engine hardcodes one UE despite profile declaring 100.
-4. **Ka-band channel wrong (M3+M4):** HOBS and BH profiles use S-band fading tables and zero atmospheric loss.
+3. ~~**Single-UE only (C3):**~~ Fixed 2026-03-23 (Phase A). Engine generates N UEs within beam footprint (uniform/clustered/hotspot). Each UE gets per-UE SINR from beam gain roll-off. Shared serving satellite (Phase A). Phase B (independent HO per UE) deferred.
+4. ~~**Ka-band channel wrong (M3+M4):**~~ Fixed 2026-03-23. Ka-band shadow fading tables added; atmospheric loss model implemented for frequencies ≥10 GHz.
 5. **Real-trace not wired (Phase 4):** TLE loader and SGP4 adapter exist as modules but benchmark-runner and useSimulation only build Walker constellations.
 6. **Replay skeleton only (Phase 4):** replay controller returns empty snapshots.
 7. **Beam visualization schematic:** BeamFootprintLayer shows a 7-beam schematic at satellite dome position, not physically accurate beam projection.

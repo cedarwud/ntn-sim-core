@@ -89,6 +89,10 @@ export interface HandoverTickInput {
   servingSinrDb: number | null;
   /** Available candidates sorted by SINR descending. */
   candidates: HandoverCandidate[];
+  /** One-way propagation delay to serving satellite in ms (P2).
+   *  Used by HO FSMs to account for RTT in timing (effectiveTTT = ttt + 2·delay).
+   *  @source 3GPP NTN: delay_ms = rangeKm / 299.792 */
+  propagationDelayMs?: number;
 }
 
 // ---------------------------------------------------------------------------

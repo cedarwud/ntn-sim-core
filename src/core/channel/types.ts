@@ -14,6 +14,8 @@ export interface ChannelResult {
   clutterLossDb: number;
   beamGainDb: number;
   atmosphericDb: number;
+  /** Tier 5: small-scale fading in dB (Shadowed-Rician). 0 if disabled. */
+  smallScaleFadingDb: number;
   totalPathLossDb: number;
   rxPowerDbm: number;
 }
@@ -72,6 +74,8 @@ export interface LinkBudgetOptions {
   tier2Clutter: boolean;
   tier3BeamGain: boolean;
   tier4Atmospheric: boolean;
+  /** Tier 5: small-scale fading (Shadowed-Rician). MS1 fix. */
+  tier5Fading?: boolean;
   /** Seeded RNG for shadow fading sampling. */
   rngNext: (() => number) | null;
   /** LOS condition — true for LOS, false for NLOS. */

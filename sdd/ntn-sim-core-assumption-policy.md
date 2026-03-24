@@ -129,3 +129,19 @@ An assumption should be retired when:
 3. a validation gate requires a stronger source basis.
 
 When an assumption is retired, the replacement source must be recorded in source-trace metadata.
+
+---
+
+## 9. Assumption Register (2026-03-23)
+
+Assumptions introduced during academic hardening that are not directly from a single paper value:
+
+| ID | Module | Assumption | Justification | Claim Limit |
+|---|---|---|---|---|
+| ASSUME-KA-SF-001 | `shadow-fading.ts` | Ka-band suburban LOS/NLOS σ_SF and CL values | Derived from 3GPP TR 38.811 Table 6.6.2-1 general Ka-band range; exact table access not available in paper corpus | `provisional` — replace with exact table if standard PDF obtained |
+| ASSUME-ATM-001 | `link-budget.ts` | Atmospheric loss: zenith gaseous 0.35/0.6 dB, rain 0.8/1.5 dB, scintillation 0.4 dB | Simplified from ITU-R P.676/P.618 typical values; not a full ITU-R calculation | `provisional` — sufficient for interference-limited scenarios where atmospheric loss is secondary |
+| ASSUME-SR-001 | `small-scale-fading.ts` | Shadowed-Rician parameters (m, b₀, Ω) per elevation | Based on PAP-2021-SHADOWED-RICIAN Table II structure; specific numeric values are representative suburban S-band | `provisional` — paper-specific profiles should override if paper provides explicit SR parameters |
+| ASSUME-TIMER-CHO-001 | `cho.ts` | Timer-CHO geometry timer = α × TTT (simplified) | Full model requires beam radius, UE position in beam, satellite velocity — not available in HO manager scope | disclosed simplification; full geometry timer needs engine-level data |
+| ASSUME-HOBS-EIRP-001 | `defaults.ts` | HOBS EIRP density 46 dBW/MHz (vs paper's unspecified EIRP) | Ka-band FSPL is ~22 dB higher than S-band; S-band baseline 34 + 12 = 46 compensates partially | `provisional` — replace with paper-specific EIRP when available |
+| ASSUME-BH-CONST-001 | `defaults.ts` | BH constellation 324 sats (18×18) vs paper's 66 (6×11) | Original 66 sats gave 13% availability at 40°N; 324 provides ≥80% coverage | engineering adjustment — paper reproduction would use paper's exact constellation |
+| ASSUME-HOBS-FRF-001 | `defaults.ts` | HOBS FRF=3, 19 beams (vs original FRF=1, 37 beams) | 37-beam FRF=1 produces -20 dB mean SINR (catastrophic interference); FRF=3 is standard multi-beam configuration | engineering adjustment — paper reproduction would use paper's explicit FRF if stated |

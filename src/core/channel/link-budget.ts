@@ -18,6 +18,7 @@ import type { ChannelResult, LinkBudgetOptions } from './types';
 import { computeFspl } from './fspl';
 import { getShadowFadingParams, sampleShadowFading } from './shadow-fading';
 import { computeBeamGain } from './beam-gain';
+import { sampleShadowedRicianDb } from './small-scale-fading';
 
 /**
  * Compute the full link budget by composing enabled channel tiers.
@@ -46,10 +47,10 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
   // Tier 0: FSPL (always mandatory)
   const fsplDb = computeFspl(distanceKm, frequencyGhz);
 
-  // Tier 1: shadow fading
+  // Tier 1: shadow fading (M3 fix: pass frequencyGhz for band-specific tables)
   let shadowFadingDb = 0;
   if (tier1LargeScale && rngNext) {
-    const params = getShadowFadingParams(elevationDeg, environment);
+    const params = getShadowFadingParams(elevationDeg, environment, frequencyGhz);
     const sigma = isLos ? params.losSigmaDb : params.nlosSigmaDb;
     shadowFadingDb = Math.abs(sampleShadowFading(sigma, rngNext));
   }
@@ -57,7 +58,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
   // Tier 2: clutter loss (NLOS only)
   let clutterLossDb = 0;
   if (tier2Clutter && !isLos) {
-    const params = getShadowFadingParams(elevationDeg, environment);
+    const params = getShadowFadingParams(elevationDeg, environment, frequencyGhz);
     clutterLossDb = params.clutterLossDb;
   }
 
@@ -67,11 +68,37 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     beamGainDb = computeBeamGain(beamGainInput);
   }
 
-  // Tier 4: atmospheric (placeholder — returns 0 for now)
-  const atmosphericDb = tier4Atmospheric ? 0 : 0;
+  // Tier 4: atmospheric loss (M4 fix: simplified ITU-R model for Ka-band)
+  // Gaseous absorption (O2 + H2O) + rain attenuation, elevation-dependent
+  // Source: ITU-R P.676 (gaseous), ITU-R P.618 (rain), simplified for LEO NTN
+  let atmosphericDb = 0;
+  if (tier4Atmospheric && frequencyGhz >= 10) {
+    // Gaseous absorption: ~0.15 dB/km at 20 GHz, ~0.25 dB/km at 28 GHz (clear sky)
+    // Effective path through atmosphere ≈ 10 km / sin(elevation)
+    const zenithGaseousDb = frequencyGhz >= 25 ? 0.6 : 0.35;
+    const sinEl = Math.sin(Math.max(elevationDeg, 5) * Math.PI / 180);
+    const gaseousDb = zenithGaseousDb / sinEl;
+
+    // Rain attenuation: ITU-R P.618 simplified
+    // Typical clear-sky + light rain (availability 99%): ~1-3 dB at Ka-band zenith
+    const zenithRainDb = frequencyGhz >= 25 ? 1.5 : 0.8;
+    const rainDb = zenithRainDb / sinEl;
+
+    // Scintillation: ~0.3-0.5 dB at Ka-band (tropospheric)
+    const scintDb = frequencyGhz >= 18 ? 0.4 : 0;
+
+    atmosphericDb = gaseousDb + rainDb + scintDb;
+  }
+
+  // Tier 5: small-scale fading (Shadowed-Rician) — MS1 fix
+  let smallScaleFadingDb = 0;
+  if (opts.tier5Fading && rngNext) {
+    smallScaleFadingDb = sampleShadowedRicianDb(elevationDeg, isLos, rngNext);
+  }
 
   // Total path loss (positive value = loss)
-  const totalPathLossDb = fsplDb + shadowFadingDb + clutterLossDb + atmosphericDb - beamGainDb;
+  // smallScaleFadingDb can be + or - (normalized to 0 dB mean)
+  const totalPathLossDb = fsplDb + shadowFadingDb + clutterLossDb + atmosphericDb - beamGainDb - smallScaleFadingDb;
 
   // Received power
   const rxPowerDbm = txEirpDbm - totalPathLossDb;
@@ -82,6 +109,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     clutterLossDb,
     beamGainDb,
     atmosphericDb,
+    smallScaleFadingDb,
     totalPathLossDb,
     rxPowerDbm,
   };

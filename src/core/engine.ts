@@ -19,10 +19,13 @@ import type { KpiAccumulator } from './kpi/accumulator';
 import { getActivePassesAt, interpolatePass } from './orbit/trajectory-cache';
 import { computeLinkBudget } from './channel/link-budget';
 import { computeSinr } from './channel/sinr';
-import { computeOffAxisAngle } from './channel/beam-gain';
+import { computeOffAxisAngle, computeBeamGain } from './channel/beam-gain';
 import type { InterferingSignal } from './channel/types';
 import { createBaselineFromConfig } from './handover/baselines';
 import { createKpiAccumulator } from './kpi/accumulator';
+import { generateUePositions } from './ue/position-generator';
+import type { UePosition } from './ue/position-generator';
+import { createMobilityUpdater } from './ue/mobility';
 
 // Phase 3: beam + energy imports
 import { generateHexagonalBeamLayout } from './beam/layout';
@@ -45,8 +48,8 @@ import type { EnergyLayer2Manager, SatelliteEnergyLayer2State } from './energy/l
 /** Boltzmann constant in dBW/(K·Hz). */
 const K_BOLTZMANN_DBW_PER_K_HZ = -228.6;
 
-/** Default UE ID for single-UE model. */
-const UE_ID = 'ue-0';
+/** Primary UE ID (beam center, used for handover decisions). */
+const PRIMARY_UE_ID = 'ue-0';
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -79,12 +82,19 @@ export interface SimEngine {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute thermal noise power in dBm from noise temperature and bandwidth.
- * N = k_B * T * BW  →  N_dBm = -228.6 + 10·log10(T) + 10·log10(BW_Hz) + 30
+ * Compute thermal noise power in dBm from noise temperature, bandwidth, and noise figure.
+ * MS5 fix: includes UE receiver noise figure.
+ * T_sys = T_ant + T_0·(10^(NF/10) - 1) where T_0 = 290K
+ * N_dBm = -228.6 + 10·log10(T_sys) + 10·log10(BW_Hz) + 30
+ *
+ * @source beamHO-bench computeNoiseDbm(), 3GPP TR 38.821
  */
-function noisePowerDbm(noiseTemperatureK: number, bandwidthMhz: number): number {
+function noisePowerDbm(noiseTemperatureK: number, bandwidthMhz: number, noiseFigureDb?: number): number {
+  const T0 = 290; // reference temperature in K
+  const nfLinear = noiseFigureDb !== undefined ? Math.pow(10, noiseFigureDb / 10) : 1;
+  const tSysK = noiseTemperatureK + T0 * (nfLinear - 1);
   const bwHz = bandwidthMhz * 1e6;
-  return K_BOLTZMANN_DBW_PER_K_HZ + 10 * Math.log10(noiseTemperatureK) + 10 * Math.log10(bwHz) + 30;
+  return K_BOLTZMANN_DBW_PER_K_HZ + 10 * Math.log10(tSysK) + 10 * Math.log10(bwHz) + 30;
 }
 
 /**
@@ -128,7 +138,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
   // Derived RF parameters (computed once)
   const txEirp = eirpDbm(profile.rf.eirp_density_dbw_per_mhz, profile.rf.bandwidth_mhz);
-  const noiseDbm = noisePowerDbm(profile.rf.noise_temperature_k, profile.rf.bandwidth_mhz);
+  const noiseDbm = noisePowerDbm(profile.rf.noise_temperature_k, profile.rf.bandwidth_mhz, profile.rf.noise_figure_db);
 
   // Seeded RNG for shadow fading
   let rng = createRng(profile.seed);
@@ -142,6 +152,26 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     pingPongWindowSec: 5,
     bandwidthMhz: profile.rf.bandwidth_mhz,
   });
+
+  // ---------------------------------------------------------------------------
+  // C3 fix: Multi-UE position generation
+  // ---------------------------------------------------------------------------
+
+  const ueCount = Math.max(1, profile.ueConfig.count);
+  const beamRadiusKm = profile.antenna.beam_diameter_km / 2;
+  let uePositions: UePosition[] = generateUePositions(
+    ueCount, beamRadiusKm, profile.ueConfig.distribution, () => rng.next(),
+  );
+
+  // P4 fix: UE mobility updater
+  let mobilityUpdater = createMobilityUpdater(
+    {
+      model: profile.ueConfig.speed_kmh > 0 ? 'random-walk' : 'static',
+      speedKmh: profile.ueConfig.speed_kmh,
+      boundaryRadiusKm: beamRadiusKm,
+    },
+    () => rng.next(),
+  );
 
   // ---------------------------------------------------------------------------
   // Phase 3: multi-beam flag + beam layouts + energy manager
@@ -255,7 +285,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       tier2Clutter: profile.channel.tier2_clutter,
       tier3BeamGain: profile.channel.tier3_beam_gain,
       tier4Atmospheric: profile.channel.tier4_atmospheric,
-      rngNext: profile.channel.tier1_large_scale ? () => rng.next() : null,
+      tier5Fading: profile.channel.tier5_fading,
+      rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
       isLos: servingSample.elevationDeg >= 20, // simplified LOS model
     });
 
@@ -350,7 +381,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       tier2Clutter: profile.channel.tier2_clutter,
       tier3BeamGain: profile.channel.tier3_beam_gain,
       tier4Atmospheric: profile.channel.tier4_atmospheric,
-      rngNext: profile.channel.tier1_large_scale ? () => rng.next() : null,
+      tier5Fading: profile.channel.tier5_fading,
+      rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
       isLos: servingSample.elevationDeg >= 20,
     });
 
@@ -456,6 +488,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // ---------------------------------------------------------------------------
 
   function doTick(timeSec: number, tickNumber: number): SimulationSnapshot {
+    // 0. P4: update UE positions (mobility)
+    const tickStepSec = lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1;
+    mobilityUpdater.update(uePositions, tickStepSec);
+
     // 1. Get active satellites
     const activePasses = getActivePassesAt(trajectoryCache, timeSec);
 
@@ -590,32 +626,70 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       dapsTargetSinrDb = tgtEntry ? tgtEntry.sinrDb : null;
     }
 
-    // 6. Run handover tick
+    // 6. Run handover tick (P2: propagation delay from serving satellite slant range)
+    const servingEntry = hoState.serving
+      ? satSinrs.find((s) => s.satId === hoState.serving!.satId)
+      : null;
+    const propagationDelayMs = servingEntry
+      ? servingEntry.sample.rangeKm / 299.792  // one-way delay in ms
+      : undefined;
     const decision = hoManager.tick({
       tick: tickNumber,
       timeSec,
       servingSinrDb,
       candidates,
+      propagationDelayMs,
     });
 
-    // 7. Record KPI (DAPS-aware: use best of source/target during dual-active)
+    // 7. Record KPI — C3 fix: per-UE SINR recording
     const currentServing = hoManager.getState().serving;
     const isServed = currentServing !== null;
-    kpiAcc.recordServiceState(UE_ID, isServed, timeSec);
 
+    // Primary UE (ue-0 at beam center) SINR for base metrics
+    let primarySinrDb: number | null = null;
     if (isServed && currentServing) {
-      let effectiveSinrDb: number | null = null;
       if (dapsDualActive && dapsSourceSinrDb !== null && dapsTargetSinrDb !== null) {
-        // During DAPS dual-active: UE receives from both links.
-        // Effective SINR = max(source, target) as selection combining (SC).
-        // Note: PAP-2025-DAPS-CORE does not specify MRC; SC is the simpler default.
-        effectiveSinrDb = Math.max(dapsSourceSinrDb, dapsTargetSinrDb);
+        primarySinrDb = Math.max(dapsSourceSinrDb, dapsTargetSinrDb);
       } else {
         const servEntry = satSinrs.find((s) => s.satId === currentServing.satId);
-        effectiveSinrDb = servEntry ? servEntry.sinrDb : null;
+        primarySinrDb = servEntry ? servEntry.sinrDb : null;
       }
-      if (effectiveSinrDb !== null) {
-        kpiAcc.recordSinr(UE_ID, effectiveSinrDb, timeSec);
+    }
+
+    // Per-UE SINR: each UE has a different off-axis angle from the serving beam
+    // Phase A (C3): shared serving satellite, independent SINR per UE
+    const servingSatEntry = isServed && currentServing
+      ? satSamples.find((s) => s.satId === currentServing.satId)
+      : null;
+
+    for (const ue of uePositions) {
+      kpiAcc.recordServiceState(ue.id, isServed, timeSec);
+
+      if (isServed && currentServing && servingSatEntry && primarySinrDb !== null) {
+        let ueSinrDb: number;
+        if (ue.id === PRIMARY_UE_ID) {
+          // Primary UE at beam center — use already computed SINR
+          ueSinrDb = primarySinrDb;
+        } else {
+          // Off-center UE: approximate SINR offset from beam gain roll-off
+          // off-axis angle ≈ atan(ue.distanceFromCenterKm / slantRange)
+          const slantRangeKm = servingSatEntry.sample.rangeKm;
+          const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
+          // Beam gain reduction at this off-axis angle (relative to boresight)
+          const gainReductionDb = profile.channel.tier3_beam_gain
+            ? computeBeamGain({
+                offAxisAngleDeg: ueOffAxisDeg,
+                model: profile.antenna.model,
+                peakGainDbi: profile.antenna.peak_gain_dbi,
+                beamDiameterKm: profile.antenna.beam_diameter_km,
+                altitudeKm: servingSatEntry.sample.altKm,
+                slantRangeKm,
+              })
+            : 0; // gainReductionDb is ≤ 0 (normalized pattern)
+          // UE SINR ≈ primary SINR + gain offset (since primary is at boresight, gain=0)
+          ueSinrDb = primarySinrDb + gainReductionDb;
+        }
+        kpiAcc.recordSinr(ue.id, ueSinrDb, timeSec);
       }
     }
 
@@ -718,15 +792,14 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       sampleToSatState(s.satId, s.sample),
     );
 
-    const ues: UeState[] = [
-      {
-        id: UE_ID,
-        latDeg: profile.observer.latitudeDeg,
-        lonDeg: profile.observer.longitudeDeg,
-        servingSatId: currentServing?.satId ?? null,
-        servingBeamId: currentServing?.beamId ?? null,
-      },
-    ];
+    // C3: build UE states for all UEs (positions are offsets from observer)
+    const ues: UeState[] = uePositions.map((ue) => ({
+      id: ue.id,
+      latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
+      lonDeg: profile.observer.longitudeDeg + ue.offsetEastKm / (111.32 * Math.cos(profile.observer.latitudeDeg * Math.PI / 180)),
+      servingSatId: currentServing?.satId ?? null,
+      servingBeamId: currentServing?.beamId ?? null,
+    }));
 
     return {
       tick: tickNumber,
@@ -768,6 +841,12 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       hoManager.reset();
       kpiAcc.reset();
       beamLayouts.clear();
+      // C3: regenerate UE positions with fresh RNG
+      uePositions = generateUePositions(
+        ueCount, beamRadiusKm, profile.ueConfig.distribution, () => rng.next(),
+      );
+      // P4: reset mobility
+      mobilityUpdater.reset();
       lastEnergyMetrics = null;
       lastBhSlotDecision = null;
       lastTickTimeSec = null;

@@ -35,10 +35,11 @@ export function generateWalkerConstellation(config: WalkerConfig): OrbitElement[
     const meanMotionRevPerDay = (meanMotionRadPerSec * DAY_SEC) / TWO_PI;
     const incRad = degToRad(shell.inclinationDeg);
     const totalSats = shell.planes * shell.satsPerPlane;
+    const F = shell.phasingFactor ?? 1; // M1 fix: configurable Walker F parameter
 
     for (let p = 0; p < shell.planes; p++) {
       const raanRad = (TWO_PI * p) / shell.planes;
-      const planePhaseOffset = (TWO_PI * p) / totalSats;
+      const planePhaseOffset = (TWO_PI * p * F) / totalSats;
 
       for (let s = 0; s < shell.satsPerPlane; s++) {
         const meanAnomalyRad = normalizeAngleRad(

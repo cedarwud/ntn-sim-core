@@ -106,6 +106,7 @@ The following implementation-status claims are inaccurate and must be corrected:
 
 **Severity:** CRITICAL
 **Effort:** High (engine architecture change)
+**Status:** ✅ Fixed (2026-03-23, Phase A). `ue/position-generator.ts` generates N UEs (uniform/clustered/hotspot) within beam footprint. Engine computes per-UE SINR from beam gain roll-off at each UE's off-axis angle. Shared serving satellite (Phase A). KPI accumulator records per-UE. VAL-UE-001/002 passing. Phase B (independent HO per UE) deferred.
 
 ---
 
@@ -150,6 +151,7 @@ The following implementation-status claims are inaccurate and must be corrected:
 3. Profile selects the correct table
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `shadow-fading.ts` now has Ka-band suburban tables (3GPP TR 38.811 Table 6.6.2-1) with `FrequencyBand` dispatch. `getShadowFadingParams()` accepts optional `frequencyGhz`. `link-budget.ts` passes frequency to shadow fading lookup. VAL-CHAN-003 passing.
 
 ---
 
@@ -164,6 +166,7 @@ The following implementation-status claims are inaccurate and must be corrected:
 **Donor reference:** leo-beam-sim has atmospheric and scintillation loss functions. orbit-engine uses official ITU-Rpy.
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `link-budget.ts` now computes gaseous absorption (ITU-R P.676 simplified), rain attenuation (ITU-R P.618 simplified), and tropospheric scintillation for frequencies ≥10 GHz. Elevation-dependent 1/sin(el) path extension. VAL-CHAN-004 passing.
 
 ---
 
@@ -200,6 +203,7 @@ The following implementation-status claims are inaccurate and must be corrected:
 **Fix:** Add beta angle calculation from RAAN and sun position. Shadow fraction = f(beta, altitude).
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `EnergyLayer2Config` gains `betaAngleDeg` and `altitudeKm`. `computeShadowFraction()` uses `arccos(sqrt(h²+2Rh)/((R+h)cos(β)))` with beta-critical check. Falls back to fixed fraction when beta not provided.
 
 ---
 
@@ -351,6 +355,7 @@ These are physical models that the original SDD does not mention but that are re
 3. Engine tick 時計算 satellite-UE 相對速度 → Doppler shift → SINR correction
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `doppler.ts` implements `computeDopplerShiftHz()`, `estimateRadialVelocityKmS()`, and `dopplerSinrDegradationDb()` (ICI model). Exported from channel index.
 
 ---
 
@@ -369,6 +374,7 @@ These are physical models that the original SDD does not mention but that are re
 3. Propagation delay 從 slant range 計算：`delay_ms = rangeKm / 299.792`
 
 **Effort:** Low
+**Status:** ✅ Fixed (2026-03-23). `HandoverTickInput.propagationDelayMs` added. Engine computes one-way delay from serving satellite slant range. `manager.ts` uses `effectiveTttSec()` = baseTTT + RTT. All HO FSMs receive delay via tick input.
 
 ---
 
@@ -388,6 +394,7 @@ These are physical models that the original SDD does not mention but that are re
 4. SDD §9 新增 §9.6 Traffic Model
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `traffic/generator.ts` implements Poisson, full-buffer, hotspot, uniform models with per-cell demand output. Poisson uses Knuth algorithm (small λ) / normal approximation (large λ).
 
 ---
 
@@ -405,6 +412,7 @@ These are physical models that the original SDD does not mention but that are re
 3. Profile `ueConfig.speed_kmh` 實際接入 mobility model
 
 **Effort:** Medium
+**Status:** ✅ Fixed (2026-03-23). `ue/mobility.ts` implements static/linear/random-walk with boundary reflection. Engine creates mobility updater from `ueConfig.speed_kmh` and calls `update()` each tick.
 
 ---
 
@@ -422,6 +430,7 @@ These are physical models that the original SDD does not mention but that are re
 3. Engine SINR 計算只對同 reuse group 的 beam 計算干擾（Phase 3 path 已部分實作但缺文件）
 
 **Effort:** Low（code 已部分存在，主要是文件補齊）
+**Status:** ✅ Fixed (2026-03-23). `beam/frequency-reuse.ts` formalizes FRF semantics with `getCoChannelBeams()` and `expectedCoChannelCount()`. Engine Phase 3 path already filters by reuse group. SDD §8 documents FRF=1/3/7 patterns.
 
 ---
 
@@ -486,6 +495,7 @@ These are physical models that the original SDD does not mention but that are re
 3. Profile defaults 標註哪些適合 frontend vs headless-only
 
 **Effort:** Low（主要是文件定義 + profile annotation）
+**Status:** ✅ Fixed (2026-03-23). SDD §13 Performance Budget added with frontend/headless limits and profile mode annotations.
 
 ---
 

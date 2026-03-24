@@ -1,0 +1,32 @@
+{
+  "profile": "bh-resource-baseline",
+  "seed": 42,
+  "durationSec": 600,
+  "stepSec": 1,
+  "totalSatellites": 324,
+  "passesFound": 24,
+  "maxSatsVisible": 14,
+  "cacheTimeMs": 159,
+  "simTimeMs": 48,
+  "kpi": {
+    "totalTicks": 496,
+    "wallClockMs": 48.416935000000024,
+    "durationSec": 599,
+    "totalHandovers": 1,
+    "handoverFailures": 0,
+    "unnecessaryHandovers": 1,
+    "pingPongCount": 0,
+    "handoverRate": 0.1001669449081803,
+    "meanHandoverInterruptionMs": 0,
+    "meanSinrDb": -10.209375469060454,
+    "sinrPercentile5Db": -25.54203491915448,
+    "sinrPercentile50Db": -10.236633798669622,
+    "sinrPercentile95Db": 6.910375877958965,
+    "outageRatio": 0.6517741935483871,
+    "meanThroughputMbps": 237.2647067947305,
+    "cellEdgeThroughputMbps": 2.0106464245318785,
+    "meanServiceTimeSec": 33,
+    "serviceAvailability": 0.8266666666666667,
+    "jainFairnessIndex": 0.308044838958828
+  }
+}

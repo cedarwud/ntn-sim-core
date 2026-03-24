@@ -146,7 +146,7 @@ export const HOBS_MULTIBEAM_BASELINE = {
   rf: {
     frequency_ghz: 28.0,
     bandwidth_mhz: 100,
-    eirp_density_dbw_per_mhz: 34,
+    eirp_density_dbw_per_mhz: 46, // Ka-band: +12 dB vs S-band to partially compensate ~22 dB additional FSPL
     max_tx_power_dbm: 50,
     noise_temperature_k: 290,
   },
@@ -156,9 +156,9 @@ export const HOBS_MULTIBEAM_BASELINE = {
     beam_diameter_km: 25,
   },
   beam: {
-    num_beams: 37,
+    num_beams: 19,
     layout: 'hexagonal',
-    frf: 1,
+    frf: 3,
     interference_beams: 0,
   },
   channel: {
@@ -187,7 +187,7 @@ export const HOBS_MULTIBEAM_BASELINE = {
   },
 
   sourceMap: [
-    { tier: 'paper-backed', id: 'PAP-2024-HOBS', note: '550km, Ka-band 28GHz, 100MHz BW, 50dBm max TX, 37 beams, Bessel J1 gain, DPC power control, EE=throughput/power' },
+    { tier: 'paper-backed', id: 'PAP-2024-HOBS', note: '550km, Ka-band 28GHz, 100MHz BW, 50dBm max TX, 19 beams FRF=3, Bessel J1 gain, DPC power control, EE=throughput/power' },
     { tier: 'paper-backed', id: 'PAP-2021-SHADOWED-RICIAN', note: 'Bessel J1 beam gain family reference' },
     { tier: 'paper-backed', id: 'PAP-2024-MADRL-CORE', note: 'multi-beam interference baseline' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-002', note: 'Walker 15x11=165 sats as synthetic reproduction of HOBS constellation scale' },
@@ -219,15 +219,15 @@ export const BH_RESOURCE_BASELINE = {
   orbital: {
     altitude_km: 780,
     inclination_deg: 86.4,
-    num_planes: 6,
-    sats_per_plane: 11,
+    num_planes: 18,
+    sats_per_plane: 18,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
   },
   rf: {
     frequency_ghz: 20.0,
     bandwidth_mhz: 500,
-    eirp_density_dbw_per_mhz: 34,
+    eirp_density_dbw_per_mhz: 46, // Ka-band requires higher EIRP
     max_tx_power_dbm: 50,
     noise_temperature_k: 290,
   },

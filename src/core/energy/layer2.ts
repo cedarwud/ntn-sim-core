@@ -26,8 +26,14 @@ export interface EnergyLayer2Config {
   blockingThresholdSoc: number;
   /** Orbital period in seconds (for shadow calculation). */
   orbitalPeriodSec: number;
-  /** Fraction of orbit in shadow (eclipse). */
+  /** Fallback fraction of orbit in shadow. Used only when betaAngleDeg is not provided. */
   shadowFraction: number;
+  /** Altitude in km (for beta angle shadow calculation). M7 fix. */
+  altitudeKm?: number;
+  /** Beta angle in degrees — angle between orbital plane and Sun direction.
+   *  If provided, shadow fraction is computed from geometry instead of using fixed value.
+   *  @source PAP-2025-SMASH-MADQL, standard orbital mechanics */
+  betaAngleDeg?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +89,35 @@ export const DEFAULT_ENERGY_LAYER2_CONFIG: EnergyLayer2Config = {
 };
 
 // ---------------------------------------------------------------------------
+// M7 fix: Beta angle shadow fraction
+// ---------------------------------------------------------------------------
+
+const EARTH_RADIUS_KM = 6378.137;
+
+/**
+ * Compute eclipse (shadow) fraction from beta angle and altitude.
+ *
+ * beta_critical = arcsin(R_E / (R_E + h))
+ * If |beta| >= beta_critical: always in sunlight → shadow fraction = 0
+ * Otherwise: shadowFraction = (1/π) * arccos(sqrt(h² + 2·R·h) / ((R+h)·cos(β)))
+ *
+ * @source Standard orbital mechanics, PAP-2025-SMASH-MADQL
+ */
+function computeShadowFraction(betaDeg: number, altKm: number): number {
+  const R = EARTH_RADIUS_KM;
+  const h = altKm;
+  const betaRad = Math.abs(betaDeg) * Math.PI / 180;
+  const betaCritRad = Math.asin(R / (R + h));
+
+  if (betaRad >= betaCritRad) return 0; // always sunlit
+
+  const cosArgNumerator = Math.sqrt(h * h + 2 * R * h);
+  const cosArgDenominator = (R + h) * Math.cos(betaRad);
+  const cosArg = Math.min(1, cosArgNumerator / cosArgDenominator);
+  return (1 / Math.PI) * Math.acos(cosArg);
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -114,8 +149,13 @@ export function createEnergyLayer2(
     if (!s) return;
 
     // 1. Determine sunlight/shadow from orbital phase
+    // M7 fix: use beta angle geometry when available
+    const effectiveShadowFraction =
+      config.betaAngleDeg !== undefined && config.altitudeKm !== undefined
+        ? computeShadowFraction(config.betaAngleDeg, config.altitudeKm)
+        : config.shadowFraction;
     const phase = (timeSec % config.orbitalPeriodSec) / config.orbitalPeriodSec;
-    s.isInSunlight = phase < 1 - config.shadowFraction;
+    s.isInSunlight = phase < 1 - effectiveShadowFraction;
 
     // 2. Energy generated (only in sunlight)
     const generatedWh = s.isInSunlight

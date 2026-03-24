@@ -16,7 +16,10 @@ export type {
 } from './types';
 
 export { computeFspl } from './fspl';
-export { getShadowFadingParams, sampleShadowFading } from './shadow-fading';
+export { getShadowFadingParams, sampleShadowFading, classifyBand } from './shadow-fading';
+export type { FrequencyBand } from './shadow-fading';
 export { computeBeamGain, computeOffAxisAngle } from './beam-gain';
 export { computeSinr } from './sinr';
 export { computeLinkBudget } from './link-budget';
+export { sampleShadowedRicianDb } from './small-scale-fading';
+export { computeDopplerShiftHz, estimateRadialVelocityKmS, dopplerSinrDegradationDb } from './doppler';

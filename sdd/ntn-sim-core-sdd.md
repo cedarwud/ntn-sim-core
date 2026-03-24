@@ -300,14 +300,15 @@ Must provide:
 
 #### 9.2.1 Channel Model Tiers
 
-| Tier | Components | Requirement |
-|---|---|---|
-| Tier 0 | FSPL | mandatory for all profiles |
-| Tier 1 | profile-selected large-scale NTN loss family | mandatory for benchmark runs that claim 3GPP NTN-style realism |
-| Tier 2 | clutter / elevation-dependent attenuation | mandatory for access-style 3GPP baselines, recommended for real-trace access validation |
-| Tier 3 | beam-gain family | mandatory for multi-beam and BH studies |
-| Tier 4 | atmospheric Ka-band extras | recommended for Ka-band paper-default runs |
-| Tier 5 | small-scale fading | optional extension, not v1 default |
+| Tier | Components | Module | Requirement |
+|---|---|---|---|
+| Tier 0 | FSPL | `fspl.ts` | mandatory for all profiles |
+| Tier 1 | large-scale shadow fading (3GPP TR 38.811, S-band + Ka-band tables) | `shadow-fading.ts` | mandatory for benchmark runs that claim 3GPP NTN-style realism |
+| Tier 2 | clutter / elevation-dependent attenuation | `shadow-fading.ts` | mandatory for access-style 3GPP baselines |
+| Tier 3 | beam-gain family (rpsat-3gpp, bessel-j1, itu-r) | `beam-gain.ts` | mandatory for multi-beam and BH studies |
+| Tier 4 | atmospheric loss: gaseous absorption (ITU-R P.676), rain (ITU-R P.618), scintillation | `link-budget.ts` | mandatory for Ka-band profiles (≥10 GHz) |
+| Tier 5 | small-scale fading: Shadowed-Rician (SR) model with Nakagami-m LOS + Rayleigh scatter | `small-scale-fading.ts` | recommended for channel model completeness claims; elevation-dependent SR parameters |
+| Tier 6 | Doppler shift and ICI SINR degradation | `doppler.ts` | available for Doppler-sensitive studies; not yet wired into engine SINR path |
 
 #### 9.2.2 Beam-Gain Mapping
 
@@ -322,27 +323,39 @@ Must provide:
 
 Must support:
 
-1. hard HO baseline
-2. event-based A3/A4 variants where profile requires
-3. CHO / MC-HO baseline
-4. later DAPS/DC-like extension without breaking base contracts
+1. hard HO baseline (`manager.ts`, TTT=0)
+2. event-based A3/A4 variants (`manager.ts`, configurable threshold/TTT/hysteresis)
+3. CHO — Conditional Handover (`cho.ts`): network pre-configures HO command, UE autonomously executes on CondEventA3
+4. Timer-CHO (`cho.ts`): CHO with geometry-assisted timer (α·TTT) and L3 IIR filter (k parameter)
+5. MC-HO — Multi-Connectivity Handover (`mc-ho.ts`): dual-active phase with packet duplication
+6. DAPS — Dual Active Protocol Stack (`daps.ts`): source+target dual-active, path switch, selection combining
 
-#### 9.3.1 Continuity Literature Roles
+All handover types support propagation delay (RTT) in TTT calculation: `effectiveTTT = baseTTT + 2·propagationDelayMs`.
+
+#### 9.3.1 Handover Type Summary
+
+| Type | Module | FSM States | Key Config | Paper Source |
+|---|---|---|---|---|
+| hard-ho | `manager.ts` | idle → attached → switching → attached | TTT=0 | baseline |
+| a3-event | `manager.ts` | idle → attached → preparing → attached | threshold, TTT, hysteresis | 3GPP |
+| a4-event | `manager.ts` | idle → attached → preparing → attached | threshold, TTT, hysteresis | PAP-2022-A4EVENT-CORE |
+| cho | `cho.ts` | idle → attached → cho-prepared → attached | cho_offset_db | 3GPP TS 38.331 |
+| timer-cho | `cho.ts` | idle → attached → cho-prepared → attached | cho_alpha, cho_filter_k | PAP-2025-TIMERCHO-CORE |
+| mc-ho | `mc-ho.ts` | idle → attached → mc-preparing → mc-dual-active → attached | mc_max_dual_sec | PAP-2024-MCCHO-CORE |
+| daps | `daps.ts` | idle → single-active → prepared → dual-active → path-switched → single-active | preparationTimeSec, maxDualActiveSec | PAP-2025-DAPS-CORE |
+
+#### 9.3.2 Continuity Literature Roles
 
 Core implementation references:
 
-1. `PAP-2025-DAPS-CORE`
-2. `PAP-2024-MCCHO-CORE`
-
-Later extension reference:
-
-1. `PAP-2025-RSMA`
+1. `PAP-2025-DAPS-CORE` — DAPS procedure
+2. `PAP-2024-MCCHO-CORE` — MC-HO dual connectivity
+3. `PAP-2025-TIMERCHO-CORE` — Timer-CHO geometry-assisted
 
 Supporting literature:
 
-1. `PAP-2020-MIMO-GRAPH`
-2. `PAP-2020-USERCENTRIC`
-3. `PAP-2024-QMIXBH`
+1. `PAP-2025-RSMA` — later extension
+2. `PAP-2020-MIMO-GRAPH`, `PAP-2020-USERCENTRIC`, `PAP-2024-QMIXBH`
 
 ### 9.4 Energy
 
@@ -368,6 +381,36 @@ Every run must emit enough information to reconstruct:
 5. event log
 6. KPI summary
 7. optional replay timeline
+
+### 9.6 Traffic Model
+
+Module: `src/core/traffic/generator.ts`
+
+Provides per-cell/per-beam demand input for BH scheduling. Without a traffic model, BH scheduler decisions have no demand basis.
+
+| Model | Behavior | Use Case |
+|---|---|---|
+| `poisson` | Knuth/normal Poisson arrivals per cell per tick | realistic bursty traffic |
+| `full-buffer` | constant demand per cell | worst-case / capacity analysis |
+| `hotspot` | base demand + N× multiplier on selected cells | non-uniform load distribution |
+| `uniform` | base demand with ±20% random variation | baseline even load |
+
+Config: `TrafficConfig` with `numCells`, `meanArrivalRatePerSec`, `packetSizeBits`, `hotspotCellIndices`, `hotspotMultiplier`.
+
+### 9.7 Policy Interface (RL/DRL)
+
+Module: `src/core/policy/types.ts`
+
+Defines the observation-action-reward contract for external RL/DRL policy integration.
+
+| Interface | Content |
+|---|---|
+| `PolicyObservation` | per-satellite (elevation, SINR, beam count, SoC), per-UE (SINR, serving), global (power, mean SINR) |
+| `PolicyAction` | per-satellite beam activation + power, handover mode (trigger/defer/auto) |
+| `PolicyReward` | weighted: throughput (0.3), EE (0.2), HO cost (0.2), continuity (0.2), fairness (0.1) |
+| `Policy` | `selectAction(obs) → action`, `onReward(reward)`, `reset()` |
+
+Engine integration (future): `engine.getObservation()` → policy → `engine.applyAction()`.
 
 ---
 
@@ -422,3 +465,36 @@ Companion governance rules are tracked in:
 3. keep `trace-first` architecture mandatory from phase 0
 4. use `beamHO-bench` as validation oracle during migration, not as the long-term architecture owner
 5. use `leo-beam-sim` as the primary donor for early browser-side multi-beam simulation patterns
+
+## 13. Performance Budget (MG3)
+
+Defines scale limits per simulation mode. Exceeding these limits risks framerate collapse (frontend) or excessive runtime (headless).
+
+### Frontend (viz/showcase mode)
+
+| Resource | Limit | Rationale |
+|---|---|---|
+| Satellites | ≤ 200 | Three.js scene overhead at >200 |
+| Beams per satellite | ≤ 19 | 19-beam hex is standard; 37+ requires LOD |
+| UEs | ≤ 10 | Per-UE SINR loop in tick |
+| Snapshot rate | 20 fps | 50ms tick budget |
+| Cache build time | ≤ 5 s | User-perceived load time |
+
+### Headless (benchmark mode)
+
+| Resource | Limit | Rationale |
+|---|---|---|
+| Satellites | ≤ 2000 | Memory for trajectory cache |
+| Beams per satellite | ≤ 37 | 37-beam = 3 hex rings |
+| UEs | ≤ 500 | O(N×M) SINR loop feasibility |
+| Tick rate | unconstrained | No framerate requirement |
+| Cache build time | ≤ 60 s | CI/CD budget |
+
+### Profile annotations
+
+Each profile in `src/core/profiles/defaults.ts` should declare its intended mode:
+
+- `case9-access-baseline`: frontend + headless
+- `hobs-multibeam-baseline`: frontend + headless
+- `bh-resource-baseline`: headless-preferred (19+ beams × BH scheduling)
+- `real-trace-validation`: headless-only (1584 satellites)

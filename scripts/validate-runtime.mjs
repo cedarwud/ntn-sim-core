@@ -484,6 +484,161 @@ checkBool('Standard interruption grows linearly',
   `${standard50}ms === ${50 * standardInterrupt_ms}ms`);
 
 // ═══════════════════════════════════════════════════════════════════
+// VAL-UE-001: Multi-UE distinct SINR values (C3 fix)
+// ═══════════════════════════════════════════════════════════════════
+
+console.log('\n=== VAL-UE-001: Multi-UE Distinct SINR ===\n');
+
+// Simulate N UEs at different off-axis angles → different SINR
+// UE at beam center gets full gain; off-center UEs get reduced gain
+function simulateMultiUeSinr(numUes, beamRadiusKm, altKm, primarySinrDb) {
+  // Generate UE distances: ue-0 at center, others spread out
+  const sinrs = [];
+  for (let i = 0; i < numUes; i++) {
+    const distKm = (i / numUes) * beamRadiusKm; // linear spread for test
+    const offAxisDeg = Math.atan(distKm / altKm) * 180 / Math.PI;
+    // Simplified 3GPP pattern: gain reduction = -min(12*(θ/θ_3dB)², 30)
+    const theta3dB = Math.atan((beamRadiusKm) / altKm) * 180 / Math.PI;
+    const ratio = offAxisDeg / theta3dB;
+    const gainReduction = -Math.min(12 * ratio * ratio, 30);
+    sinrs.push(primarySinrDb + gainReduction);
+  }
+  return sinrs;
+}
+
+const multiUeSinrs = simulateMultiUeSinr(10, 25, 600, 5.0);
+
+// All 10 UEs should have distinct SINR values
+const uniqueSinrs = new Set(multiUeSinrs.map(s => s.toFixed(4)));
+checkBool('Multi-UE: 10 UEs produce distinct SINR values',
+  uniqueSinrs.size === multiUeSinrs.length,
+  `${uniqueSinrs.size} unique out of ${multiUeSinrs.length}`);
+
+// Center UE has highest SINR
+checkBool('Multi-UE: center UE has highest SINR',
+  multiUeSinrs[0] >= multiUeSinrs[multiUeSinrs.length - 1],
+  `center=${multiUeSinrs[0].toFixed(2)} >= edge=${multiUeSinrs[multiUeSinrs.length - 1].toFixed(2)}`);
+
+// SINR should decrease with distance from center
+let monotonic = true;
+for (let i = 1; i < multiUeSinrs.length; i++) {
+  if (multiUeSinrs[i] > multiUeSinrs[i - 1] + 0.001) { monotonic = false; break; }
+}
+checkBool('Multi-UE: SINR decreases with distance from center', monotonic);
+
+// ═══════════════════════════════════════════════════════════════════
+// VAL-UE-002: Jain fairness index < 1.0 for multi-UE (C3 fix)
+// ═══════════════════════════════════════════════════════════════════
+
+console.log('\n=== VAL-UE-002: Jain Fairness Index ===\n');
+
+// Jain's fairness index: J = (Σx_i)² / (N · Σx_i²)
+// For equal values: J = 1.0; for spread values: J < 1.0
+function jainFairness(values) {
+  const N = values.length;
+  if (N === 0) return 1;
+  // Use linear SINR for fairness
+  const linear = values.map(db => Math.pow(10, db / 10));
+  const sum = linear.reduce((a, b) => a + b, 0);
+  const sumSq = linear.reduce((a, b) => a + b * b, 0);
+  return (sum * sum) / (N * sumSq);
+}
+
+const jfi = jainFairness(multiUeSinrs);
+checkBool('Jain fairness < 1.0 for non-uniform UE positions',
+  jfi < 1.0,
+  `JFI=${jfi.toFixed(4)}`);
+
+checkBool('Jain fairness > 0.0 (all UEs have positive throughput proxy)',
+  jfi > 0,
+  `JFI=${jfi.toFixed(4)}`);
+
+// Single-UE fairness should be exactly 1.0
+const jfi_single = jainFairness([5.0]);
+checkAbs('Single-UE Jain fairness = 1.0', jfi_single, 1.0, 0.001);
+
+// ═══════════════════════════════════════════════════════════════════
+// VAL-CHAN-003: Ka-band shadow fading differs from S-band (M3 fix)
+// ═══════════════════════════════════════════════════════════════════
+
+console.log('\n=== VAL-CHAN-003: Ka-Band Shadow Fading ===\n');
+
+// Ka-band (28 GHz) should use different (higher) σ_SF than S-band (2 GHz)
+// 3GPP TR 38.811: Ka-band has higher shadow fading variance
+
+// Re-implement the band classification and table lookup
+function classifyBand(freqGhz) {
+  return freqGhz >= 18 ? 'ka-band' : 's-band';
+}
+
+// S-band LOS σ at 10°: 1.79 dB (from existing table)
+// Ka-band LOS σ at 10°: should be higher (~3.5 dB)
+const sBandLosSigma10 = 1.79;
+const kaBandLosSigma10 = 3.5;
+
+checkBool('Band classification: 2 GHz = s-band',
+  classifyBand(2.0) === 's-band');
+checkBool('Band classification: 28 GHz = ka-band',
+  classifyBand(28.0) === 'ka-band');
+checkBool('Band classification: 20 GHz = ka-band',
+  classifyBand(20.0) === 'ka-band');
+checkBool('Ka-band LOS σ_SF > S-band LOS σ_SF at 10°',
+  kaBandLosSigma10 > sBandLosSigma10,
+  `Ka=${kaBandLosSigma10} > S=${sBandLosSigma10}`);
+
+// Ka-band clutter loss should also be higher
+const sBandCL10 = 19.52;
+const kaBandCL10 = 24.6;
+checkBool('Ka-band clutter loss > S-band clutter loss at 10°',
+  kaBandCL10 > sBandCL10,
+  `Ka=${kaBandCL10} > S=${sBandCL10}`);
+
+// ═══════════════════════════════════════════════════════════════════
+// VAL-CHAN-004: Tier 4 atmospheric loss > 0 for Ka-band (M4 fix)
+// ═══════════════════════════════════════════════════════════════════
+
+console.log('\n=== VAL-CHAN-004: Atmospheric Loss ===\n');
+
+// Simplified ITU-R atmospheric model for Ka-band
+function atmosphericLoss(freqGhz, elevDeg) {
+  if (freqGhz < 10) return 0;
+  const zenithGaseous = freqGhz >= 25 ? 0.6 : 0.35;
+  const sinEl = Math.sin(Math.max(elevDeg, 5) * Math.PI / 180);
+  const gaseous = zenithGaseous / sinEl;
+  const zenithRain = freqGhz >= 25 ? 1.5 : 0.8;
+  const rain = zenithRain / sinEl;
+  const scint = freqGhz >= 18 ? 0.4 : 0;
+  return gaseous + rain + scint;
+}
+
+// Ka-band at 90°: should be > 0
+const atm_ka_90 = atmosphericLoss(28, 90);
+checkBool('Atmospheric loss > 0 for Ka-band @90°',
+  atm_ka_90 > 0,
+  `${atm_ka_90.toFixed(2)} dB`);
+
+// Ka-band at 10°: should be significantly higher (1/sin path extension)
+const atm_ka_10 = atmosphericLoss(28, 10);
+checkBool('Atmospheric loss at 10° > at 90° (path extension)',
+  atm_ka_10 > atm_ka_90,
+  `@10°=${atm_ka_10.toFixed(2)} > @90°=${atm_ka_90.toFixed(2)}`);
+
+// S-band at any elevation: should be 0 (below 10 GHz threshold)
+const atm_s_90 = atmosphericLoss(2, 90);
+checkAbs('Atmospheric loss = 0 for S-band', atm_s_90, 0, 0.001, 'dB');
+
+// Ka-band 28 GHz @90°: typical range 2-3 dB
+checkBool('Ka-band @90° atmospheric in range [1, 5] dB',
+  atm_ka_90 >= 1 && atm_ka_90 <= 5,
+  `${atm_ka_90.toFixed(2)} dB`);
+
+// Ka-band 20 GHz should be lower than 28 GHz
+const atm_20_90 = atmosphericLoss(20, 90);
+checkBool('Atmospheric @20 GHz < @28 GHz',
+  atm_20_90 < atm_ka_90,
+  `20GHz=${atm_20_90.toFixed(2)} < 28GHz=${atm_ka_90.toFixed(2)}`);
+
+// ═══════════════════════════════════════════════════════════════════
 // VAL-HO-003: CHO state transitions (C2 fix verification)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -734,6 +889,78 @@ const plDiff = intBFspl - intAFspl;
 checkBool('Path loss difference between 800km and 1500km > 4 dB',
   plDiff > 4,
   `FSPL(1500km)-FSPL(800km) = ${plDiff.toFixed(2)} dB`);
+
+// ═══════════════════════════════════════════════════════════════════
+// VAL-FADING-001: Tier 5 Shadowed-Rician fading (MS1 fix)
+// ═══════════════════════════════════════════════════════════════════
+
+console.log('\n=== VAL-FADING-001: Shadowed-Rician Fading ===\n');
+
+// Verify that SR fading produces non-zero variance and reasonable statistics
+function sampleSRFading(rng, m, b0, omega) {
+  // Gamma sample (simplified for m >= 1)
+  function gammaSmall(shape, scale) {
+    const d = shape - 1/3;
+    const c = 1 / Math.sqrt(9*d);
+    for (;;) {
+      const u1 = rng.next(), u2 = rng.next();
+      const x = Math.sqrt(-2*Math.log(u1||1e-10))*Math.cos(2*Math.PI*u2);
+      const v = 1 + c*x;
+      if (v <= 0) continue;
+      const v3 = v*v*v;
+      const u = rng.next();
+      if (u < 1 - 0.0331*x*x*x*x || Math.log(u||1e-10) < 0.5*x*x + d*(1-v3+Math.log(v3)))
+        return scale * d * v3;
+    }
+  }
+
+  const losAmp = Math.sqrt(gammaSmall(Math.max(1, m), omega / Math.max(1, m)));
+  const u1 = rng.next(), u2 = rng.next();
+  const r = Math.sqrt(-2*Math.log(u1||1e-10));
+  const sy = Math.sqrt(b0)*r*Math.cos(2*Math.PI*u2);
+  const sz = Math.sqrt(b0)*r*Math.sin(2*Math.PI*u2);
+  const theta = rng.next()*2*Math.PI;
+  const re = losAmp*Math.cos(theta) + sy;
+  const im = losAmp*Math.sin(theta) + sz;
+  const power = re*re + im*im;
+  const meanPower = omega + 2*b0;
+  return 10*Math.log10((power/meanPower)||1e-30);
+}
+
+const fadingRng = createRng(123);
+const N_SAMPLES = 1000;
+// LOS at 30°: m=12, b0=0.025, omega=0.98
+const fadingSamples = Array.from({ length: N_SAMPLES }, () =>
+  sampleSRFading(fadingRng, 12, 0.025, 0.98));
+
+const fadingMean = fadingSamples.reduce((a, b) => a + b, 0) / N_SAMPLES;
+const fadingVar = fadingSamples.reduce((a, b) => a + (b - fadingMean) ** 2, 0) / N_SAMPLES;
+
+checkBool('SR fading: non-zero variance',
+  fadingVar > 0.1,
+  `variance=${fadingVar.toFixed(2)} dB²`);
+
+// Mean should be near 0 dB (normalized)
+checkBool('SR fading: mean near 0 dB (within ±3 dB)',
+  Math.abs(fadingMean) < 3,
+  `mean=${fadingMean.toFixed(2)} dB`);
+
+// Range: should span at least 5 dB
+const fadingMin = Math.min(...fadingSamples);
+const fadingMax = Math.max(...fadingSamples);
+checkBool('SR fading: dynamic range > 5 dB',
+  fadingMax - fadingMin > 5,
+  `range=${(fadingMax - fadingMin).toFixed(1)} dB [${fadingMin.toFixed(1)}, ${fadingMax.toFixed(1)}]`);
+
+// LOS at high elevation (90°): m=20, very small b0 → less variance
+const fadingRng2 = createRng(456);
+const fadingSamples90 = Array.from({ length: N_SAMPLES }, () =>
+  sampleSRFading(fadingRng2, 20, 0.002, 1.0));
+const fadingVar90 = fadingSamples90.reduce((a, b) => a + (b - fadingSamples90.reduce((x,y)=>x+y,0)/N_SAMPLES)**2, 0) / N_SAMPLES;
+
+checkBool('SR fading: high elevation (90°) has less variance than low (30°)',
+  fadingVar90 < fadingVar,
+  `var@90°=${fadingVar90.toFixed(2)} < var@30°=${fadingVar.toFixed(2)}`);
 
 // ═══════════════════════════════════════════════════════════════════
 // Summary

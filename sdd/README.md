@@ -43,6 +43,8 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - defines repo-to-module donor roles, transfer classes, and parity requirements
 13. `ntn-sim-core-reproduction-protocol.md`
    - defines claim levels, artifact bundles, tolerance lifecycle, and blocker-aware reproduction rules
+14. `ntn-sim-core-reproduction-targets.md`
+   - defines 3 reference paper reproduction targets with profiles, tolerances, and comparison workflow
 
 ## Working Rule
 

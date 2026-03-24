@@ -62,6 +62,9 @@ export interface WalkerShell {
   inclinationDeg: number;
   planes: number;
   satsPerPlane: number;
+  /** Walker phasing factor F (default 1). Affects inter-plane phase offset.
+   *  Formula: planePhaseOffset = 2π·p·F / totalSats */
+  phasingFactor?: number;
 }
 
 /** Walker constellation generation config. */

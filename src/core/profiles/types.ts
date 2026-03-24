@@ -53,8 +53,11 @@ export interface RfConfig {
   eirp_density_dbw_per_mhz: number;
   /** Maximum transmit power in dBm (used for energy accounting). */
   max_tx_power_dbm: number | null;
-  /** Noise temperature in K. */
+  /** Noise temperature in K (antenna + sky). */
   noise_temperature_k: number;
+  /** UE receiver noise figure in dB (MS5 fix). Default 7 dB (3GPP typical UE).
+   *  System noise temp = T_ant + T_0·(10^(NF/10) - 1) where T_0 = 290K */
+  noise_figure_db?: number;
 }
 
 export interface AntennaConfig {
