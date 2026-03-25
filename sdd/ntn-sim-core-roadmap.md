@@ -157,7 +157,7 @@ Add the first truly target-topic baseline: multi-beam interference plus energy-e
    - per-beam power accounting
 5. add truth-driven beam/SINR overlays and handover/service links for active beams, overlap, and service-drop reason
 6. replace the schematic placeholder beam path with a donor-backed `earth-moving` multibeam renderer
-7. bind serving / target / inactive beam roles to the same tick truth used by benchmark outputs
+7. bind serving / prepared / secondary / inactive beam roles to the same tick truth used by benchmark outputs
 
 **Paper baselines**
 
@@ -312,3 +312,52 @@ No phase should be marked done unless:
 5. the new feature can be explained in both benchmark and showcase contexts.
 6. Phase 3 to Phase 6 beam/frontend work satisfies the frontend beam visual companion docs with browser-visible evidence.
 7. any frontend overlay or link explainer remains truth-driven and non-authoritative relative to headless/exported artifacts.
+
+---
+
+## 6. Post-Closure Enhancement Track
+
+### Phase 7: Frontend Leo-Parity Mode
+
+**Goal**
+
+Add a new post-closure presentation mode that reads much closer to `project/leo-beam-sim` without weakening the current research-grade truth path.
+
+**Main work**
+
+1. add a `leo-parity` presenter/view mode rather than a second simulator;
+2. expose it through query param plus in-page `ControlPanel` toggle instead of introducing a new router first;
+3. introduce donor-like display/event set emphasis for beam scenes;
+4. increase per-beam label and SINR readability;
+5. increase handover link readability;
+6. keep live/replay truth, artifacts, and browser validation aligned with the current `ntn-sim-core` core path.
+
+**Main references**
+
+1. `project/leo-beam-sim/src/viz/SatelliteBeams.tsx`
+2. `project/leo-beam-sim/src/viz/SinrOverlay.tsx`
+3. `project/leo-beam-sim/src/viz/HandoverLinks.tsx`
+4. `project/leo-beam-sim/src/scene/useBeamViz.ts`
+5. `sdd/ntn-sim-core-frontend-leo-parity-mode.md`
+
+**Already landed**
+
+1. `Slice P1`:
+   - `?view=default|leo-parity`
+   - in-page `ControlPanel` mode switch
+2. `Slice P2`:
+   - `src/viz/presenters/leo-parity-presenter.ts`
+   - deterministic `display set / event set / beam set` emphasis for parity mode
+   - beam ownership split so only serving / prepared / secondary / DAPS / role-derived satellites render beam cones
+3. parity renderer bootstrap:
+   - `LeoParityBeamLayer.tsx`
+   - `LeoParityBeamOverlay.tsx`
+   - `LeoParityHandoverLinks.tsx`
+   - `SceneShell` mode-level renderer family switch
+
+**Exit criteria**
+
+1. `leo-parity` mode is selectable on the existing page through query param and in-page toggle, without replacing `research/default`;
+2. donor-like beam density, per-beam labels, per-beam SINR, and handover links are visible;
+3. browser-visible evidence exists for live, replay, and DAPS continuity scenes in parity mode;
+4. no KPI-impacting truth is recomputed in the frontend.

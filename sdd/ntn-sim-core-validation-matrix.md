@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Date:** 2026-03-25
-**Status:** Active — Formula/Engine passing, visual, overlay, and replay integration partially manual
+**Status:** Active — Formula/Engine/Browser gates passing; no project-level closure items remain open
 
 ---
 
@@ -44,9 +44,9 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-SINR-001` | signal | interference-aware multi-beam SINR path matches profile-selected formula family | 3 |
 | `VAL-EE-001` | energy | energy layer 1 outputs appear in benchmark artifacts and are reproducible | 3 |
 | `VAL-FV-001` | visualization | earth-moving multibeam renderer uses truth-driven beam layout and not the deprecated 7-beam placeholder | 3 |
-| `VAL-FV-002` | visualization | serving / target / inactive beam roles are visibly distinguishable in earth-moving mode | 3 |
+| `VAL-FV-002` | visualization | serving / prepared / secondary / inactive beam roles are visibly distinguishable in earth-moving mode | 3 |
 | `VAL-FV-006` | visualization | beam/SINR overlay is derived from snapshot/trace truth and does not recompute SINR locally | 3 |
-| `VAL-FV-007` | visualization | handover/service link overlay expresses serving / target / post-HO truth in live access mode | 3 |
+| `VAL-FV-007` | visualization | handover/service link overlay expresses serving / prepared / secondary / dual-active continuity truth in live access mode | 3 |
 | `VAL-FV-005` | visualization | beam display membership remains consistent with observer-sky pass semantics | 3 |
 | `VAL-GOLDEN-002` | golden cases | profile-specific multibeam golden cases exist for HOBS-style signal and active-beam paths | 3 |
 | `VAL-RT-001` | real-trace | TLE-derived replay uses the same channel/HO/KPI stack as synthetic mode | 4 |
@@ -103,7 +103,7 @@ Each validation check operates at one of three levels:
 |---|---|---|---|
 | **Formula** | `-F` | Isolated formula check, standalone script re-implements math | `validate-runtime.mjs`, `golden-case-*.mjs` |
 | **Engine** | `-E` | End-to-end engine path check, runs actual `engine.ts` tick loop | `golden-case-engine.ts`, `benchmark-runner` (headless) |
-| **Visual** | `-V` | Browser-visible proof that the frontend expresses truth semantics correctly | screenshot packs now, future Playwright or equivalent visual automation |
+| **Visual** | `-V` | Browser-visible proof that the frontend expresses truth semantics correctly | `validate-visual-browser.ts` plus supplementary screenshot packs |
 
 ### Current Coverage
 
@@ -131,19 +131,23 @@ Each validation check operates at one of three levels:
 | VAL-GOLDEN-002 | E | golden-case-engine.ts E-2 |
 | VAL-UE-003 | E | golden-case-engine.ts E-3 / E-4 |
 | VAL-VIZ-002 | E | engine snapshot + SceneShell integration, manual code-path verification |
+| VAL-VIZ-001 | E/V | validate-replay-manifest.ts + validate-visual-browser.ts |
+| VAL-RT-001 | E | validate-replay-manifest.ts (`real-trace-validation` replay artifact/controller identity) |
+| VAL-RT-002 | E | validate-replay-manifest.ts |
+| VAL-CUR-001 | E | validate-replay-manifest.ts |
 | VAL-FV-001 | V | screenshot packs (`case9-access`, `hobs-multibeam`) |
-| VAL-FV-002 | V | screenshot packs + SceneShell role rendering |
+| VAL-FV-002 | V | screenshot packs + SceneShell role rendering (`serving` / `prepared` / `secondary` / inactive) |
 | VAL-FV-003 | V | `useReplay` + screenshot proof (`real-trace-validation`) |
-| VAL-FV-004 | V | screenshot packs (`bh-resource-baseline`, `bh-resource-baseline-4state`) |
-| VAL-FV-005 | V | screenshot proof, observer-sky review still manual |
-| VAL-FV-006 | V | not landed yet — requires truth-driven `BeamInfoOverlay` or equivalent |
-| VAL-FV-007 | V | not landed yet — requires truth-driven `HandoverLinkOverlay` in live access mode |
-| VAL-FV-008 | V | not landed yet — requires replay parity for overlay/link family |
-| VAL-FV-009 | V | not landed yet — requires DAPS/DC-like continuity overlay evidence |
+| VAL-FV-004 | V | `validate-visual-browser.ts` — deterministic BH proof exposes `energyBlocked` cells in browser automation |
+| VAL-FV-005 | V | `validate-visual-browser.ts` — HOBS live browser probe checks time advance + visible-set membership + multibeam count |
+| VAL-FV-006 | V | `validate-visual-browser.ts` — browser probe verifies `BeamInfoOverlay` SINR and serving sat IDs match snapshot truth |
+| VAL-FV-007 | V | `validate-visual-browser.ts` — live DAPS browser probe verifies continuity links reflect truth |
+| VAL-FV-008 | V | `validate-visual-browser.ts` — replay browser probe verifies deterministic replay metadata + overlay/link parity |
+| VAL-FV-009 | V | `validate-visual-browser.ts` — live + replay DAPS probes verify dual-active continuity truth without invented states |
 | VAL-ARCH-001 | structural | validate-core-purity.mjs |
 | VAL-ARCH-002 | structural | validate-structure.mjs |
 
-**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass when `golden-case-engine.ts` is launched directly with `node --import tsx`. Visual-level (`-V`) evidence exists for the current beam/cell baseline, but browser automation, curated replay-window validation, and the new truth-driven overlay/link package remain future work.
+**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass and are now part of `npm run validate:stage` via `node --import tsx`. Browser-level visual checks (`VAL-FV-004` through `VAL-FV-009`, plus `VAL-EXP-001`) are automated via `validate-visual-browser.ts`. Replay manifests and replay artifacts are emitted in the benchmark artifact path, frontend replay hydrates from the replay-artifact contract, and replay identity is validated end-to-end by `validate-replay-manifest.ts`.
 
 ---
 

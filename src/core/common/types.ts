@@ -149,6 +149,20 @@ export interface DapsSnapshot {
   targetSatId: string | null;
 }
 
+export type BeamRole =
+  | 'serving'
+  | 'prepared'
+  | 'secondary'
+  | 'post-ho'
+  | 'neutral'
+  | 'inactive';
+
+export type ContinuityState =
+  | 'single-active'
+  | 'prepared'
+  | 'dual-active'
+  | 'post-ho';
+
 /**
  * A single simulation tick output.
  * This is the ONLY interface viz may consume from core.
@@ -178,7 +192,7 @@ export interface SatelliteBeamSnapshot {
   /** Frequency reuse group index. */
   reuseGroup: number;
   /** Beam role relative to current HO state. */
-  role: 'serving' | 'target' | 'neutral' | 'inactive';
+  role: BeamRole;
 }
 
 export interface SatelliteState {
@@ -209,4 +223,16 @@ export interface UeState {
   servingSatId: string | null;
   /** Serving beam ID, if any. */
   servingBeamId: string | null;
+  /** Prepared or pending target satellite ID, when the runtime exposes it. */
+  targetSatId?: string | null;
+  /** Prepared or pending target beam ID, when the runtime exposes it. */
+  targetBeamId?: string | null;
+  /** Secondary/dual-active satellite ID, when continuity mode exposes it. */
+  secondarySatId?: string | null;
+  /** Secondary/dual-active beam ID, when continuity mode exposes it. */
+  secondaryBeamId?: string | null;
+  /** Truth-driven continuity state for overlays. */
+  continuityState?: ContinuityState;
+  /** Serving link SINR in dB (null if unserved). Truth from engine — not recomputed in frontend. */
+  sinrDb: number | null;
 }

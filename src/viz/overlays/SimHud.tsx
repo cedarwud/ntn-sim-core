@@ -16,6 +16,9 @@ export interface SimHudProps {
   handoverCount: number;
   profileId: string;
   isReady: boolean;
+  replaySelection?: string | null;
+  replayWindowStartSec?: number | null;
+  replayWindowEndSec?: number | null;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -61,11 +64,14 @@ export const SimHud = React.memo(function SimHud({
   handoverCount,
   profileId,
   isReady,
+  replaySelection,
+  replayWindowStartSec,
+  replayWindowEndSec,
 }: SimHudProps) {
   if (!isReady) return null;
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} data-testid="sim-hud">
       <div style={titleStyle}>
         NTN-SIM-CORE{' '}
         <span style={{ color: '#888', fontWeight: 400 }}>| {profileId}</span>
@@ -87,6 +93,18 @@ export const SimHud = React.memo(function SimHud({
         <span style={labelStyle}>Handovers: </span>
         {handoverCount}
       </div>
+      {replaySelection && (
+        <>
+          <div>
+            <span style={labelStyle}>Replay: </span>
+            {replaySelection}
+          </div>
+          <div>
+            <span style={labelStyle}>Window: </span>
+            {replayWindowStartSec?.toFixed(1) ?? '—'}s → {replayWindowEndSec?.toFixed(1) ?? '—'}s
+          </div>
+        </>
+      )}
     </div>
   );
 });

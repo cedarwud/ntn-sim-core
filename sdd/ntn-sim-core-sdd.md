@@ -105,14 +105,14 @@ All core layers are implemented:
 
 1. `src/core/` — 58 modules: orbit, channel (6 tiers), handover (7 types), beam, energy (L1+L2), KPI, UE (multi-UE + mobility), traffic, policy interface, trace
 2. `src/runner/headless/` — benchmark runner with end-to-end tick loop, KPI bundle output
-3. `src/runner/replay/` — skeleton only (controller returns empty snapshots)
-4. `src/runner/curation/` — pass ranker and window selector exist
+3. `src/runner/replay/` — snapshot replay controller is landed; deterministic curated-window replay is wired into `useReplay`
+4. `src/runner/curation/` — pass ranker and window selector exist and are used by the frontend replay path
 5. `src/app/`, `src/viz/` — frontend shell and visualization layers
 6. `scripts/` — 9 validation scripts including formula-level (-F) and engine-level (-E) tests
 
-Not yet wired:
-1. `src/runner/headless/benchmark-runner.ts` only builds Walker synthetic constellations (TLE path not wired)
-2. `src/runner/replay/controller.ts` returns empty snapshots
+Closure notes:
+1. replay manifests and replay artifacts are now emitted and validated end-to-end for the authoritative snapshot replay path
+2. the legacy artifact-bundle replay API remains explicitly de-scoped and should not be treated as a second parity path
 
 ---
 

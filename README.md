@@ -86,6 +86,10 @@ npm run preview
 10. [前端波束視覺 SDD](./sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
 11. [前端波束視覺驗收](./sdd/ntn-sim-core-frontend-beam-visual-acceptance.md)
 12. [前端 donor 對應表](./sdd/ntn-sim-core-frontend-donor-mapping.md)
+13. [leo-parity 前端模式 SDD](./sdd/ntn-sim-core-frontend-leo-parity-mode.md)
+14. [最終 closure checklist](./sdd/ntn-sim-core-final-closure-checklist.md)
+
+目前 `leo-parity` mode 已有同頁切換入口與第一版 presenter-driven beam density，可用 `?view=leo-parity` 直接進入。
 
 ### 可用指令
 

@@ -230,7 +230,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // BH Scheduler (only when earth-fixed-bh + multi-beam)
   // ---------------------------------------------------------------------------
 
-  const isBhActive = profile.beamSemantics === 'earth-fixed-bh' && isMultiBeam;
+  const hasBhConfig = profile.beam.bh_max_active_per_slot !== undefined;
+  const isBhActive = isMultiBeam && (profile.beamSemantics === 'earth-fixed-bh' || hasBhConfig);
   let bhScheduler: BhScheduler | null = null;
   let lastBhSlotDecision: BhSlotDecision | null = null;
 
@@ -243,8 +244,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     if (beamLayouts.size === 0) return;
     bhScheduler = createBhScheduler(
       {
-        strategy: 'round-robin',
-        maxActiveBeamsPerSlot: Math.min(4, profile.beam.num_beams),
+        strategy: profile.beam.bh_strategy ?? 'round-robin',
+        maxActiveBeamsPerSlot: profile.beam.bh_max_active_per_slot ?? Math.min(4, profile.beam.num_beams),
+        frameDurationSec: profile.beam.bh_frame_duration_sec,
+        slotsPerFrame: profile.beam.bh_slots_per_frame,
       },
       beamLayouts,
     );
@@ -257,7 +260,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
   let energyL2Manager: EnergyLayer2Manager | null = null;
   if (profile.energy.layer2_enabled) {
-    energyL2Manager = createEnergyLayer2();
+    energyL2Manager = createEnergyLayer2({
+      altitudeKm: profile.orbital.altitude_km,
+      ...profile.energy.layer2_overrides,
+    });
   }
 
   /** Set of satIds already initialized in L2. */
@@ -929,7 +935,25 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     const hoState = independentHandover
       ? hoManagers.get(PRIMARY_UE_ID)!.getState()
       : hoManager.getState();
-    const targetSatId = hoState.pendingTarget?.satId ?? null;
+    const extendedPrimaryHoState = hoState as Readonly<typeof hoState> & {
+      dapsPhase?: string;
+      mcPhase?: string;
+      sourceServing?: ServingState | null;
+      targetServing?: ServingState | null;
+    };
+
+    const preparedTarget =
+      hoState.phase === 'preparing' ||
+      extendedPrimaryHoState.dapsPhase === 'prepared' ||
+      extendedPrimaryHoState.mcPhase === 'mc-preparing'
+        ? hoState.pendingTarget
+        : null;
+
+    const secondaryServing =
+      extendedPrimaryHoState.dapsPhase === 'dual-active' ||
+      extendedPrimaryHoState.mcPhase === 'mc-dual-active'
+        ? (extendedPrimaryHoState.targetServing ?? null)
+        : null;
 
     const satellites: SatelliteState[] = satSamples.map((s) => {
       const base = sampleToSatState(s.satId, s.sample);
@@ -937,20 +961,32 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       if (isMultiBeam) {
         const layout = beamLayouts.get(s.satId);
         if (layout) {
+          const activeBeamIds = lastBhSlotDecision?.activeBeamsPerSat.get(s.satId);
           const beamSnaps: SatelliteBeamSnapshot[] = layout.beams.map((b) => {
+            const isActive = activeBeamIds ? activeBeamIds.includes(b.beamId) : b.isActive;
             let role: SatelliteBeamSnapshot['role'] = 'neutral';
-            if (!b.isActive) {
-              role = 'inactive';
-            } else if (s.satId === servingSatId && b.beamId === servingBeamId) {
+            if (s.satId === servingSatId && b.beamId === servingBeamId) {
               role = 'serving';
-            } else if (s.satId === targetSatId) {
-              role = 'target';
+            } else if (
+              secondaryServing &&
+              s.satId === secondaryServing.satId &&
+              b.beamId === secondaryServing.beamId
+            ) {
+              role = 'secondary';
+            } else if (
+              preparedTarget &&
+              s.satId === preparedTarget.satId &&
+              b.beamId === preparedTarget.beamId
+            ) {
+              role = 'prepared';
+            } else if (!isActive) {
+              role = 'inactive';
             }
             return {
               beamId: b.beamId,
               offsetEastKm: b.offsetEastKm,
               offsetNorthKm: b.offsetNorthKm,
-              isActive: b.isActive,
+              isActive,
               reuseGroup: b.reuseGroup,
               role,
             };
@@ -964,22 +1000,64 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     // UE states: Phase B = per-UE serving; Phase A = shared serving
     const cosLat = Math.cos(profile.observer.latitudeDeg * Math.PI / 180);
     const ues: UeState[] = uePositions.map((ue) => {
+      const ueHoState = independentHandover
+        ? hoManagers.get(ue.id)!.getState()
+        : hoState;
+      const extendedUeHoState = ueHoState as Readonly<typeof ueHoState> & {
+        dapsPhase?: string;
+        mcPhase?: string;
+        sourceServing?: ServingState | null;
+        targetServing?: ServingState | null;
+      };
+
       let servingSatId: string | null;
       let servingBeamId: string | null;
       if (independentHandover) {
-        const ueServing = hoManagers.get(ue.id)!.getState().serving;
+        const ueServing = ueHoState.serving;
         servingSatId = ueServing?.satId ?? null;
         servingBeamId = ueServing?.beamId ?? null;
       } else {
         servingSatId = representativeServing?.satId ?? null;
         servingBeamId = representativeServing?.beamId ?? null;
       }
+
+      const uePreparedTarget =
+        ueHoState.phase === 'preparing' ||
+        extendedUeHoState.dapsPhase === 'prepared' ||
+        extendedUeHoState.mcPhase === 'mc-preparing'
+          ? ueHoState.pendingTarget
+          : null;
+
+      const ueSecondaryServing =
+        extendedUeHoState.dapsPhase === 'dual-active' ||
+        extendedUeHoState.mcPhase === 'mc-dual-active'
+          ? (extendedUeHoState.targetServing ?? null)
+          : null;
+
+      const continuityState: UeState['continuityState'] =
+        ueSecondaryServing
+          ? 'dual-active'
+          : uePreparedTarget
+            ? 'prepared'
+            : servingSatId
+              ? 'single-active'
+              : undefined;
+
+      // Expose serving SINR truth for overlay use (read from satSinrs, not recomputed)
+      const servingEntry = servingSatId ? satSinrs.find((s) => s.satId === servingSatId) : null;
+      const sinrDb = servingEntry ? servingEntry.sinrDb : null;
       return {
         id: ue.id,
         latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
         lonDeg: profile.observer.longitudeDeg + ue.offsetEastKm / (111.32 * cosLat),
         servingSatId,
         servingBeamId,
+        targetSatId: uePreparedTarget?.satId ?? null,
+        targetBeamId: uePreparedTarget?.beamId ?? null,
+        secondarySatId: ueSecondaryServing?.satId ?? null,
+        secondaryBeamId: ueSecondaryServing?.beamId ?? null,
+        continuityState,
+        sinrDb,
       };
     });
 

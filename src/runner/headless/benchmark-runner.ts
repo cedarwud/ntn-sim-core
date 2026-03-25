@@ -22,8 +22,11 @@ import {
   createRunManifest,
   createResolvedConfig,
   createSourceTrace,
+  createReplayArtifact,
   createRunArtifactBundle,
 } from '@/core/trace/factory';
+import { createReplaySelectionPlan } from '@/runner/curation';
+import { recordWindow } from '@/runner/replay/controller';
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -217,7 +220,29 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     })),
   );
 
-  const artifactBundle = createRunArtifactBundle(manifest, resolvedConfig, sourceTrace);
+  const { replayManifest } = createReplaySelectionPlan(
+    profile,
+    trajectoryCache,
+    manifest.runId,
+    presentationMode,
+  );
+
+  const replaySnapshots = recordWindow(
+    createSimEngine({ profile, trajectoryCache }),
+    totalTicks,
+    stepSec,
+    replayManifest.windowStartSec,
+    replayManifest.windowEndSec,
+  );
+  const replayArtifact = createReplayArtifact(replayManifest, replaySnapshots);
+
+  const artifactBundle = createRunArtifactBundle(
+    manifest,
+    resolvedConfig,
+    sourceTrace,
+    replayManifest,
+    replayArtifact,
+  );
 
   // 8. Return result
   return {

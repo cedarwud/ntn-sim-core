@@ -32,6 +32,10 @@ This folder holds the architecture and SDD documents for `ntn-sim-core`.
    - browser-visible closure criteria for frontend beam delivery
 12. `../sdd/ntn-sim-core-frontend-donor-mapping.md`
    - donor ownership map for moving-beam, BH-cell, and replay-facing visuals
+13. `../sdd/ntn-sim-core-final-closure-checklist.md`
+   - records the final project-level closure disposition
+14. `../sdd/ntn-sim-core-frontend-leo-parity-mode.md`
+   - narrow post-closure enhancement spec for a donor-like `leo-beam-sim` presentation mode; `Slice P1/P2` landed
 
 ## Working Rule
 

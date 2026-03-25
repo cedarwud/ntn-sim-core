@@ -1,8 +1,8 @@
 # NTN Sim Core — Frontend Beam Visual Acceptance
 
-**Version:** 0.3.0  
+**Version:** 0.3.1  
 **Date:** 2026-03-25  
-**Status:** Active Acceptance Companion — overlay extension added, evidence partially manual
+**Status:** Active Acceptance Companion — core visual evidence browser-automated and replay identity closed for the current SDD set
 
 ---
 
@@ -169,7 +169,7 @@ The consolidated implementation checklist lives in `frontend-beam-visual-sdd.md`
 All core prerequisites (beam selection, HO state, BH slot, energy state, TLE pipeline) are satisfied as of 2026-03-25.
 
 Current closure caveats:
-- browser proof assets exist, but visual acceptance is not yet automated
-- replay uses a working snapshot path, but deterministic curated-window integration is still pending
+- core frontend visual gates (`VAL-FV-005` through `VAL-FV-009`) are now browser-automated via `validate-visual-browser.ts`
+- replay uses an artifact-backed snapshot path with deterministic curated-window selection, and end-to-end replay identity is now closed under `FC-1`
 - the BH renderer supports `energy-blocked`, but the default benchmark profile does not yet expose that state by default
-- truth-driven beam/SINR overlay and handover/service link overlays are now part of closure scope, but are not landed yet
+- truth-driven beam/SINR overlay, handover/service link overlays, and Phase 5/6 proof closure are landed and browser-validated; no project-level frontend closure item remains open for the current SDD set

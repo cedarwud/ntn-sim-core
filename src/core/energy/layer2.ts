@@ -122,18 +122,22 @@ function computeShadowFraction(betaDeg: number, altKm: number): number {
 // ---------------------------------------------------------------------------
 
 export function createEnergyLayer2(
-  config: EnergyLayer2Config = DEFAULT_ENERGY_LAYER2_CONFIG,
+  config: Partial<EnergyLayer2Config> = {},
 ): EnergyLayer2Manager {
+  const resolvedConfig: EnergyLayer2Config = {
+    ...DEFAULT_ENERGY_LAYER2_CONFIG,
+    ...config,
+  };
   const states = new Map<string, SatelliteEnergyLayer2State>();
 
   function initSatellite(satId: string): void {
-    const initialEnergy = config.batteryCapacityWh * config.initialSoc;
+    const initialEnergy = resolvedConfig.batteryCapacityWh * resolvedConfig.initialSoc;
     states.set(satId, {
       satId,
-      soc: config.initialSoc,
+      soc: resolvedConfig.initialSoc,
       currentEnergyWh: initialEnergy,
       isInSunlight: true,
-      isEnergyBlocked: config.initialSoc < config.blockingThresholdSoc,
+      isEnergyBlocked: resolvedConfig.initialSoc < resolvedConfig.blockingThresholdSoc,
       totalConsumedWh: 0,
       totalGeneratedWh: 0,
     });
@@ -151,15 +155,15 @@ export function createEnergyLayer2(
     // 1. Determine sunlight/shadow from orbital phase
     // M7 fix: use beta angle geometry when available
     const effectiveShadowFraction =
-      config.betaAngleDeg !== undefined && config.altitudeKm !== undefined
-        ? computeShadowFraction(config.betaAngleDeg, config.altitudeKm)
-        : config.shadowFraction;
-    const phase = (timeSec % config.orbitalPeriodSec) / config.orbitalPeriodSec;
+      resolvedConfig.betaAngleDeg !== undefined && resolvedConfig.altitudeKm !== undefined
+        ? computeShadowFraction(resolvedConfig.betaAngleDeg, resolvedConfig.altitudeKm)
+        : resolvedConfig.shadowFraction;
+    const phase = (timeSec % resolvedConfig.orbitalPeriodSec) / resolvedConfig.orbitalPeriodSec;
     s.isInSunlight = phase < 1 - effectiveShadowFraction;
 
     // 2. Energy generated (only in sunlight)
     const generatedWh = s.isInSunlight
-      ? (config.solarPowerW * stepSec) / 3600
+      ? (resolvedConfig.solarPowerW * stepSec) / 3600
       : 0;
 
     // 3. Energy consumed
@@ -167,13 +171,13 @@ export function createEnergyLayer2(
 
     // 4. Update energy, clamped to [0, capacity]
     const newEnergy = s.currentEnergyWh + generatedWh - consumedWh;
-    s.currentEnergyWh = Math.max(0, Math.min(config.batteryCapacityWh, newEnergy));
+    s.currentEnergyWh = Math.max(0, Math.min(resolvedConfig.batteryCapacityWh, newEnergy));
 
     // 5. Update SoC
-    s.soc = s.currentEnergyWh / config.batteryCapacityWh;
+    s.soc = s.currentEnergyWh / resolvedConfig.batteryCapacityWh;
 
     // 6. Blocking check (VAL-EE-002)
-    s.isEnergyBlocked = s.soc < config.blockingThresholdSoc;
+    s.isEnergyBlocked = s.soc < resolvedConfig.blockingThresholdSoc;
 
     // 7. Cumulative counters
     s.totalConsumedWh += consumedWh;

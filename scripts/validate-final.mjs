@@ -153,33 +153,45 @@ record('VAL-TRACE-001', 0,
 const coveredByRuntime = [
   { id: 'VAL-RNG-001',    phase: 1, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-ORB-002',    phase: 1, note: 'covered by golden-case-orbit.mjs' },
+  { id: 'VAL-VIZ-001',    phase: 1, note: 'covered by validate-replay-manifest.ts + validate-visual-browser.ts' },
   { id: 'VAL-CHAN-001',    phase: 2, note: 'covered by golden-case-channel.mjs' },
   { id: 'VAL-CHAN-002',    phase: 2, note: 'covered by golden-case-channel.mjs' },
   { id: 'VAL-HO-001',     phase: 2, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-SINR-001',   phase: 3, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-EE-001',     phase: 3, note: 'covered by validate-runtime.mjs' },
+  { id: 'VAL-RT-001',     phase: 4, note: 'covered by validate-replay-manifest.ts (real-trace replay identity)' },
+  { id: 'VAL-RT-002',     phase: 4, note: 'covered by validate-replay-manifest.ts' },
+  { id: 'VAL-CUR-001',    phase: 4, note: 'covered by validate-replay-manifest.ts' },
   { id: 'VAL-BH-001',     phase: 5, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-EE-002',     phase: 5, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-DAPS-002',   phase: 6, note: 'covered by validate-runtime.mjs' },
 ];
 
+const coveredByBrowser = [
+  { id: 'VAL-FV-004',     phase: 5, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-FV-005',     phase: 3, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-FV-006',     phase: 3, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-FV-007',     phase: 3, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-FV-008',     phase: 4, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-FV-009',     phase: 6, note: 'covered by validate-visual-browser.ts' },
+  { id: 'VAL-EXP-001',    phase: 5, note: 'covered by validate-visual-browser.ts' },
+];
+
 const needsIntegration = [
   { id: 'VAL-ORB-001',    phase: 1, note: 'needs headless vs frontend orbit diff' },
-  { id: 'VAL-VIZ-001',    phase: 1, note: 'needs browser replay timeline test' },
   { id: 'VAL-BEAM-001',   phase: 2, note: 'needs browser beam geometry test' },
   { id: 'VAL-HO-002',     phase: 2, note: 'needs event trace export verification' },
   { id: 'VAL-KPI-001',    phase: 2, note: 'needs headless vs replay KPI comparison' },
   { id: 'VAL-GOLDEN-001', phase: 2, note: 'needs end-to-end golden case run' },
   { id: 'VAL-GOLDEN-002', phase: 3, note: 'needs HOBS multibeam golden case' },
   { id: 'VAL-MB-001',     phase: 3, note: 'needs active-beam gating determinism' },
-  { id: 'VAL-RT-001',     phase: 4, note: 'needs TLE replay stack identity' },
-  { id: 'VAL-RT-002',     phase: 4, note: 'needs replay manifest reconstruction' },
-  { id: 'VAL-CUR-001',    phase: 4, note: 'needs window selection end-to-end' },
-  { id: 'VAL-EXP-001',    phase: 5, note: 'needs browser overlay distinction' },
 ];
 
 for (const g of coveredByRuntime) {
   results.push({ id: g.id, phase: g.phase, status: 'RT-PASS', method: g.note });
+}
+for (const g of coveredByBrowser) {
+  results.push({ id: g.id, phase: g.phase, status: 'B-PASS', method: g.note });
 }
 for (const g of needsIntegration) {
   results.push({ id: g.id, phase: g.phase, status: 'INTEG', method: g.note });
@@ -228,10 +240,12 @@ for (const r of results) {
 const structPass = results.filter(r => r.status === 'PASS').length;
 const structFail = results.filter(r => r.status === 'FAIL').length;
 const rtPass = results.filter(r => r.status === 'RT-PASS').length;
+const browserPass = results.filter(r => r.status === 'B-PASS').length;
 const integ = results.filter(r => r.status === 'INTEG').length;
 
 console.log(`\n  Structural PASS:        ${structPass}`);
 console.log(`  Runtime-covered PASS:   ${rtPass}  (verified by validate-runtime / golden-case scripts)`);
+console.log(`  Browser-covered PASS:   ${browserPass}  (verified by validate-visual-browser.ts)`);
 console.log(`  Integration deferred:   ${integ}  (needs browser or end-to-end test)`);
 console.log(`  Structural FAIL:        ${structFail}`);
 console.log();

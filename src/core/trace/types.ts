@@ -13,6 +13,7 @@ import type {
   OrbitMode,
   SourceReference,
   KpiBundleShell,
+  SimulationSnapshot,
 } from '@/core/common/types';
 
 // Re-export so consumers can get KpiBundleShell from trace module
@@ -87,6 +88,32 @@ export interface ReplayManifest {
   presentationMode: PresentationMode;
 }
 
+export interface ReplayIdentitySample {
+  index: number;
+  tick: number;
+  timeSec: number;
+  primaryServingSatId: string | null;
+  primaryContinuityState: string | null;
+  dapsPhase: string | null;
+  visibleSatelliteCount: number;
+}
+
+export interface ReplayIdentityRecord {
+  snapshotCount: number;
+  firstTick: number;
+  lastTick: number;
+  firstTimeSec: number;
+  lastTimeSec: number;
+  signature: string;
+  samples: ReplayIdentitySample[];
+}
+
+export interface ReplayArtifact {
+  replayManifest: ReplayManifest;
+  identity: ReplayIdentityRecord;
+  snapshots: SimulationSnapshot[];
+}
+
 // ---------------------------------------------------------------------------
 // Run Artifact Bundle
 // ---------------------------------------------------------------------------
@@ -98,6 +125,7 @@ export interface RunArtifactBundle {
   eventLog: EventLog;
   kpiBundle: KpiBundleShell;
   replayManifest?: ReplayManifest;
+  replayArtifact?: ReplayArtifact;
 }
 
 // ---------------------------------------------------------------------------

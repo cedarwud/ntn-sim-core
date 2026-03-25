@@ -4,3 +4,5 @@ export { EarthMovingBeamLayer } from './EarthMovingBeamLayer';
 export type { EarthMovingBeamLayerProps } from './EarthMovingBeamLayer';
 export { EarthFixedCellLayer } from './EarthFixedCellLayer';
 export type { EarthFixedCellLayerProps } from './EarthFixedCellLayer';
+export { LeoParityBeamLayer } from './LeoParityBeamLayer';
+export type { LeoParityBeamLayerProps } from './LeoParityBeamLayer';

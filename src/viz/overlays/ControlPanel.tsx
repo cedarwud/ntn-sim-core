@@ -7,9 +7,13 @@
 
 import React from 'react';
 
+export type ViewMode = 'default' | 'leo-parity';
+
 export interface ControlPanelProps {
   profileId: string;
   onProfileChange: (id: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
   speed: number;
   onSpeedChange: (speed: number) => void;
   paused: boolean;
@@ -26,6 +30,7 @@ const PROFILES = [
   'case9-access-baseline',
   'hobs-multibeam-baseline',
   'bh-resource-baseline',
+  'bh-resource-energy-proof',
   'real-trace-validation',
   'case9-daps-baseline',
 ] as const;
@@ -117,6 +122,8 @@ const checkboxLabelStyle: React.CSSProperties = {
 export const ControlPanel = React.memo(function ControlPanel({
   profileId,
   onProfileChange,
+  viewMode,
+  onViewModeChange,
   speed,
   onSpeedChange,
   paused,
@@ -129,7 +136,7 @@ export const ControlPanel = React.memo(function ControlPanel({
   onReplayToggle,
 }: ControlPanelProps) {
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} data-testid="control-panel">
       <div style={titleStyle}>NTN-SIM-CORE Controls</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
@@ -137,6 +144,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       <div style={rowStyle}>
         <span style={labelStyle}>Profile:</span>
         <select
+          data-testid="profile-select"
           style={selectStyle}
           value={profileId}
           onChange={(e) => onProfileChange(e.target.value)}
@@ -149,12 +157,34 @@ export const ControlPanel = React.memo(function ControlPanel({
         </select>
       </div>
 
+      {/* View mode */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>View:</span>
+        <button
+          data-testid="view-default"
+          style={viewMode === 'default' ? btnActive : btnBase}
+          onClick={() => onViewModeChange('default')}
+          title="Research/default presentation"
+        >
+          Research
+        </button>
+        <button
+          data-testid="view-leo-parity"
+          style={viewMode === 'leo-parity' ? btnActive : btnBase}
+          onClick={() => onViewModeChange('leo-parity')}
+          title="Donor-like leo-beam-sim presentation mode"
+        >
+          Leo-Parity
+        </button>
+      </div>
+
       {/* Speed buttons */}
       <div style={rowStyle}>
         <span style={labelStyle}>Speed:</span>
         {SPEEDS.map((s) => (
           <button
             key={s}
+            data-testid={`speed-${s}`}
             style={speed === s ? btnActive : btnBase}
             onClick={() => onSpeedChange(s)}
           >
@@ -174,6 +204,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       <div style={{ ...rowStyle, gap: 16 }}>
         <label style={checkboxLabelStyle}>
           <input
+            data-testid="toggle-show-beams"
             type="checkbox"
             checked={showBeams}
             onChange={onShowBeamsToggle}
@@ -182,6 +213,7 @@ export const ControlPanel = React.memo(function ControlPanel({
         </label>
         <label style={checkboxLabelStyle}>
           <input
+            data-testid="toggle-show-labels"
             type="checkbox"
             checked={showLabels}
             onChange={onShowLabelsToggle}
@@ -194,6 +226,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       {onReplayToggle && (
         <div style={rowStyle}>
           <button
+            data-testid="toggle-replay-mode"
             style={replayMode ? btnActive : btnBase}
             onClick={onReplayToggle}
             title="Pre-record entire run then replay (deterministic)"

@@ -14,11 +14,13 @@
     "validate:core-purity": "node scripts/validate-core-purity.mjs",
     "validate:final": "node scripts/validate-final.mjs",
     "validate:runtime": "node scripts/validate-runtime.mjs",
+    "validate:replay-manifest": "node --import tsx scripts/validate-replay-manifest.ts",
+    "validate:visual-browser": "node --import tsx scripts/validate-visual-browser.ts",
     "validate:golden-orbit": "node scripts/golden-case-orbit.mjs",
     "validate:golden-channel": "node scripts/golden-case-channel.mjs",
-    "validate:golden-engine": "npx tsx scripts/golden-case-engine.ts",
-    "validate:baseline": "npx tsx scripts/run-baseline.ts",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine"
+    "validate:golden-engine": "node --import tsx scripts/golden-case-engine.ts",
+    "validate:baseline": "node --import tsx scripts/run-baseline.ts",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine"
   },
   "keywords": [
     "3d",
@@ -45,6 +47,7 @@
     "@types/react-dom": "^19.2.2",
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "playwright-core": "^1.58.2",
     "sass": "^1.93.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

@@ -1,8 +1,8 @@
 # NTN Sim Core — Frontend Beam Visual SDD
 
-**Version:** 0.3.0  
+**Version:** 0.3.2  
 **Date:** 2026-03-25  
-**Status:** Active Companion Spec — overlay extension added, partially implemented
+**Status:** Active Companion Spec — current frontend beam/overlay package landed for the present SDD set
 
 ---
 
@@ -325,7 +325,7 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 |---|---|---|---|---|
 | 3V-1 | Create `src/viz/beam/EarthMovingBeamLayer.tsx` | `leo-beam-sim` `SatelliteBeams.tsx` | `SatelliteBeamSnapshot` from engine snapshot | ✅ done (2026-03-25) |
 | 3V-2 | Per-satellite multi-cone rendering (profile beam count, not fixed 7) | `leo-beam-sim` geometry-pattern | `SatelliteBeamLayout.beams[]` | ✅ done (2026-03-25) |
-| 3V-3 | Beam role styling: serving / prepared / secondary / post-HO / inactive | `beamHO-bench` state-semantics | `HandoverManagerState.serving`, `pendingTarget` | ✅ done (2026-03-25) — serving/target/neutral/inactive |
+| 3V-3 | Beam role styling: serving / prepared / secondary / post-HO / inactive | `beamHO-bench` state-semantics | `HandoverManagerState.serving`, `pendingTarget` | ✅ done (2026-03-25) — serving / prepared / secondary / inactive are snapshot-driven; `post-ho` remains conditional on runtime truth exposure |
 | 3V-4 | Active/inactive beam distinction based on BH slot (when applicable) | `leo-beam-sim` | `BhSlotDecision.activeBeamsPerSat` | ✅ done (2026-03-25) — `isActive` from engine |
 | 3V-5 | Replace or demote current `BeamFootprintLayer` schematic placeholder | — | — | ✅ done (2026-03-25) — deprecated, replaced in SceneShell |
 | 3V-6 | Browser screenshot: `case9-access-baseline` | — | golden-case-engine passing | ✅ done (2026-03-25) — `screenshots/case9-access-baseline.png` |
@@ -337,9 +337,9 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 |---|---|---|---|---|
 | 4V-1 | Wire `useSimulation.ts` to build TLE constellation when `orbitMode === 'real-trace'` | `ntn-stack` pipeline pattern | `tle-loader.ts`, `sgp4-adapter.ts` (exist) | ✅ done (2026-03-25) |
 | 4V-2 | Frontend loads OMM JSON from `profile.tleDataPath` or bundled fixture | — | `fixtures/starlink-shell1-50.json` → `public/fixtures/` | ✅ done (2026-03-25) |
-| 4V-3 | Implement `replay/controller.ts` — store benchmark run snapshots, replay by tick | `leo-simulator` replay-discipline | `recordRun()` + `createSnapshotReplayController()` + `useReplay` hook | ⚠️ partial (2026-03-25) — snapshot replay path works; legacy artifact-bundle `createReplayController()` remains placeholder |
+| 4V-3 | Implement `replay/controller.ts` — store benchmark run snapshots, replay by tick | `leo-simulator` replay-discipline | `recordWindow()` + `createSnapshotReplayController()` + deterministic `useReplay` hook | ✅ done (2026-03-25) — replay artifacts persist curated-window snapshots + replay identity; frontend replay hydrates from the artifact-backed contract |
 | 4V-4 | Replay uses same beam renderer as live synthetic mode (§9 Phase 4 closure rule) | `beamHO-bench` replay-discipline | `ReplayLayer` uses same `EarthMovingBeamLayer` | ✅ done (2026-03-25) |
-| 4V-5 | Browser screenshot: `real-trace-validation` with TLE satellites | — | headless TLE path wired (done 2026-03-25) | ⚠️ partial (2026-03-25) — screenshot exists, but deterministic window curation / replay-manifest integration is still pending |
+| 4V-5 | Browser screenshot: `real-trace-validation` with TLE satellites | — | headless TLE path wired (done 2026-03-25) | ✅ done (2026-03-25) — replay-manifest + replay-artifact integration is validated end-to-end |
 
 ### 12.3 Phase 5 Visual: Earth-Fixed Cell Grid (MS4)
 
@@ -348,8 +348,8 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 | 5V-1 | Create `src/viz/beam/EarthFixedCellLayer.tsx` | `leo-simulator` `EarthFixedCells.tsx` | `BhSlotSnapshot` in SimulationSnapshot | ✅ done (2026-03-25) |
 | 5V-2 | Cells fixed on ground while satellites move | `leo-simulator` geometry-pattern | fixed hex grid, coverage from beam offsets | ✅ done (2026-03-25) |
 | 5V-3 | Service state from scheduler truth: served / inactive | `beamHO-bench` state-semantics | `BhSlotSnapshot.activeBeamsBySat` | ✅ done (2026-03-25) — served(blue)/unserved(gray) |
-| 5V-4 | Visual distinction for 4 loss causes | acceptance §3 requirement | 4 states implemented: served(blue)/interfered(yellow)/energyBlocked(orange)/unserved(gray); `BhSlotSnapshot.energyBlockedSats[]` from engine `energyL2Manager`; FRF collision detection in cell coverage loop | ⚠️ partial (2026-03-25) — renderer supports all 4 states, but default `bh-resource-baseline` does not activate the energy-blocked path by itself |
-| 5V-5 | Browser screenshot: `bh-resource-baseline` | — | headless BH baseline passing | ⚠️ partial (2026-03-25) — screenshots exist, but default benchmark evidence for the energy-blocked case still needs a dedicated L2-enabled profile or automated proof |
+| 5V-4 | Visual distinction for 4 loss causes | acceptance §3 requirement | 4 states implemented: served(blue)/interfered(yellow)/energyBlocked(orange)/unserved(gray); `BhSlotSnapshot.energyBlockedSats[]` from engine `energyL2Manager`; FRF collision detection in cell coverage loop; deterministic `bh-resource-energy-proof` and `BhExplainabilityPanel` provide browser-proof closure | ✅ done (2026-03-25) |
+| 5V-5 | Browser screenshot: `bh-resource-baseline` | — | headless BH baseline passing | ✅ done (2026-03-25) — deterministic `bh-resource-energy-proof` plus automated browser proof closes the energy-blocked evidence path |
 
 ### 12.4 Phase 6 Visual: DAPS Replay Verification
 
@@ -358,7 +358,7 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 | 6V-1 | Replay snapshots preserve `DapsState.sourceServing` + `targetServing` during dual-active phase | `beamHO-bench` replay-discipline | `DapsSnapshot` in `SimulationSnapshot`, populated from `dapsPhase` | ✅ done (2026-03-25) |
 | 6V-2 | Beam renderer shows both source and target beams active simultaneously during DAPS dual-active | `leo-beam-sim` state-semantics | `snapshot.daps.phase === 'dual-active'` → target beams rendered cyan at serving opacity | ✅ done (2026-03-25) |
 | 6V-3 | Path-switch moment visually transitions from dual-active to single-active target | — | `DapsSnapshot.phase` drives `isDapsTarget` flag in `SatBeamGroup` — transitions naturally | ✅ done (2026-03-25) |
-| 6V-4 | Browser screenshot: DAPS A/B comparison (baseline vs DAPS) showing dual-active phase | — | `case9-daps-baseline` profile added; dual-active visible in browser | ⚠️ partial (2026-03-25) — manual screenshot exists, but replay-manifest parity and browser automation remain pending |
+| 6V-4 | Browser screenshot: DAPS A/B comparison (baseline vs DAPS) showing dual-active phase | — | `case9-daps-baseline` profile added; dual-active visible in browser and now browser-validated in both live and replay | ✅ done (2026-03-25) |
 
 Prerequisite: 4V-3 (replay controller) must be completed first.
 
@@ -369,10 +369,10 @@ Prerequisite: 4V-3 (replay controller) must be completed first.
 | XV-1 | Register 3 frontend SDD docs in `sdd/README.md` and `implementation-status.md` | ✅ done (2026-03-25) — all 3 docs registered in README items 15–17 |
 | XV-2 | Add `VAL-VIZ-002` plus frontend visual gates to validation-matrix.md | ✅ done (2026-03-25) |
 | XV-3 | Demote `BeamFootprintLayer` to `VISUAL-ONLY-DEPRECATED` once replacement lands | ✅ done (2026-03-25) — `@deprecated` JSDoc added |
-| XV-4 | Land donor-backed `BeamInfoOverlay` with truth-driven SINR/beam explainers only | ⏳ pending (2026-03-25 scope extension) |
-| XV-5 | Land donor-backed `HandoverLinkOverlay` for serving / target / post-HO / dual-active continuity | ⏳ pending (2026-03-25 scope extension) |
-| XV-6 | Enforce replay parity so live/replay use the same overlay/link truth fields | ⏳ pending (2026-03-25 scope extension) |
-| XV-7 | Add browser-visible proof for overlay/link package and wire corresponding `VAL-FV-*` closure evidence | ⏳ pending (2026-03-25 scope extension) |
+| XV-4 | Land donor-backed `BeamInfoOverlay` with truth-driven SINR/beam explainers only | ✅ done (2026-03-25) — `BeamInfoOverlay.tsx`, SINR dB color-coded + role tag, wired LiveLayer + ReplayLayer |
+| XV-5 | Land donor-backed `HandoverLinkOverlay` for serving / target / post-HO / dual-active continuity | ✅ done (2026-03-25) — `HandoverLinkOverlay.tsx`, truth-driven serving / prepared / secondary / dual-active link styles; `post-ho` remains contingent on runtime truth |
+| XV-6 | Enforce replay parity so live/replay use the same overlay/link truth fields | ✅ done (2026-03-25) — both overlays wired into ReplayLayer with same snapshot path |
+| XV-7 | Add browser-visible proof for overlay/link package and wire corresponding `VAL-FV-*` closure evidence | ✅ done (2026-03-25) — `validate-visual-browser.ts` now covers `VAL-FV-005`~`VAL-FV-009`; screenshots remain as supplementary proof |
 
 ### 12.6 Prerequisites from Core (all satisfied)
 
@@ -387,13 +387,14 @@ Prerequisite: 4V-3 (replay controller) must be completed first.
 | Beam layout with FRF coloring | ✅ | `beam/layout.ts` |
 | DAPS dual-active state: sourceServing, targetServing, dapsPhase | ✅ | `daps.ts` DapsState |
 
-### 12.7 Remaining Frontend Work After 2026-03-25 Review
+### 12.7 Final Frontend Closure Items
 
-| Item | Reason it is still open |
+Remaining frontend closure work is now compressed into the same 3 final project-level items tracked by:
+
+`sdd/ntn-sim-core-final-closure-checklist.md`
+
+| Closure Item | Frontend-specific meaning |
 |---|---|
-| Curated replay window integration | `pass-ranker.ts` and `window-selector.ts` exist, but `useReplay` still records and replays the full run instead of a deterministic selected window |
-| Artifact-bundle replay parity | `createReplayController()` still returns empty snapshots on the legacy artifact path |
-| Visual automation | screenshot packs exist, but no Playwright/browser gate closes `VAL-FV-*` automatically |
-| Default BH energy-blocked evidence | renderer supports 4 states, but the standard `bh-resource-baseline` profile does not yet expose the `energyBlocked` state by default |
-| Truth-driven beam/SINR overlay | core snapshot carries beam roles and SINR-related truth, but no dedicated `BeamInfoOverlay` is landed yet |
-| Truth-driven handover/service links | serving/target/post-HO/dual-active state exists in runtime truth, but no donor-backed `HandoverLinkOverlay` is landed yet |
+| `FC-1 Replay Closure` | ✅ closed (2026-03-25) — curated-window replay metadata persists in `replayArtifact`, frontend replay hydrates from the saved replay contract, and replay identity is verified end-to-end |
+| `FC-2 Visual Validation and Tooling Closure` | ✅ closed (2026-03-25) — `validate-visual-browser.ts` automates the core `VAL-FV-*` browser evidence for the landed beam/overlay/link package |
+| `FC-3 Phase 5/6 Proof Closure` | ✅ closed (2026-03-25) — deterministic BH proof + DAPS live/replay browser proof are now automated |

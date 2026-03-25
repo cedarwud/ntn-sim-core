@@ -18,3 +18,9 @@ export type {
   WindowSelectionConfig,
   SelectedWindow,
 } from './window-selector';
+
+export {
+  buildReplaySelectionConfig,
+  createReplaySelectionPlan,
+} from './replay-plan';
+export type { ReplaySelectionPlan } from './replay-plan';

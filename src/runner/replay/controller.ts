@@ -18,6 +18,8 @@
  */
 
 import type { SimulationSnapshot } from '@/core/common/types';
+import { createReplayIdentityRecord } from '@/core/trace/factory';
+import type { ReplayArtifact } from '@/core/trace/types';
 import type { ReplayState, ReplayController } from './types';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,30 @@ export function recordRun(
   const snapshots: SimulationSnapshot[] = [];
   for (let tick = 0; tick < totalTicks; tick++) {
     snapshots.push(engine.tick(tick * stepSec, tick));
+  }
+  return snapshots;
+}
+
+/**
+ * Run the engine from tick 0, but only retain snapshots that fall inside
+ * the requested replay window. This preserves stateful HO/channel evolution
+ * before the selected showcase window while keeping replay deterministic.
+ */
+export function recordWindow(
+  engine: RecordableEngine,
+  totalTicks: number,
+  stepSec: number,
+  windowStartSec: number,
+  windowEndSec: number,
+): SimulationSnapshot[] {
+  engine.reset();
+  const snapshots: SimulationSnapshot[] = [];
+  for (let tick = 0; tick < totalTicks; tick++) {
+    const timeSec = tick * stepSec;
+    const snapshot = engine.tick(timeSec, tick);
+    if (timeSec >= windowStartSec && timeSec <= windowEndSec) {
+      snapshots.push(snapshot);
+    }
   }
   return snapshots;
 }
@@ -143,62 +169,66 @@ export function createSnapshotReplayController(
   };
 }
 
+export interface ReplayArtifactControllerConfig {
+  replayArtifact: ReplayArtifact;
+  stepSec: number;
+  playbackSpeed?: number;
+}
+
+export function createReplayControllerFromArtifact(
+  config: ReplayArtifactControllerConfig,
+): ReplayController & { advance(deltaMs: number): void } {
+  const { replayArtifact, stepSec, playbackSpeed } = config;
+  const { replayManifest, identity, snapshots } = replayArtifact;
+
+  if (snapshots.length === 0) {
+    throw new Error('[createReplayControllerFromArtifact] replay artifact snapshots are empty');
+  }
+
+  const regeneratedIdentity = createReplayIdentityRecord(snapshots);
+  if (regeneratedIdentity.signature !== identity.signature) {
+    throw new Error(
+      `[createReplayControllerFromArtifact] replay identity signature mismatch: ${regeneratedIdentity.signature} !== ${identity.signature}`,
+    );
+  }
+
+  if (snapshots[0].timeSec !== replayManifest.windowStartSec) {
+    throw new Error('[createReplayControllerFromArtifact] first snapshot does not match replayManifest.windowStartSec');
+  }
+  if (snapshots[snapshots.length - 1].timeSec !== replayManifest.windowEndSec) {
+    throw new Error('[createReplayControllerFromArtifact] last snapshot does not match replayManifest.windowEndSec');
+  }
+
+  return createSnapshotReplayController({
+    snapshots,
+    stepSec,
+    playbackSpeed,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Deprecated legacy artifact-bundle controller (kept for API compat)
 // ---------------------------------------------------------------------------
 
 import type { ReplayRunConfig } from './types';
 
-/**
- * @deprecated
- * Legacy artifact-bundle replay path retained for API compatibility only.
- * The frontend replay flow uses `recordRun()` + `createSnapshotReplayController()`.
- * Artifact-bundle replay parity is not implemented yet, so this controller still
- * returns placeholder empty snapshots and must not be treated as a completed
- * replay path for Phase 4 closure or paper-facing evidence.
- */
-export function createReplayController(config: ReplayRunConfig): ReplayController {
-  const { replayManifest, artifactBundle } = config;
-  const stepSec = artifactBundle.manifest.stepSec;
-
-  let currentTimeSec = replayManifest.windowStartSec;
-  let paused = true;
-  const playbackSpeed = config.playbackSpeed;
-
-  function clampTime(t: number): number {
-    return Math.max(replayManifest.windowStartSec, Math.min(t, replayManifest.windowEndSec));
+export function createReplayController(
+  config: ReplayRunConfig,
+): ReplayController & { advance(deltaMs: number): void } {
+  const replayArtifact = config.artifactBundle.replayArtifact;
+  if (!replayArtifact) {
+    throw new Error('[createReplayController] artifact bundle does not carry replayArtifact');
+  }
+  if (replayArtifact.replayManifest.windowStartSec !== config.replayManifest.windowStartSec ||
+      replayArtifact.replayManifest.windowEndSec !== config.replayManifest.windowEndSec ||
+      replayArtifact.replayManifest.selectionCriteria !== config.replayManifest.selectionCriteria ||
+      replayArtifact.replayManifest.selectionMethod !== config.replayManifest.selectionMethod) {
+    throw new Error('[createReplayController] artifact replayManifest does not match requested replayManifest');
   }
 
-  function tickFromTime(t: number): number {
-    return Math.floor((t - replayManifest.windowStartSec) / stepSec);
-  }
-
-  return {
-    play() { paused = false; },
-    pause() { paused = true; },
-
-    step() {
-      currentTimeSec = clampTime(currentTimeSec + stepSec);
-    },
-
-    seek(timeSec: number) {
-      currentTimeSec = clampTime(timeSec);
-    },
-
-    getSnapshot(): SimulationSnapshot {
-      // Placeholder until artifact-bundle replay parity is implemented.
-      return { tick: tickFromTime(currentTimeSec), timeSec: currentTimeSec, satellites: [], ues: [] };
-    },
-
-    getState(): ReplayState {
-      return {
-        currentTimeSec,
-        currentTick: tickFromTime(currentTimeSec),
-        paused,
-        playbackSpeed,
-        windowStartSec: replayManifest.windowStartSec,
-        windowEndSec: replayManifest.windowEndSec,
-      };
-    },
-  };
+  return createReplayControllerFromArtifact({
+    replayArtifact,
+    stepSec: config.artifactBundle.manifest.stepSec,
+    playbackSpeed: config.playbackSpeed,
+  });
 }

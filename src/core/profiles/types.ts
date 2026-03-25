@@ -79,6 +79,14 @@ export interface BeamConfig {
   frf: number;
   /** Number of interference beams tracked (beyond serving set). */
   interference_beams: number;
+  /** Max active beams per satellite per time slot (omit = all active). */
+  bh_max_active_per_slot?: number;
+  /** BH frame duration in seconds (default 0.64). */
+  bh_frame_duration_sec?: number;
+  /** Number of slots per BH frame (default ceil(num_beams / bh_max_active_per_slot)). */
+  bh_slots_per_frame?: number;
+  /** BH scheduling strategy (default 'round-robin'). */
+  bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' | 'deterministic-fixed';
 }
 
 /** Channel model tier enable flags (profile-baselines §8.1). */
@@ -141,6 +149,21 @@ export interface EnergyConfig {
   layer1_enabled: boolean;
   /** Energy layer 2: onboard energy state and blocking. */
   layer2_enabled: boolean;
+  /**
+   * Optional profile-level overrides for Layer 2 proof / showcase scenarios.
+   * These remain truth-driving runtime inputs, but are not required for
+   * benchmark baselines that keep Layer 2 disabled.
+   */
+  layer2_overrides?: {
+    batteryCapacityWh?: number;
+    initialSoc?: number;
+    solarPowerW?: number;
+    blockingThresholdSoc?: number;
+    orbitalPeriodSec?: number;
+    shadowFraction?: number;
+    altitudeKm?: number;
+    betaAngleDeg?: number;
+  };
 }
 
 export type UeDistribution = 'uniform' | 'clustered' | 'hotspot';

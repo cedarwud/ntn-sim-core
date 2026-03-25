@@ -10,6 +10,9 @@ export type {
   EventRecord,
   EventLog,
   ReplayManifest,
+  ReplayIdentitySample,
+  ReplayIdentityRecord,
+  ReplayArtifact,
   KpiBundleShell,
   RunArtifactBundle,
   AssumptionRecord,
@@ -21,6 +24,8 @@ export {
   createSourceTrace,
   createEmptyEventLog,
   createEmptyKpiBundle,
+  createReplayIdentityRecord,
+  createReplayArtifact,
   createRunArtifactBundle,
 } from './factory';
 export type { CreateRunManifestOpts } from './factory';

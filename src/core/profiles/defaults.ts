@@ -160,6 +160,10 @@ export const HOBS_MULTIBEAM_BASELINE = {
     layout: 'hexagonal',
     frf: 3,
     interference_beams: 0,
+    bh_max_active_per_slot: 4,
+    bh_frame_duration_sec: 5,      // 5s frame = 1s/slot, visible hopping at stepSec=1
+    bh_slots_per_frame: 5,         // ceil(19/4) = 5 slots to cycle all beams
+    bh_strategy: 'round-robin',
   },
   channel: {
     tier0_fspl: true,
@@ -278,6 +282,79 @@ export const BH_RESOURCE_BASELINE = {
 } as const satisfies ProfileConfig;
 
 // ---------------------------------------------------------------------------
+// 3b. bh-resource-energy-proof — deterministic Phase 5 proof path
+// ---------------------------------------------------------------------------
+
+export const BH_RESOURCE_ENERGY_PROOF = {
+  id: 'bh-resource-energy-proof',
+  family: 'bh-resource-baseline',
+  version: '0.1.0',
+
+  orbitMode: 'synthetic',
+  beamSemantics: 'earth-fixed-bh',
+
+  observer: BEIJING_OBSERVER,
+  timeControl: {
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    durationSec: 240,
+    stepSec: 1,
+  },
+  seed: 42,
+
+  orbital: {
+    ...BH_RESOURCE_BASELINE.orbital,
+  },
+  rf: {
+    ...BH_RESOURCE_BASELINE.rf,
+  },
+  antenna: {
+    ...BH_RESOURCE_BASELINE.antenna,
+    peak_gain_dbi: 33,
+    beam_diameter_km: 100,
+  },
+  beam: {
+    ...BH_RESOURCE_BASELINE.beam,
+    num_beams: 37,
+    bh_strategy: 'deterministic-fixed',
+  },
+  channel: {
+    ...BH_RESOURCE_BASELINE.channel,
+  },
+  handover: {
+    ...BH_RESOURCE_BASELINE.handover,
+  },
+  energy: {
+    layer1_enabled: true,
+    layer2_enabled: true,
+    layer2_overrides: {
+      batteryCapacityWh: 0.5,
+      initialSoc: 0.6,
+      solarPowerW: 0,
+      blockingThresholdSoc: 0.15,
+      orbitalPeriodSec: 5760,
+      shadowFraction: 0.35,
+    },
+  },
+  ueConfig: {
+    ...BH_RESOURCE_BASELINE.ueConfig,
+  },
+
+  sourceMap: [
+    ...BH_RESOURCE_BASELINE.sourceMap,
+    {
+      tier: 'assumption-backed',
+      id: 'ASSUME-ENE-001',
+      note: 'Layer 2 proof profile uses reduced battery capacity and zero-solar showcase overrides to expose deterministic energyBlocked service loss without changing physics code paths',
+    },
+    {
+      tier: 'assumption-backed',
+      id: 'ASSUME-CUR-002',
+      note: 'deterministic-fixed BH scheduling plus expanded 37-beam / 100km footprint geometry is used only for proof/validation closure so inactive-beam and energy-blocked states appear repeatably in browser automation',
+    },
+  ],
+} as const satisfies ProfileConfig;
+
+// ---------------------------------------------------------------------------
 // 4. real-trace-validation (profile-baselines §7)
 // ---------------------------------------------------------------------------
 
@@ -375,7 +452,7 @@ export const CASE9_DAPS_BASELINE = {
 
   observer: BEIJING_OBSERVER,
   timeControl: {
-    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 8, 0),
     durationSec: 3600,
     stepSec: 1,
   },
@@ -435,7 +512,7 @@ export const CASE9_DAPS_BASELINE = {
   sourceMap: [
     { tier: 'paper-backed', id: 'PAP-2025-DAPS-CORE', note: 'DAPS dual-active handover, 600km, S-band' },
     { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', note: 'orbit altitude 600km, A4 event trigger baseline' },
-    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted to expose dual-active inside the deterministic replay window' },
   ],
 } as const satisfies ProfileConfig;
 
@@ -447,6 +524,7 @@ export const DEFAULT_PROFILES: Record<string, ProfileConfig> = {
   'case9-access-baseline': CASE9_ACCESS_BASELINE,
   'hobs-multibeam-baseline': HOBS_MULTIBEAM_BASELINE,
   'bh-resource-baseline': BH_RESOURCE_BASELINE,
+  'bh-resource-energy-proof': BH_RESOURCE_ENERGY_PROOF,
   'real-trace-validation': REAL_TRACE_VALIDATION,
   'case9-daps-baseline': CASE9_DAPS_BASELINE,
 };

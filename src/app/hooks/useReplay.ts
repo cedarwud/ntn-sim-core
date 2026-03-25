@@ -3,8 +3,8 @@
  *
  * On mount (once per profileId):
  *   1. Builds constellation + cache + engine (same as useSimulation)
- *   2. Runs the engine headlessly for the full durationSec (synchronous)
- *   3. Stores all snapshots in memory
+ *   2. Selects a deterministic replay window from the trajectory cache
+ *   3. Runs the engine headlessly and stores only the selected-window snapshots
  *   4. Returns a replay controller and exposes snapshot / state
  *
  * In each frame:
@@ -26,8 +26,11 @@ import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
 import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import { createSimEngine } from '@/core/engine';
-import { recordRun, createSnapshotReplayController } from '@/runner/replay/controller';
+import { createReplayArtifact } from '@/core/trace/factory';
+import { recordWindow, createReplayControllerFromArtifact } from '@/runner/replay/controller';
+import { createReplaySelectionPlan } from '@/runner/curation';
 import type { SimulationSnapshot } from '@/core/common/types';
+import type { ReplayManifest } from '@/core/trace/types';
 import type { ReplayState } from '@/runner/replay/types';
 import type { WalkerConfig } from '@/core/orbit/types';
 
@@ -48,6 +51,8 @@ export interface UseReplayResult {
   satelliteCount: number;
   visibleCount: number;
   servingSatId: string | null;
+  replayManifest: ReplayManifest | null;
+  selectionReason: string | null;
   profileId: string;
 }
 
@@ -70,7 +75,7 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
 
   // ── 1. Build + headless record (once per profileId) ──
 
-  const { controller, satelliteCount } = useMemo(() => {
+  const { controller, satelliteCount, replayManifest, selectionReason } = useMemo(() => {
     const prof = loadProfile(profileId);
     const CACHE_STEP_SEC = 10;
 
@@ -118,19 +123,40 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
 
     const engine = createSimEngine({ profile: prof, trajectoryCache: cache });
 
-    // Headless record — synchronous, runs entire simulation upfront
-    const totalTicks = Math.floor(prof.timeControl.durationSec / prof.timeControl.stepSec);
-    const snapshots = recordRun(engine, totalTicks, prof.timeControl.stepSec);
+    const replayPlan = createReplaySelectionPlan(
+      prof,
+      cache,
+      `replay-${prof.id}-${prof.seed}`,
+      'showcase',
+    );
+    const { selectedWindow, replayManifest } = replayPlan;
 
-    const ctrl = createSnapshotReplayController({
-      snapshots,
+    // Headless record — runs from tick 0 for state accuracy, but retains only
+    // the deterministic curated replay window.
+    const totalTicks = Math.floor(prof.timeControl.durationSec / prof.timeControl.stepSec);
+    const snapshots = recordWindow(
+      engine,
+      totalTicks,
+      prof.timeControl.stepSec,
+      selectedWindow.startTimeSec,
+      selectedWindow.endTimeSec,
+    );
+
+    const replayArtifact = createReplayArtifact(replayManifest, snapshots);
+    const ctrl = createReplayControllerFromArtifact({
+      replayArtifact,
       stepSec: prof.timeControl.stepSec,
       playbackSpeed: speed,
     });
     ctrl.play();
 
-    return { controller: ctrl, satelliteCount: elements.length };
-  }, [profileId]);
+    return {
+      controller: ctrl,
+      satelliteCount: elements.length,
+      replayManifest,
+      selectionReason: selectedWindow.reason,
+    };
+  }, [profileId, speed]);
 
   // ── 2. Snapshot state ──
 
@@ -165,6 +191,8 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
     satelliteCount,
     visibleCount,
     servingSatId,
+    replayManifest,
+    selectionReason,
     profileId,
   };
 }
