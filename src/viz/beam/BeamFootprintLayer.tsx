@@ -1,4 +1,7 @@
 /**
+ * @deprecated Use EarthMovingBeamLayer instead. This is a hardcoded 7-beam
+ * schematic that does not consume engine beam data. Kept for reference only.
+ *
  * BeamFootprintLayer — VISUAL-ONLY multi-beam illustration.
  *
  * Shows a simplified beam pattern per visible satellite:

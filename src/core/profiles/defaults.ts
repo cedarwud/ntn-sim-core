@@ -362,6 +362,84 @@ export const REAL_TRACE_VALIDATION = {
 } as const satisfies ProfileConfig;
 
 // ---------------------------------------------------------------------------
+// 5. case9-daps-baseline — DAPS dual-active handover showcase (profile-baselines §4 variant)
+// ---------------------------------------------------------------------------
+
+export const CASE9_DAPS_BASELINE = {
+  id: 'case9-daps-baseline',
+  family: 'case9-daps-baseline',
+  version: '0.1.0',
+
+  orbitMode: 'synthetic',
+  beamSemantics: 'earth-moving',
+
+  observer: BEIJING_OBSERVER,
+  timeControl: {
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    durationSec: 3600,
+    stepSec: 1,
+  },
+  seed: 42,
+
+  orbital: {
+    altitude_km: 600,
+    inclination_deg: 53,
+    num_planes: 24,
+    sats_per_plane: 22,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 20,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+  },
+  antenna: {
+    model: 'rpsat-3gpp',
+    peak_gain_dbi: 30,
+    beam_diameter_km: 50,
+  },
+  beam: {
+    num_beams: 19,
+    layout: 'hexagonal',
+    frf: 1,
+    interference_beams: 42,
+  },
+  channel: {
+    tier0_fspl: true,
+    tier1_large_scale: true,
+    tier2_clutter: true,
+    tier3_beam_gain: true,
+    tier4_atmospheric: false,
+    tier5_fading: false,
+  },
+  handover: {
+    type: 'daps',
+    trigger_threshold_db: -6,
+    ttt_ms: 640,
+    hysteresis_db: 1,
+    min_elevation_deg: 10,
+  },
+  energy: {
+    layer1_enabled: false,
+    layer2_enabled: false,
+  },
+  ueConfig: {
+    count: 10,
+    distribution: 'uniform',
+    speed_kmh: 0,
+  },
+
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2025-DAPS-CORE', note: 'DAPS dual-active handover, 600km, S-band' },
+    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', note: 'orbit altitude 600km, A4 event trigger baseline' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization' },
+  ],
+} as const satisfies ProfileConfig;
+
+// ---------------------------------------------------------------------------
 // Profile registry
 // ---------------------------------------------------------------------------
 
@@ -370,4 +448,5 @@ export const DEFAULT_PROFILES: Record<string, ProfileConfig> = {
   'hobs-multibeam-baseline': HOBS_MULTIBEAM_BASELINE,
   'bh-resource-baseline': BH_RESOURCE_BASELINE,
   'real-trace-validation': REAL_TRACE_VALIDATION,
+  'case9-daps-baseline': CASE9_DAPS_BASELINE,
 };

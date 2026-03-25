@@ -12,8 +12,9 @@ import { SimHud } from '@/viz/overlays/SimHud';
 import type { SimHudProps } from '@/viz/overlays/SimHud';
 import { ControlPanel } from '@/viz/overlays/ControlPanel';
 import { useSimulation } from '@/app/hooks/useSimulation';
+import { useReplay } from '@/app/hooks/useReplay';
 import { SatelliteSkyLayer } from '@/viz/satellite/SatelliteSkyLayer';
-import { BeamFootprintLayer } from '@/viz/beam';
+import { EarthMovingBeamLayer, EarthFixedCellLayer } from '@/viz/beam';
 
 // ---------------------------------------------------------------------------
 // SimulationLayer — lives inside Canvas
@@ -26,18 +27,11 @@ interface SimulationLayerProps {
   paused: boolean;
   showBeams: boolean;
   showLabels: boolean;
+  replayMode: boolean;
 }
 
-function SimulationLayer({
-  onStatsUpdate,
-  profileId,
-  speed,
-  paused,
-  showBeams,
-  showLabels,
-}: SimulationLayerProps) {
+function LiveLayer({ onStatsUpdate, profileId, speed, paused, showBeams, showLabels }: Omit<SimulationLayerProps, 'replayMode'>) {
   const result = useSimulation({ profileId, speed, paused });
-
   useEffect(() => {
     onStatsUpdate({
       simTimeSec: result.simTimeSec,
@@ -50,13 +44,42 @@ function SimulationLayer({
       isReady: result.isReady,
     });
   }, [result.snapshot]);
-
   return (
     <>
       <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
-      <BeamFootprintLayer snapshot={result.snapshot} numBeams={19} visible={showBeams} />
+      <EarthMovingBeamLayer snapshot={result.snapshot} visible={showBeams} />
+      <EarthFixedCellLayer snapshot={result.snapshot} visible={showBeams} />
     </>
   );
+}
+
+function ReplayLayer({ onStatsUpdate, profileId, speed, paused, showBeams, showLabels }: Omit<SimulationLayerProps, 'replayMode'>) {
+  const result = useReplay({ profileId, speed, paused });
+  useEffect(() => {
+    onStatsUpdate({
+      simTimeSec: result.replayState?.currentTimeSec ?? 0,
+      totalDurationSec: result.replayState?.windowEndSec ?? 0,
+      satelliteCount: result.satelliteCount,
+      visibleCount: result.visibleCount,
+      servingSatId: result.servingSatId,
+      handoverCount: 0,
+      profileId: result.profileId,
+      isReady: result.isReady,
+    });
+  }, [result.snapshot]);
+  return (
+    <>
+      <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
+      <EarthMovingBeamLayer snapshot={result.snapshot} visible={showBeams} />
+      <EarthFixedCellLayer snapshot={result.snapshot} visible={showBeams} />
+    </>
+  );
+}
+
+function SimulationLayer(props: SimulationLayerProps) {
+  return props.replayMode
+    ? <ReplayLayer {...props} />
+    : <LiveLayer {...props} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,10 +95,12 @@ export function SceneShell() {
   const [paused, setPaused] = useState(false);
   const [showBeams, setShowBeams] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
+  const [replayMode, setReplayMode] = useState(false);
 
   const handlePauseToggle = useCallback(() => setPaused((p) => !p), []);
   const handleShowBeamsToggle = useCallback(() => setShowBeams((b) => !b), []);
   const handleShowLabelsToggle = useCallback(() => setShowLabels((l) => !l), []);
+  const handleReplayToggle = useCallback(() => setReplayMode((r) => !r), []);
 
   return (
     <div
@@ -100,6 +125,8 @@ export function SceneShell() {
         onShowBeamsToggle={handleShowBeamsToggle}
         showLabels={showLabels}
         onShowLabelsToggle={handleShowLabelsToggle}
+        replayMode={replayMode}
+        onReplayToggle={handleReplayToggle}
       />
 
       <Canvas
@@ -131,6 +158,7 @@ export function SceneShell() {
             paused={paused}
             showBeams={showBeams}
             showLabels={showLabels}
+            replayMode={replayMode}
           />
         </Suspense>
 

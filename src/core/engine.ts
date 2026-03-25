@@ -10,7 +10,7 @@
  *   - Source tiers: per-module (see channel/, handover/, kpi/, beam/, energy/)
  */
 
-import type { SimulationSnapshot, SatelliteState, UeState } from './common/types';
+import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, BhSlotSnapshot, DapsSnapshot, UeState } from './common/types';
 import { createRng } from './common/types';
 import type { TrajectoryCache, TrajectorySample } from './orbit/types';
 import type { ProfileConfig } from './profiles/types';
@@ -143,8 +143,12 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // Seeded RNG for shadow fading
   let rng = createRng(profile.seed);
 
-  // Handover manager
+  // Handover manager (Phase A shared, or Phase B primary fallback)
   let hoManager = createBaselineFromConfig(profile.handover);
+
+  // MS2: Phase B independent HO — one HandoverManager per UE
+  const independentHandover = profile.ueConfig.independentHandover === true;
+  const hoManagers = new Map<string, HandoverManager>();
 
   // KPI accumulator
   let kpiAcc = createKpiAccumulator({
@@ -162,6 +166,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   let uePositions: UePosition[] = generateUePositions(
     ueCount, beamRadiusKm, profile.ueConfig.distribution, () => rng.next(),
   );
+
+  // MS2: Populate per-UE HO managers for Phase B
+  if (independentHandover) {
+    for (const ue of uePositions) {
+      hoManagers.set(ue.id, createBaselineFromConfig(profile.handover));
+    }
+  }
 
   // P4 fix: UE mobility updater
   let mobilityUpdater = createMobilityUpdater(
@@ -484,6 +495,58 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   }
 
   // ---------------------------------------------------------------------------
+  // MS2 helper: per-UE SINR from a pre-computed satellite entry
+  //
+  // For Phase B, each UE needs its own SINR from each candidate satellite.
+  // We derive it from the pre-computed beam-center SINR by applying beam gain
+  // roll-off at the UE's actual offset position.
+  //
+  // Multi-beam: selects the UE's closest beam; single-beam: applies radial roll-off.
+  // ---------------------------------------------------------------------------
+
+  function computeUeSinrFromSatEntry(
+    ue: UePosition,
+    satEntry: { satId: string; sample: TrajectorySample; sinrDb: number; bestBeamId: string },
+  ): { sinrDb: number; beamId: string } {
+    if (ue.id === PRIMARY_UE_ID) {
+      // Primary UE at beam center — use pre-computed SINR directly
+      return { sinrDb: satEntry.sinrDb, beamId: satEntry.bestBeamId };
+    }
+
+    const slantRangeKm = satEntry.sample.rangeKm;
+
+    if (isMultiBeam && profile.channel.tier3_beam_gain) {
+      // Multi-beam: select closest beam for UE's ground offset
+      const layout = getOrCreateBeamLayout(satEntry.satId, satEntry.sample.altKm);
+      const ueSelection = selectBeamForUe(
+        layout, ue.offsetEastKm, ue.offsetNorthKm, profile.antenna,
+      );
+      // Gain at UE position relative to the new best beam boresight
+      const gainDb = computeBeamGain({
+        offAxisAngleDeg: ueSelection.offAxisAngleDeg,
+        model: profile.antenna.model,
+        peakGainDbi: profile.antenna.peak_gain_dbi,
+        beamDiameterKm: profile.antenna.beam_diameter_km,
+        altitudeKm: satEntry.sample.altKm,
+        slantRangeKm,
+      });
+      return { sinrDb: satEntry.sinrDb + gainDb, beamId: ueSelection.bestBeamId };
+    }
+
+    // Single-beam: radial beam gain roll-off from beam center
+    const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
+    const gainReductionDb = computeBeamGain({
+      offAxisAngleDeg: ueOffAxisDeg,
+      model: profile.antenna.model,
+      peakGainDbi: profile.antenna.peak_gain_dbi,
+      beamDiameterKm: profile.antenna.beam_diameter_km,
+      altitudeKm: satEntry.sample.altKm,
+      slantRangeKm,
+    });
+    return { sinrDb: satEntry.sinrDb + gainReductionDb, beamId: satEntry.bestBeamId };
+  }
+
+  // ---------------------------------------------------------------------------
   // Tick
   // ---------------------------------------------------------------------------
 
@@ -593,142 +656,222 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       satSinrs = satSinrs.filter((s) => !energyL2Manager!.isBlocked(s.satId));
     }
 
-    // 4. Build handover candidates
-    const candidates: HandoverCandidate[] = satSinrs.map((s) => ({
-      satId: s.satId,
-      beamId: s.bestBeamId,
-      sinrDb: s.sinrDb,
-      elevationDeg: s.sample.elevationDeg,
-    }));
+    // 4–7. Handover tick + KPI recording
+    // representativeServing = primary UE's serving (used for energy accounting in step 8)
+    let representativeServing: ServingState | null = null;
 
-    // Debug logging removed — use validate-runtime.mjs for SINR verification
+    if (independentHandover) {
+      // ======= Phase B (MS2): independent HO per UE =======
+      for (const ue of uePositions) {
+        const ueHoMgr = hoManagers.get(ue.id)!;
 
-    // 5. Determine serving SINR (DAPS-aware: track both source and target)
-    const hoState = hoManager.getState();
-    let servingSinrDb: number | null = null;
-    if (hoState.serving) {
-      const servingEntry = satSinrs.find((s) => s.satId === hoState.serving!.satId);
-      servingSinrDb = servingEntry ? servingEntry.sinrDb : null;
-    }
-
-    // 5b. DAPS dual-active: also compute target SINR if in dual-active phase
-    // The DAPS manager exposes sourceServing and targetServing in its state.
-    const dapsState = hoState as { dapsPhase?: string; sourceServing?: ServingState | null; targetServing?: ServingState | null };
-    let dapsDualActive = false;
-    let dapsSourceSinrDb: number | null = null;
-    let dapsTargetSinrDb: number | null = null;
-
-    if (dapsState.dapsPhase === 'dual-active' && dapsState.sourceServing && dapsState.targetServing) {
-      dapsDualActive = true;
-      const srcEntry = satSinrs.find((s) => s.satId === dapsState.sourceServing!.satId);
-      const tgtEntry = satSinrs.find((s) => s.satId === dapsState.targetServing!.satId);
-      dapsSourceSinrDb = srcEntry ? srcEntry.sinrDb : null;
-      dapsTargetSinrDb = tgtEntry ? tgtEntry.sinrDb : null;
-    }
-
-    // 6. Run handover tick (P2: propagation delay from serving satellite slant range)
-    const servingEntry = hoState.serving
-      ? satSinrs.find((s) => s.satId === hoState.serving!.satId)
-      : null;
-    const propagationDelayMs = servingEntry
-      ? servingEntry.sample.rangeKm / 299.792  // one-way delay in ms
-      : undefined;
-    const decision = hoManager.tick({
-      tick: tickNumber,
-      timeSec,
-      servingSinrDb,
-      candidates,
-      propagationDelayMs,
-    });
-
-    // 7. Record KPI — C3 fix: per-UE SINR recording
-    const currentServing = hoManager.getState().serving;
-    const isServed = currentServing !== null;
-
-    // Primary UE (ue-0 at beam center) SINR for base metrics
-    let primarySinrDb: number | null = null;
-    if (isServed && currentServing) {
-      if (dapsDualActive && dapsSourceSinrDb !== null && dapsTargetSinrDb !== null) {
-        primarySinrDb = Math.max(dapsSourceSinrDb, dapsTargetSinrDb);
-      } else {
-        const servEntry = satSinrs.find((s) => s.satId === currentServing.satId);
-        primarySinrDb = servEntry ? servEntry.sinrDb : null;
-      }
-    }
-
-    // Per-UE SINR: each UE has a different off-axis angle from the serving beam
-    // Phase A (C3): shared serving satellite, independent SINR per UE
-    const servingSatEntry = isServed && currentServing
-      ? satSamples.find((s) => s.satId === currentServing.satId)
-      : null;
-
-    for (const ue of uePositions) {
-      kpiAcc.recordServiceState(ue.id, isServed, timeSec);
-
-      if (isServed && currentServing && servingSatEntry && primarySinrDb !== null) {
-        let ueSinrDb: number;
-        if (ue.id === PRIMARY_UE_ID) {
-          // Primary UE at beam center — use already computed SINR
-          ueSinrDb = primarySinrDb;
-        } else {
-          // Off-center UE: approximate SINR offset from beam gain roll-off
-          // off-axis angle ≈ atan(ue.distanceFromCenterKm / slantRange)
-          const slantRangeKm = servingSatEntry.sample.rangeKm;
-          const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
-          // Beam gain reduction at this off-axis angle (relative to boresight)
-          const gainReductionDb = profile.channel.tier3_beam_gain
-            ? computeBeamGain({
-                offAxisAngleDeg: ueOffAxisDeg,
-                model: profile.antenna.model,
-                peakGainDbi: profile.antenna.peak_gain_dbi,
-                beamDiameterKm: profile.antenna.beam_diameter_km,
-                altitudeKm: servingSatEntry.sample.altKm,
-                slantRangeKm,
-              })
-            : 0; // gainReductionDb is ≤ 0 (normalized pattern)
-          // UE SINR ≈ primary SINR + gain offset (since primary is at boresight, gain=0)
-          ueSinrDb = primarySinrDb + gainReductionDb;
+        // Build per-UE candidates: SINR from each visible satellite at UE's position
+        const ueCandidates: HandoverCandidate[] = [];
+        for (const satEntry of satSinrs) {
+          const { sinrDb, beamId } = computeUeSinrFromSatEntry(ue, satEntry);
+          ueCandidates.push({
+            satId: satEntry.satId,
+            beamId,
+            sinrDb,
+            elevationDeg: satEntry.sample.elevationDeg,
+          });
         }
-        kpiAcc.recordSinr(ue.id, ueSinrDb, timeSec);
-      }
-    }
+        ueCandidates.sort((a, b) => b.sinrDb - a.sinrDb);
 
-    // Record handover events to KPI
-    const hoEvents = hoManager.drainEvents();
-    for (const evt of hoEvents) {
-      if (evt.type === 'ho-complete') {
-        kpiAcc.recordHandover({
-          timeSec: evt.timeSec,
-          type: 'complete',
-          sourceId: evt.sourceSatId ?? '',
-          targetId: evt.targetSatId ?? '',
-          sourceSinrDb: evt.sinrDb ?? 0,
-          interruptionMs: 0, // Phase 2/3: instantaneous switching
+        // Serving SINR for this UE (from this tick's candidate list).
+        // If serving satellite is no longer visible (below horizon / not in candidates),
+        // use -100 dB to force HO re-selection rather than leaving the UE in a ghost
+        // "attached but no signal" state.
+        const ueHoState = ueHoMgr.getState();
+        let ueServingSinrDb: number | null = null;
+        let uePropDelayMs: number | undefined;
+        if (ueHoState.serving) {
+          const servCand = ueCandidates.find((c) => c.satId === ueHoState.serving!.satId);
+          ueServingSinrDb = servCand !== undefined ? servCand.sinrDb : -100;
+          const servSatEntry = satSinrs.find((s) => s.satId === ueHoState.serving!.satId);
+          uePropDelayMs = servSatEntry
+            ? servSatEntry.sample.rangeKm / 299.792
+            : undefined;
+        }
+
+        ueHoMgr.tick({
+          tick: tickNumber,
+          timeSec,
+          servingSinrDb: ueServingSinrDb,
+          candidates: ueCandidates,
+          propagationDelayMs: uePropDelayMs,
         });
-      } else if (evt.type === 'ho-fail') {
-        kpiAcc.recordHandover({
-          timeSec: evt.timeSec,
-          type: 'fail',
-          sourceId: evt.sourceSatId ?? '',
-          targetId: evt.targetSatId ?? '',
-          sourceSinrDb: evt.sinrDb ?? 0,
-          interruptionMs: 0,
-        });
+
+        // Record KPI for this UE.
+        // Use POST-TICK serving state so new attachments (tick 0) are also captured.
+        const ueServing = ueHoMgr.getState().serving;
+        kpiAcc.recordServiceState(ue.id, ueServing !== null, timeSec);
+        if (ueServing !== null) {
+          // Look up the post-tick serving satellite in this tick's candidate list.
+          // If the satellite was just acquired this tick (pre-tick serving was null),
+          // it will still be found here (since it was in ueCandidates this tick).
+          const postServCand = ueCandidates.find((c) => c.satId === ueServing.satId);
+          if (postServCand !== undefined) {
+            kpiAcc.recordSinr(ue.id, postServCand.sinrDb, timeSec);
+          }
+        }
+
+        // Drain and record HO events for this UE
+        for (const evt of ueHoMgr.drainEvents()) {
+          if (evt.type === 'ho-complete') {
+            kpiAcc.recordHandover({
+              timeSec: evt.timeSec,
+              type: 'complete',
+              sourceId: evt.sourceSatId ?? '',
+              targetId: evt.targetSatId ?? '',
+              sourceSinrDb: evt.sinrDb ?? 0,
+              interruptionMs: 0,
+            });
+          } else if (evt.type === 'ho-fail') {
+            kpiAcc.recordHandover({
+              timeSec: evt.timeSec,
+              type: 'fail',
+              sourceId: evt.sourceSatId ?? '',
+              targetId: evt.targetSatId ?? '',
+              sourceSinrDb: evt.sinrDb ?? 0,
+              interruptionMs: 0,
+            });
+          }
+        }
       }
+
+      // Primary UE's serving used for energy accounting below
+      representativeServing = hoManagers.get(PRIMARY_UE_ID)!.getState().serving;
+
+    } else {
+      // ======= Phase A: shared serving satellite =======
+
+      // 4. Build handover candidates
+      const candidates: HandoverCandidate[] = satSinrs.map((s) => ({
+        satId: s.satId,
+        beamId: s.bestBeamId,
+        sinrDb: s.sinrDb,
+        elevationDeg: s.sample.elevationDeg,
+      }));
+
+      // 5. Determine serving SINR (DAPS-aware: track both source and target).
+      // If serving satellite is no longer visible, use -100 dB to force HO re-selection.
+      const hoState = hoManager.getState();
+      let servingSinrDb: number | null = null;
+      if (hoState.serving) {
+        const servingEntry = satSinrs.find((s) => s.satId === hoState.serving!.satId);
+        servingSinrDb = servingEntry !== undefined ? servingEntry.sinrDb : -100;
+      }
+
+      // 5b. DAPS dual-active
+      const dapsState = hoState as { dapsPhase?: string; sourceServing?: ServingState | null; targetServing?: ServingState | null };
+      let dapsDualActive = false;
+      let dapsSourceSinrDb: number | null = null;
+      let dapsTargetSinrDb: number | null = null;
+
+      if (dapsState.dapsPhase === 'dual-active' && dapsState.sourceServing && dapsState.targetServing) {
+        dapsDualActive = true;
+        const srcEntry = satSinrs.find((s) => s.satId === dapsState.sourceServing!.satId);
+        const tgtEntry = satSinrs.find((s) => s.satId === dapsState.targetServing!.satId);
+        dapsSourceSinrDb = srcEntry ? srcEntry.sinrDb : null;
+        dapsTargetSinrDb = tgtEntry ? tgtEntry.sinrDb : null;
+      }
+
+      // 6. Run handover tick (P2: propagation delay from serving satellite slant range)
+      const servingEntry = hoState.serving
+        ? satSinrs.find((s) => s.satId === hoState.serving!.satId)
+        : null;
+      const propagationDelayMs = servingEntry
+        ? servingEntry.sample.rangeKm / 299.792  // one-way delay in ms
+        : undefined;
+      hoManager.tick({
+        tick: tickNumber,
+        timeSec,
+        servingSinrDb,
+        candidates,
+        propagationDelayMs,
+      });
+
+      // 7. Record KPI — Phase A per-UE SINR (shared serving, independent off-axis gain)
+      const currentServing = hoManager.getState().serving;
+      const isServed = currentServing !== null;
+
+      let primarySinrDb: number | null = null;
+      if (isServed && currentServing) {
+        if (dapsDualActive && dapsSourceSinrDb !== null && dapsTargetSinrDb !== null) {
+          primarySinrDb = Math.max(dapsSourceSinrDb, dapsTargetSinrDb);
+        } else {
+          const servEntry = satSinrs.find((s) => s.satId === currentServing.satId);
+          primarySinrDb = servEntry ? servEntry.sinrDb : null;
+        }
+      }
+
+      const servingSatEntry = isServed && currentServing
+        ? satSamples.find((s) => s.satId === currentServing.satId)
+        : null;
+
+      for (const ue of uePositions) {
+        kpiAcc.recordServiceState(ue.id, isServed, timeSec);
+
+        if (isServed && currentServing && servingSatEntry && primarySinrDb !== null) {
+          let ueSinrDb: number;
+          if (ue.id === PRIMARY_UE_ID) {
+            ueSinrDb = primarySinrDb;
+          } else {
+            const slantRangeKm = servingSatEntry.sample.rangeKm;
+            const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
+            const gainReductionDb = profile.channel.tier3_beam_gain
+              ? computeBeamGain({
+                  offAxisAngleDeg: ueOffAxisDeg,
+                  model: profile.antenna.model,
+                  peakGainDbi: profile.antenna.peak_gain_dbi,
+                  beamDiameterKm: profile.antenna.beam_diameter_km,
+                  altitudeKm: servingSatEntry.sample.altKm,
+                  slantRangeKm,
+                })
+              : 0;
+            ueSinrDb = primarySinrDb + gainReductionDb;
+          }
+          kpiAcc.recordSinr(ue.id, ueSinrDb, timeSec);
+        }
+      }
+
+      // Record handover events to KPI
+      const hoEvents = hoManager.drainEvents();
+      for (const evt of hoEvents) {
+        if (evt.type === 'ho-complete') {
+          kpiAcc.recordHandover({
+            timeSec: evt.timeSec,
+            type: 'complete',
+            sourceId: evt.sourceSatId ?? '',
+            targetId: evt.targetSatId ?? '',
+            sourceSinrDb: evt.sinrDb ?? 0,
+            interruptionMs: 0,
+          });
+        } else if (evt.type === 'ho-fail') {
+          kpiAcc.recordHandover({
+            timeSec: evt.timeSec,
+            type: 'fail',
+            sourceId: evt.sourceSatId ?? '',
+            targetId: evt.targetSatId ?? '',
+            sourceSinrDb: evt.sinrDb ?? 0,
+            interruptionMs: 0,
+          });
+        }
+      }
+
+      representativeServing = currentServing;
     }
 
     // 8. Energy layer 1 update (Phase 3)
+    // Uses representativeServing (primary UE's serving) as active-beam proxy.
     if (energyManager && isMultiBeam) {
-      // Determine active beams: the serving beam for each satellite that is
-      // currently serving a UE. In single-UE mode, only one satellite has
-      // an active serving beam.
       for (const { satId, sample } of satSamples) {
         const layout = getOrCreateBeamLayout(satId, sample.altKm);
         const allBeamIds = layout.beams.map((b) => b.beamId);
 
-        // A beam is active if this satellite is serving and this is the serving beam
         const activeBeamIds: string[] = [];
-        if (currentServing && currentServing.satId === satId) {
+        if (representativeServing && representativeServing.satId === satId) {
           const servEntry = satSinrs.find((s) => s.satId === satId);
           if (servEntry) {
             activeBeamIds.push(servEntry.bestBeamId);
@@ -738,27 +881,21 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         energyManager.updateBeamStates(satId, activeBeamIds, allBeamIds);
       }
 
-      // DPC: adjust TX power for serving beam if enabled
-      if (currentServing && energyManager) {
-        const servEntry = satSinrs.find((s) => s.satId === currentServing.satId);
+      if (representativeServing && energyManager) {
+        const servEntry = satSinrs.find((s) => s.satId === representativeServing.satId);
         if (servEntry) {
-          // applyDpc returns adjusted power, but we don't feed it back
-          // into SINR this tick (would require iteration). Logged for metrics.
           energyManager.applyDpc(
             servEntry.bestBeamId,
             servEntry.sinrDb,
-            3, // dpcTargetSinrDb default
-            43, // txPowerPerBeamDbm default
+            3,
+            43,
           );
         }
       }
 
-      // Compute energy metrics
-      // Throughput estimation: Shannon capacity per active beam
       const throughputs = new Map<string, number>();
       for (const entry of satSinrs) {
-        if (currentServing && currentServing.satId === entry.satId) {
-          // Shannon: C = BW * log2(1 + SINR_linear)
+        if (representativeServing && representativeServing.satId === entry.satId) {
           const sinrLinear = Math.pow(10, entry.sinrDb / 10);
           const throughputBps = profile.rf.bandwidth_mhz * 1e6 * Math.log2(1 + sinrLinear);
           throughputs.set(entry.bestBeamId, throughputBps);
@@ -773,39 +910,112 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     // 8b. Energy Layer 2 tick
     if (energyL2Manager) {
       for (const { satId } of satSamples) {
-        // Estimate power consumption from L1 if available, else use idle baseline
-        let powerW = 5; // idle default
+        let powerW = 5;
         if (energyManager && isMultiBeam) {
           const layout = getOrCreateBeamLayout(satId, satSamples.find((s) => s.satId === satId)!.sample.altKm);
-          const activeCount = currentServing && currentServing.satId === satId ? 1 : 0;
+          const activeCount = representativeServing && representativeServing.satId === satId ? 1 : 0;
           const totalBeams = layout.beams.length;
-          // active beams * 20W + idle beams * 5W + off beams * 0.1W (from L1 config)
           powerW = activeCount * 20 + (totalBeams - activeCount) * 0.1;
-          if (activeCount === 0) powerW = 5; // idle satellite
+          if (activeCount === 0) powerW = 5;
         }
         energyL2Manager.tick(satId, powerW, timeSec, stepSec);
       }
     }
 
     // 9. Build snapshot
-    const satellites: SatelliteState[] = satSamples.map((s) =>
-      sampleToSatState(s.satId, s.sample),
-    );
+    // Derive serving/target sat+beam IDs for beam role assignment
+    const servingSatId = representativeServing?.satId ?? null;
+    const servingBeamId = representativeServing?.beamId ?? null;
+    const hoState = independentHandover
+      ? hoManagers.get(PRIMARY_UE_ID)!.getState()
+      : hoManager.getState();
+    const targetSatId = hoState.pendingTarget?.satId ?? null;
 
-    // C3: build UE states for all UEs (positions are offsets from observer)
-    const ues: UeState[] = uePositions.map((ue) => ({
-      id: ue.id,
-      latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
-      lonDeg: profile.observer.longitudeDeg + ue.offsetEastKm / (111.32 * Math.cos(profile.observer.latitudeDeg * Math.PI / 180)),
-      servingSatId: currentServing?.satId ?? null,
-      servingBeamId: currentServing?.beamId ?? null,
-    }));
+    const satellites: SatelliteState[] = satSamples.map((s) => {
+      const base = sampleToSatState(s.satId, s.sample);
+      // Attach beam layout for multibeam profiles
+      if (isMultiBeam) {
+        const layout = beamLayouts.get(s.satId);
+        if (layout) {
+          const beamSnaps: SatelliteBeamSnapshot[] = layout.beams.map((b) => {
+            let role: SatelliteBeamSnapshot['role'] = 'neutral';
+            if (!b.isActive) {
+              role = 'inactive';
+            } else if (s.satId === servingSatId && b.beamId === servingBeamId) {
+              role = 'serving';
+            } else if (s.satId === targetSatId) {
+              role = 'target';
+            }
+            return {
+              beamId: b.beamId,
+              offsetEastKm: b.offsetEastKm,
+              offsetNorthKm: b.offsetNorthKm,
+              isActive: b.isActive,
+              reuseGroup: b.reuseGroup,
+              role,
+            };
+          });
+          base.beams = beamSnaps;
+        }
+      }
+      return base;
+    });
+
+    // UE states: Phase B = per-UE serving; Phase A = shared serving
+    const cosLat = Math.cos(profile.observer.latitudeDeg * Math.PI / 180);
+    const ues: UeState[] = uePositions.map((ue) => {
+      let servingSatId: string | null;
+      let servingBeamId: string | null;
+      if (independentHandover) {
+        const ueServing = hoManagers.get(ue.id)!.getState().serving;
+        servingSatId = ueServing?.satId ?? null;
+        servingBeamId = ueServing?.beamId ?? null;
+      } else {
+        servingSatId = representativeServing?.satId ?? null;
+        servingBeamId = representativeServing?.beamId ?? null;
+      }
+      return {
+        id: ue.id,
+        latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
+        lonDeg: profile.observer.longitudeDeg + ue.offsetEastKm / (111.32 * cosLat),
+        servingSatId,
+        servingBeamId,
+      };
+    });
+
+    // Attach BH slot snapshot for earth-fixed-bh profiles
+    let bhSlot: BhSlotSnapshot | undefined;
+    if (lastBhSlotDecision) {
+      const activeBeamsBySat: Record<string, string[]> = {};
+      lastBhSlotDecision.activeBeamsPerSat.forEach((beamIds, satId) => {
+        activeBeamsBySat[satId] = beamIds;
+      });
+      const energyBlockedSats = energyL2Manager
+        ? satSamples.map((s) => s.satId).filter((id) => energyL2Manager!.isBlocked(id))
+        : [];
+      bhSlot = { slotIndex: lastBhSlotDecision.slotIndex, activeBeamsBySat, energyBlockedSats };
+    }
+
+    // DAPS snapshot: expose FSM phase + source/target sat IDs for viz dual-active rendering
+    let daps: DapsSnapshot | undefined;
+    {
+      const dSnap = hoState as { dapsPhase?: string; sourceServing?: ServingState | null; targetServing?: ServingState | null };
+      if (dSnap.dapsPhase && dSnap.dapsPhase !== 'idle') {
+        daps = {
+          phase: dSnap.dapsPhase,
+          sourceSatId: dSnap.sourceServing?.satId ?? null,
+          targetSatId: dSnap.targetServing?.satId ?? null,
+        };
+      }
+    }
 
     return {
       tick: tickNumber,
       timeSec,
       satellites,
       ues,
+      bhSlot,
+      daps,
     };
   }
 
@@ -817,7 +1027,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     tick: doTick,
 
     getHandoverManager(): HandoverManager {
-      return hoManager;
+      // Phase B: return primary UE's HO manager; Phase A: shared hoManager
+      return independentHandover
+        ? (hoManagers.get(PRIMARY_UE_ID) ?? hoManager)
+        : hoManager;
     },
 
     getKpiAccumulator(): KpiAccumulator {
@@ -838,13 +1051,21 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
     reset(): void {
       rng = createRng(profile.seed);
-      hoManager.reset();
       kpiAcc.reset();
       beamLayouts.clear();
       // C3: regenerate UE positions with fresh RNG
       uePositions = generateUePositions(
         ueCount, beamRadiusKm, profile.ueConfig.distribution, () => rng.next(),
       );
+      // MS2: reset HO managers
+      if (independentHandover) {
+        hoManagers.clear();
+        for (const ue of uePositions) {
+          hoManagers.set(ue.id, createBaselineFromConfig(profile.handover));
+        }
+      } else {
+        hoManager.reset();
+      }
       // P4: reset mobility
       mobilityUpdater.reset();
       lastEnergyMetrics = null;

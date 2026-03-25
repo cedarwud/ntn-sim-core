@@ -1,7 +1,7 @@
 # NTN Sim Core — Reproduction Targets
 
-**Version:** 0.1.0
-**Date:** 2026-03-23
+**Version:** 0.2.0
+**Date:** 2026-03-25
 **Status:** Active
 **Purpose:** Define reference paper reproduction targets, profile mappings, tolerance thresholds, and comparison workflows for validating ntn-sim-core against published results.
 
@@ -13,9 +13,11 @@ This document selects 3 reference papers for reproduction and defines the exact 
 
 Each reproduction target has:
 1. a source paper with explicit parameters;
-2. a reproduction profile in `src/core/profiles/`;
+2. either a dedicated reproduction profile in `src/core/profiles/` or a documented baseline-plus-override mapping;
 3. a metric, comparison mode, and tolerance;
 4. documented assumptions where source parameters are incomplete.
+
+**Current status note:** dedicated reproduction-specific profiles are not all created yet. The current workflow uses existing canonical baselines plus explicit overrides until those dedicated profiles are added.
 
 ---
 
@@ -53,6 +55,8 @@ Use `case9-access-baseline` with overrides:
 - Verify altitude_km = 600
 - Verify all RF parameters match Table II
 - Enable tier1-3, disable tier4 (S-band)
+
+**Profile status:** no dedicated `sinr-elevation-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
 
 ### 3.3 Comparison Metric
 
@@ -101,6 +105,8 @@ Use `hobs-multibeam-baseline` with overrides:
 - Enable tier1-5 (full channel model)
 - EE L1 enabled
 
+**Profile status:** no dedicated `hobs-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
+
 ### 4.3 Comparison Metric
 
 | Metric | Paper Reference | Comparison Mode | Tolerance |
@@ -138,6 +144,8 @@ Use `case9-access-baseline` with overrides:
 - `handover.cho_filter_k = 4`
 - `handover.cho_offset_db = 0`
 
+**Profile status:** no dedicated `timer-cho-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
+
 ### 5.3 Comparison Metric
 
 | Metric | Paper Reference | Comparison Mode | Tolerance |
@@ -157,7 +165,7 @@ Use `case9-access-baseline` with overrides:
 
 ### Step 1: Profile Alignment
 
-For each target, create or verify a reproduction profile:
+For each target, create a dedicated reproduction profile, or until then verify the documented baseline-plus-override mapping:
 ```
 node scripts/validate-profile-layout.mjs  # verify profile structure
 ```

@@ -125,6 +125,31 @@ export interface KpiBundleShell {
 // ---------------------------------------------------------------------------
 
 /**
+ * BH slot snapshot for earth-fixed cell visualization (SDD §8, beamSemantics='earth-fixed-bh').
+ * Serializable form of BhSlotDecision (Map replaced with Record).
+ */
+export interface BhSlotSnapshot {
+  slotIndex: number;
+  /** Active beam IDs per satellite this slot. Key = satId, value = beamId[]. */
+  activeBeamsBySat: Record<string, string[]>;
+  /** Satellite IDs currently energy-blocked (Layer 2 battery depleted). */
+  energyBlockedSats: string[];
+}
+
+/**
+ * DAPS state snapshot for dual-active visualization (Phase 6).
+ * Only present when handover.type === 'daps' and DAPS FSM is not idle.
+ */
+export interface DapsSnapshot {
+  /** Current DAPS phase: 'single-active' | 'prepared' | 'dual-active' | 'path-switched' | 'completed'. */
+  phase: string;
+  /** Source satellite ID (active during dual-active). */
+  sourceSatId: string | null;
+  /** Target satellite ID (active during dual-active). */
+  targetSatId: string | null;
+}
+
+/**
  * A single simulation tick output.
  * This is the ONLY interface viz may consume from core.
  */
@@ -135,6 +160,25 @@ export interface SimulationSnapshot {
   satellites: SatelliteState[];
   /** UE states (Phase 2+). */
   ues: UeState[];
+  /** BH slot decision (earth-fixed-bh profiles only). */
+  bhSlot?: BhSlotSnapshot;
+  /** DAPS state (daps handover type only, non-idle phases). */
+  daps?: DapsSnapshot;
+}
+
+/** Per-beam snapshot for visualization (SDD §8, frontend-beam-visual-sdd §7). */
+export interface SatelliteBeamSnapshot {
+  beamId: string;
+  /** Offset from satellite sub-point in km (east). */
+  offsetEastKm: number;
+  /** Offset from satellite sub-point in km (north). */
+  offsetNorthKm: number;
+  /** Whether beam is currently active (BH scheduling). */
+  isActive: boolean;
+  /** Frequency reuse group index. */
+  reuseGroup: number;
+  /** Beam role relative to current HO state. */
+  role: 'serving' | 'target' | 'neutral' | 'inactive';
 }
 
 export interface SatelliteState {
@@ -153,6 +197,8 @@ export interface SatelliteState {
   rangeKm: number;
   /** Whether the satellite is above the visibility threshold. */
   isVisible: boolean;
+  /** Per-beam layout snapshot (multibeam profiles only). */
+  beams?: SatelliteBeamSnapshot[];
 }
 
 export interface UeState {

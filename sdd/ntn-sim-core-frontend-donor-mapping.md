@@ -1,7 +1,7 @@
 # NTN Sim Core — Frontend Donor Mapping
 
-**Version:** 0.1.0  
-**Date:** 2026-03-24  
+**Version:** 0.2.0  
+**Date:** 2026-03-25  
 **Status:** Active Companion Map
 
 ---
@@ -23,6 +23,8 @@ It exists to prevent two failure modes:
 |---|---|---|
 | observer-sky pass readability | `beamHO-bench` | strongest `rise -> pass -> set` semantics and visual acceptance discipline |
 | earth-moving multibeam cones | `leo-beam-sim` | closest existing donor for satellite-to-ground multibeam rendering, role styling, and active/inactive beam emphasis |
+| beam/SINR explainability overlays | `leo-beam-sim` | existing `SinrOverlay.tsx` and beam labels are the closest visual donor for truth-driven access/multibeam explainers |
+| handover/service links | `leo-beam-sim` + `beamHO-bench` | `leo-beam-sim` provides direct visual language; `beamHO-bench` constrains truth-first timing/readability discipline |
 | earth-fixed / BH-slot cell grid | `leo-simulator` | clearest donor for fixed ground-cell visualization and BH-oriented state presentation |
 | replay-facing visual timing semantics | `beamHO-bench` + `leo-simulator` | `beamHO-bench` for truth-first replay discipline, `leo-simulator` for replay-oriented visual framing |
 | preprocessing / pipeline inspiration | `ntn-stack` | useful for offline data flow, not a primary beam-rendering donor |
@@ -82,6 +84,32 @@ Required transferred ideas:
 2. showcase windows are curated deterministically;
 3. replay preserves event timing semantics.
 
+### 3.5 `BeamInfoOverlay`
+
+Primary donor:
+
+1. `project/leo-beam-sim/src/viz/SinrOverlay.tsx`
+2. `project/leo-beam-sim/src/viz/SatelliteBeams.tsx`
+
+Required transferred ideas:
+
+1. beam-facing SINR or label explainers are readable without taking authority away from the engine;
+2. overlay placement remains tied to beam geometry/truth rather than arbitrary HUD positions;
+3. low-SINR and high-SINR states are visually distinguishable.
+
+### 3.6 `HandoverLinkOverlay`
+
+Primary donor:
+
+1. `project/leo-beam-sim/src/viz/HandoverLinks.tsx`
+2. `project/beamHO-bench`
+
+Required transferred ideas:
+
+1. link overlays express serving / prepared / post-HO / secondary / dual-active continuity states;
+2. link timing follows truth/event sequencing rather than front-end interpolation tricks;
+3. overlay readability comes from donor-backed styles, not from untraceable heuristics.
+
 ---
 
 ## 4. Non-Donor or Secondary Roles
@@ -90,6 +118,7 @@ Required transferred ideas:
 2. `leo-beam-sim` is not the primary donor for earth-fixed BH cell grids.
 3. `ntn-stack` is not a canonical frontend beam-rendering donor.
 4. `beamHO-bench` is a visual-discipline donor and motion-semantics donor, not the main multibeam cone donor.
+5. `leo-beam-sim` is the primary donor for access-style beam/SINR explainers and handover-link language, but not for real-trace replay governance.
 
 ---
 
@@ -102,6 +131,8 @@ The following do not count as valid donor transfer:
 3. using moving-beam cones to fake BH cell scheduling;
 4. collapsing the visible-above-horizon pool to only HO candidates for readability without explicit metadata and rationale;
 5. citing `ntn-stack` as if it already provided the target frontend beam renderer.
+6. implementing a frontend SINR overlay that recomputes channel outputs independently of `ntn-sim-core` snapshots.
+7. implementing handover links that show states absent from the engine/event trace.
 
 ---
 
@@ -120,6 +151,8 @@ At least one transfer class must be cited when landing:
 2. `EarthFixedCellLayer`
 3. replay-facing visual work
 4. frontend beam closure evidence
+5. beam/SINR explainers
+6. handover/service link overlays
 
 ---
 
@@ -129,7 +162,7 @@ This donor map is binding for:
 
 1. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md`
 2. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`
-3. Phase 3, Phase 4, and Phase 5 closure in `sdd/ntn-sim-core-roadmap.md`
+3. Phase 3, Phase 4, Phase 5, and Phase 6 closure in `sdd/ntn-sim-core-roadmap.md`
 
 If a future change intentionally departs from these donors, that change must explain:
 
@@ -141,4 +174,4 @@ If a future change intentionally departs from these donors, that change must exp
 
 ## 8. Implementation Reference
 
-The step-by-step implementation checklist that references these donor assignments lives in `frontend-beam-visual-sdd.md` §12. Each step (3V-*, 4V-*, 5V-*) declares its primary donor from this document.
+The step-by-step implementation checklist that references these donor assignments lives in `frontend-beam-visual-sdd.md` §12. Each step (3V-*, 4V-*, 5V-*, XV-*) declares its primary donor from this document.

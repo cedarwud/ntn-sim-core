@@ -29,7 +29,8 @@ export type ProfileFamily =
   | 'case9-access-baseline'
   | 'hobs-multibeam-baseline'
   | 'bh-resource-baseline'
-  | 'real-trace-validation';
+  | 'real-trace-validation'
+  | 'case9-daps-baseline';
 
 // ---------------------------------------------------------------------------
 // Sub-config types

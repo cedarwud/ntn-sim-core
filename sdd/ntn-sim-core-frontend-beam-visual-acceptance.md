@@ -1,8 +1,8 @@
 # NTN Sim Core — Frontend Beam Visual Acceptance
 
-**Version:** 0.1.0  
-**Date:** 2026-03-24  
-**Status:** Active Acceptance Companion
+**Version:** 0.3.0  
+**Date:** 2026-03-25  
+**Status:** Active Acceptance Companion — overlay extension added, evidence partially manual
 
 ---
 
@@ -29,6 +29,8 @@ The access / handover view passes only if all of the following are true:
 5. prepared / target or post-HO beams are visually distinct when such states exist;
 6. inactive or off-slot beams are visually distinguishable from active beams;
 7. the rendered beam role matches the simulation truth for the same tick / replay frame.
+8. a truth-driven beam/SINR explainer is available when beam-facing interpretation is needed;
+9. a truth-driven handover/service link explainer is available when serving/target/post-HO or dual-active semantics exist.
 
 The view fails if any of the following are true:
 
@@ -36,6 +38,8 @@ The view fails if any of the following are true:
 2. only the center beam has a cone and all others are decorative ground cells;
 3. beam placement is only dome-relative and not tied to beam truth;
 4. multibeam mode visually reads as single-beam service with nearby decorations.
+5. overlay values are recomputed locally instead of read from snapshot/trace truth.
+6. handover state is only discoverable from logs while the frontend omits equivalent truth-driven visual cues.
 
 ---
 
@@ -94,6 +98,12 @@ When the relevant runtime states exist, the frontend must make the following rea
 
 Text labels are optional. Role readability is mandatory.
 
+Truth-driven explainers are mandatory when the corresponding runtime state exists:
+
+1. beam/SINR explainers may use labels, bands, or equivalent overlays;
+2. handover/service explainers may use lines, badges, or equivalent overlays;
+3. neither may invent or override physics/KPI state.
+
 ---
 
 ## 6. Evidence Required for Closure
@@ -113,6 +123,7 @@ Each proof set must show:
 2. beam role context;
 3. service or handover context;
 4. that the renderer is no longer using the placeholder path.
+5. when applicable, that overlay values and link states come from truth rather than frontend-side estimation.
 
 ---
 
@@ -127,6 +138,8 @@ The frontend beam package is not complete if any of the following remain true:
    - `leo-beam-sim` style moving-beam cones
    - `leo-simulator` style BH cells
 5. phase closure is claimed without browser-visible evidence.
+6. beam/SINR explainers are absent or only available through log inspection for access/multibeam runs.
+7. handover/service links are absent for runs whose primary interpretation depends on continuity state.
 
 ---
 
@@ -137,6 +150,7 @@ This document is binding for:
 1. Phase 3 multibeam frontend closure
 2. Phase 4 replay/frontend closure
 3. Phase 5 BH frontend closure
+4. Phase 6 DAPS/DC-like continuity frontend closure
 
 It must be read together with:
 
@@ -150,6 +164,12 @@ The consolidated implementation checklist lives in `frontend-beam-visual-sdd.md`
 - Phase 3 visual (MS3): steps 3V-1 through 3V-7
 - Phase 4 visual (TLE frontend + replay): steps 4V-1 through 4V-5
 - Phase 5 visual (MS4): steps 5V-1 through 5V-5
-- Cross-cutting: steps XV-1 through XV-3
+- Cross-cutting: steps XV-1 through XV-7
 
 All core prerequisites (beam selection, HO state, BH slot, energy state, TLE pipeline) are satisfied as of 2026-03-25.
+
+Current closure caveats:
+- browser proof assets exist, but visual acceptance is not yet automated
+- replay uses a working snapshot path, but deterministic curated-window integration is still pending
+- the BH renderer supports `energy-blocked`, but the default benchmark profile does not yet expose that state by default
+- truth-driven beam/SINR overlay and handover/service link overlays are now part of closure scope, but are not landed yet

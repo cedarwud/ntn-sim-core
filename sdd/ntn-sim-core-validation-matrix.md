@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Date:** 2026-03-25
-**Status:** Active — F-level + E-level passing
+**Status:** Active — Formula/Engine passing, visual, overlay, and replay integration partially manual
 
 ---
 
@@ -15,6 +15,8 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 1. `sdd/ntn-sim-core-development-constraints.md`
 2. `sdd/ntn-sim-core-acceptance-gates.md`
 3. `sdd/ntn-sim-core-assumption-policy.md`
+4. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md`
+5. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`
 
 ---
 
@@ -30,6 +32,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-ORB-001` | orbit | synthetic orbit positions are stable across headless and frontend paths | 1 |
 | `VAL-ORB-002` | geometry | slant range, azimuth, and elevation outputs match formula checks | 1 |
 | `VAL-VIZ-001` | visualization | replayed orbit timeline matches stored trace ordering and time offsets | 1 |
+| `VAL-VIZ-002` | visualization | beam renderer is snapshot-driven: `SatelliteState.beams[]` populated from engine, not hardcoded constants | 3 |
 | `VAL-CHAN-001` | channel | FSPL baseline matches reference calculations | 2 |
 | `VAL-CHAN-002` | channel | 3GPP NTN large-scale loss composition is traceable by profile | 2 |
 | `VAL-BEAM-001` | beam geometry | earth-moving beam footprint projection matches the declared access-profile geometry contract | 2 |
@@ -40,15 +43,24 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-MB-001` | multibeam | active-beam restriction changes serviceability deterministically | 3 |
 | `VAL-SINR-001` | signal | interference-aware multi-beam SINR path matches profile-selected formula family | 3 |
 | `VAL-EE-001` | energy | energy layer 1 outputs appear in benchmark artifacts and are reproducible | 3 |
+| `VAL-FV-001` | visualization | earth-moving multibeam renderer uses truth-driven beam layout and not the deprecated 7-beam placeholder | 3 |
+| `VAL-FV-002` | visualization | serving / target / inactive beam roles are visibly distinguishable in earth-moving mode | 3 |
+| `VAL-FV-006` | visualization | beam/SINR overlay is derived from snapshot/trace truth and does not recompute SINR locally | 3 |
+| `VAL-FV-007` | visualization | handover/service link overlay expresses serving / target / post-HO truth in live access mode | 3 |
+| `VAL-FV-005` | visualization | beam display membership remains consistent with observer-sky pass semantics | 3 |
 | `VAL-GOLDEN-002` | golden cases | profile-specific multibeam golden cases exist for HOBS-style signal and active-beam paths | 3 |
 | `VAL-RT-001` | real-trace | TLE-derived replay uses the same channel/HO/KPI stack as synthetic mode | 4 |
 | `VAL-RT-002` | replay | replay manifest reconstructs the same selected time window and event timing | 4 |
 | `VAL-CUR-001` | curation | showcase window selection is deterministic and recorded in metadata | 4 |
+| `VAL-FV-003` | visualization | replay mode reuses the same beam renderer family as live mode | 4 |
+| `VAL-FV-008` | visualization | replay mode reuses the same overlay/link semantics and truth fields as live mode | 4 |
 | `VAL-BH-001` | beam hopping | BH scheduler decisions are explicit per slot and replayable | 5 |
 | `VAL-EE-002` | energy | energy layer 2 can block service independently of geometry | 5 |
 | `VAL-EXP-001` | explainability | overlays can distinguish low-SINR, inactive-beam, and energy-blocked service loss | 5 |
+| `VAL-FV-004` | visualization | earth-fixed / BH cell view reflects scheduler, service, interference, and energy truth | 5 |
 | `VAL-DAPS-001` | continuity | DAPS/DC-like state transitions are logged and replayable | 6 |
 | `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
+| `VAL-FV-009` | visualization | DAPS/DC-like dual-active continuity links or equivalent explainers are visible without inventing unsupported states | 6 |
 
 ### Remediation Gates (added 2026-03-21, from academic-remediation.md)
 
@@ -59,7 +71,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-HO-004` | handover | MC-HO dual-connectivity events appear in event traces | C2 |
 | `VAL-UE-001` | multi-UE | N>1 UEs produce distinct SINR values per tick | C3 |
 | `VAL-UE-002` | multi-UE | Jain fairness index < 1.0 for N>1 UEs with different positions | C3 |
-| `VAL-UE-003` | multi-UE | Phase B: N>1 UEs have different serving satellite IDs when `independentHandover: true` | MS2 |
+| `VAL-UE-003` | multi-UE | Phase B: N>1 UEs have different serving satellite IDs when `independentHandover: true` | MS2 (covered by golden-case-engine.ts E-3/E-4) |
 | `VAL-CHAN-003` | channel | Ka-band profile uses Ka-band shadow fading parameters, not S-band | M3 |
 | `VAL-CHAN-004` | channel | Tier 4 atmospheric loss > 0 when enabled for Ka-band | M4 |
 | `VAL-FADING-001` | channel | Tier 5 Shadowed-Rician fading produces non-zero variance under non-deterministic channel | MS1 |
@@ -85,12 +97,13 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 
 ## 3. Validation Level Split (MG4)
 
-Each validation check operates at one of two levels:
+Each validation check operates at one of three levels:
 
 | Level | Suffix | Meaning | Test Infrastructure |
 |---|---|---|---|
 | **Formula** | `-F` | Isolated formula check, standalone script re-implements math | `validate-runtime.mjs`, `golden-case-*.mjs` |
-| **Engine** | `-E` | End-to-end engine path check, runs actual `engine.ts` tick loop | `benchmark-runner` (headless), future `validate-integration.mjs` |
+| **Engine** | `-E` | End-to-end engine path check, runs actual `engine.ts` tick loop | `golden-case-engine.ts`, `benchmark-runner` (headless) |
+| **Visual** | `-V` | Browser-visible proof that the frontend expresses truth semantics correctly | screenshot packs now, future Playwright or equivalent visual automation |
 
 ### Current Coverage
 
@@ -114,10 +127,23 @@ Each validation check operates at one of two levels:
 | VAL-CHAN-003 | F | validate-runtime.mjs |
 | VAL-CHAN-004 | F | validate-runtime.mjs |
 | VAL-FADING-001 | F | validate-runtime.mjs |
+| VAL-GOLDEN-001 | E | golden-case-engine.ts E-1 |
+| VAL-GOLDEN-002 | E | golden-case-engine.ts E-2 |
+| VAL-UE-003 | E | golden-case-engine.ts E-3 / E-4 |
+| VAL-VIZ-002 | E | engine snapshot + SceneShell integration, manual code-path verification |
+| VAL-FV-001 | V | screenshot packs (`case9-access`, `hobs-multibeam`) |
+| VAL-FV-002 | V | screenshot packs + SceneShell role rendering |
+| VAL-FV-003 | V | `useReplay` + screenshot proof (`real-trace-validation`) |
+| VAL-FV-004 | V | screenshot packs (`bh-resource-baseline`, `bh-resource-baseline-4state`) |
+| VAL-FV-005 | V | screenshot proof, observer-sky review still manual |
+| VAL-FV-006 | V | not landed yet — requires truth-driven `BeamInfoOverlay` or equivalent |
+| VAL-FV-007 | V | not landed yet — requires truth-driven `HandoverLinkOverlay` in live access mode |
+| VAL-FV-008 | V | not landed yet — requires replay parity for overlay/link family |
+| VAL-FV-009 | V | not landed yet — requires DAPS/DC-like continuity overlay evidence |
 | VAL-ARCH-001 | structural | validate-core-purity.mjs |
 | VAL-ARCH-002 | structural | validate-structure.mjs |
 
-**Note:** Formula-level (-F) checks use standalone `.mjs` scripts. Engine-level (-E) checks use `golden-case-engine.ts` (via `npx tsx`) which runs the actual `engine.ts` tick loop with fixed seed and locked KPI expectations. Both levels are included in `validate:stage` and currently pass. The `-E` level covers 2 golden cases (case9-access + hobs-multibeam, 300s each, seed=42).
+**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass when `golden-case-engine.ts` is launched directly with `node --import tsx`. Visual-level (`-V`) evidence exists for the current beam/cell baseline, but browser automation, curated replay-window validation, and the new truth-driven overlay/link package remain future work.
 
 ---
 
@@ -142,7 +168,7 @@ Paper-family SINR targets should therefore be implemented as `golden cases`, not
 
 ---
 
-## 4. Gate Usage
+## 5. Gate Usage
 
 ### Phase Gate
 
@@ -166,3 +192,4 @@ Any showcase/demo sequence must additionally prove:
 1. the replay window was selected deterministically
 2. visual controls did not alter physical outcomes
 3. the event sequence can be regenerated from replay metadata
+4. any beam-facing showcase satisfies `ntn-sim-core-frontend-beam-visual-acceptance.md`

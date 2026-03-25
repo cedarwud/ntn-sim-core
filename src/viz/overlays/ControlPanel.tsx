@@ -18,6 +18,8 @@ export interface ControlPanelProps {
   onShowBeamsToggle: () => void;
   showLabels: boolean;
   onShowLabelsToggle: () => void;
+  replayMode?: boolean;
+  onReplayToggle?: () => void;
 }
 
 const PROFILES = [
@@ -25,6 +27,7 @@ const PROFILES = [
   'hobs-multibeam-baseline',
   'bh-resource-baseline',
   'real-trace-validation',
+  'case9-daps-baseline',
 ] as const;
 
 const SPEEDS = [1, 5, 10, 20] as const;
@@ -122,6 +125,8 @@ export const ControlPanel = React.memo(function ControlPanel({
   onShowBeamsToggle,
   showLabels,
   onShowLabelsToggle,
+  replayMode = false,
+  onReplayToggle,
 }: ControlPanelProps) {
   return (
     <div style={containerStyle}>
@@ -184,6 +189,19 @@ export const ControlPanel = React.memo(function ControlPanel({
           Show Labels
         </label>
       </div>
+
+      {/* Replay mode */}
+      {onReplayToggle && (
+        <div style={rowStyle}>
+          <button
+            style={replayMode ? btnActive : btnBase}
+            onClick={onReplayToggle}
+            title="Pre-record entire run then replay (deterministic)"
+          >
+            {replayMode ? '⏺ Replay ON' : '⏺ Replay OFF'}
+          </button>
+        </div>
+      )}
     </div>
   );
 });

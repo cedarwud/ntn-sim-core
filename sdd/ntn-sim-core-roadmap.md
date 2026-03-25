@@ -1,7 +1,7 @@
 # NTN Sim Core — Development Roadmap
 
-**Version:** 0.2.0  
-**Date:** 2026-03-24  
+**Version:** 0.3.0  
+**Date:** 2026-03-25  
 **Status:** Active Companion-Updated Plan
 
 ---
@@ -30,7 +30,7 @@ Each phase must land:
 3. one validation bundle
 4. one trace/export path
 
-For Phase 3 to Phase 5, frontend beam closure is additionally governed by:
+For Phase 3 to Phase 6, frontend beam closure is additionally governed by:
 
 1. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md`
 2. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`
@@ -155,7 +155,7 @@ Add the first truly target-topic baseline: multi-beam interference plus energy-e
    - throughput per power
    - active beam count
    - per-beam power accounting
-5. add visualization overlays for active beams, overlap, and service-drop reason
+5. add truth-driven beam/SINR overlays and handover/service links for active beams, overlap, and service-drop reason
 6. replace the schematic placeholder beam path with a donor-backed `earth-moving` multibeam renderer
 7. bind serving / target / inactive beam roles to the same tick truth used by benchmark outputs
 
@@ -179,6 +179,7 @@ Add the first truly target-topic baseline: multi-beam interference plus energy-e
 2. active-beam gating changes service outcomes deterministically
 3. energy layer 1 metrics appear in benchmark artifacts and frontend overlays
 4. the Phase 3 frontend path satisfies `ntn-sim-core-frontend-beam-visual-acceptance.md` with browser-visible evidence
+5. beam/SINR explainers and handover/service links are truth-driven rather than frontend-recomputed
 
 ### Phase 4: Real-Trace Validation and Replay Curation
 
@@ -194,6 +195,7 @@ Make the simulator externally credible under real constellation motion and simul
 4. add replay mode with deterministic window manifests
 5. support frontend-friendly subset mode and heavier validation mode
 6. reuse the same frontend beam renderer family in replay mode instead of a simplified replay-only layer
+7. reuse the same overlay/link family in replay mode instead of replay-only explainers
 
 **Paper baselines**
 
@@ -213,6 +215,7 @@ Make the simulator externally credible under real constellation motion and simul
 2. showcase windows are selected deterministically, not manually
 3. replay manifests can reconstruct the same visual sequence and event timing
 4. replay-facing beam visuals satisfy `ntn-sim-core-frontend-beam-visual-acceptance.md`
+5. replay-facing overlays and handover/service links reuse the same truth fields as live mode
 
 ### Phase 5: Beam Hopping and Energy Layer 2
 
@@ -261,6 +264,7 @@ Add advanced continuity mechanisms after the baseline simulator is already trust
 2. add DAPS or DAPS-like rate/interruption models
 3. add optional offline action adapters for future policy-driven experiments
 4. keep training external to the website
+5. add donor-backed continuity link explainers for dual-active / path-switched states
 
 **Core implementation references**
 
@@ -279,6 +283,7 @@ Add advanced continuity mechanisms after the baseline simulator is already trust
 1. DAPS-enabled and DAPS-disabled runs are comparable under identical scenarios
 2. continuity gains are visible both in KPI outputs and event traces
 3. no browser-embedded training dependency is introduced
+4. dual-active continuity is visually explainable through truth-driven links or equivalent overlays
 
 ---
 
@@ -289,10 +294,10 @@ Add advanced continuity mechanisms after the baseline simulator is already trust
 | 0 | none | none | structure + traceability skeleton |
 | 1 | `case9-access-baseline` orbit-only | synthetic sky replay | orbit reproducibility bundle |
 | 2 | access handover baseline | serving/target/event HUD | KPI + HO validation bundle |
-| 3 | `hobs-multibeam-baseline` | donor-backed earth-moving multibeam renderer with beam-role states | SINR/EE validation bundle |
-| 4 | `real-trace-validation` | curated replay windows using the same beam renderer family | replay + real-trace validation bundle |
+| 3 | `hobs-multibeam-baseline` | donor-backed earth-moving multibeam renderer with beam-role states plus truth-driven beam/SINR and handover explainers | SINR/EE validation bundle |
+| 4 | `real-trace-validation` | curated replay windows using the same beam renderer and overlay/link family | replay + real-trace validation bundle |
 | 5 | `bh-resource-baseline` | earth-fixed BH cell renderer plus activity / energy reason overlays | BH + energy validation bundle |
-| 6 | DAPS/DC-like extension | dual-active continuity explainer | continuity validation bundle |
+| 6 | DAPS/DC-like extension | dual-active continuity explainer with truth-driven link/overlay semantics | continuity validation bundle |
 
 ---
 
@@ -305,4 +310,5 @@ No phase should be marked done unless:
 3. the relevant validation IDs in `ntn-sim-core-validation-matrix.md` pass;
 4. new assumptions are documented and traceable;
 5. the new feature can be explained in both benchmark and showcase contexts.
-6. Phase 3 to Phase 5 beam/frontend work satisfies the frontend beam visual companion docs with browser-visible evidence.
+6. Phase 3 to Phase 6 beam/frontend work satisfies the frontend beam visual companion docs with browser-visible evidence.
+7. any frontend overlay or link explainer remains truth-driven and non-authoritative relative to headless/exported artifacts.
