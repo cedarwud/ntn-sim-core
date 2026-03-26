@@ -37,14 +37,10 @@ export function selectBeamSatellites(snapshot: SimulationSnapshot): SatelliteSta
 
 /**
  * Select satellite IDs eligible for earth-fixed hex cell analysis.
- * Includes all visible candidate satellites above min elevation.
+ * Uses the same satellites that have visible beam cones (selectBeamSatellites),
+ * so hex cells only light up where a rendered beam actually covers them.
  */
 export function selectCellCandidateSatIds(snapshot: SimulationSnapshot): Set<string> {
-  const ids = new Set<string>();
-  for (const sat of snapshot.satellites) {
-    if (sat.isVisible && sat.elevationDeg >= MIN_BEAM_ELEVATION_DEG && sat.beams?.length) {
-      ids.add(sat.id);
-    }
-  }
-  return ids;
+  const beamSats = selectBeamSatellites(snapshot);
+  return new Set(beamSats.map((s) => s.id));
 }

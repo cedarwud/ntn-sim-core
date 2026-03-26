@@ -210,6 +210,7 @@ const BeamCone = React.memo(function BeamCone({
     ];
   }, [satPos[0], satPos[1], satPos[2], groundX, groundZ]);
 
+  const isSpecialRole = beam.role === 'serving' || beam.role === 'prepared' || beam.role === 'secondary' || beam.role === 'post-ho';
   const roleBadge = beam.role === 'serving'
     ? ' ★'
     : beam.role === 'prepared'
@@ -254,20 +255,22 @@ const BeamCone = React.memo(function BeamCone({
         dashSize={15}
         gapSize={10}
       />
-      <Text
-        position={[labelPos[0], labelPos[1] + (sinrLabel ? 5 : 0), labelPos[2]]}
-        fontSize={beam.role === 'serving' ? 12 : 9}
-        color={color}
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={beam.role === 'serving' ? 2.5 : 1.5}
-        outlineColor={beam.role === 'serving' ? '#ffffff' : '#071018'}
-        renderOrder={20}
-        material-depthTest={false}
-        material-depthWrite={false}
-      >
-        {label}
-      </Text>
+      {isSpecialRole && (
+        <Text
+          position={[labelPos[0], labelPos[1] + (sinrLabel ? 5 : 0), labelPos[2]]}
+          fontSize={beam.role === 'serving' ? 12 : 9}
+          color={color}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={beam.role === 'serving' ? 2.5 : 1.5}
+          outlineColor={beam.role === 'serving' ? '#ffffff' : '#071018'}
+          renderOrder={20}
+          material-depthTest={false}
+          material-depthWrite={false}
+        >
+          {label}
+        </Text>
+      )}
       {sinrLabel && (
         <Text
           position={[labelPos[0], labelPos[1] - 7, labelPos[2]]}

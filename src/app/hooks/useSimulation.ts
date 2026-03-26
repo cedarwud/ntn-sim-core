@@ -146,6 +146,7 @@ export function useSimulation(
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const handoverCountRef = useRef(0);
   const prevServingSatIdRef = useRef<string | null>(null);
+  const lastKnownServingRef = useRef<string | null>(null);
 
   // ── 4. Frame loop ──
 
@@ -159,6 +160,7 @@ export function useSimulation(
       engine.reset();
       handoverCountRef.current = 0;
       prevServingSatIdRef.current = null;
+      lastKnownServingRef.current = null;
     }
     if (simTimeRef.current < 0) {
       simTimeRef.current = 0;
@@ -174,14 +176,17 @@ export function useSimulation(
 
     const snap = engine.tick(timeSec, tickNumber);
 
-    // Track handover count by detecting serving satellite changes
+    // Track handover count: any satellite change, including null-gap transitions.
+    // lastKnownServingRef tracks the last non-null satellite to catch A→null→B paths.
     const currentServing = snap.ues[0]?.servingSatId ?? null;
-    if (
-      currentServing !== null &&
-      prevServingSatIdRef.current !== null &&
-      currentServing !== prevServingSatIdRef.current
-    ) {
-      handoverCountRef.current += 1;
+    if (currentServing !== null) {
+      if (
+        lastKnownServingRef.current !== null &&
+        currentServing !== lastKnownServingRef.current
+      ) {
+        handoverCountRef.current += 1;
+      }
+      lastKnownServingRef.current = currentServing;
     }
     prevServingSatIdRef.current = currentServing;
 

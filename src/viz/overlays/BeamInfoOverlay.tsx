@@ -165,7 +165,14 @@ export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
     }
 
     return snapshot.satellites
-      .filter((sat) => sat.isVisible && sat.elevationDeg > MIN_ELEVATION_DEG && sat.beams && sat.beams.length > 0)
+      .filter(
+        (sat) =>
+          sat.isVisible &&
+          sat.elevationDeg > MIN_ELEVATION_DEG &&
+          sat.beams?.some(
+            (b) => b.role === 'serving' || b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho',
+          ),
+      )
       .sort((a, b) => {
         const aPriority = relevantSatIds.has(a.id) ? 1 : 0;
         const bPriority = relevantSatIds.has(b.id) ? 1 : 0;

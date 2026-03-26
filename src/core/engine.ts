@@ -590,7 +590,11 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     if (isBhActive) {
       // Ensure beam layouts exist for all visible sats before scheduler init
       for (const { satId, sample } of satSamples) {
-        getOrCreateBeamLayout(satId, sample.altKm);
+        const layout = getOrCreateBeamLayout(satId, sample.altKm);
+        // Register newly-risen satellites with the BH scheduler
+        if (bhScheduler) {
+          bhScheduler.registerSatellite(satId, layout);
+        }
       }
       ensureBhScheduler();
       if (bhScheduler) {
@@ -604,8 +608,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           : hoManager.getState().serving;
         if (servingNow) {
           const activeForSat = lastBhSlotDecision.activeBeamsPerSat.get(servingNow.satId);
-          if (activeForSat && !activeForSat.includes(servingNow.beamId)) {
-            lastBhSlotDecision.activeBeamsPerSat.set(servingNow.satId, [servingNow.beamId, ...activeForSat]);
+          if (activeForSat) {
+            if (!activeForSat.includes(servingNow.beamId)) {
+              lastBhSlotDecision.activeBeamsPerSat.set(servingNow.satId, [servingNow.beamId, ...activeForSat]);
+            }
+          } else {
+            // Serving satellite has no BH schedule entry yet — add serving beam
+            lastBhSlotDecision.activeBeamsPerSat.set(servingNow.satId, [servingNow.beamId]);
           }
         }
       }
@@ -706,7 +715,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         let uePropDelayMs: number | undefined;
         if (ueHoState.serving) {
           const servCand = ueCandidates.find((c) => c.satId === ueHoState.serving!.satId);
-          ueServingSinrDb = servCand !== undefined ? servCand.sinrDb : -100;
+          // null (not -100) so manager "servingSinrDb === null → doRelease" fires immediately
+          ueServingSinrDb = servCand !== undefined ? servCand.sinrDb : null;
           const servSatEntry = satSinrs.find((s) => s.satId === ueHoState.serving!.satId);
           uePropDelayMs = servSatEntry
             ? servSatEntry.sample.rangeKm / 299.792
@@ -783,7 +793,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       let servingSinrDb: number | null = null;
       if (hoState.serving) {
         const servingEntry = satSinrs.find((s) => s.satId === hoState.serving!.satId);
-        servingSinrDb = servingEntry !== undefined ? servingEntry.sinrDb : -100;
+        // null (not -100) so manager.ts "servingSinrDb === null → doRelease" fires immediately
+        servingSinrDb = servingEntry !== undefined ? servingEntry.sinrDb : null;
       }
 
       // 5b. DAPS dual-active
@@ -991,7 +1002,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           const activeBeamIds = lastBhSlotDecision?.activeBeamsPerSat.get(s.satId);
           const beamSnaps: SatelliteBeamSnapshot[] = layout.beams.map((b) => {
             const isServingBeam = s.satId === servingSatId && b.beamId === servingBeamId;
-            const isActive = isServingBeam || (activeBeamIds ? activeBeamIds.includes(b.beamId) : b.isActive);
+            // BH active but sat not yet scheduled → all inactive (not b.isActive=true fallback)
+            const isActive = isServingBeam || (lastBhSlotDecision
+              ? (activeBeamIds?.includes(b.beamId) ?? false)
+              : b.isActive);
             let role: SatelliteBeamSnapshot['role'] = 'neutral';
             if (s.satId === servingSatId && b.beamId === servingBeamId) {
               role = 'serving';

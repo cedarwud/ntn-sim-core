@@ -54,6 +54,8 @@ export interface BhScheduler {
   ): BhSlotDecision;
   /** Get current frame and slot indices. */
   getCurrentIndices(timeSec: number): { frameIndex: number; slotIndex: number };
+  /** Register a satellite that appeared after scheduler init. */
+  registerSatellite(satId: string, layout: SatelliteBeamLayout): void;
   /** Reset scheduler state. */
   reset(): void;
 }
@@ -251,6 +253,11 @@ export function createBhScheduler(
     getSlotDecision,
     getCurrentIndices(timeSec: number) {
       return computeIndices(timeSec, frameDurationSec, slotsPerFrame);
+    },
+    /** Register a satellite that appeared after scheduler init. */
+    registerSatellite(satId: string, layout: SatelliteBeamLayout): void {
+      if (sortedBeamIds.has(satId)) return;
+      sortedBeamIds.set(satId, [...layout.beams.map((b) => b.beamId)].sort());
     },
     reset() {
       globalSlotCounter = 0;

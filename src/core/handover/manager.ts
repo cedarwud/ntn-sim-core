@@ -107,6 +107,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     if (!best || best.sinrDb < config.trigger_threshold_db) {
       return { type: 'none', reason: 'no candidate above threshold' };
     }
+
     state.phase = 'attached';
     state.serving = {
       satId: best.satId,

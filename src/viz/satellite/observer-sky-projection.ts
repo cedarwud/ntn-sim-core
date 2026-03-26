@@ -2,8 +2,12 @@
  * VISUAL-ONLY — Sky-dome projection for observer-centric satellite display.
  *
  * Maps topocentric (azimuth, elevation) to 3D world coordinates on a
- * hemisphere dome. This is purely a visual mapping and does NOT affect
- * any physics, SINR, or KPI calculations.
+ * hemisphere dome. Uses stereographic-like compression so that mid/high
+ * elevation satellites cluster toward the center (like a polar sky plot),
+ * while low-elevation satellites are compressed into a thin outer band.
+ *
+ * This is purely a visual mapping and does NOT affect any physics, SINR,
+ * or KPI calculations.
  */
 
 // VISUAL-ONLY: All constants and functions in this file are for rendering only.
@@ -26,6 +30,20 @@ export const DEFAULT_SKY_PROJECTION: SkyProjectionConfig = {
 const DEG2RAD = Math.PI / 180;
 
 /**
+ * VISUAL-ONLY: Power-compressed radial mapping.
+ *
+ * r = cos(el)^1.6 — mild nonlinear compression that keeps low-elevation
+ * satellites near the edge (natural horizon entry/exit) while pulling
+ * mid-elevation satellites toward center.
+ *
+ * Linear cos(el):   10°→0.98  30°→0.87  45°→0.71  60°→0.50
+ * Power 1.6:        10°→0.98  30°→0.80  45°→0.58  60°→0.33
+ */
+function compressedRadius(elevationRad: number): number {
+  return Math.pow(Math.cos(elevationRad), 1.6);
+}
+
+/**
  * Project topocentric azimuth/elevation onto a 3D sky-dome hemisphere.
  *
  * Coordinate convention (Three.js right-hand, Y-up):
@@ -41,11 +59,11 @@ export function projectToSkyDome(
   const azRad = azimuthDeg * DEG2RAD; // VISUAL-ONLY
   const elRad = elevationDeg * DEG2RAD; // VISUAL-ONLY
 
-  const cosEl = Math.cos(elRad);
+  const r = compressedRadius(elRad); // VISUAL-ONLY: compressed radial distance
 
-  const x = config.horizontalRadius * cosEl * Math.sin(azRad); // East
+  const x = config.horizontalRadius * r * Math.sin(azRad); // East
   const y = config.verticalRadius * Math.sin(elRad); // Up
-  const z = -config.horizontalRadius * cosEl * Math.cos(azRad); // North (negated for Three.js)
+  const z = -config.horizontalRadius * r * Math.cos(azRad); // North (negated for Three.js)
 
   return [x, Math.max(y, config.minHeight), z]; // VISUAL-ONLY clamp
 }
