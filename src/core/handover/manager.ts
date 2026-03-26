@@ -15,6 +15,7 @@ import type {
   HandoverDecision,
   HandoverEvent,
   HandoverCandidate,
+  RlfState,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -24,9 +25,20 @@ import type {
 /** Ping-pong window in simulation seconds. */
 const PING_PONG_WINDOW_SEC = 5;
 
+// RLF defaults (3GPP TS 38.331 + TR 38.821 NTN)
+const DEFAULT_RLF_QOUT_DB  = -8.0;  // out-of-sync threshold
+const DEFAULT_RLF_QIN_DB   = -6.0;  // in-sync recovery threshold
+const DEFAULT_RLF_N310     = 1;     // OOS events to start T310
+const DEFAULT_RLF_N311     = 1;     // IS events to cancel T310
+const DEFAULT_RLF_T310_MS  = 2000;  // NTN-extended T310 (ms)
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function initialRlf(): RlfState {
+  return { phase: 'normal', n310Count: 0, n311Count: 0, t310StartSec: null };
+}
 
 function initialState(): HandoverManagerState {
   return {
@@ -38,6 +50,8 @@ function initialState(): HandoverManagerState {
     totalHandovers: 0,
     totalFailures: 0,
     totalPingPongs: 0,
+    totalRlfs: 0,
+    rlf: initialRlf(),
     events: [],
   };
 }
@@ -89,6 +103,18 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   const baseTttSec = config.ttt_ms / 1000;
 
+  // A6: SINR EMA state — smoothed SINR tracking per tick
+  // α=1 disables smoothing; α<1 applies exponential averaging
+  const emaAlpha = config.sinr_ema_alpha ?? 1.0;
+  let emaSinrDb: number | null = null;
+
+  // RLF parameters (with 3GPP defaults)
+  const rlfQout   = config.rlf_qout_db  ?? DEFAULT_RLF_QOUT_DB;
+  const rlfQin    = config.rlf_qin_db   ?? DEFAULT_RLF_QIN_DB;
+  const rlfN310   = config.rlf_n310     ?? DEFAULT_RLF_N310;
+  const rlfN311   = config.rlf_n311     ?? DEFAULT_RLF_N311;
+  const rlfT310Sec = (config.rlf_t310_ms ?? DEFAULT_RLF_T310_MS) / 1000;
+
   const checkCondition =
     config.type === 'a3-event' ? a3Condition : a4Condition;
 
@@ -100,6 +126,75 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   function emit(event: HandoverEvent): void {
     state.events.push(event);
+  }
+
+  /**
+   * Advance the RLF state machine by one tick.
+   *
+   * Returns true if RLF was declared (T310 expired) — caller must do doRelease().
+   * Returns false if link is OK or recovery is in progress.
+   *
+   * State transitions:
+   *   normal      → out-of-sync : consecutive OOS count reaches N310
+   *   out-of-sync → normal      : consecutive IS  count reaches N311
+   *   out-of-sync → reestablish : T310 timer expires
+   *
+   * @source 3GPP TS 38.331 §5.3.10.3
+   * @source TR 38.821 §6.3.4 (NTN T310 extension)
+   */
+  function rlfTick(sinrDb: number | null, timeSec: number, tick: number): boolean {
+    const rlf = state.rlf;
+
+    // If SINR is completely absent (satellite left view), treat as hard out-of-sync
+    const isOos = sinrDb === null || sinrDb < rlfQout;
+    const isIn  = sinrDb !== null && sinrDb >= rlfQin;
+
+    if (rlf.phase === 'normal') {
+      if (isOos) {
+        rlf.n310Count++;
+        if (rlf.n310Count >= rlfN310) {
+          // Start T310
+          rlf.phase = 'out-of-sync';
+          rlf.t310StartSec = timeSec;
+          rlf.n311Count = 0;
+          emit({ tick, timeSec, type: 'rlf-oos', sinrDb: sinrDb ?? undefined,
+            reason: `N310=${rlf.n310Count} OOS events, T310 started` });
+        }
+      } else {
+        rlf.n310Count = 0;
+      }
+      return false;
+    }
+
+    if (rlf.phase === 'out-of-sync') {
+      // Check T310 expiry first
+      if (timeSec - rlf.t310StartSec! >= rlfT310Sec) {
+        rlf.phase = 'reestablish';
+        state.totalRlfs++;
+        emit({ tick, timeSec, type: 'rlf-declared', sinrDb: sinrDb ?? undefined,
+          reason: `T310 expired after ${rlfT310Sec * 1000} ms — RLF declared` });
+        return true; // caller must release
+      }
+
+      if (isIn) {
+        rlf.n311Count++;
+        if (rlf.n311Count >= rlfN311) {
+          // Cancel T310 — link recovered
+          rlf.phase = 'normal';
+          rlf.n310Count = 0;
+          rlf.n311Count = 0;
+          rlf.t310StartSec = null;
+          emit({ tick, timeSec, type: 'rlf-recovery', sinrDb: sinrDb ?? undefined,
+            reason: `N311=${rlf.n311Count} IS events, T310 cancelled` });
+        }
+      } else {
+        rlf.n311Count = 0;
+      }
+      return false;
+    }
+
+    // reestablish phase: waiting for doRelease() to move back to idle
+    return false;
   }
 
   function tryAttach(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
@@ -234,6 +329,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     state.lastHoTimeSec = input.timeSec;
     state.totalHandovers++;
     state.phase = 'attached';
+    state.rlf = initialRlf(); // A2: reset RLF on successful HO (new serving link)
 
     emit({
       tick: input.tick,
@@ -259,6 +355,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     state.serving = null;
     state.pendingTarget = null;
     state.tttStartTimeSec = null;
+    state.rlf = initialRlf(); // A2: reset RLF counters on release
     emit({
       tick: input.tick,
       timeSec: input.timeSec,
@@ -272,29 +369,51 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   return {
     tick(input: HandoverTickInput): HandoverDecision {
+      // A6: apply SINR EMA smoothing before any HO/RLF evaluation
+      // Smoothed = α × raw + (1−α) × prev.
+      // @source leo-beam-sim/src/engine/handover/handover-manager.ts
+      if (input.servingSinrDb !== null) {
+        emaSinrDb = emaSinrDb === null
+          ? input.servingSinrDb
+          : emaAlpha * input.servingSinrDb + (1 - emaAlpha) * emaSinrDb;
+      } else {
+        emaSinrDb = null;
+      }
+      // Use smoothed SINR for all downstream HO and RLF logic
+      const smoothedInput: HandoverTickInput = { ...input, servingSinrDb: emaSinrDb };
+
       const eligible = filterCandidates(input.candidates, config.min_elevation_deg);
 
       switch (state.phase) {
         case 'idle':
-          return tryAttach(input, eligible);
+          return tryAttach(smoothedInput, eligible);
 
-        case 'attached':
-          if (input.servingSinrDb === null) {
-            return doRelease(input, 'serving SINR lost');
+        case 'attached': {
+          // A2: RLF state machine — replaces binary null-SINR release
+          if (rlfTick(smoothedInput.servingSinrDb, smoothedInput.timeSec, smoothedInput.tick)) {
+            return doRelease(smoothedInput, 'RLF declared (T310 expired)');
           }
-          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
-            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}°`);
+          // Hard release: satellite below horizon (elevation gate)
+          if (smoothedInput.servingElevationDeg != null && smoothedInput.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(smoothedInput, `serving elevation ${smoothedInput.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}°`);
           }
-          return tickAttached(input, eligible);
+          // While in out-of-sync phase, skip HO trigger evaluation
+          if (state.rlf.phase === 'out-of-sync') {
+            return { type: 'none', reason: 'RLF T310 running, HO evaluation suspended' };
+          }
+          return tickAttached(smoothedInput, eligible);
+        }
 
-        case 'preparing':
-          if (input.servingSinrDb === null) {
-            return doRelease(input, 'serving SINR lost during preparation');
+        case 'preparing': {
+          // A2: RLF during preparation — abort HO and declare RLF
+          if (rlfTick(smoothedInput.servingSinrDb, smoothedInput.timeSec, smoothedInput.tick)) {
+            return doRelease(smoothedInput, 'RLF declared during HO preparation (T310 expired)');
           }
-          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
-            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}° during preparation`);
+          if (smoothedInput.servingElevationDeg != null && smoothedInput.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(smoothedInput, `serving elevation ${smoothedInput.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}° during preparation`);
           }
-          return tickPreparing(input, eligible);
+          return tickPreparing(smoothedInput, eligible);
+        }
 
         case 'switching':
           // Phase 2: switching is instantaneous, should not remain in this state
@@ -322,8 +441,9 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     },
 
     reset(): void {
-      state = initialState();
+      state = initialState(); // initialState() already includes initialRlf()
       previousServingSatId = null;
+      emaSinrDb = null;
     },
   };
 }

@@ -16,6 +16,9 @@ export interface ChannelResult {
   atmosphericDb: number;
   /** Tier 5: small-scale fading in dB (Shadowed-Rician). 0 if disabled. */
   smallScaleFadingDb: number;
+  /** Tier 3.5: phased-array scan loss in dB. 0 if disabled. A7 fix.
+   *  @source leo-beam-sim/src/engine/signal/link-budget.ts */
+  scanLossDb: number;
   totalPathLossDb: number;
   rxPowerDbm: number;
 }
@@ -76,6 +79,27 @@ export interface LinkBudgetOptions {
   tier4Atmospheric: boolean;
   /** Tier 5: small-scale fading (Shadowed-Rician). MS1 fix. */
   tier5Fading?: boolean;
+  /**
+   * Tier 5 fading model selection. A3 fix.
+   * 'shadowed-rician' (default) — 3GPP TR 38.811 standard model.
+   * 'loo' — Loo (1985) lognormal+Rayleigh, better for tree-shadowing scenarios.
+   * @source beamHO-bench/src/sim/channel/small-scale.ts
+   */
+  tier5FadingModel?: 'shadowed-rician' | 'loo';
+  /**
+   * Tier 3.5: phased-array scan loss. A7 fix.
+   * Enabled only for Ka-band (≥18 GHz) with phased-array antenna.
+   * Requires scanAngleDeg and scanMaxAngleDeg to be set.
+   * @source leo-beam-sim/src/engine/signal/link-budget.ts
+   */
+  tier35ScanLoss?: boolean;
+  /** Scan angle from boresight (degrees). Required if tier35ScanLoss enabled. */
+  scanAngleDeg?: number;
+  /** Maximum scan angle supported by the phased array (degrees). Default 60°. */
+  scanMaxAngleDeg?: number;
+  /** Maximum scan loss at scanMaxAngleDeg (dB). Default 3 dB (Ka-band phased array).
+   *  @source ITU-R S.672, leo-beam-sim reference */
+  scanLossMaxDb?: number;
   /** Seeded RNG for shadow fading sampling. */
   rngNext: (() => number) | null;
   /** LOS condition — true for LOS, false for NLOS. */

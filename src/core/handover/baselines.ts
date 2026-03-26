@@ -13,12 +13,14 @@ import { createHandoverManager } from './manager';
 import { createDapsManager } from './daps';
 import { createChoManager } from './cho';
 import { createMcHoManager } from './mc-ho';
+import { createD2Manager } from './d2-distance';
+import { createMaxElevationManager, createMaxRemainingTimeManager } from './ranking';
 
 /**
  * Hard handover baseline: immediate switch with no TTT.
  * Overrides ttt_ms to 0 regardless of config value.
  */
-export function createHardHoBaseline(config: HandoverConfig): HandoverManager {
+function createHardHoBaseline(config: HandoverConfig): HandoverManager {
   return createHandoverManager({
     ...config,
     type: 'hard-ho',
@@ -31,7 +33,7 @@ export function createHardHoBaseline(config: HandoverConfig): HandoverManager {
  * A4-event baseline: absolute threshold with TTT.
  * Uses config values as-is (ensures type is 'a4-event').
  */
-export function createA4Baseline(config: HandoverConfig): HandoverManager {
+function createA4Baseline(config: HandoverConfig): HandoverManager {
   return createHandoverManager({
     ...config,
     type: 'a4-event',
@@ -65,6 +67,12 @@ export function createBaselineFromConfig(config: HandoverConfig): HandoverManage
       return createChoManager(config);
     case 'mc-ho':
       return createMcHoManager(config);
+    case 'd2-distance':
+      return createD2Manager(config);
+    case 'max-elevation':
+      return createMaxElevationManager(config);
+    case 'max-remaining-time':
+      return createMaxRemainingTimeManager(config);
     default:
       return createHandoverManager({ ...config, type: 'a4-event' });
   }

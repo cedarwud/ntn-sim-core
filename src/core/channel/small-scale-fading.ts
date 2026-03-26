@@ -1,28 +1,24 @@
 /**
  * Tier 5: Small-scale fading models for NTN channels.
  *
- * Implements the Shadowed-Rician (SR) fading model, which is the standard
- * small-scale fading model for LEO satellite channels per 3GPP TR 38.811.
+ * Implements two small-scale fading models for NTN channels:
  *
- * The SR model combines:
- *   - A direct LOS component with Nakagami-m shadowing on the amplitude
- *   - Scattered multipath components (Rayleigh)
+ * 1. Shadowed-Rician (SR) — standard 3GPP TR 38.811 model:
+ *    h = sqrt(X)·exp(jθ) + Y + jZ
+ *    where X ~ Gamma(m, Ω/m), Y,Z ~ N(0, b₀)
  *
- * PDF: p(r) involves confluent hypergeometric function 1F1
- * For simulation, we use the envelope-based approach:
- *   h = sqrt(X) * exp(jθ) + Y + jZ
- *   where X ~ Gamma(m, Ω/m), Y,Z ~ N(0, b₀)
- *   |h|² is the fading power
- *
- * Parameters (per elevation angle and environment):
- *   - m: Nakagami shape (LOS severity), m ∈ [0.1, 20]
- *   - b₀: average scattered power (half-variance of NLOS component)
- *   - Ω: average LOS power
+ * 2. Loo model (A3) — 3-component land mobile satellite channel:
+ *    r(t) = z(t) · exp(jφ(t)) + x(t) + jy(t)
+ *    where z(t) ~ lognormal(μ_z, σ_z) (LOS shadowing),
+ *          x,y ~ N(0, σ_m) (NLOS multipath Rayleigh),
+ *    suitable for tree-shadowing scenarios (low-elevation suburban/rural).
+ *    Particularly used in papers comparing terrestrial and satellite channels.
  *
  * Paper sources:
  *   - PAP-2021-SHADOWED-RICIAN: SR fading model derivation and parameters
- *   - PAP-2024-MADRL-CORE: Loo 3-state Markov (deferred)
+ *   - PAP-2024-MADRL-CORE: Loo model application in LEO NTN
  *   - 3GPP TR 38.811 §6.7: small-scale fading reference
+ *   - Loo (1985) IEEE Trans. Veh. Technol.: original Loo model derivation
  *
  * Governance:
  *   - SDD: sdd/ntn-sim-core-sdd.md §9.2
@@ -138,6 +134,59 @@ function sampleGamma(shape: number, scale: number, rngNext: () => number): numbe
 }
 
 // ---------------------------------------------------------------------------
+// Loo model parameters (A3)
+// Source: Loo (1985); beamHO-bench/src/sim/channel/small-scale.ts
+// ---------------------------------------------------------------------------
+
+interface LooParams {
+  /** Mean of log-normal LOS component amplitude (dB). */
+  muZ_dB: number;
+  /** Std-dev of log-normal LOS component shadowing (dB). */
+  sigmaZ_dB: number;
+  /** Std-dev of NLOS multipath component (linear, per-axis). */
+  sigmaM: number;
+}
+
+/**
+ * Loo model parameters by elevation angle (suburban, S-band).
+ * Columns: muZ_dB (mean LOS dB), sigmaZ_dB (LOS shadow σ dB), sigmaM (NLOS Rayleigh σ).
+ * Values derived from Loo (1985) Table I and beamHO-bench calibration.
+ *
+ * @source Loo (1985) IEEE Trans. Veh. Technol. 34(3), Table I
+ * @source beamHO-bench/src/sim/channel/small-scale.ts
+ */
+const LOO_ELEVATIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90] as const;
+
+const LOO_S_SUBURBAN: readonly LooParams[] = [
+  { muZ_dB: -3.0, sigmaZ_dB: 5.0, sigmaM: 0.30 },  // 10°
+  { muZ_dB: -1.5, sigmaZ_dB: 4.0, sigmaM: 0.25 },  // 20°
+  { muZ_dB: -0.8, sigmaZ_dB: 3.2, sigmaM: 0.20 },  // 30°
+  { muZ_dB: -0.4, sigmaZ_dB: 2.5, sigmaM: 0.16 },  // 40°
+  { muZ_dB: -0.2, sigmaZ_dB: 2.0, sigmaM: 0.13 },  // 50°
+  { muZ_dB: -0.1, sigmaZ_dB: 1.5, sigmaM: 0.10 },  // 60°
+  { muZ_dB:  0.0, sigmaZ_dB: 1.2, sigmaM: 0.08 },  // 70°
+  { muZ_dB:  0.0, sigmaZ_dB: 1.0, sigmaM: 0.06 },  // 80°
+  { muZ_dB:  0.0, sigmaZ_dB: 0.8, sigmaM: 0.05 },  // 90°
+];
+
+function getLooParams(elevationDeg: number): LooParams {
+  const el = Math.max(LOO_ELEVATIONS[0], Math.min(LOO_ELEVATIONS[LOO_ELEVATIONS.length - 1], elevationDeg));
+  let lo = 0;
+  for (let i = 0; i < LOO_ELEVATIONS.length - 1; i++) {
+    if (LOO_ELEVATIONS[i + 1] >= el) { lo = i; break; }
+  }
+  const hi = Math.min(lo + 1, LOO_ELEVATIONS.length - 1);
+  if (lo === hi) return LOO_S_SUBURBAN[lo];
+  const t = (el - LOO_ELEVATIONS[lo]) / (LOO_ELEVATIONS[hi] - LOO_ELEVATIONS[lo]);
+  const a = LOO_S_SUBURBAN[lo], b = LOO_S_SUBURBAN[hi];
+  return {
+    muZ_dB:    a.muZ_dB    + (b.muZ_dB    - a.muZ_dB)    * t,
+    sigmaZ_dB: a.sigmaZ_dB + (b.sigmaZ_dB - a.sigmaZ_dB) * t,
+    sigmaM:    a.sigmaM    + (b.sigmaM    - a.sigmaM)    * t,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -185,5 +234,65 @@ export function sampleShadowedRicianDb(
   const normalizedPower = powerLinear / meanPower;
 
   // Convert to dB (0 dB mean, can be positive or negative)
+  return 10 * Math.log10(normalizedPower > 1e-30 ? normalizedPower : 1e-30);
+}
+
+/**
+ * Sample Loo fading power in dB (A3).
+ *
+ * Loo model: r(t) = z(t)·exp(jφ) + x + jy
+ *   z ~ LogNormal(μ_z, σ_z) — LOS component with multiplicative shadowing
+ *   x,y ~ N(0, σ_m)         — NLOS scattered components (Rayleigh)
+ *
+ * The lognormal shadowing captures slow tree/building occlusion of the LOS path.
+ * At low elevation angles (10–30°), σ_z is large and shadowing dominates.
+ * At high elevation angles (>60°), the model converges toward Rician.
+ *
+ * @tier paper-backed
+ * @source Loo (1985) IEEE Trans. Veh. Technol. 34(3)
+ * @source beamHO-bench/src/sim/channel/small-scale.ts
+ *
+ * @param elevationDeg — elevation angle in degrees
+ * @param rngNext — seeded RNG function returning [0, 1)
+ * @returns fading power in dB (normalized, mean ≈ 0 dB)
+ */
+export function sampleLooDb(
+  elevationDeg: number,
+  rngNext: () => number,
+): number {
+  const p = getLooParams(elevationDeg);
+
+  // z ~ LogNormal(μ_z [dB], σ_z [dB]) — LOS amplitude envelope
+  // Convert dB params to natural log space: μ_ln = μ_dB/(20/ln10), σ_ln = σ_dB/(20/ln10)
+  const dBtoLn = Math.log(10) / 20;
+  const muLn    = p.muZ_dB    * dBtoLn;
+  const sigmaLn = p.sigmaZ_dB * dBtoLn;
+
+  // Sample standard normal via Box-Muller for z
+  const u1z = rngNext(), u2z = rngNext();
+  const normalZ = Math.sqrt(-2 * Math.log(u1z === 0 ? 1e-10 : u1z)) * Math.cos(2 * Math.PI * u2z);
+  const zAmplitude = Math.exp(muLn + sigmaLn * normalZ);
+
+  // Random phase for LOS component
+  const theta = rngNext() * 2 * Math.PI;
+
+  // NLOS Rayleigh: x, y ~ N(0, sigmaM)
+  const u1m = rngNext(), u2m = rngNext();
+  const r = Math.sqrt(-2 * Math.log(u1m === 0 ? 1e-10 : u1m));
+  const x = p.sigmaM * r * Math.cos(2 * Math.PI * u2m);
+  const y = p.sigmaM * r * Math.sin(2 * Math.PI * u2m);
+
+  const realPart = zAmplitude * Math.cos(theta) + x;
+  const imagPart = zAmplitude * Math.sin(theta) + y;
+
+  // Channel power |r|²
+  const powerLinear = realPart * realPart + imagPart * imagPart;
+
+  // Normalize: expected power = E[z²] + 2·σ_m² = exp(2μ_ln + 2σ_ln²) + 2·σ_m²
+  const meanLos  = Math.exp(2 * muLn + 2 * sigmaLn * sigmaLn);
+  const meanNlos = 2 * p.sigmaM * p.sigmaM;
+  const meanPower = meanLos + meanNlos;
+
+  const normalizedPower = powerLinear / (meanPower > 0 ? meanPower : 1);
   return 10 * Math.log10(normalizedPower > 1e-30 ? normalizedPower : 1e-30);
 }

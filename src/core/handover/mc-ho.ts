@@ -82,6 +82,8 @@ function initialState(config: HandoverConfig): McHoState {
     totalHandovers: 0,
     totalFailures: 0,
     totalPingPongs: 0,
+    totalRlfs: 0,
+    rlf: { phase: 'normal', n310Count: 0, n311Count: 0, t310StartSec: null },
     events: [],
     mcPhase: 'idle',
     sourceServing: null,

@@ -9,14 +9,7 @@
 
 import { degToRad, normalizeAngleRad } from './math';
 import type { OrbitElement, WalkerConfig } from './types';
-
-const TWO_PI = Math.PI * 2;
-/** Seconds per mean solar day. */
-const DAY_SEC = 86400;
-/** Earth gravitational parameter [km³/s²]. */
-const MU_EARTH_KM3_S2 = 398600.4418;
-/** WGS84 semi-major axis [km]. */
-const EARTH_RADIUS_KM = 6378.137;
+import { TWO_PI, DAY_SECONDS, MU_EARTH_KM3_S2, EARTH_RADIUS_KM } from '@/core/common/constants';
 
 /**
  * Generate Walker-delta constellation orbital elements from a multi-shell config.
@@ -32,7 +25,7 @@ export function generateWalkerConstellation(config: WalkerConfig): OrbitElement[
   for (const shell of config.shells) {
     const semiMajorKm = EARTH_RADIUS_KM + shell.altitudeKm;
     const meanMotionRadPerSec = Math.sqrt(MU_EARTH_KM3_S2 / (semiMajorKm ** 3));
-    const meanMotionRevPerDay = (meanMotionRadPerSec * DAY_SEC) / TWO_PI;
+    const meanMotionRevPerDay = (meanMotionRadPerSec * DAY_SECONDS) / TWO_PI;
     const incRad = degToRad(shell.inclinationDeg);
     const totalSats = shell.planes * shell.satsPerPlane;
     const F = shell.phasingFactor ?? 1; // M1 fix: configurable Walker F parameter

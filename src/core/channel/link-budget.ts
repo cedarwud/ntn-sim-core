@@ -9,7 +9,9 @@
  *   - Tier 1: large-scale shadow fading
  *   - Tier 2: clutter / elevation-dependent attenuation
  *   - Tier 3: beam gain
- *   - Tier 4: atmospheric (Ka-band extras) — placeholder
+ *   - Tier 3.5: phased-array scan loss (Ka-band; A7 fix)
+ *   - Tier 4: atmospheric (Ka-band extras)
+ *   - Tier 5: small-scale fading (Shadowed-Rician)
  *
  * This file must not import React, Three.js, or scene code.
  */
@@ -18,7 +20,7 @@ import type { ChannelResult, LinkBudgetOptions } from './types';
 import { computeFspl } from './fspl';
 import { getShadowFadingParams, sampleShadowFading } from './shadow-fading';
 import { computeBeamGain } from './beam-gain';
-import { sampleShadowedRicianDb } from './small-scale-fading';
+import { sampleShadowedRicianDb, sampleLooDb } from './small-scale-fading';
 
 /**
  * Compute the full link budget by composing enabled channel tiers.
@@ -42,6 +44,10 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     tier4Atmospheric,
     rngNext,
     isLos,
+    tier35ScanLoss,
+    scanAngleDeg,
+    scanMaxAngleDeg,
+    scanLossMaxDb,
   } = opts;
 
   // Tier 0: FSPL (always mandatory)
@@ -68,6 +74,19 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     beamGainDb = computeBeamGain(beamGainInput);
   }
 
+  // Tier 3.5: phased-array scan loss (A7 fix)
+  // L_scan = L_max × (θ_scan / θ_max)² — quadratic taper from boresight to max scan angle
+  // Applies only to Ka-band (≥18 GHz) phased-array antennas.
+  // @source leo-beam-sim/src/engine/signal/link-budget.ts
+  // @source ITU-R S.672-4 (scan loss reference)
+  let scanLossDb = 0;
+  if (tier35ScanLoss && frequencyGhz >= 18 && scanAngleDeg != null) {
+    const maxAngle = scanMaxAngleDeg ?? 60;
+    const lossMax  = scanLossMaxDb  ?? 3.0;
+    const ratio = Math.min(scanAngleDeg, maxAngle) / maxAngle;
+    scanLossDb = lossMax * ratio * ratio;
+  }
+
   // Tier 4: atmospheric loss (M4 fix: simplified ITU-R model for Ka-band)
   // Gaseous absorption (O2 + H2O) + rain attenuation, elevation-dependent
   // Source: ITU-R P.676 (gaseous), ITU-R P.618 (rain), simplified for LEO NTN
@@ -90,15 +109,22 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     atmosphericDb = gaseousDb + rainDb + scintDb;
   }
 
-  // Tier 5: small-scale fading (Shadowed-Rician) — MS1 fix
+  // Tier 5: small-scale fading — MS1 (Shadowed-Rician) or A3 (Loo)
   let smallScaleFadingDb = 0;
   if (opts.tier5Fading && rngNext) {
-    smallScaleFadingDb = sampleShadowedRicianDb(elevationDeg, isLos, rngNext);
+    if (opts.tier5FadingModel === 'loo') {
+      // A3 Loo model: suited for low-elevation tree-shadowing scenarios
+      // @source Loo (1985), beamHO-bench/src/sim/channel/small-scale.ts
+      smallScaleFadingDb = sampleLooDb(elevationDeg, rngNext);
+    } else {
+      // Default: Shadowed-Rician (3GPP TR 38.811)
+      smallScaleFadingDb = sampleShadowedRicianDb(elevationDeg, isLos, rngNext);
+    }
   }
 
   // Total path loss (positive value = loss)
   // smallScaleFadingDb can be + or - (normalized to 0 dB mean)
-  const totalPathLossDb = fsplDb + shadowFadingDb + clutterLossDb + atmosphericDb - beamGainDb - smallScaleFadingDb;
+  const totalPathLossDb = fsplDb + shadowFadingDb + clutterLossDb + atmosphericDb + scanLossDb - beamGainDb - smallScaleFadingDb;
 
   // Received power
   const rxPowerDbm = txEirpDbm - totalPathLossDb;
@@ -109,6 +135,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     clutterLossDb,
     beamGainDb,
     atmosphericDb,
+    scanLossDb,
     smallScaleFadingDb,
     totalPathLossDb,
     rxPowerDbm,

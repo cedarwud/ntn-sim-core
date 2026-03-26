@@ -15,11 +15,7 @@ export type {
 
 export { createHandoverManager } from './manager';
 
-export {
-  createHardHoBaseline,
-  createA4Baseline,
-  createBaselineFromConfig,
-} from './baselines';
+export { createBaselineFromConfig } from './baselines';
 
 export { createDapsManager } from './daps';
 export type { DapsConfig, DapsPhase, DapsState } from './daps';

@@ -9,6 +9,7 @@
 
 import { CASE9_ACCESS_BASELINE, HOBS_MULTIBEAM_BASELINE, BH_RESOURCE_BASELINE, REAL_TRACE_VALIDATION } from '../src/core/profiles/defaults';
 import { generateWalkerConstellation } from '../src/core/orbit/walker';
+import { buildWalkerConfig } from '../src/core/profiles/loader';
 import { buildTrajectoryCache } from '../src/core/orbit/trajectory-cache';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '../src/core/orbit/tle-loader';
 import { satrecsToOrbitElements } from '../src/core/orbit/sgp4-adapter';
@@ -72,17 +73,8 @@ if (profile.orbitMode === 'real-trace' && profile.tleDataPath) {
   elements = satrecsToOrbitElements(satrecs);
   console.log(`  TLE loaded: ${records.length} records → ${elements.length} elements`);
 } else {
-  // Walker synthetic
-  elements = generateWalkerConstellation({
-    shells: [{
-      id: `${profile.id}-shell`,
-      altitudeKm: profile.orbital.altitude_km,
-      inclinationDeg: profile.orbital.inclination_deg,
-      planes: profile.orbital.num_planes,
-      satsPerPlane: profile.orbital.sats_per_plane,
-    }],
-    epochUtcMs: profile.timeControl.epochUtcMs,
-  });
+  // Walker synthetic (supports extra_shells via buildWalkerConfig)
+  elements = generateWalkerConstellation(buildWalkerConfig(profile, profile.timeControl.epochUtcMs));
 }
 
 console.log(`  Satellites: ${elements.length}`);

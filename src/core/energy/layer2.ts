@@ -71,6 +71,11 @@ export interface EnergyLayer2Manager {
   getState(satId: string): SatelliteEnergyLayer2State | null;
   /** Get all satellite states. */
   getAllStates(): SatelliteEnergyLayer2State[];
+  /**
+   * One-shot energy debit in Joules (A8: HO transaction cost).
+   * Converts joules to Wh and deducts from battery immediately.
+   */
+  debitEnergy(satId: string, joules: number): void;
   /** Reset all state. */
   reset(): void;
 }
@@ -92,7 +97,7 @@ export const DEFAULT_ENERGY_LAYER2_CONFIG: EnergyLayer2Config = {
 // M7 fix: Beta angle shadow fraction
 // ---------------------------------------------------------------------------
 
-const EARTH_RADIUS_KM = 6378.137;
+import { EARTH_RADIUS_KM } from '@/core/common/constants';
 
 /**
  * Compute eclipse (shadow) fraction from beta angle and altitude.
@@ -200,6 +205,16 @@ export function createEnergyLayer2(
 
     getAllStates(): SatelliteEnergyLayer2State[] {
       return Array.from(states.values()).map((s) => ({ ...s }));
+    },
+
+    debitEnergy(satId: string, joules: number): void {
+      const s = states.get(satId);
+      if (!s) return;
+      const debitWh = joules / 3600;
+      s.currentEnergyWh = Math.max(0, s.currentEnergyWh - debitWh);
+      s.soc = s.currentEnergyWh / resolvedConfig.batteryCapacityWh;
+      s.isEnergyBlocked = s.soc < resolvedConfig.blockingThresholdSoc;
+      s.totalConsumedWh += debitWh;
     },
 
     reset(): void {

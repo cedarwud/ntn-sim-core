@@ -45,6 +45,20 @@ export interface OrbitalConfig {
   raan_spread_deg: number;
   /** True anomaly offset between adjacent planes in degrees. */
   phase_offset_deg: number;
+  /**
+   * A4: Additional shells for multi-shell Walker constellation.
+   * The primary shell is defined by altitude_km / inclination_deg / num_planes / sats_per_plane.
+   * Each extra shell adds an independent Walker ring at a different altitude/inclination.
+   * @source leo-beam-sim/src/engine/orbit/walker-constellation.ts (5-shell model: 53°/42°/90°/125°/145°)
+   */
+  extra_shells?: Array<{
+    id: string;
+    altitude_km: number;
+    inclination_deg: number;
+    num_planes: number;
+    sats_per_plane: number;
+    phasing_factor?: number;
+  }>;
 }
 
 export interface RfConfig {
@@ -87,6 +101,12 @@ export interface BeamConfig {
   bh_slots_per_frame?: number;
   /** BH scheduling strategy (default 'round-robin'). */
   bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' | 'deterministic-fixed';
+  /** Power budget per satellite for power-aware BH scheduling (W). Required for 'power-aware' strategy. */
+  bh_power_budget_w?: number;
+  /** Traffic model for demand-aware BH scheduling. */
+  bh_traffic_model?: 'poisson' | 'full-buffer' | 'hotspot' | 'uniform';
+  /** Mean arrival rate per beam per second (Poisson model). Default 10. */
+  bh_traffic_arrival_rate?: number;
 }
 
 /** Channel model tier enable flags (profile-baselines §8.1). */
@@ -111,8 +131,11 @@ export type HandoverType =
   | 'a4-event'
   | 'cho'
   | 'mc-ho'
+  | 'd2-distance'
   | 'timer-cho'
-  | 'daps';
+  | 'daps'
+  | 'max-elevation'
+  | 'max-remaining-time';
 
 export interface HandoverConfig {
   type: HandoverType;
@@ -142,6 +165,62 @@ export interface HandoverConfig {
   mc_max_dual_sec?: number;
   /** MC-HO: enable packet duplication during dual-active. Default true. */
   mc_packet_duplication?: boolean;
+
+  // --- D2 distance-event parameters (A1) ---
+  /**
+   * D2: serving satellite distance (km) above which D2 OOS condition holds.
+   * Default 5000 km (ntn-stack reference for LEO handover trigger distance).
+   * @source ntn-stack/netstack/src/services/handover_event_trigger_service.py
+   */
+  d2_serving_dist_km?: number;
+  /**
+   * D2: target satellite distance (km) below which candidate qualifies.
+   * Default 3000 km.
+   * @source ntn-stack handover_event_trigger_service.py
+   */
+  d2_target_dist_km?: number;
+
+  // --- SINR EMA smoothing (A6) ---
+  /**
+   * Exponential moving average coefficient α for SINR smoothing.
+   * Smoothed = α × raw + (1−α) × prev.  α=1.0 disables smoothing (default).
+   * Recommended: α=0.5 (τ≈0.5 s at 1 Hz tick rate) per leo-beam-sim.
+   * Prevents transient SINR dips from triggering unnecessary handovers.
+   * @source leo-beam-sim/src/engine/handover/handover-manager.ts
+   */
+  sinr_ema_alpha?: number;
+
+  // --- RLF parameters (A2) ---
+  /**
+   * Qout: SINR threshold (dB) below which link is out-of-sync.
+   * Default -8 dB per 3GPP TS 38.133 §7.6.
+   * @source 3GPP TS 38.133 §7.6 (Qout definition)
+   */
+  rlf_qout_db?: number;
+  /**
+   * Qin: SINR threshold (dB) above which link recovers to in-sync.
+   * Must satisfy Qin > Qout. Default -6 dB.
+   * @source 3GPP TS 38.133 §7.6 (Qin definition)
+   */
+  rlf_qin_db?: number;
+  /**
+   * N310: consecutive out-of-sync events before T310 starts.
+   * Default 1 (3GPP TS 38.331 §5.3.10, range 1–20).
+   * @source 3GPP TS 38.331 §5.3.10.3
+   */
+  rlf_n310?: number;
+  /**
+   * N311: consecutive in-sync events to cancel T310.
+   * Default 1 (3GPP TS 38.331 §5.3.10, range 1–10).
+   * @source 3GPP TS 38.331 §5.3.10.3
+   */
+  rlf_n311?: number;
+  /**
+   * T310: RLF detection timer in ms.
+   * Default 2000 ms (NTN extended from terrestrial 1000 ms per TR 38.821 §6.3.4).
+   * @source 3GPP TS 38.331 §5.3.10.3, TR 38.821 §6.3.4
+   */
+  rlf_t310_ms?: number;
 }
 
 export interface EnergyConfig {
@@ -149,6 +228,13 @@ export interface EnergyConfig {
   layer1_enabled: boolean;
   /** Energy layer 2: onboard energy state and blocking. */
   layer2_enabled: boolean;
+  /**
+   * Energy cost per handover transaction in Joules (A8).
+   * Applied as a one-shot debit to the satellite energy budget when HO executes.
+   * Default: 0 (disabled). Typical value: 3 J (from leo-simulator).
+   * @source leo-simulator/src/config/energy.config.ts
+   */
+  energy_per_handover_j?: number;
   /**
    * Optional profile-level overrides for Layer 2 proof / showcase scenarios.
    * These remain truth-driving runtime inputs, but are not required for

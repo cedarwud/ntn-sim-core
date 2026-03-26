@@ -12,6 +12,7 @@
 
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, BhSlotSnapshot, DapsSnapshot, UeState } from './common/types';
 import { createRng } from './common/types';
+import type { Policy, PolicyObservation } from './policy/types';
 import type { TrajectoryCache, TrajectorySample } from './orbit/types';
 import type { ProfileConfig } from './profiles/types';
 import type { HandoverManager, HandoverCandidate, ServingState } from './handover/types';
@@ -26,6 +27,8 @@ import { createKpiAccumulator } from './kpi/accumulator';
 import { generateUePositions } from './ue/position-generator';
 import type { UePosition } from './ue/position-generator';
 import { createMobilityUpdater } from './ue/mobility';
+import { generateTrafficDemand } from './traffic/generator';
+import type { TrafficConfig } from './traffic/generator';
 
 // Phase 3: beam + energy imports
 import { generateHexagonalBeamLayout } from './beam/layout';
@@ -58,6 +61,8 @@ const PRIMARY_UE_ID = 'ue-0';
 export interface SimEngineConfig {
   profile: ProfileConfig;
   trajectoryCache: TrajectoryCache;
+  /** Optional RL/DRL policy. If provided, selectAction() is called every tick. */
+  policy?: Policy;
 }
 
 export interface SimEngine {
@@ -134,7 +139,7 @@ function mwToDbm(mw: number): number {
 // ---------------------------------------------------------------------------
 
 export function createSimEngine(config: SimEngineConfig): SimEngine {
-  const { profile, trajectoryCache } = config;
+  const { profile, trajectoryCache, policy = null } = config;
 
   // Derived RF parameters (computed once)
   const txEirp = eirpDbm(profile.rf.eirp_density_dbw_per_mhz, profile.rf.bandwidth_mhz);
@@ -248,6 +253,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         maxActiveBeamsPerSlot: profile.beam.bh_max_active_per_slot ?? Math.min(4, profile.beam.num_beams),
         frameDurationSec: profile.beam.bh_frame_duration_sec,
         slotsPerFrame: profile.beam.bh_slots_per_frame,
+        powerBudgetW: profile.beam.bh_power_budget_w,
       },
       beamLayouts,
     );
@@ -553,6 +559,30 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   }
 
   // ---------------------------------------------------------------------------
+  // Interruption accounting (A9)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Compute HO interruption duration in ms.
+   *
+   * Hard-HO / A3 / A4 / D2 / CHO: interruption ≈ RTT = 2 × one-way propagation delay.
+   * DAPS / MC-HO: dual-active link maintained → interruption ≈ 0 by design.
+   *
+   * @source 3GPP TS 38.300 §6.18.2 (hard-HO interruption), TR 38.821 §6.2.1 (NTN DAPS)
+   */
+  function computeInterruptionMs(
+    targetSatId: string | undefined,
+    satSinrs: Array<{ satId: string; sample: { rangeKm: number } }>,
+  ): number {
+    const hoType = profile.handover.type;
+    if (hoType === 'daps' || hoType === 'mc-ho') return 0;
+    // RTT = 2 × one-way propagation delay (speed of light = 299.792 km/ms)
+    const entry = targetSatId ? satSinrs.find((s) => s.satId === targetSatId) : undefined;
+    if (!entry) return 0;
+    return 2 * entry.sample.rangeKm / 299.792;
+  }
+
+  // ---------------------------------------------------------------------------
   // Tick
   // ---------------------------------------------------------------------------
 
@@ -598,7 +628,25 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       }
       ensureBhScheduler();
       if (bhScheduler) {
-        lastBhSlotDecision = bhScheduler.getSlotDecision(timeSec);
+        // C7: generate per-beam demand map for demand-aware/power-aware strategies
+        let demandPerBeam: Map<string, number> | undefined;
+        const trafficModel = profile.beam.bh_traffic_model;
+        if (trafficModel && trafficModel !== 'uniform') {
+          demandPerBeam = new Map();
+          for (const [satId, layout] of beamLayouts) {
+            const trafficCfg: TrafficConfig = {
+              model: trafficModel,
+              numCells: layout.beams.length,
+              meanArrivalRatePerSec: profile.beam.bh_traffic_arrival_rate ?? 10,
+            };
+            const cellDemands = generateTrafficDemand(trafficCfg, () => rng.next(), timeSec);
+            const sortedBeamIds = [...layout.beams.map((b) => b.beamId)].sort();
+            for (let i = 0; i < cellDemands.length; i++) {
+              demandPerBeam.set(sortedBeamIds[i] ?? `${satId}-b${i}`, cellDemands[i].demandBps);
+            }
+          }
+        }
+        lastBhSlotDecision = bhScheduler.getSlotDecision(timeSec, demandPerBeam);
       }
 
       // Force current serving beam active so it is never filtered out of SINR computation.
@@ -694,8 +742,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         const ueHoMgr = hoManagers.get(ue.id)!;
 
         // Build per-UE candidates: SINR from each visible satellite at UE's position
+        // C2: filter to only BH-active satellites (same coupling as Phase A)
         const ueCandidates: HandoverCandidate[] = [];
         for (const satEntry of satSinrs) {
+          if (lastBhSlotDecision) {
+            const activeBeams = lastBhSlotDecision.activeBeamsPerSat.get(satEntry.satId);
+            if (!activeBeams || activeBeams.length === 0) continue;
+          }
           const { sinrDb, beamId } = computeUeSinrFromSatEntry(ue, satEntry);
           ueCandidates.push({
             satId: satEntry.satId,
@@ -758,8 +811,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
               sourceId: evt.sourceSatId ?? '',
               targetId: evt.targetSatId ?? '',
               sourceSinrDb: evt.sinrDb ?? 0,
-              interruptionMs: 0,
+              interruptionMs: computeInterruptionMs(evt.targetSatId, satSinrs),
             });
+            // A8: HO energy debit on target satellite (if L2 active)
+            const hoEnergyJ = profile.energy.energy_per_handover_j ?? 0;
+            if (hoEnergyJ > 0 && energyL2Manager && evt.targetSatId) {
+              energyL2Manager.debitEnergy(evt.targetSatId, hoEnergyJ);
+            }
           } else if (evt.type === 'ho-fail') {
             kpiAcc.recordHandover({
               timeSec: evt.timeSec,
@@ -767,7 +825,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
               sourceId: evt.sourceSatId ?? '',
               targetId: evt.targetSatId ?? '',
               sourceSinrDb: evt.sinrDb ?? 0,
-              interruptionMs: 0,
+              interruptionMs: computeInterruptionMs(evt.sourceSatId, satSinrs),
             });
           }
         }
@@ -780,12 +838,21 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       // ======= Phase A: shared serving satellite =======
 
       // 4. Build handover candidates
-      const candidates: HandoverCandidate[] = satSinrs.map((s) => ({
-        satId: s.satId,
-        beamId: s.bestBeamId,
-        sinrDb: s.sinrDb,
-        elevationDeg: s.sample.elevationDeg,
-      }));
+      // C2: In BH mode, restrict HO candidates to satellites with at least one active beam
+      // in the current slot (UE cannot hand over to a beam-hopping satellite that has no
+      // active beam this slot — it would have no signal to measure).
+      const candidates: HandoverCandidate[] = satSinrs
+        .filter((s) => {
+          if (!lastBhSlotDecision) return true; // no BH active — all candidates valid
+          const activeBeams = lastBhSlotDecision.activeBeamsPerSat.get(s.satId);
+          return activeBeams !== undefined && activeBeams.length > 0;
+        })
+        .map((s) => ({
+          satId: s.satId,
+          beamId: s.bestBeamId,
+          sinrDb: s.sinrDb,
+          elevationDeg: s.sample.elevationDeg,
+        }));
 
       // 5. Determine serving SINR (DAPS-aware: track both source and target).
       // If serving satellite is no longer visible, use -100 dB to force HO re-selection.
@@ -811,6 +878,53 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         dapsTargetSinrDb = tgtEntry ? tgtEntry.sinrDb : null;
       }
 
+      // 5c. Policy action (C5): build observation and call selectAction() if policy attached
+      let policyFilteredCandidates = candidates;
+      if (policy) {
+        const obs: PolicyObservation = {
+          tick: tickNumber,
+          timeSec,
+          satellites: satSinrs.map((s) => ({
+            satId: s.satId,
+            elevationDeg: s.sample.elevationDeg,
+            rangeKm: s.sample.rangeKm,
+            sinrDb: s.sinrDb,
+            activeBeamCount: 1,
+            soc: energyL2Manager?.getState(s.satId)?.soc ?? null,
+            isServing: hoState.serving?.satId === s.satId,
+          })),
+          ues: uePositions.map((ue) => ({
+            ueId: ue.id,
+            sinrDb: servingSinrDb ?? -100,
+            servingSatId: hoState.serving?.satId ?? null,
+            distanceFromCenterKm: ue.distanceFromCenterKm,
+          })),
+          global: {
+            totalActiveSatellites: satSinrs.length,
+            totalActiveBeams: satSinrs.length,
+            totalPowerW: lastEnergyMetrics?.totalPowerW ?? 0,
+            meanSinrDb: satSinrs.length
+              ? satSinrs.reduce((sum, s) => sum + s.sinrDb, 0) / satSinrs.length
+              : 0,
+          },
+        };
+        const action = policy.selectAction(obs);
+        const { mode, targetSatId } = action.handoverAction;
+        if (mode === 'defer') {
+          // Suppress HO evaluation: pass empty candidates
+          policyFilteredCandidates = [];
+        } else if (mode === 'trigger' && targetSatId) {
+          // Force HO to target: only expose target as candidate
+          const targetCand = candidates.find((c) => c.satId === targetSatId);
+          if (targetCand) {
+            policyFilteredCandidates = [targetCand];
+            servingSinrDb = -100; // force HO trigger
+          }
+          // else: invalid action — fall through to 'auto' (no change)
+        }
+        // 'auto': policyFilteredCandidates remains unchanged
+      }
+
       // 6. Run handover tick (P2: propagation delay from serving satellite slant range)
       const servingEntry = hoState.serving
         ? satSinrs.find((s) => s.satId === hoState.serving!.satId)
@@ -823,7 +937,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         tick: tickNumber,
         timeSec,
         servingSinrDb,
-        candidates,
+        candidates: policyFilteredCandidates,
         propagationDelayMs,
         servingElevationDeg,
       });
@@ -882,8 +996,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             sourceId: evt.sourceSatId ?? '',
             targetId: evt.targetSatId ?? '',
             sourceSinrDb: evt.sinrDb ?? 0,
-            interruptionMs: 0,
+            interruptionMs: computeInterruptionMs(evt.targetSatId, satSinrs),
           });
+          // A8: HO transaction energy debit
+          const hoEnergyJ = profile.energy.energy_per_handover_j ?? 0;
+          if (hoEnergyJ > 0 && energyL2Manager && evt.targetSatId) {
+            energyL2Manager.debitEnergy(evt.targetSatId, hoEnergyJ);
+          }
         } else if (evt.type === 'ho-fail') {
           kpiAcc.recordHandover({
             timeSec: evt.timeSec,
@@ -891,7 +1010,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             sourceId: evt.sourceSatId ?? '',
             targetId: evt.targetSatId ?? '',
             sourceSinrDb: evt.sinrDb ?? 0,
-            interruptionMs: 0,
+            interruptionMs: computeInterruptionMs(evt.sourceSatId, satSinrs),
           });
         }
       }

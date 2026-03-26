@@ -14,6 +14,7 @@
  */
 
 import type { KpiBundle } from './types';
+import type { EventLog } from '@/core/trace/types';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -51,6 +52,9 @@ export interface KpiAccumulator {
 
   /** Finalize and compute all KPIs. Returns immutable bundle. Idempotent. */
   finalize(wallClockMs: number): KpiBundle;
+
+  /** Export all recorded handover events as an EventLog for artifact bundles (C8). */
+  getEventLog(): EventLog;
 
   /** Reset all accumulators. */
   reset(): void;
@@ -180,6 +184,22 @@ export function createKpiAccumulator(config: KpiAccumulatorConfig): KpiAccumulat
         }
       }
       if (timeSec > maxTimeSec) maxTimeSec = timeSec;
+    },
+
+    getEventLog(): EventLog {
+      return {
+        events: handovers.map((h) => ({
+          tick: 0, // tick not tracked in HandoverRecord; timeSec is authoritative
+          timeSec: h.timeSec,
+          type: `ho-${h.type}`,
+          payload: {
+            sourceId: h.sourceId,
+            targetId: h.targetId,
+            sourceSinrDb: h.sourceSinrDb,
+            interruptionMs: h.interruptionMs,
+          },
+        })),
+      };
     },
 
     finalize(wallClockMs: number): KpiBundle {

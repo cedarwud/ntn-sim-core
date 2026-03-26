@@ -9,18 +9,10 @@
 
 import { degToRad, normalizeAngleRad, radToDeg } from './math';
 import type { OrbitElement, OrbitPoint } from './types';
+import { MU_EARTH_KM3_S2, EARTH_RADIUS_KM, EARTH_FLATTENING, TWO_PI, DAY_SECONDS } from '@/core/common/constants';
 
-/** Earth gravitational parameter [km³/s²]. */
-const MU_EARTH_KM3_S2 = 398600.4418;
-/** WGS84 semi-major axis [km]. */
-const EARTH_A_KM = 6378.137;
-/** WGS84 flattening. */
-const EARTH_F = 1 / 298.257223563;
 /** WGS84 semi-minor axis [km]. */
-const EARTH_B_KM = EARTH_A_KM * (1 - EARTH_F);
-const TWO_PI = Math.PI * 2;
-/** Seconds per mean solar day. */
-const DAY_SEC = 86400;
+const EARTH_B_KM = EARTH_RADIUS_KM * (1 - EARTH_FLATTENING);
 /** Newton-Raphson iteration limit for eccentric anomaly. */
 const KEPLER_ITERATIONS = 8;
 /** Guard divisor floor to avoid division by zero. */
@@ -67,7 +59,7 @@ function ecefToGeodetic(ecefKm: [number, number, number]): {
   altKm: number;
 } {
   const [x, y, z] = ecefKm;
-  const e2 = 1 - (EARTH_B_KM * EARTH_B_KM) / (EARTH_A_KM * EARTH_A_KM);
+  const e2 = 1 - (EARTH_B_KM * EARTH_B_KM) / (EARTH_RADIUS_KM * EARTH_RADIUS_KM);
   const p = Math.hypot(x, y);
   const lonRad = Math.atan2(y, x);
 
@@ -76,7 +68,7 @@ function ecefToGeodetic(ecefKm: [number, number, number]): {
 
   for (let i = 0; i < GEODETIC_ITERATIONS; i++) {
     const sinLat = Math.sin(latRad);
-    const n = EARTH_A_KM / Math.sqrt(1 - e2 * sinLat * sinLat);
+    const n = EARTH_RADIUS_KM / Math.sqrt(1 - e2 * sinLat * sinLat);
     altKm = p / Math.max(Math.cos(latRad), EPSILON) - n;
     latRad = Math.atan2(z, p * (1 - (e2 * n) / Math.max(n + altKm, EPSILON)));
   }
@@ -92,7 +84,7 @@ export function propagateOrbitElement(
   element: OrbitElement,
   atUtcMs: number,
 ): OrbitPoint {
-  const meanMotionRadPerSec = (element.meanMotionRevPerDay * TWO_PI) / DAY_SEC;
+  const meanMotionRadPerSec = (element.meanMotionRevPerDay * TWO_PI) / DAY_SECONDS;
   const semiMajorAxisKm = Math.cbrt(
     MU_EARTH_KM3_S2 / (meanMotionRadPerSec * meanMotionRadPerSec),
   );

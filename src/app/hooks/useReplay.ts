@@ -20,7 +20,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useState, useMemo, useRef } from 'react';
 
-import { loadProfile } from '@/core/profiles';
+import { loadProfile, buildWalkerConfig } from '@/core/profiles';
 import { generateWalkerConstellation } from '@/core/orbit';
 import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
@@ -100,17 +100,10 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
       const satrecs = ommToSatrecs(sampled);
       elements = satrecsToOrbitElements(satrecs);
     } else {
-      const walkerConfig: WalkerConfig = {
-        shells: [{
-          id: 'shell-0',
-          altitudeKm: prof.orbital.altitude_km,
-          inclinationDeg: prof.orbital.inclination_deg,
-          planes: prof.orbital.num_planes,
-          satsPerPlane: prof.orbital.sats_per_plane,
-        }],
-        epochUtcMs: prof.timeControl.epochUtcMs,
-      };
-      elements = generateWalkerConstellation(walkerConfig);
+      // A4: multi-shell via buildWalkerConfig
+      elements = generateWalkerConstellation(
+        buildWalkerConfig(prof, prof.timeControl.epochUtcMs),
+      );
     }
 
     const cache = buildTrajectoryCache({

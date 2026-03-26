@@ -12,7 +12,7 @@ import type { PresentationMode } from '@/core/common/types';
 import type { ProfileConfig, HandoverType } from '@/core/profiles/types';
 import type { KpiBundle } from '@/core/kpi/types';
 import type { RunArtifactBundle } from '@/core/trace/types';
-import { loadProfile, resolveProfile } from '@/core/profiles/loader';
+import { loadProfile, resolveProfile, buildWalkerConfig } from '@/core/profiles/loader';
 import { generateWalkerConstellation } from '@/core/orbit/walker';
 import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
 import { createSimEngine } from '@/core/engine';
@@ -104,19 +104,10 @@ function buildElements(
     return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
   }
 
-  // Synthetic: Walker constellation
-  const elements = generateWalkerConstellation({
-    shells: [
-      {
-        id: `${profile.id}-shell`,
-        altitudeKm: profile.orbital.altitude_km,
-        inclinationDeg: profile.orbital.inclination_deg,
-        planes: profile.orbital.num_planes,
-        satsPerPlane: profile.orbital.sats_per_plane,
-      },
-    ],
-    epochUtcMs: profile.timeControl.epochUtcMs,
-  });
+  // Synthetic: Walker constellation (A4: multi-shell via buildWalkerConfig)
+  const elements = generateWalkerConstellation(
+    buildWalkerConfig(profile, profile.timeControl.epochUtcMs),
+  );
   return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
 }
 
@@ -236,12 +227,21 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
   );
   const replayArtifact = createReplayArtifact(replayManifest, replaySnapshots);
 
+  // C8: populate eventLog from KPI accumulator and kpiBundle from finalized result
+  const eventLog = engine.getKpiAccumulator().getEventLog();
+  const kpiBundleShell = {
+    totalTicks: kpiBundle.totalTicks,
+    wallClockMs: kpiBundle.wallClockMs,
+    metrics: kpiBundle as unknown as Record<string, number>,
+  };
   const artifactBundle = createRunArtifactBundle(
     manifest,
     resolvedConfig,
     sourceTrace,
     replayManifest,
     replayArtifact,
+    eventLog,
+    kpiBundleShell,
   );
 
   // 8. Return result

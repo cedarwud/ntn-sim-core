@@ -5,7 +5,7 @@
  * Tier: normative (pure math, no physics assumptions)
  */
 
-const TWO_PI = Math.PI * 2;
+import { TWO_PI } from '@/core/common/constants';
 
 export function degToRad(deg: number): number {
   return (deg * Math.PI) / 180;

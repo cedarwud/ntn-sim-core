@@ -140,13 +140,15 @@ export function createRunArtifactBundle(
   sourceTrace: SourceTrace,
   replayManifest?: ReplayManifest,
   replayArtifact?: ReplayArtifact,
+  eventLog?: EventLog,
+  kpiBundle?: KpiBundleShell,
 ): RunArtifactBundle {
   return {
     manifest,
     resolvedConfig,
     sourceTrace,
-    eventLog: createEmptyEventLog(),
-    kpiBundle: createEmptyKpiBundle(),
+    eventLog: eventLog ?? createEmptyEventLog(),
+    kpiBundle: kpiBundle ?? createEmptyKpiBundle(),
     replayManifest,
     replayArtifact,
   };

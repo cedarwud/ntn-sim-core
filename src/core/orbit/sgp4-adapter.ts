@@ -17,11 +17,7 @@ import {
 } from 'satellite.js';
 import type { OrbitElement, OrbitPoint } from './types';
 import type { SatrecEntry } from './tle-loader';
-
-/** Earth radius in km (WGS84 semi-major axis), used for altitude derivation. */
-const EARTH_RADIUS_KM = 6378.137;
-const TWO_PI = Math.PI * 2;
-const DAY_SEC = 86400;
+import { EARTH_RADIUS_KM, TWO_PI, MU_EARTH_KM3_S2, DAY_SECONDS } from '@/core/common/constants';
 
 /**
  * Propagate a satellite.js SatRec to a given UTC time.
@@ -76,8 +72,7 @@ export function satrecsToOrbitElements(satrecs: SatrecEntry[]): OrbitElement[] {
 
     // Derive altitude from mean motion: a = (mu / n^2)^(1/3) - R_earth
     const meanMotionRadPerSec = meanMotionRadPerMin / 60;
-    const MU = 398600.4418; // km^3/s^2
-    const semiMajorKm = Math.cbrt(MU / (meanMotionRadPerSec * meanMotionRadPerSec));
+    const semiMajorKm = Math.cbrt(MU_EARTH_KM3_S2 / (meanMotionRadPerSec * meanMotionRadPerSec));
     const altitudeKm = semiMajorKm - EARTH_RADIUS_KM;
 
     // Epoch: satellite.js stores jdsatepoch (Julian day) and jdsatepochF (fractional)

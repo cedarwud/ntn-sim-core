@@ -37,4 +37,5 @@ export {
   resolveProfile,
   serializeProfile,
   validateProfile,
+  buildWalkerConfig,
 } from './loader';
