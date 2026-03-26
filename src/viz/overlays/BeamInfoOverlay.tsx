@@ -69,14 +69,13 @@ const SatBeamLabel = React.memo(function SatBeamLabel({
   const pos = projectToSkyDome(sat.azimuthDeg, sat.elevationDeg, DEFAULT_SKY_PROJECTION);
 
   // Role summary from beams
-  const beams = sat.beams ?? [];
   const roleTag = getRoleTag(sat);
   const isServing = roleTag === 'SERVING';
   const isPrepared = roleTag === 'PREPARED';
   const isSecondary = roleTag === 'SECONDARY';
   const isPostHo = roleTag === 'POST-HO';
   const sinrLine = sinrDb !== null ? `${sinrDb.toFixed(1)} dB` : '';
-  const elevLine = `${sat.elevationDeg.toFixed(1)}°`;
+  const elevLine = `${sat.elevationDeg.toFixed(1)}°  ${Math.round(sat.rangeKm)} km`;
 
   const labelColor = isServing
     ? (sinrDb !== null ? sinrColor(sinrDb) : '#00ff88')
@@ -90,6 +89,9 @@ const SatBeamLabel = React.memo(function SatBeamLabel({
 
   const labelSize = isServing ? 9 : 7;
   const offsetY   = isServing ? 32 : 22;
+
+  // Vertical step between label lines
+  const lineStep = isServing ? 13 : 11;
 
   return (
     <group>
@@ -109,7 +111,7 @@ const SatBeamLabel = React.memo(function SatBeamLabel({
       {/* SINR value (serving only) */}
       {isServing && sinrLine !== '' && (
         <Text
-          position={[pos[0], pos[1] + offsetY - 12, pos[2]]}
+          position={[pos[0], pos[1] + offsetY - lineStep, pos[2]]}
           fontSize={11}
           color={labelColor}
           anchorX="center"
@@ -121,9 +123,9 @@ const SatBeamLabel = React.memo(function SatBeamLabel({
         </Text>
       )}
 
-      {/* Elevation */}
+      {/* Elevation + range (all satellites) */}
       <Text
-        position={[pos[0], pos[1] + offsetY - (isServing ? 24 : 12), pos[2]]}
+        position={[pos[0], pos[1] + offsetY - (isServing ? lineStep * 2 : lineStep), pos[2]]}
         fontSize={6}
         color="#888888"
         anchorX="center"

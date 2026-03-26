@@ -8,7 +8,8 @@
  * VISUAL-ONLY: Does NOT affect physics, SINR, or KPI.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/common/types';
@@ -104,7 +105,14 @@ function getBeamStyle(beam: SatelliteBeamSnapshot): BeamStyle {
   return { cone: 0.20, disc: 0.12, line: 0.72, width: 2.4, dashed: false };
 }
 
-function selectRenderableBeams(beams: SatelliteBeamSnapshot[]): SatelliteBeamSnapshot[] {
+function selectRenderableBeams(beams: SatelliteBeamSnapshot[], isCandidate?: boolean): SatelliteBeamSnapshot[] {
+  // Tier 2 background candidates: show only the center beam at very low opacity.
+  // This gives a faint "preview" cone before handover is triggered.
+  if (isCandidate) {
+    const center = beams.find((b) => b.role === 'neutral' || b.role === 'inactive') ?? beams[0];
+    return center ? [center] : [];
+  }
+
   const renderable = beams.filter(
     (beam) =>
       beam.isActive ||
@@ -182,6 +190,7 @@ const BeamCone = React.memo(function BeamCone({
   color,
   style,
   sinrDb,
+  isAnimated,
 }: {
   satPos: [number, number, number];
   groundX: number;
@@ -191,7 +200,28 @@ const BeamCone = React.memo(function BeamCone({
   color: string;
   style: BeamStyle;
   sinrDb?: number | null;
+  isAnimated?: boolean;
 }) {
+  // Refs for serving-beam breathing animation (VISUAL-ONLY)
+  const coneMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lineRef = useRef<any>(null);
+  const breathTimeRef = useRef(0);
+
+  // Serving beam: subtle breathing (~1 Hz) to make it visually prominent.
+  // useFrame is always called (rule of hooks); guard inside keeps non-serving beams unaffected.
+  useFrame((_, delta) => {
+    if (!isAnimated) return;
+    breathTimeRef.current += delta;
+    const breath = 0.12 * Math.sin(breathTimeRef.current * Math.PI * 2); // 1 Hz cycle
+    if (coneMatRef.current) {
+      coneMatRef.current.opacity = Math.max(0.18, Math.min(0.50, style.cone + breath));
+    }
+    if (lineRef.current?.material) {
+      (lineRef.current.material as THREE.Material & { opacity: number }).opacity =
+        Math.max(0.70, Math.min(1.0, style.line + breath * 0.5));
+    }
+  });
+
   const coneGeo = useMemo(
     () => createObliqueConeSide(satPos, groundX, groundZ, FOOTPRINT_RADIUS),
     [satPos[0], satPos[1], satPos[2], groundX, groundZ],
@@ -227,6 +257,7 @@ const BeamCone = React.memo(function BeamCone({
     <group>
       <mesh geometry={coneGeo}>
         <meshBasicMaterial
+          ref={coneMatRef}
           color={color}
           transparent
           opacity={style.cone}
@@ -246,6 +277,7 @@ const BeamCone = React.memo(function BeamCone({
         />
       </mesh>
       <Line
+        ref={lineRef}
         points={[satPos, [groundX, GROUND_Y, groundZ]]}
         color={color}
         lineWidth={style.width}
@@ -300,11 +332,13 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
   daps,
   servingBeamId,
   servingSinrDb,
+  isCandidate,
 }: {
   sat: SatelliteState;
   daps?: DapsSnapshot;
   servingBeamId?: string | null;
   servingSinrDb?: number | null;
+  isCandidate?: boolean;
 }) {
   const beams = sat.beams;
   if (!beams || beams.length === 0) return null;
@@ -325,7 +359,7 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
   const isDapsTarget = daps?.phase === 'dual-active' && sat.id === daps.targetSatId;
   const isServingSat = Boolean(servingBeamId && beams.some((b) => b.beamId === servingBeamId));
 
-  const chosenBeams = selectRenderableBeams(beams);
+  const chosenBeams = selectRenderableBeams(beams, isCandidate);
 
   return (
     <group>
@@ -334,12 +368,16 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
         const groundX = isServingBeam ? 0 : groundCenterX + beam.offsetEastKm * kmToWorld;
         const groundZ = isServingBeam ? 0 : groundCenterZ - beam.offsetNorthKm * kmToWorld;
 
-        const color = isDapsTarget && beam.role === 'secondary'
-          ? SECONDARY_COLOR
-          : getBeamColor(beam, index);
-        const style = isDapsTarget && beam.role === 'secondary'
-          ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
-          : getBeamStyle(beam);
+        const color = isCandidate
+          ? '#aaaaaa'
+          : isDapsTarget && beam.role === 'secondary'
+            ? SECONDARY_COLOR
+            : getBeamColor(beam, index);
+        const style: BeamStyle = isCandidate
+          ? { cone: 0.06, disc: 0.04, line: 0.30, width: 1.5, dashed: true }
+          : isDapsTarget && beam.role === 'secondary'
+            ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
+            : getBeamStyle(beam);
 
         return (
           <BeamCone
@@ -352,6 +390,7 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
             color={color}
             style={style}
             sinrDb={isServingBeam ? servingSinrDb : null}
+            isAnimated={beam.role === 'serving'}
           />
         );
       })}
@@ -379,6 +418,23 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
     () => (snapshot && visible ? selectBeamSatellites(snapshot) : []),
     [snapshot, visible],
   );
+
+  // Tier 1 satellite IDs: HO-relevant (serving / target / secondary / special roles)
+  const tier1SatIds = useMemo(() => {
+    if (!snapshot) return new Set<string>();
+    const ids = new Set<string>();
+    const ue = snapshot.ues[0];
+    if (ue?.servingSatId) ids.add(ue.servingSatId);
+    if (ue?.targetSatId) ids.add(ue.targetSatId);
+    if (ue?.secondarySatId) ids.add(ue.secondarySatId);
+    if (snapshot.daps?.targetSatId) ids.add(snapshot.daps.targetSatId);
+    for (const sat of snapshot.satellites) {
+      if (sat.beams?.some((b) => b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho')) {
+        ids.add(sat.id);
+      }
+    }
+    return ids;
+  }, [snapshot]);
 
   const validationSummary = useMemo(() => {
     const roleCounts: Record<string, number> = {};
@@ -416,6 +472,7 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
           daps={snapshot.daps}
           servingBeamId={sat.id === servingSatId ? primaryUeServingBeamId : null}
           servingSinrDb={sat.id === servingSatId ? primaryUeSinrDb : null}
+          isCandidate={!tier1SatIds.has(sat.id)}
         />
       ))}
     </group>
