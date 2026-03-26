@@ -56,7 +56,7 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
 19. `ntn-sim-core-frontend-donor-mapping.md`
    - donor repo → frontend module mapping (leo-beam-sim, leo-simulator, beamHO-bench)
 20. `ntn-sim-core-frontend-leo-parity-mode.md`
-   - narrow post-closure frontend parity spec for a donor-like `leo-beam-sim` presentation mode; `Slice P1/P2` landed
+   - **closed** — leo-parity experiment concluded; useful selection logic merged into `beam-selection.ts`; dual view-mode system removed
 
 ## Working Rule
 

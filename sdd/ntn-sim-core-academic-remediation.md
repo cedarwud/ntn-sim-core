@@ -264,7 +264,7 @@ offAxisRad = arctan(R_E * sin(centralAngle) / (R_E + h - R_E * cos(centralAngle)
 
 ### MS3. Beam visualization (oblique cone from satellite to ground)
 
-**Current state:** BeamFootprintLayer draws hex cells near ground + a single center cone. Does not correctly represent beams projecting from satellite to specific ground cells.
+**Current state:** `BeamFootprintLayer` has been deleted. `EarthMovingBeamLayer` is the active beam renderer, driven by engine `SatelliteBeamSnapshot`.
 
 **Donor:** leo-beam-sim `src/viz/SatelliteBeams.tsx` — oblique cone geometry, role-based coloring, SINR labels, active/inactive styling.
 

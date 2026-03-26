@@ -93,6 +93,10 @@ export interface HandoverTickInput {
    *  Used by HO FSMs to account for RTT in timing (effectiveTTT = ttt + 2·delay).
    *  @source 3GPP NTN: delay_ms = rangeKm / 299.792 */
   propagationDelayMs?: number;
+  /** Elevation of the current serving satellite in degrees (null/undefined if idle).
+   *  Serving satellite below min_elevation_deg → forced release.
+   *  @source Papers: LOADAWARE, AERO-DRL Criterion A2, TADRL, MADRL-MEGACONST */
+  servingElevationDeg?: number | null;
 }
 
 // ---------------------------------------------------------------------------

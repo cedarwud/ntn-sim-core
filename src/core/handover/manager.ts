@@ -281,11 +281,17 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost');
           }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}°`);
+          }
           return tickAttached(input, eligible);
 
         case 'preparing':
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost during preparation');
+          }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}° during preparation`);
           }
           return tickPreparing(input, eligible);
 

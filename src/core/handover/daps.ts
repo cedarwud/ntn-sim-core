@@ -446,11 +446,17 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost');
           }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.minElevationDeg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}°`);
+          }
           return tickSingleActive(input, eligible);
 
         case 'prepared':
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost during preparation');
+          }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.minElevationDeg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}° during preparation`);
           }
           return tickPrepared(input, eligible);
 

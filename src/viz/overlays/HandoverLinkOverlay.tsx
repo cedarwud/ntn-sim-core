@@ -22,6 +22,7 @@
 
 import React, { useMemo } from 'react';
 import { Line, Text } from '@react-three/drei';
+import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState } from '@/core/common/types';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import {
@@ -116,6 +117,9 @@ function computeRenderedLinkStyles(snapshot: SimulationSnapshot | null): Array<k
 // Single link component
 // ---------------------------------------------------------------------------
 
+const ENDPOINT_SPHERE = new THREE.SphereGeometry(1.4, 8, 8);
+const UE_SPHERE = new THREE.SphereGeometry(1.6, 8, 8);
+
 const ServiceLink = React.memo(function ServiceLink({
   sat,
   styleKey,
@@ -136,6 +140,8 @@ const ServiceLink = React.memo(function ServiceLink({
     (UE_ANCHOR[2] + endpoint[2]) * 0.45,
   ];
 
+  const satBadge = sat.id.replace(/^(starlink|oneweb|walker)-?/i, '').slice(0, 12);
+
   return (
     <group>
       <Line
@@ -149,6 +155,30 @@ const ServiceLink = React.memo(function ServiceLink({
         gapSize={7}
         depthWrite={false}
       />
+      {/* UE endpoint sphere */}
+      <mesh geometry={UE_SPHERE} position={UE_ANCHOR}>
+        <meshBasicMaterial color="#dff8ff" transparent opacity={0.85} depthWrite={false} />
+      </mesh>
+      {/* Satellite endpoint sphere */}
+      <mesh geometry={ENDPOINT_SPHERE} position={endpoint}>
+        <meshBasicMaterial color={style.color} transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+      {/* Satellite ID label */}
+      <Text
+        position={[endpoint[0], endpoint[1] + 14, endpoint[2]]}
+        fontSize={9}
+        color={style.color}
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={1.5}
+        outlineColor="#000000"
+        renderOrder={21}
+        material-depthTest={false}
+        material-depthWrite={false}
+      >
+        {satBadge}
+      </Text>
+      {/* Mid-link role label */}
       <Text
         position={[midpoint[0], midpoint[1] + 8, midpoint[2]]}
         fontSize={9}

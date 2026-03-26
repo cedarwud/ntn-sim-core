@@ -100,6 +100,7 @@ interface CellCoverage {
 export function analyzeBhCells(
   snapshot: SimulationSnapshot | null,
   cells: HexCell[],
+  relevantSatIds?: Set<string>,
 ): BhCellAnalysis {
   if (!snapshot?.bhSlot) {
     return {
@@ -122,6 +123,7 @@ export function analyzeBhCells(
     if (!sat.isVisible || sat.elevationDeg < MIN_ELEVATION_DEG || !sat.beams || sat.beams.length === 0) {
       continue;
     }
+    if (relevantSatIds && !relevantSatIds.has(sat.id)) continue;
 
     const isBlocked = blockedSet.has(sat.id);
     const activeBeamIds = new Set(bhSlot.activeBeamsBySat[sat.id] ?? []);

@@ -24,6 +24,15 @@ const BEIJING_OBSERVER = {
   altitudeM: 50,
 } as const;
 
+/** Observer at latitude ≈ constellation inclination (53°) for maximum zenith passes. */
+const LONDON_OBSERVER = {
+  id: 'london',
+  name: 'London',
+  latitudeDeg: 51.5,
+  longitudeDeg: -0.1,
+  altitudeM: 11,
+} as const;
+
 const NTPU_OBSERVER = {
   id: 'ntpu',
   name: 'National Taipei University',
@@ -127,7 +136,7 @@ export const HOBS_MULTIBEAM_BASELINE = {
   orbitMode: 'synthetic',
   beamSemantics: 'earth-moving',
 
-  observer: BEIJING_OBSERVER,
+  observer: LONDON_OBSERVER,
   timeControl: {
     epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
     durationSec: 3600,

@@ -596,6 +596,19 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       if (bhScheduler) {
         lastBhSlotDecision = bhScheduler.getSlotDecision(timeSec);
       }
+
+      // Force current serving beam active so it is never filtered out of SINR computation.
+      if (lastBhSlotDecision) {
+        const servingNow = independentHandover
+          ? hoManagers.get(PRIMARY_UE_ID)?.getState().serving ?? null
+          : hoManager.getState().serving;
+        if (servingNow) {
+          const activeForSat = lastBhSlotDecision.activeBeamsPerSat.get(servingNow.satId);
+          if (activeForSat && !activeForSat.includes(servingNow.beamId)) {
+            lastBhSlotDecision.activeBeamsPerSat.set(servingNow.satId, [servingNow.beamId, ...activeForSat]);
+          }
+        }
+      }
     }
 
     // 3. Compute SINR + beam selection for each visible satellite
@@ -700,12 +713,16 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             : undefined;
         }
 
+        const ueServingElevDeg = ueHoState.serving
+          ? satSinrs.find((s) => s.satId === ueHoState.serving!.satId)?.sample.elevationDeg ?? null
+          : null;
         ueHoMgr.tick({
           tick: tickNumber,
           timeSec,
           servingSinrDb: ueServingSinrDb,
           candidates: ueCandidates,
           propagationDelayMs: uePropDelayMs,
+          servingElevationDeg: ueServingElevDeg,
         });
 
         // Record KPI for this UE.
@@ -790,12 +807,14 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       const propagationDelayMs = servingEntry
         ? servingEntry.sample.rangeKm / 299.792  // one-way delay in ms
         : undefined;
+      const servingElevationDeg = servingEntry?.sample.elevationDeg ?? null;
       hoManager.tick({
         tick: tickNumber,
         timeSec,
         servingSinrDb,
         candidates,
         propagationDelayMs,
+        servingElevationDeg,
       });
 
       // 7. Record KPI — Phase A per-UE SINR (shared serving, independent off-axis gain)
@@ -932,6 +951,14 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     // Derive serving/target sat+beam IDs for beam role assignment
     const servingSatId = representativeServing?.satId ?? null;
     const servingBeamId = representativeServing?.beamId ?? null;
+
+    // Guarantee serving beam is always scheduled active (never goes off-slot).
+    if (lastBhSlotDecision && servingSatId && servingBeamId) {
+      const activeForSat = lastBhSlotDecision.activeBeamsPerSat.get(servingSatId);
+      if (activeForSat && !activeForSat.includes(servingBeamId)) {
+        lastBhSlotDecision.activeBeamsPerSat.set(servingSatId, [servingBeamId, ...activeForSat]);
+      }
+    }
     const hoState = independentHandover
       ? hoManagers.get(PRIMARY_UE_ID)!.getState()
       : hoManager.getState();
@@ -963,7 +990,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         if (layout) {
           const activeBeamIds = lastBhSlotDecision?.activeBeamsPerSat.get(s.satId);
           const beamSnaps: SatelliteBeamSnapshot[] = layout.beams.map((b) => {
-            const isActive = activeBeamIds ? activeBeamIds.includes(b.beamId) : b.isActive;
+            const isServingBeam = s.satId === servingSatId && b.beamId === servingBeamId;
+            const isActive = isServingBeam || (activeBeamIds ? activeBeamIds.includes(b.beamId) : b.isActive);
             let role: SatelliteBeamSnapshot['role'] = 'neutral';
             if (s.satId === servingSatId && b.beamId === servingBeamId) {
               role = 'serving';

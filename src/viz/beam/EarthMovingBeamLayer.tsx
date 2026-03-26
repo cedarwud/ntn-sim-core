@@ -1,9 +1,8 @@
 /**
  * EarthMovingBeamLayer — engine-driven multi-beam renderer.
  *
- * Directly ported from leo-beam-sim/src/viz/SatelliteBeams.tsx.
- * Only renders beams for serving + target satellites.
- * Each beam has: oblique cone, ground disc, center line, label.
+ * Renders beam cones for serving + handover-relevant satellites.
+ * Each beam: oblique cone, ground disc, center line, label.
  * On-slot = solid line + bright; off-slot = dashed line + dim.
  *
  * VISUAL-ONLY: Does NOT affect physics, SINR, or KPI.
@@ -14,24 +13,20 @@ import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/common/types';
 import { usePublishValidationSection } from '@/viz/validation/store';
-import { createLeoParityBeamPresentation } from '@/viz/presenters/leo-parity-presenter';
-import type { BeamPresentationSatSelection, BeamSelectionEmphasis } from '@/viz/presenters/types';
 import {
   projectToSkyDome,
   DEFAULT_SKY_PROJECTION,
 } from '@/viz/satellite/observer-sky-projection';
+import { selectBeamSatellites } from './beam-selection';
 
 // ---------------------------------------------------------------------------
-// VISUAL-ONLY constants (ported from leo-beam-sim)
+// VISUAL-ONLY constants
 // ---------------------------------------------------------------------------
 
 const SEGMENTS = 32;
 const GROUND_Y = 1;
-
-/** Fixed footprint radius (donor: leo-beam-sim FOOTPRINT_RADIUS_WORLD = 56). */
 const FOOTPRINT_RADIUS = 56;
 
-/** Polarization-pair colors by beam index parity (donor: leo-beam-sim). */
 const POLARIZATION_A = '#ff8844'; // orange (odd index)
 const POLARIZATION_B = '#44aaff'; // blue   (even index)
 
@@ -41,7 +36,7 @@ const SECONDARY_COLOR = '#00e5ff';
 const POST_HO_COLOR = '#7a5cff';
 
 // ---------------------------------------------------------------------------
-// Color + opacity (ported from leo-beam-sim beamColor / beamOpacity)
+// Color + style
 // ---------------------------------------------------------------------------
 
 interface BeamStyle {
@@ -52,23 +47,15 @@ interface BeamStyle {
   dashed: boolean;
 }
 
-const CONTEXT_BEAM_LIMIT = 7;
-
 function rankBeamForRendering(a: SatelliteBeamSnapshot, b: SatelliteBeamSnapshot): number {
   const rolePriority = (beam: SatelliteBeamSnapshot) => {
     switch (beam.role) {
-      case 'serving':
-        return 5;
-      case 'prepared':
-        return 4;
-      case 'secondary':
-        return 3;
-      case 'post-ho':
-        return 2;
-      case 'neutral':
-        return 1;
-      case 'inactive':
-        return 0;
+      case 'serving': return 5;
+      case 'prepared': return 4;
+      case 'secondary': return 3;
+      case 'post-ho': return 2;
+      case 'neutral': return 1;
+      case 'inactive': return 0;
     }
   };
 
@@ -87,47 +74,37 @@ function getBeamColor(beam: SatelliteBeamSnapshot, beamIndex: number): string {
   if (beam.role === 'prepared') return PREPARED_COLOR;
   if (beam.role === 'secondary') return SECONDARY_COLOR;
   if (beam.role === 'post-ho') return POST_HO_COLOR;
-  // Polarization pair by index parity
   return beamIndex % 2 === 1 ? POLARIZATION_A : POLARIZATION_B;
 }
 
 function getBeamStyle(beam: SatelliteBeamSnapshot): BeamStyle {
-  // Serving beam
   if (beam.role === 'serving') {
     return beam.isActive
       ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
       : { cone: 0.22, disc: 0.14, line: 0.96, width: 4, dashed: true };
   }
-  // Prepared target beam
   if (beam.role === 'prepared') {
     return beam.isActive
       ? { cone: 0.30, disc: 0.20, line: 0.90, width: 3.4, dashed: true }
       : { cone: 0.18, disc: 0.12, line: 0.60, width: 2.4, dashed: true };
   }
-  // Secondary / dual-active beam
   if (beam.role === 'secondary') {
     return beam.isActive
       ? { cone: 0.33, disc: 0.21, line: 0.95, width: 3.8, dashed: false }
       : { cone: 0.20, disc: 0.13, line: 0.70, width: 2.8, dashed: true };
   }
-  // Post-HO explanatory beam
   if (beam.role === 'post-ho') {
     return beam.isActive
       ? { cone: 0.24, disc: 0.16, line: 0.80, width: 3.0, dashed: false }
       : { cone: 0.14, disc: 0.09, line: 0.55, width: 2.2, dashed: true };
   }
-  // Off-slot (inactive)
   if (!beam.isActive) {
     return { cone: 0.08, disc: 0.05, line: 0.38, width: 1.8, dashed: true };
   }
-  // On-slot neutral
   return { cone: 0.20, disc: 0.12, line: 0.72, width: 2.4, dashed: false };
 }
 
-function selectRenderableBeams(
-  beams: SatelliteBeamSnapshot[],
-  emphasis: BeamSelectionEmphasis = 'continuity',
-): SatelliteBeamSnapshot[] {
+function selectRenderableBeams(beams: SatelliteBeamSnapshot[]): SatelliteBeamSnapshot[] {
   const renderable = beams.filter(
     (beam) =>
       beam.isActive ||
@@ -137,33 +114,11 @@ function selectRenderableBeams(
       beam.role === 'post-ho',
   );
   renderable.sort(rankBeamForRendering);
-  return emphasis === 'context'
-    ? renderable.slice(0, CONTEXT_BEAM_LIMIT)
-    : renderable;
-}
-
-function applyEmphasisStyle(style: BeamStyle, emphasis: BeamSelectionEmphasis): BeamStyle {
-  if (emphasis === 'continuity') return style;
-  if (emphasis === 'event') {
-    return {
-      cone: style.cone * 0.9,
-      disc: style.disc * 0.92,
-      line: style.line * 0.92,
-      width: Math.max(2, style.width * 0.94),
-      dashed: style.dashed,
-    };
-  }
-  return {
-    cone: style.cone * 0.58,
-    disc: style.disc * 0.62,
-    line: style.line * 0.68,
-    width: Math.max(1.8, style.width * 0.78),
-    dashed: style.dashed,
-  };
+  return renderable;
 }
 
 // ---------------------------------------------------------------------------
-// Geometry helpers (identical to leo-beam-sim)
+// Geometry helpers
 // ---------------------------------------------------------------------------
 
 function createObliqueConeSide(
@@ -208,8 +163,15 @@ function createGroundDisc(cx: number, cz: number, radius: number): THREE.BufferG
 }
 
 // ---------------------------------------------------------------------------
-// Single beam (ported from leo-beam-sim BeamCone)
+// Single beam
 // ---------------------------------------------------------------------------
+
+function sinrColor(sinrDb: number): string {
+  if (sinrDb >= 20) return '#00ff00';
+  if (sinrDb >= 10) return '#aaff00';
+  if (sinrDb >= 5) return '#ffaa00';
+  return '#ff4444';
+}
 
 const BeamCone = React.memo(function BeamCone({
   satPos,
@@ -219,6 +181,7 @@ const BeamCone = React.memo(function BeamCone({
   beamIndex,
   color,
   style,
+  sinrDb,
 }: {
   satPos: [number, number, number];
   groundX: number;
@@ -227,6 +190,7 @@ const BeamCone = React.memo(function BeamCone({
   beamIndex: number;
   color: string;
   style: BeamStyle;
+  sinrDb?: number | null;
 }) {
   const coneGeo = useMemo(
     () => createObliqueConeSide(satPos, groundX, groundZ, FOOTPRINT_RADIUS),
@@ -237,7 +201,6 @@ const BeamCone = React.memo(function BeamCone({
     [groundX, groundZ],
   );
 
-  // Label position: 35% along sat→ground line (donor: leo-beam-sim)
   const labelPos = useMemo<[number, number, number]>(() => {
     const t = 0.35;
     return [
@@ -257,10 +220,10 @@ const BeamCone = React.memo(function BeamCone({
           ? ' H'
           : '';
   const label = `B${beamIndex}${roleBadge}${!beam.isActive ? ' off' : ''}`;
+  const sinrLabel = sinrDb != null && Number.isFinite(sinrDb) ? `${sinrDb.toFixed(1)} dB` : null;
 
   return (
     <group>
-      {/* Cone */}
       <mesh geometry={coneGeo}>
         <meshBasicMaterial
           color={color}
@@ -271,8 +234,6 @@ const BeamCone = React.memo(function BeamCone({
           blending={THREE.AdditiveBlending}
         />
       </mesh>
-
-      {/* Ground disc */}
       <mesh geometry={discGeo}>
         <meshBasicMaterial
           color={color}
@@ -283,8 +244,6 @@ const BeamCone = React.memo(function BeamCone({
           blending={THREE.AdditiveBlending}
         />
       </mesh>
-
-      {/* Center line: sat → ground (key visual element from leo-beam-sim) */}
       <Line
         points={[satPos, [groundX, GROUND_Y, groundZ]]}
         color={color}
@@ -295,10 +254,8 @@ const BeamCone = React.memo(function BeamCone({
         dashSize={15}
         gapSize={10}
       />
-
-      {/* Beam label (donor: leo-beam-sim) */}
       <Text
-        position={labelPos}
+        position={[labelPos[0], labelPos[1] + (sinrLabel ? 5 : 0), labelPos[2]]}
         fontSize={beam.role === 'serving' ? 12 : 9}
         color={color}
         anchorX="center"
@@ -311,6 +268,22 @@ const BeamCone = React.memo(function BeamCone({
       >
         {label}
       </Text>
+      {sinrLabel && (
+        <Text
+          position={[labelPos[0], labelPos[1] - 7, labelPos[2]]}
+          fontSize={beam.role === 'serving' ? 10 : 8}
+          color={sinrColor(sinrDb!)}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={1.2}
+          outlineColor="#000000"
+          renderOrder={30}
+          material-depthTest={false}
+          material-depthWrite={false}
+        >
+          {sinrLabel}
+        </Text>
+      )}
     </group>
   );
 });
@@ -322,11 +295,13 @@ const BeamCone = React.memo(function BeamCone({
 const SatBeamGroup = React.memo(function SatBeamGroup({
   sat,
   daps,
-  emphasis = 'continuity',
+  servingBeamId,
+  servingSinrDb,
 }: {
   sat: SatelliteState;
   daps?: DapsSnapshot;
-  emphasis?: BeamSelectionEmphasis;
+  servingBeamId?: string | null;
+  servingSinrDb?: number | null;
 }) {
   const beams = sat.beams;
   if (!beams || beams.length === 0) return null;
@@ -336,7 +311,6 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
     [sat.azimuthDeg, sat.elevationDeg],
   );
 
-  // Scale km offsets → world units so beam spacing matches FOOTPRINT_RADIUS
   const beamSpacingKm = beams.length > 1
     ? Math.sqrt(beams[1].offsetEastKm ** 2 + beams[1].offsetNorthKm ** 2) || 25
     : 25;
@@ -346,22 +320,23 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
   const groundCenterZ = satPos[2];
 
   const isDapsTarget = daps?.phase === 'dual-active' && sat.id === daps.targetSatId;
+  const isServingSat = Boolean(servingBeamId && beams.some((b) => b.beamId === servingBeamId));
 
-  const chosenBeams = selectRenderableBeams(beams, emphasis);
+  const chosenBeams = selectRenderableBeams(beams);
 
   return (
     <group>
       {chosenBeams.map((beam, index) => {
-        const groundX = groundCenterX + beam.offsetEastKm * kmToWorld;
-        const groundZ = groundCenterZ - beam.offsetNorthKm * kmToWorld;
+        const isServingBeam = isServingSat && beam.beamId === servingBeamId;
+        const groundX = isServingBeam ? 0 : groundCenterX + beam.offsetEastKm * kmToWorld;
+        const groundZ = isServingBeam ? 0 : groundCenterZ - beam.offsetNorthKm * kmToWorld;
 
         const color = isDapsTarget && beam.role === 'secondary'
           ? SECONDARY_COLOR
           : getBeamColor(beam, index);
-        const baseStyle = isDapsTarget && beam.role === 'secondary'
+        const style = isDapsTarget && beam.role === 'secondary'
           ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
           : getBeamStyle(beam);
-        const style = applyEmphasisStyle(baseStyle, emphasis);
 
         return (
           <BeamCone
@@ -373,6 +348,7 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
             beamIndex={index}
             color={color}
             style={style}
+            sinrDb={isServingBeam ? servingSinrDb : null}
           />
         );
       })}
@@ -381,78 +357,33 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
 });
 
 // ---------------------------------------------------------------------------
-// Main layer — only serving + continuity-relevant satellites get beams
+// Main layer
 // ---------------------------------------------------------------------------
 
 export interface EarthMovingBeamLayerProps {
   snapshot: SimulationSnapshot | null;
   visible?: boolean;
-  beamScale?: number;
-  viewMode?: 'default' | 'leo-parity';
 }
 
 export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
   snapshot,
   visible = true,
-  viewMode = 'default',
 }: EarthMovingBeamLayerProps) {
   const primaryUe = snapshot?.ues[0];
   const servingSatId = primaryUe?.servingSatId;
-  const targetSatId = primaryUe?.targetSatId;
-  const secondarySatId = primaryUe?.secondarySatId;
-  const parityPresentation = useMemo(
-    () => (viewMode === 'leo-parity' ? createLeoParityBeamPresentation(snapshot) : null),
-    [snapshot, viewMode],
-  );
-  const paritySelectionBySatId = useMemo(
-    () =>
-      new Map(
-        (parityPresentation?.selections ?? []).map((selection) => [selection.satId, selection]),
-      ),
-    [parityPresentation],
-  );
 
-  const beamSats = useMemo(() => {
-    if (!snapshot || !visible) return [];
-    if (viewMode === 'leo-parity' && parityPresentation) {
-      const displaySatIds = new Set(parityPresentation.displaySatIds);
-      return snapshot.satellites.filter(
-        (sat) =>
-          sat.isVisible &&
-          sat.elevationDeg > 5 &&
-          sat.beams &&
-          sat.beams.length > 0 &&
-          displaySatIds.has(sat.id),
-      );
-    }
-    const ids = new Set<string>();
-    if (servingSatId) ids.add(servingSatId);
-    if (targetSatId) ids.add(targetSatId);
-    if (secondarySatId) ids.add(secondarySatId);
-    if (snapshot.daps?.targetSatId) ids.add(snapshot.daps.targetSatId);
-    for (const sat of snapshot.satellites) {
-      if (sat.beams?.some((b) => b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho')) {
-        ids.add(sat.id);
-      }
-    }
-    return snapshot.satellites.filter(
-      (s) => s.isVisible && s.elevationDeg > 5 && s.beams && s.beams.length > 0 && ids.has(s.id),
-    );
-  }, [parityPresentation, snapshot, visible, viewMode, servingSatId, targetSatId, secondarySatId, snapshot?.daps]);
+  const beamSats = useMemo(
+    () => (snapshot && visible ? selectBeamSatellites(snapshot) : []),
+    [snapshot, visible],
+  );
 
   const validationSummary = useMemo(() => {
     const roleCounts: Record<string, number> = {};
     let renderedBeamCount = 0;
-    const emphasisCounts: Record<string, number> = {};
-    const selectionReasons: Record<string, string> = {};
 
     for (const sat of beamSats) {
-      const selection = paritySelectionBySatId.get(sat.id);
-      const emphasis = selection?.emphasis ?? 'continuity';
-      const chosenBeams = selectRenderableBeams(sat.beams ?? [], emphasis);
+      const chosenBeams = selectRenderableBeams(sat.beams ?? []);
       renderedBeamCount += chosenBeams.length;
-      emphasisCounts[emphasis] = (emphasisCounts[emphasis] ?? 0) + 1;
-      if (selection) selectionReasons[sat.id] = selection.reason;
       for (const beam of chosenBeams) {
         roleCounts[beam.role] = (roleCounts[beam.role] ?? 0) + 1;
       }
@@ -460,19 +391,18 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
 
     return {
       present: beamSats.length > 0,
-      viewMode,
       renderedSatIds: beamSats.map((sat) => sat.id),
-      eventSatIds: parityPresentation?.eventSatIds ?? [],
       renderedBeamCount,
-      emphasisCounts,
-      selectionReasons,
       roleCounts,
     };
-  }, [beamSats, parityPresentation?.eventSatIds, paritySelectionBySatId, viewMode]);
+  }, [beamSats]);
 
   usePublishValidationSection('earthMovingBeamLayer', validationSummary);
 
   if (!snapshot || !visible || beamSats.length === 0) return null;
+
+  const primaryUeSinrDb = snapshot.ues[0]?.sinrDb ?? null;
+  const primaryUeServingBeamId = snapshot.ues[0]?.servingBeamId ?? null;
 
   return (
     <group name="earth-moving-beam-layer">
@@ -481,7 +411,8 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
           key={sat.id}
           sat={sat}
           daps={snapshot.daps}
-          emphasis={paritySelectionBySatId.get(sat.id)?.emphasis ?? 'continuity'}
+          servingBeamId={sat.id === servingSatId ? primaryUeServingBeamId : null}
+          servingSinrDb={sat.id === servingSatId ? primaryUeSinrDb : null}
         />
       ))}
     </group>

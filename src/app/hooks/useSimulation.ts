@@ -44,10 +44,10 @@ export interface UseSimulationResult {
 }
 
 // ---------------------------------------------------------------------------
-// Throttle interval (ms) — cap snapshot state updates to ~20 fps
+// Throttle interval (ms) — cap snapshot state updates to ~60 fps
 // ---------------------------------------------------------------------------
 
-const SNAPSHOT_INTERVAL_MS = 50;
+const SNAPSHOT_INTERVAL_MS = 16;
 
 // ---------------------------------------------------------------------------
 // Hook

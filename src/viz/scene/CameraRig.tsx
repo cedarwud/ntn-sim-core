@@ -15,6 +15,7 @@ export function CameraRig() {
       <OrbitControls
         enableDamping
         dampingFactor={0.05}
+        zoomSpeed={0.3}
         minDistance={10}
         maxDistance={2000}
         maxPolarAngle={Math.PI / 2}

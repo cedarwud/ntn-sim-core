@@ -438,12 +438,18 @@ export function createChoManager(config: HandoverConfig): HandoverManager {
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost');
           }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}°`);
+          }
           return tickAttached(input, eligible);
 
         case 'cho-prepared':
         case 'cho-evaluating':
           if (input.servingSinrDb === null) {
             return doRelease(input, 'serving SINR lost during CHO');
+          }
+          if (input.servingElevationDeg != null && input.servingElevationDeg < config.min_elevation_deg) {
+            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}° during CHO`);
           }
           return tickChoPrepared(input, eligible);
 

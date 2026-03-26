@@ -327,7 +327,7 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 | 3V-2 | Per-satellite multi-cone rendering (profile beam count, not fixed 7) | `leo-beam-sim` geometry-pattern | `SatelliteBeamLayout.beams[]` | ✅ done (2026-03-25) |
 | 3V-3 | Beam role styling: serving / prepared / secondary / post-HO / inactive | `beamHO-bench` state-semantics | `HandoverManagerState.serving`, `pendingTarget` | ✅ done (2026-03-25) — serving / prepared / secondary / inactive are snapshot-driven; `post-ho` remains conditional on runtime truth exposure |
 | 3V-4 | Active/inactive beam distinction based on BH slot (when applicable) | `leo-beam-sim` | `BhSlotDecision.activeBeamsPerSat` | ✅ done (2026-03-25) — `isActive` from engine |
-| 3V-5 | Replace or demote current `BeamFootprintLayer` schematic placeholder | — | — | ✅ done (2026-03-25) — deprecated, replaced in SceneShell |
+| 3V-5 | Replace or demote current `BeamFootprintLayer` schematic placeholder | — | — | ✅ done (2026-03-25) — deleted from codebase (was deprecated, now removed) |
 | 3V-6 | Browser screenshot: `case9-access-baseline` | — | golden-case-engine passing | ✅ done (2026-03-25) — `screenshots/case9-access-baseline.png` |
 | 3V-7 | Browser screenshot: `hobs-multibeam-baseline` | — | golden-case-engine passing | ✅ done (2026-03-25) — `screenshots/hobs-multibeam-baseline.png`, green serving cone visible |
 
@@ -368,7 +368,7 @@ Prerequisite: 4V-3 (replay controller) must be completed first.
 |---|---|---|
 | XV-1 | Register 3 frontend SDD docs in `sdd/README.md` and `implementation-status.md` | ✅ done (2026-03-25) — all 3 docs registered in README items 15–17 |
 | XV-2 | Add `VAL-VIZ-002` plus frontend visual gates to validation-matrix.md | ✅ done (2026-03-25) |
-| XV-3 | Demote `BeamFootprintLayer` to `VISUAL-ONLY-DEPRECATED` once replacement lands | ✅ done (2026-03-25) — `@deprecated` JSDoc added |
+| XV-3 | Demote `BeamFootprintLayer` to `VISUAL-ONLY-DEPRECATED` once replacement lands | ✅ done (2026-03-25) — file deleted from codebase |
 | XV-4 | Land donor-backed `BeamInfoOverlay` with truth-driven SINR/beam explainers only | ✅ done (2026-03-25) — `BeamInfoOverlay.tsx`, SINR dB color-coded + role tag, wired LiveLayer + ReplayLayer |
 | XV-5 | Land donor-backed `HandoverLinkOverlay` for serving / target / post-HO / dual-active continuity | ✅ done (2026-03-25) — `HandoverLinkOverlay.tsx`, truth-driven serving / prepared / secondary / dual-active link styles; `post-ho` remains contingent on runtime truth |
 | XV-6 | Enforce replay parity so live/replay use the same overlay/link truth fields | ✅ done (2026-03-25) — both overlays wired into ReplayLayer with same snapshot path |

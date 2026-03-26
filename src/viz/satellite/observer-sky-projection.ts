@@ -20,7 +20,7 @@ export interface SkyProjectionConfig {
 export const DEFAULT_SKY_PROJECTION: SkyProjectionConfig = {
   horizontalRadius: 700,
   verticalRadius: 400,
-  minHeight: 80,
+  minHeight: 0,
 };
 
 const DEG2RAD = Math.PI / 180;

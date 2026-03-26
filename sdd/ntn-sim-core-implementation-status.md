@@ -81,7 +81,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` | frontend beam-rendering contract + implementation checklist | active (v0.3.2) |
 | `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | active (v0.3.1) |
 | `sdd/ntn-sim-core-frontend-donor-mapping.md` | frontend donor repo → module mapping | active (v0.2) |
-| `sdd/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec for a donor-like presentation mode | in progress (v0.1.7) — Slice P1/P2 landed; dedicated parity renderer family, donor-style beam ownership, BH parity visuals, and donor-like scene-density/BH-first composition pass landed |
+| `sdd/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec (historical) | **closed** (v0.2.0) — leo-parity mode removed; useful selection logic merged into `beam-selection.ts`; single `hobs-multibeam-baseline` profile; no separate view modes |
 | `sdd/ntn-sim-core-implementation-status.md` | this file | active |
 | `sdd/README.md` | document index | active |
 
@@ -208,7 +208,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 4. ~~**Ka-band channel wrong (M3+M4):**~~ Fixed 2026-03-23. Ka-band shadow fading tables added; atmospheric loss model implemented for frequencies ≥10 GHz.
 5. **Real-trace integration baseline is closed for the current SDD set:** frontend `useSimulation` and `useReplay` can both build deterministic SGP4/showcase paths, replay manifests and replay artifacts are emitted in the benchmark artifact path, and end-to-end replay identity is now validated by `validate-replay-manifest.ts`.
 6. **Replay de-scope remains explicit:** snapshot replay used by `useReplay` is the authoritative frontend path; the legacy artifact-bundle `createReplayController()` path is retained only as an explicit compatibility/error boundary, not as a second replay family.
-7. **Beam visualization baseline is landed:** `EarthMovingBeamLayer` and `EarthFixedCellLayer` are connected in `SceneShell`; the old `BeamFootprintLayer` is deprecated.
+7. **Beam visualization baseline is landed:** `EarthMovingBeamLayer` and `EarthFixedCellLayer` are connected in `SceneShell`; `BeamFootprintLayer` has been deleted.
 8. **BH research donor mapping remains broader than the proof path:** the deterministic `bh-resource-energy-proof` closes current SDD proof requirements, but future paper-specific BH scheduler families are still a donor-integration extension rather than a closure blocker.
 9. **Validation has three practical tiers:** `-F` formula scripts pass, `-E` golden-case-engine passes in the standard stage chain, and `-V` browser automation covers the current frontend explainability/continuity package.
 10. ~~**Tooling portability issue:**~~ Fixed 2026-03-25. `validate:stage` now launches `validate:golden-engine` via `node --import tsx` and passes in this sandbox.
@@ -226,17 +226,22 @@ No project-level closure items remain open for the current SDD set.
 
 ---
 
-## 8. Planned Enhancement Track
+## 8. Frontend Beam Architecture (Post-Simplification)
 
-The next planned frontend enhancement is:
+The leo-parity experiment (formerly tracked in `sdd/ntn-sim-core-frontend-leo-parity-mode.md`) has been closed. Useful satellite selection logic was extracted into `src/viz/beam/beam-selection.ts` and the dual view-mode system was removed. The current frontend beam architecture is:
 
-1. `leo-parity` mode
-   - tracked by `sdd/ntn-sim-core-frontend-leo-parity-mode.md`
-   - intended to improve donor-style beam density, per-beam SINR readability, and handover-link readability
-   - does not reopen the closed academic SDD set unless explicitly promoted into the main closure contract
-   - current landed scope: query-param entry, in-page `ControlPanel` toggle, presenter-driven `display set / event set / beam set`, and a dedicated `LeoParityBeamLayer` / `LeoParityBeamOverlay` / `LeoParityHandoverLinks` family wired in `SceneShell`
-   - current parity fix: broad visible satellites remain in `SatelliteSkyLayer`, while beam cones are restricted to serving / prepared / secondary / DAPS / role-derived satellites instead of all display satellites
-   - current donor-density fix: parity presenter now exposes a broader donor-like sky context (`MAX_DISPLAY_SATS=12`, `MAX_EVENT_SATS=8`) while beam ownership stays restricted to the parity beam set
-   - current BH parity fix: `EarthFixedCellLayer` now accepts `parityMode`, renders donor-style active beam links plus brighter cell styling for `leo-parity`, and BH profiles suppress moving access cones so the earth-fixed grid becomes the main composition
-   - current overlay/link uplift: parity labels are beam-centric rather than satellite-top summary tags, simplified to role-first text, and handover links now render stronger event anchors without changing continuity truth
-   - current validation-stability fix: replay browser proofs may use `replaySeekSec` to place the replay cursor on a deterministic event instant without changing replay artifacts or benchmark truth
+1. **`beam-selection.ts`** — decides which satellites show beams (`selectBeamSatellites()`) and which are cell candidates (`selectCellCandidateSatIds()`)
+2. **`EarthMovingBeamLayer`** — renders 3D beam cones for selected satellites
+3. **`EarthFixedCellLayer`** — renders hex grid colored by BH slot state for candidate satellites at elevation >= 10 deg
+4. **`BeamInfoOverlay`** — satellite role tags + SINR display
+5. **`HandoverLinkOverlay`** — UE-to-satellite link lines
+6. **`bh-cell-analysis.ts`** — hex cell state computation
+
+Deleted components (no longer in the codebase):
+- `BeamFootprintLayer.tsx` (was @deprecated)
+- `LeoParityBeamLayer.tsx`
+- `LeoParityBeamOverlay.tsx`
+- `LeoParityHandoverLinks.tsx`
+- `src/viz/presenters/` directory (`leo-parity-presenter.ts`, `types.ts`)
+
+Single hardcoded profile: `hobs-multibeam-baseline`. No `ViewMode` toggle or query-param view switching.
