@@ -34,6 +34,7 @@ interface SceneQueryBootstrap {
   showBeams: boolean;
   showLabels: boolean;
   replayMode: boolean;
+  replaySeekSec: number | null;
   validationMode: boolean;
 }
 
@@ -51,12 +52,14 @@ function readSceneQueryBootstrap(): SceneQueryBootstrap {
       showBeams: true,
       showLabels: true,
       replayMode: false,
+      replaySeekSec: null,
       validationMode: false,
     };
   }
 
   const params = new URLSearchParams(window.location.search);
   const speedParam = Number(params.get('speed'));
+  const replaySeekSecParam = Number(params.get('replaySeekSec'));
 
   return {
     profileId: params.get('profile') ?? 'case9-access-baseline',
@@ -66,6 +69,7 @@ function readSceneQueryBootstrap(): SceneQueryBootstrap {
     showBeams: params.get('showBeams') !== '0',
     showLabels: params.get('showLabels') !== '0',
     replayMode: params.get('replay') === '1',
+    replaySeekSec: Number.isFinite(replaySeekSecParam) ? replaySeekSecParam : null,
     validationMode: params.get('validate') === '1',
   };
 }
@@ -78,6 +82,7 @@ function syncSceneQuery({
   showBeams,
   showLabels,
   replayMode,
+  replaySeekSec,
   validationMode,
 }: SceneQueryBootstrap) {
   if (typeof window === 'undefined') return;
@@ -99,6 +104,9 @@ function syncSceneQuery({
 
   if (replayMode) params.set('replay', '1');
   else params.delete('replay');
+
+  if (replaySeekSec !== null && Number.isFinite(replaySeekSec)) params.set('replaySeekSec', String(replaySeekSec));
+  else params.delete('replaySeekSec');
 
   if (validationMode) params.set('validate', '1');
   else params.delete('validate');
@@ -122,10 +130,12 @@ interface SimulationLayerProps {
   showBeams: boolean;
   showLabels: boolean;
   replayMode: boolean;
+  replaySeekSec: number | null;
 }
 
-function LiveLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeams, showLabels }: Omit<SimulationLayerProps, 'replayMode'>) {
+function LiveLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeams, showLabels }: Omit<SimulationLayerProps, 'replayMode' | 'replaySeekSec'>) {
   const result = useSimulation({ profileId, speed, paused });
+  const bhParityMode = viewMode === 'leo-parity' && Boolean(result.snapshot?.bhSlot);
   const lowSinrUeCount = useMemo(
     () => result.snapshot?.ues.filter((ue) => ue.sinrDb !== null && ue.sinrDb < LOW_SINR_EXPLAINABILITY_THRESHOLD_DB).length ?? 0,
     [result.snapshot],
@@ -174,9 +184,13 @@ function LiveLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeam
       <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
       {viewMode === 'leo-parity' ? (
         <>
-          <LeoParityBeamLayer snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
-          <LeoParityBeamOverlay snapshot={result.snapshot} visible={showBeams && showLabels} />
-          <LeoParityHandoverLinks snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+          {!bhParityMode && (
+            <>
+              <LeoParityBeamLayer snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+              <LeoParityBeamOverlay snapshot={result.snapshot} visible={showBeams && showLabels} />
+              <LeoParityHandoverLinks snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+            </>
+          )}
         </>
       ) : (
         <>
@@ -185,13 +199,19 @@ function LiveLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeam
           <HandoverLinkOverlay snapshot={result.snapshot} visible={showBeams} />
         </>
       )}
-      <EarthFixedCellLayer snapshot={result.snapshot} visible={showBeams} />
+      <EarthFixedCellLayer
+        snapshot={result.snapshot}
+        visible={showBeams}
+        parityMode={viewMode === 'leo-parity'}
+        showLabels={showLabels}
+      />
     </>
   );
 }
 
-function ReplayLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeams, showLabels }: Omit<SimulationLayerProps, 'replayMode'>) {
-  const result = useReplay({ profileId, speed, paused });
+function ReplayLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBeams, showLabels, replaySeekSec }: Omit<SimulationLayerProps, 'replayMode'>) {
+  const result = useReplay({ profileId, speed, paused, initialSeekSec: replaySeekSec });
+  const bhParityMode = viewMode === 'leo-parity' && Boolean(result.snapshot?.bhSlot);
   const lowSinrUeCount = useMemo(
     () => result.snapshot?.ues.filter((ue) => ue.sinrDb !== null && ue.sinrDb < LOW_SINR_EXPLAINABILITY_THRESHOLD_DB).length ?? 0,
     [result.snapshot],
@@ -240,9 +260,13 @@ function ReplayLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBe
       <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
       {viewMode === 'leo-parity' ? (
         <>
-          <LeoParityBeamLayer snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
-          <LeoParityBeamOverlay snapshot={result.snapshot} visible={showBeams && showLabels} />
-          <LeoParityHandoverLinks snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+          {!bhParityMode && (
+            <>
+              <LeoParityBeamLayer snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+              <LeoParityBeamOverlay snapshot={result.snapshot} visible={showBeams && showLabels} />
+              <LeoParityHandoverLinks snapshot={result.snapshot} visible={showBeams} showLabels={showLabels} />
+            </>
+          )}
         </>
       ) : (
         <>
@@ -251,7 +275,12 @@ function ReplayLayer({ onStatsUpdate, profileId, viewMode, speed, paused, showBe
           <HandoverLinkOverlay snapshot={result.snapshot} visible={showBeams} />
         </>
       )}
-      <EarthFixedCellLayer snapshot={result.snapshot} visible={showBeams} />
+      <EarthFixedCellLayer
+        snapshot={result.snapshot}
+        visible={showBeams}
+        parityMode={viewMode === 'leo-parity'}
+        showLabels={showLabels}
+      />
     </>
   );
 }
@@ -278,6 +307,7 @@ export function SceneShell() {
   const [showBeams, setShowBeams] = useState(bootstrap.showBeams);
   const [showLabels, setShowLabels] = useState(bootstrap.showLabels);
   const [replayMode, setReplayMode] = useState(bootstrap.replayMode);
+  const [replaySeekSec] = useState(bootstrap.replaySeekSec);
 
   const handlePauseToggle = useCallback(() => setPaused((p) => !p), []);
   const handleShowBeamsToggle = useCallback(() => setShowBeams((b) => !b), []);
@@ -293,9 +323,10 @@ export function SceneShell() {
       showBeams,
       showLabels,
       replayMode,
+      replaySeekSec,
       validationMode: bootstrap.validationMode,
     });
-  }, [bootstrap.validationMode, paused, profileId, replayMode, showBeams, showLabels, speed, viewMode]);
+  }, [bootstrap.validationMode, paused, profileId, replayMode, replaySeekSec, showBeams, showLabels, speed, viewMode]);
 
   return (
     <div
@@ -360,6 +391,7 @@ export function SceneShell() {
             showBeams={showBeams}
             showLabels={showLabels}
             replayMode={replayMode}
+            replaySeekSec={replaySeekSec}
           />
         </Suspense>
 

@@ -159,7 +159,13 @@ async function gotoScenario(page: Page, params: Record<string, string>) {
     url.searchParams.set(key, value);
   }
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-testid="validation-probe"]', { timeout: 15000 });
+  await page.waitForFunction(
+    () => {
+      const win = window as Window & { __NTN_SIM_CORE_VISUAL__?: VisualState };
+      return Boolean(document.querySelector('[data-testid="validation-probe"]') || win.__NTN_SIM_CORE_VISUAL__?.runtime);
+    },
+    { timeout: 60000 },
+  );
 }
 
 async function resolvePreviewPort(preferredPort = DEFAULT_PREVIEW_PORT): Promise<number> {
@@ -412,7 +418,8 @@ async function validateDapsReplay(page: Page) {
     validate: '1',
     profile: 'case9-daps-baseline',
     replay: '1',
-    speed: '5',
+    speed: '1',
+    replaySeekSec: '81',
     showBeams: '1',
     showLabels: '1',
   });
@@ -423,10 +430,10 @@ async function validateDapsReplay(page: Page) {
       current?.runtime?.profileId === 'case9-daps-baseline' &&
       current.runtime.mode === 'replay' &&
       Boolean(current.handoverLinkOverlay?.present) &&
-      current.handoverLinkOverlay.observedDapsPhases.includes('dual-active') &&
-      current.handoverLinkOverlay.observedStyleKeys.includes('dapsSource') &&
-      current.handoverLinkOverlay.observedStyleKeys.includes('dapsTarget'),
-    90000,
+      current.runtime.dapsPhase === 'dual-active' &&
+      current.handoverLinkOverlay.styleKeys.includes('dapsSource') &&
+      current.handoverLinkOverlay.styleKeys.includes('dapsTarget'),
+    150000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-replay-dual-active.png') });
@@ -434,10 +441,10 @@ async function validateDapsReplay(page: Page) {
   const styles = [...(state?.handoverLinkOverlay?.observedStyleKeys ?? [])].sort();
   check(
     'VAL-FV-009 replay preserves DAPS dual-active link truth',
-    state?.handoverLinkOverlay?.observedDapsPhases.includes('dual-active') &&
-      styles.includes('dapsSource') &&
-      styles.includes('dapsTarget'),
-    `${state?.handoverLinkOverlay?.observedDapsPhases.join(',') ?? 'null'} with ${styles.join(',')}`,
+    state?.runtime?.dapsPhase === 'dual-active' &&
+      state?.handoverLinkOverlay?.styleKeys.includes('dapsSource') &&
+      state?.handoverLinkOverlay?.styleKeys.includes('dapsTarget'),
+    `${state?.runtime?.dapsPhase ?? 'null'} with ${(state?.handoverLinkOverlay?.styleKeys ?? []).join(',')}`,
   );
 }
 

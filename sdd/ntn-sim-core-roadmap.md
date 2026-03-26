@@ -354,6 +354,13 @@ Add a new post-closure presentation mode that reads much closer to `project/leo-
    - `LeoParityBeamOverlay.tsx`
    - `LeoParityHandoverLinks.tsx`
    - `SceneShell` mode-level renderer family switch
+4. parity BH visual uplift:
+   - `EarthFixedCellLayer.tsx` accepts `parityMode`
+   - donor-style active beam links render from satellite to representative earth-fixed cells
+   - parity-only cell palette/labels increase BH readability without changing slot truth
+5. parity overlay/link uplift:
+   - `LeoParityBeamOverlay.tsx` uses primary-beam-path anchors instead of satellite-top summary placement
+   - `LeoParityHandoverLinks.tsx` adds stronger event anchors / endpoint tags while staying truth-driven
 
 **Exit criteria**
 

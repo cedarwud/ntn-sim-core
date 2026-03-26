@@ -1,8 +1,8 @@
 # NTN Sim Core — Frontend Leo-Parity Mode SDD
 
-**Version:** 0.1.4  
+**Version:** 0.1.7  
 **Date:** 2026-03-25  
-**Status:** In Progress Companion — post-closure frontend parity enhancement (`Slice P1/P2` landed; dedicated parity renderer family + donor-style beam ownership landed)
+**Status:** In Progress Companion — post-closure frontend parity enhancement (`Slice P1/P2` landed; dedicated parity renderer family + donor-style beam ownership + BH parity visuals + beam-centric overlay/link refinements landed; donor-like scene-density/BH-first parity pass landed)
 
 ---
 
@@ -348,6 +348,22 @@ As of 2026-03-25:
 4. current render output is now mode-dependent:
    - `research/default` keeps the conservative continuity-focused grammar
    - `leo-parity` keeps broad sky context through `SatelliteSkyLayer` but restricts beam ownership to the parity `beam set`, making the scene read closer to `project/leo-beam-sim`
+5. parity-mode earth-fixed / BH visuals now diverge from research/default:
+   - `EarthFixedCellLayer.tsx` accepts `parityMode`
+   - parity mode adds donor-style satellite-to-cell beam links for active BH beams
+   - parity mode uses a brighter served/interfered/energy-blocked cell palette and per-cell beam labels without changing BH truth
+6. parity-mode overlay/link grammar has moved closer to the donor:
+   - `LeoParityBeamOverlay.tsx` anchors labels to the primary beam path instead of satellite-top summary placement
+   - `LeoParityHandoverLinks.tsx` adds stronger event anchors and endpoint tags while remaining truth-driven
+7. donor-like scene-density and BH-first composition are now partially landed:
+   - parity presenter now keeps broader sky context (`MAX_DISPLAY_SATS=12`, `MAX_EVENT_SATS=8`) without expanding beam ownership
+   - `leo-parity` keeps beam cones restricted to the parity `beam set`, while background satellites remain sky-only context
+   - BH profiles in `leo-parity` now suppress moving access cones so the earth-fixed grid and BH beam links become the primary composition, closer to donor grammar
+   - parity beam overlay text is simplified to role-first tags so the scene reads less like a satellite summary HUD
+8. validation-only replay targeting is now available:
+   - `replaySeekSec` may be provided in the URL for deterministic browser validation
+   - this does not alter replay truth, manifests, or saved artifacts
+   - it only changes the initial replay cursor used by frontend/browser proof flows
 
 When it lands, update:
 

@@ -42,6 +42,7 @@ export interface UseReplayOptions {
   profileId?: string;
   speed?: number;
   paused?: boolean;
+  initialSeekSec?: number | null;
 }
 
 export interface UseReplayResult {
@@ -71,6 +72,7 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
     profileId = 'case9-access-baseline',
     speed = 1,
     paused = false,
+    initialSeekSec = null,
   } = options ?? {};
 
   // ── 1. Build + headless record (once per profileId) ──
@@ -148,6 +150,9 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
       stepSec: prof.timeControl.stepSec,
       playbackSpeed: speed,
     });
+    if (initialSeekSec !== null && Number.isFinite(initialSeekSec)) {
+      ctrl.seek(initialSeekSec);
+    }
     ctrl.play();
 
     return {
@@ -156,7 +161,7 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
       replayManifest,
       selectionReason: selectedWindow.reason,
     };
-  }, [profileId, speed]);
+  }, [initialSeekSec, profileId, speed]);
 
   // ── 2. Snapshot state ──
 

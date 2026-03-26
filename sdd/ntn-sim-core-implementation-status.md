@@ -81,7 +81,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` | frontend beam-rendering contract + implementation checklist | active (v0.3.2) |
 | `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | active (v0.3.1) |
 | `sdd/ntn-sim-core-frontend-donor-mapping.md` | frontend donor repo → module mapping | active (v0.2) |
-| `sdd/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec for a donor-like presentation mode | in progress (v0.1.4) — Slice P1/P2 landed; dedicated parity renderer family started; donor-style beam ownership landed |
+| `sdd/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec for a donor-like presentation mode | in progress (v0.1.7) — Slice P1/P2 landed; dedicated parity renderer family, donor-style beam ownership, BH parity visuals, and donor-like scene-density/BH-first composition pass landed |
 | `sdd/ntn-sim-core-implementation-status.md` | this file | active |
 | `sdd/README.md` | document index | active |
 
@@ -236,3 +236,7 @@ The next planned frontend enhancement is:
    - does not reopen the closed academic SDD set unless explicitly promoted into the main closure contract
    - current landed scope: query-param entry, in-page `ControlPanel` toggle, presenter-driven `display set / event set / beam set`, and a dedicated `LeoParityBeamLayer` / `LeoParityBeamOverlay` / `LeoParityHandoverLinks` family wired in `SceneShell`
    - current parity fix: broad visible satellites remain in `SatelliteSkyLayer`, while beam cones are restricted to serving / prepared / secondary / DAPS / role-derived satellites instead of all display satellites
+   - current donor-density fix: parity presenter now exposes a broader donor-like sky context (`MAX_DISPLAY_SATS=12`, `MAX_EVENT_SATS=8`) while beam ownership stays restricted to the parity beam set
+   - current BH parity fix: `EarthFixedCellLayer` now accepts `parityMode`, renders donor-style active beam links plus brighter cell styling for `leo-parity`, and BH profiles suppress moving access cones so the earth-fixed grid becomes the main composition
+   - current overlay/link uplift: parity labels are beam-centric rather than satellite-top summary tags, simplified to role-first text, and handover links now render stronger event anchors without changing continuity truth
+   - current validation-stability fix: replay browser proofs may use `replaySeekSec` to place the replay cursor on a deterministic event instant without changing replay artifacts or benchmark truth

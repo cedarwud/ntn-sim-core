@@ -47,6 +47,7 @@
     "@types/react-dom": "^19.2.2",
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "baseline-browser-mapping": "^2.10.10",
     "playwright-core": "^1.58.2",
     "sass": "^1.93.2",
     "tsx": "^4.21.0",

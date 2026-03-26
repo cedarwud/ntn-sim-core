@@ -10,6 +10,7 @@ import {
 
 const UE_ANCHOR: [number, number, number] = [0, 6, 0];
 const MIN_ELEVATION_DEG = 5;
+const UE_ANCHOR_COLOR = '#dff8ff';
 
 const LINK_STYLES = {
   serving: {
@@ -110,9 +111,19 @@ const ParityLink = React.memo(function ParityLink({
     (UE_ANCHOR[1] + endpoint[1]) * 0.42,
     (UE_ANCHOR[2] + endpoint[2]) * 0.42,
   ];
+  const endpointLabel: [number, number, number] = [endpoint[0], endpoint[1] + 12, endpoint[2]];
+  const satBadge = sat.id.replace(/^shell-\d+-/, '').replace(/^P/, 'P').replace(/-S/, '/S');
 
   return (
     <group>
+      <mesh position={UE_ANCHOR}>
+        <sphereGeometry args={[1.6, 12, 12]} />
+        <meshBasicMaterial color={UE_ANCHOR_COLOR} transparent opacity={0.85} depthWrite={false} />
+      </mesh>
+      <mesh position={endpoint}>
+        <sphereGeometry args={[1.4, 12, 12]} />
+        <meshBasicMaterial color={style.color} transparent opacity={0.95} depthWrite={false} />
+      </mesh>
       <Line
         points={[UE_ANCHOR, endpoint]}
         color={style.color}
@@ -135,6 +146,19 @@ const ParityLink = React.memo(function ParityLink({
           outlineColor="#000000"
         >
           {style.label}
+        </Text>
+      )}
+      {showLabels && (
+        <Text
+          position={endpointLabel}
+          fontSize={8}
+          color={style.color}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={1}
+          outlineColor="#000000"
+        >
+          {satBadge}
         </Text>
       )}
     </group>
@@ -188,10 +212,12 @@ export const LeoParityHandoverLinks = React.memo(function LeoParityHandoverLinks
     dapsSource: byId(snapshot.daps?.sourceSatId ?? primaryUe.servingSatId),
     dapsTarget: byId(snapshot.daps?.targetSatId ?? primaryUe.secondarySatId),
   };
+  const renderOrder: LinkStyleKey[] = ['secondary', 'prepared', 'postHo', 'serving', 'dapsSource', 'dapsTarget'];
+  const orderedStyles = renderOrder.filter((styleKey) => renderedStyles.includes(styleKey));
 
   return (
     <group name="leo-parity-handover-links">
-      {renderedStyles.map((styleKey) => {
+      {orderedStyles.map((styleKey) => {
         const sat = satByStyle[styleKey];
         if (!sat) return null;
         return (

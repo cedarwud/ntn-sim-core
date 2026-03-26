@@ -6,8 +6,8 @@ import type {
   LeoParityBeamPresentation,
 } from './types';
 
-const MAX_DISPLAY_SATS = 8;
-const MAX_EVENT_SATS = 5;
+const MAX_DISPLAY_SATS = 12;
+const MAX_EVENT_SATS = 8;
 const MIN_ELEVATION_DEG = 5;
 
 function countRenderableBeams(beams: SatelliteBeamSnapshot[] | undefined): number {

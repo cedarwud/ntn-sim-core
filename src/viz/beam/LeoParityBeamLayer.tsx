@@ -49,12 +49,6 @@ interface BeamStyle {
   dashed: boolean;
 }
 
-const EMPHASIS_LIMITS: Record<BeamSelectionEmphasis, number> = {
-  continuity: 9,
-  event: 7,
-  context: 4,
-};
-
 function baseBeamColor(beamId: string): string {
   const match = /-b(\d+)$/.exec(beamId);
   const beamIndex = match ? Number(match[1]) : 0;
@@ -223,31 +217,23 @@ function findPrimaryBeamId(sat: SatelliteState, primaryUe: UeState | null): stri
 function buildBeamTargets(
   sat: SatelliteState,
   primaryUe: UeState | null,
-  emphasis: BeamSelectionEmphasis,
+  _emphasis: BeamSelectionEmphasis,
 ): BeamTarget[] {
   const beams = [...(sat.beams ?? [])].sort(rankBeams);
   if (beams.length === 0) return [];
 
   const primaryBeamId = findPrimaryBeamId(sat, primaryUe);
-  const limit = EMPHASIS_LIMITS[emphasis];
   const chosen = new Map<string, SatelliteBeamSnapshot>();
 
   for (const beam of beams) {
-    if (
-      beam.beamId === primaryBeamId ||
+    const isSpecialRole =
       beam.role === 'serving' ||
       beam.role === 'prepared' ||
       beam.role === 'secondary' ||
-      beam.role === 'post-ho'
-    ) {
+      beam.role === 'post-ho';
+    if (beam.beamId === primaryBeamId || beam.isActive || isSpecialRole) {
       chosen.set(beam.beamId, beam);
     }
-  }
-
-  for (const beam of beams) {
-    if (chosen.size >= limit) break;
-    if (!beam.isActive && beam.role === 'inactive') continue;
-    chosen.set(beam.beamId, beam);
   }
 
   const selectedBeams = [...chosen.values()].sort(rankBeams);
@@ -259,11 +245,22 @@ function buildBeamTargets(
   const isTransitioningSource =
     sat.id === primaryUe?.servingSatId &&
     (primaryUe?.continuityState === 'prepared' || primaryUe?.continuityState === 'dual-active');
+  const anchorPrimaryToUe =
+    sat.id === primaryUe?.servingSatId ||
+    sat.id === primaryUe?.targetSatId ||
+    sat.id === primaryUe?.secondarySatId ||
+    beams.some((beam) => beam.role === 'prepared' || beam.role === 'secondary' || beam.role === 'post-ho');
 
   return selectedBeams.map((beam) => ({
     beam,
-    groundX: satPos[0] + beam.offsetEastKm * kmToWorld,
-    groundZ: satPos[2] - beam.offsetNorthKm * kmToWorld,
+    groundX:
+      anchorPrimaryToUe && beam.beamId === primaryBeamId
+        ? 0
+        : satPos[0] + beam.offsetEastKm * kmToWorld,
+    groundZ:
+      anchorPrimaryToUe && beam.beamId === primaryBeamId
+        ? 0
+        : satPos[2] - beam.offsetNorthKm * kmToWorld,
     isServing: beam.role === 'serving',
     isPrimary: beam.beamId === primaryBeamId,
     isScheduledActive: beam.isActive,
