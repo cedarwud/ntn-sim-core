@@ -43,4 +43,11 @@ export interface KpiBundle {
 
   // Fairness
   jainFairnessIndex: number;        // Jain's fairness on per-UE throughput
+
+  // Energy efficiency (populated when energy.layer1_enabled = true; 0 otherwise)
+  // @source PAP-2024-HOBS, PAP-2025-EEBH-UPLINK Eq.(5): EE = R_total / Σ p_b·η_b
+  // @assumption power values — see ASSUME-ENERGY-001
+  systemEeBitsPerJoule: number;     // system EE = total throughput / active TX power
+  totalPowerW: number;              // total satellite power (active + idle beams)
+  activeBeamRatio: number;          // fraction of beams in active state
 }

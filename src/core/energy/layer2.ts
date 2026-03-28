@@ -97,7 +97,17 @@ export const DEFAULT_ENERGY_LAYER2_CONFIG: EnergyLayer2Config = {
 // M7 fix: Beta angle shadow fraction
 // ---------------------------------------------------------------------------
 
-import { EARTH_RADIUS_KM } from '@/core/common/constants';
+import { EARTH_RADIUS_KM, MU_EARTH_KM3_S2, TWO_PI } from '@/core/common/constants';
+
+/**
+ * Compute orbital period from altitude using Kepler's 3rd law.
+ * T = 2π √(a³/μ) where a = R_E + altitude.
+ * LEO 600km → ~5760s, MEO 8000km → ~28800s, GEO 35786km → ~86164s.
+ */
+export function computeOrbitalPeriodSec(altitudeKm: number): number {
+  const a = EARTH_RADIUS_KM + altitudeKm;
+  return TWO_PI * Math.sqrt((a ** 3) / MU_EARTH_KM3_S2);
+}
 
 /**
  * Compute eclipse (shadow) fraction from beta angle and altitude.
@@ -129,10 +139,12 @@ function computeShadowFraction(betaDeg: number, altKm: number): number {
 export function createEnergyLayer2(
   config: Partial<EnergyLayer2Config> = {},
 ): EnergyLayer2Manager {
-  const resolvedConfig: EnergyLayer2Config = {
-    ...DEFAULT_ENERGY_LAYER2_CONFIG,
-    ...config,
-  };
+  const merged = { ...DEFAULT_ENERGY_LAYER2_CONFIG, ...config };
+  // Auto-compute orbital period from altitude if not explicitly provided
+  if (config.orbitalPeriodSec === undefined && merged.altitudeKm !== undefined) {
+    merged.orbitalPeriodSec = computeOrbitalPeriodSec(merged.altitudeKm);
+  }
+  const resolvedConfig: EnergyLayer2Config = merged;
   const states = new Map<string, SatelliteEnergyLayer2State>();
 
   function initSatellite(satId: string): void {

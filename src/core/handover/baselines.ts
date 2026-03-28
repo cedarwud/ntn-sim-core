@@ -55,8 +55,8 @@ export function createBaselineFromConfig(config: HandoverConfig): HandoverManage
       return createDapsManager({
         triggerThresholdDb: config.trigger_threshold_db,
         hysteresisDb: config.hysteresis_db,
-        preparationTimeSec: 0.5,
-        maxDualActiveSec: 2.0,
+        preparationTimeSec: config.daps_preparation_time_sec ?? 0.5,
+        maxDualActiveSec: config.daps_max_dual_active_sec ?? 2.0,
         pathSwitchThresholdDb: config.trigger_threshold_db,
         minElevationDeg: config.min_elevation_deg,
         packetDuplication: true,

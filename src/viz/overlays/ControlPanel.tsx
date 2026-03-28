@@ -5,7 +5,8 @@
  * so users can interact with controls.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import type { HandoverType } from '@/core/profiles/types';
 
 export interface ControlPanelProps {
   speed: number;
@@ -18,6 +19,18 @@ export interface ControlPanelProps {
   onShowLabelsToggle: () => void;
   replayMode?: boolean;
   onReplayToggle?: () => void;
+  showSinrChart?: boolean;
+  onShowSinrChartToggle?: () => void;
+  showHoLog?: boolean;
+  onShowHoLogToggle?: () => void;
+  showSinrCdf?: boolean;
+  onShowSinrCdfToggle?: () => void;
+  showElevScatter?: boolean;
+  onShowElevScatterToggle?: () => void;
+  onExportKpi?: () => void;
+  onOpenBatchKpi?: () => void;
+  hoTypeOverride?: HandoverType | null;
+  onHoTypeOverrideChange?: (type: HandoverType | null) => void;
 }
 
 const SPEEDS = [1, 5, 10, 20] as const;
@@ -103,11 +116,57 @@ export const ControlPanel = React.memo(function ControlPanel({
   onShowLabelsToggle,
   replayMode = false,
   onReplayToggle,
+  showSinrChart = true,
+  onShowSinrChartToggle,
+  showHoLog = false,
+  onShowHoLogToggle,
+  showSinrCdf = false,
+  onShowSinrCdfToggle,
+  showElevScatter = false,
+  onShowElevScatterToggle,
+  onExportKpi,
+  onOpenBatchKpi,
+  hoTypeOverride = null,
+  onHoTypeOverrideChange,
 }: ControlPanelProps) {
+  const handleHoTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    onHoTypeOverrideChange?.(val === '' ? null : val as HandoverType);
+  }, [onHoTypeOverrideChange]);
   return (
     <div style={containerStyle} data-testid="control-panel">
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
+
+      {/* HO Strategy override */}
+      {onHoTypeOverrideChange && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Strategy:</span>
+          <select
+            data-testid="ho-strategy-select"
+            value={hoTypeOverride ?? ''}
+            onChange={handleHoTypeChange}
+            style={{
+              background: '#222',
+              color: '#e0e0e0',
+              border: '1px solid #444',
+              borderRadius: 4,
+              padding: '2px 6px',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="">profile default</option>
+            <option value="a4-event">A4</option>
+            <option value="cho">CHO</option>
+            <option value="mc-ho">MC-HO</option>
+            <option value="daps">DAPS</option>
+            <option value="hard-ho">Hard-HO</option>
+          </select>
+        </div>
+      )}
 
       {/* Speed buttons */}
       <div style={rowStyle}>
@@ -151,6 +210,50 @@ export const ControlPanel = React.memo(function ControlPanel({
           />
           Show Labels
         </label>
+        {onShowSinrChartToggle && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-sinr-chart"
+              type="checkbox"
+              checked={showSinrChart}
+              onChange={onShowSinrChartToggle}
+            />
+            SINR Chart
+          </label>
+        )}
+        {onShowHoLogToggle && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-ho-log"
+              type="checkbox"
+              checked={showHoLog}
+              onChange={onShowHoLogToggle}
+            />
+            HO Log
+          </label>
+        )}
+        {onShowSinrCdfToggle && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-sinr-cdf"
+              type="checkbox"
+              checked={showSinrCdf}
+              onChange={onShowSinrCdfToggle}
+            />
+            SINR CDF
+          </label>
+        )}
+        {onShowElevScatterToggle && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-elev-scatter"
+              type="checkbox"
+              checked={showElevScatter}
+              onChange={onShowElevScatterToggle}
+            />
+            Elev Scatter
+          </label>
+        )}
       </div>
 
       {/* Replay mode */}
@@ -164,6 +267,32 @@ export const ControlPanel = React.memo(function ControlPanel({
           >
             {replayMode ? '⏺ Replay ON' : '⏺ Replay OFF'}
           </button>
+        </div>
+      )}
+
+      {/* KPI Export + Batch */}
+      {(onExportKpi || onOpenBatchKpi) && (
+        <div style={rowStyle}>
+          {onExportKpi && (
+            <button
+              data-testid="export-kpi"
+              style={btnBase}
+              onClick={onExportKpi}
+              title="Export current KPI as JSON + CSV"
+            >
+              Export KPI
+            </button>
+          )}
+          {onOpenBatchKpi && (
+            <button
+              data-testid="open-batch-kpi"
+              style={btnBase}
+              onClick={onOpenBatchKpi}
+              title="Run all profiles and compare KPIs"
+            >
+              Batch KPI
+            </button>
+          )}
         </div>
       )}
     </div>

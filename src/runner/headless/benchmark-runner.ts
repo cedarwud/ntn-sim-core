@@ -14,6 +14,7 @@ import type { KpiBundle } from '@/core/kpi/types';
 import type { RunArtifactBundle } from '@/core/trace/types';
 import { loadProfile, resolveProfile, buildWalkerConfig } from '@/core/profiles/loader';
 import { generateWalkerConstellation } from '@/core/orbit/walker';
+import { geoConfigToOrbitElements } from '@/core/orbit/geo-stationary';
 import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
 import { createSimEngine } from '@/core/engine';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
@@ -105,10 +106,16 @@ function buildElements(
   }
 
   // Synthetic: Walker constellation (A4: multi-shell via buildWalkerConfig)
-  const elements = generateWalkerConstellation(
+  const walkerElements = generateWalkerConstellation(
     buildWalkerConfig(profile, profile.timeControl.epochUtcMs),
   );
-  return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
+
+  // GEO fixed-position satellites (if defined)
+  const geoElements = profile.orbital.geoSatellites
+    ? geoConfigToOrbitElements(profile.orbital.geoSatellites, profile.timeControl.epochUtcMs)
+    : [];
+
+  return { elements: [...walkerElements, ...geoElements], epochUtcMs: profile.timeControl.epochUtcMs };
 }
 
 /**

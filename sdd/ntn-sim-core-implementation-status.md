@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 3.8.1
-**Date:** 2026-03-25
-**Status:** Current SDD Closure Complete — project-level final closure items are closed
+**Version:** 4.0.4
+**Date:** 2026-03-27
+**Status:** Closure-complete for the current enforced SDD set; `validate:stage` passing; no hardening IDs remain deferred
 
 ---
 
@@ -15,8 +15,10 @@
 | 2 | Channel + Handover + KPI | ✅ complete | FSPL, S/Ka-band SF/CL, beam gain, A3/A4/CHO/Timer-CHO/MC-HO/DAPS FSMs, 19 KPI metrics, per-interferer SINR, multi-UE (Phase A: shared serving) | — |
 | 3 | Multi-Beam + Energy L1 | ✅ complete | hex beam layout, FRF coloring + semantics, beam selection, EE/DPC, per-interferer SINR, slant-range θ_3dB, spherical off-axis, Ka-band SF tables, atmospheric loss, Tier 5 SR fading, `EarthMovingBeamLayer`, screenshot proof packs, `BeamInfoOverlay`, `HandoverLinkOverlay`, prepared/secondary continuity roles in snapshot-driven beam/link overlays, browser validation probe, automated `VAL-FV-005`/`006`/`007` | screenshot packs remain as supplementary evidence, but core Phase 3 visual gates are now browser-automated |
 | 4 | Real-Trace + Replay | ✅ complete | TLE/SGP4 loader, pass ranking, window curation modules, benchmark-runner TLE API, benchmark artifact `replayManifest`, persisted `replayArtifact`, frontend `useSimulation` TLE path, artifact-backed snapshot replay controller, deterministic curated-window `useReplay` flow, replay metadata exposed in HUD contract, real-trace screenshot proof, live/replay overlay parity on the snapshot path, automated `VAL-VIZ-001` / `VAL-RT-001` / `VAL-RT-002` / `VAL-CUR-001` / `VAL-FV-008` gates | — |
-| 5 | Beam Hopping + Energy L2 | ✅ complete | BH scheduler (4 generic strategies), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel, `EarthFixedCellLayer`, deterministic `bh-resource-energy-proof`, `BhExplainabilityPanel`, automated `VAL-FV-004` and `VAL-EXP-001` browser gates | paper-specific BH scheduler baselines remain a future donor-expansion track, not a closure blocker |
+| 5 | Beam Hopping + Energy L2 | ✅ complete | BH scheduler (6 strategies: round-robin, max-demand, power-aware, deterministic-fixed, proportional-fair, sinr-greedy), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel, `EarthFixedCellLayer`, deterministic `bh-resource-energy-proof`, `BhExplainabilityPanel`, automated `VAL-FV-004` and `VAL-EXP-001` browser gates | — |
 | 6 | DAPS/DC-Like | ✅ complete | DAPS dual-active FSM, engine dual-link path, benchmark comparison runner, `DapsSnapshot` in engine, dual-active beam viz, `case9-daps-baseline` profile, screenshot proof, truth-driven continuity link overlay, automated `VAL-FV-009` browser gate for both live and replay | — |
+
+Closure note: this table tracks current closure blockers. As of 2026-03-27, the previously deferred hardening IDs have either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure are now aligned.
 
 ---
 
@@ -30,7 +32,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 |---|---|---|
 | C1 | SINR interference uses serving link's path loss for all interferers | ✅ fixed (2026-03-23) |
 | C2 | CHO / MC-HO / Timer-CHO not implemented | ✅ fixed (2026-03-23) |
-| C3 | Single-UE model (multi-user KPIs meaningless) | ✅ fixed (2026-03-23, Phase A) |
+| C3 | Single-UE model (multi-user KPIs meaningless) | ✅ fixed (2026-03-23 Phase A; 2026-03-25 Phase B with independent HO) |
 
 ### Major (affects publication credibility)
 
@@ -56,6 +58,17 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | MS6 | Truth-driven beam/SINR explainability overlay | ✅ implemented (2026-03-25) — `BeamInfoOverlay.tsx`, SINR dB color-coded label + role tags (`SERVING` / `PREPARED` / `SECONDARY` / `N active`) from snapshot truth; wired into LiveLayer + ReplayLayer |
 | MS7 | Truth-driven handover/service link overlay | ✅ implemented (2026-03-25) — `HandoverLinkOverlay.tsx`, serving (solid cyan) + prepared (dashed orange) + secondary/DAPS dual-active links from `UE_ANCHOR` to satellite dome; wired into LiveLayer + ReplayLayer |
 
+### Post-Remediation Extensions (2026-03-27)
+
+| ID | Feature | Status |
+|---|---|---|
+| EXT-1 | MG1 Paper reproduction: 3 profiles + comparison script + results | ✅ (`sinr-elevation-reproduction`, `hobs-reproduction`, `timer-cho-reproduction`; `run-reproduction-comparison.ts`; `validate:reproduction`) |
+| EXT-2 | MG4 E-level golden cases E-5 through E-11 | ✅ (VAL-SINR-002-E, VAL-HO-003-E, VAL-DELAY-001-E, VAL-MOBILITY-001-E, VAL-REPRO-001-E, VAL-POLICY-001-E, VAL-DOPPLER-001-E) |
+| EXT-3 | MG2 RL pull-model: `getObservation()`/`applyAction()` on `SimEngine` | ✅ (cached observation every tick, external action queue, E-10 validated) |
+| EXT-4 | BH scheduler extensions: `proportional-fair` + `sinr-greedy` | ✅ (`scheduler.ts`; `bh-pf-baseline`, `bh-sinr-greedy-baseline` profiles) |
+| EXT-5 | Profile audit tooling: `scripts/audit-profiles.ts` 10-check suite | ✅ (13 profiles pass; added to `validate:stage`) |
+| EXT-6 | Doppler Tier 6 wired into engine SINR: Phase 2 + Phase 3 paths | ✅ (`tier6_doppler` flag, E-11 validates 2.6 dB degradation for S-band 30 kHz SCS) |
+
 ---
 
 ## 3. Document Status
@@ -63,7 +76,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | Document | Role | Status |
 |---|---|---|
 | `docs/architecture/ntn-sim-core-architecture-blueprint.md` | architecture blueprint | active |
-| `sdd/ntn-sim-core-sdd.md` | normative SDD | active, needs §9.2 Tier 5 and §9.3 CHO/MC-HO updates |
+| `sdd/ntn-sim-core-sdd.md` | normative SDD | active (v1.1.0) — §9.2 Tier 6 Doppler wired; §9.7 RL pull-model engine integration updated |
 | `sdd/ntn-sim-core-profile-baselines.md` | detailed baseline companion | active, case9 altitude aligned at 600km |
 | `sdd/ntn-sim-core-roadmap.md` | implementation plan | active, Phase 3 to Phase 6 frontend closure rules are binding |
 | `sdd/ntn-sim-core-validation-matrix.md` | gate definition | active, F/E/Browser passing for current SDD set |
@@ -71,12 +84,13 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `sdd/ntn-sim-core-development-constraints.md` | implementation-time prohibitions | active |
 | `sdd/ntn-sim-core-acceptance-gates.md` | acceptance and claim gates | active |
 | `sdd/ntn-sim-core-assumption-policy.md` | assumption governance | active |
-| `sdd/ntn-sim-core-academic-remediation.md` | academic gap analysis and remediation plan | **new** |
+| `sdd/ntn-sim-core-academic-remediation.md` | academic gap analysis and remediation plan | active closure record (v1.1.0) |
 | `sdd/ntn-sim-core-paper-family-matrix.md` | paper-family clustering and claim ceilings | active (v1.0) |
 | `sdd/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | active (v1.0) |
 | `sdd/ntn-sim-core-reproduction-protocol.md` | reproduction ladder, artifact policy, tolerance status | active (v1.0) |
-| `sdd/ntn-sim-core-reproduction-targets.md` | 3 reference paper reproduction targets | active (v0.2) |
-| `sdd/ntn-sim-core-final-closure-checklist.md` | final closure record for project-level completion | active (v0.3.0) |
+| `sdd/ntn-sim-core-reproduction-targets.md` | 3 reference paper reproduction targets | active (v0.3.0) — dedicated reproduction profiles landed |
+| `sdd/ntn-sim-core-reproduction-results.md` | current reproduction result snapshot | active (v0.1.0) — review state, all tolerances still provisional |
+| `sdd/ntn-sim-core-final-closure-checklist.md` | final closure record for project-level completion | active (v0.3.2) |
 | `sdd/ntn-sim-core-fc1-replay-closure-checklist.md` | replay closure record for the landed FC-1 pass | active (v0.2) |
 | `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` | frontend beam-rendering contract + implementation checklist | active (v0.3.2) |
 | `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | active (v0.3.1) |
@@ -89,7 +103,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 
 ## 4. File Inventory
 
-### `src/core/` — 60 modules
+### `src/core/` — current inventory
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
@@ -99,7 +113,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `orbit` | 9 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `index.ts` |
 | `channel` | 9 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `small-scale-fading.ts`, `doppler.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
 | `handover` | 7 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `types.ts`, `index.ts` |
-| `kpi` | 3 | `accumulator.ts`, `types.ts`, `index.ts` |
+| `kpi` | 4 | `accumulator.ts`, `recompute.ts`, `types.ts`, `index.ts` |
 | `beam` | 7 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `frequency-reuse.ts`, `types.ts`, `index.ts` |
 | `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
 | `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
@@ -107,7 +121,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `policy` | 2 | `types.ts`, `index.ts` |
 | root | 1 | `engine.ts` |
 
-### `src/runner/` — 11 modules
+### `src/runner/` — current inventory
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
@@ -115,17 +129,17 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `replay` | 3 | `controller.ts` (snapshot replay + legacy artifact path), `types.ts`, `index.ts` |
 | `curation` | 3 | `pass-ranker.ts`, `window-selector.ts`, `index.ts` |
 
-### `src/viz/` — 18 modules
+### `src/viz/` — current inventory
 
-### `src/app/` — 4 modules
+### `src/app/` — current inventory
 
-### `scripts/` — 11 validation scripts
+### `scripts/` — current validation + utility scripts
 
 ---
 
 ## 5. Validation Gate Status
 
-### Passing (structural + formula-level, verified 2026-03-25)
+### Passing (active structural + runtime gates, verified 2026-03-27)
 
 | VAL ID | Phase | Status | Note |
 |---|---|---|---|
@@ -134,10 +148,14 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-CONF-001 | 0 | ✅ pass | profile serialization |
 | VAL-TRACE-001 | 0 | ✅ pass | trace contracts exist |
 | VAL-RNG-001 | 1 | ✅ pass | seed reproducibility (formula-level) |
+| VAL-ORB-001 | 1 | ✅ pass | `validate-orbit-parity.ts` proves synthetic live orbit parity between browser `useSimulation` and headless interactive reference on access + multibeam profiles |
 | VAL-ORB-002 | 1 | ✅ pass | slant range / orbital mechanics |
 | VAL-CHAN-001 | 2 | ✅ pass | FSPL formula |
 | VAL-CHAN-002 | 2 | ✅ pass | 3GPP SF/CL S-band table |
+| VAL-BEAM-001 | 2 | ✅ pass | `validate-visual-browser.ts` proves earth-moving beam targets obey the donor-aligned footprint geometry contract and keeps `earthMovingBeamLayer` validation output aligned with the rendered candidate/live beam set |
 | VAL-HO-001 | 2 | ✅ pass | A4 deterministic trigger (formula-level) |
+| VAL-KPI-001 | 2 | ✅ pass | `validate-replay-manifest.ts` proves full-run headless KPI parity against snapshot recomputation and replay-window KPI parity against the authoritative sliced window |
+| VAL-MB-001 | 3 | ✅ pass | `validate-multibeam-gating.ts` proves deterministic active-beam rotation and deterministic service loss for beam-center UEs when their beam is inactive |
 | VAL-EE-001 | 3 | ✅ pass | energy L1 formula |
 | VAL-BH-001 | 5 | ✅ pass | BH slot indexing |
 | VAL-EE-002 | 5 | ✅ pass | battery depletion formula |
@@ -147,7 +165,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 
 **Note:** Formula-level (`-F`) tests pass. Engine-level (`-E`) golden cases also pass, and `npm run validate:stage` succeeds using `node --import tsx` for the golden-engine step. Browser-level (`-V`) closure evidence is automated for the current explainability/continuity package; screenshot packs remain supplementary evidence.
 
-### Blocked by code bugs
+### Remediation-dependent gates now passing
 
 | VAL ID | Phase | Status | Blocker |
 |---|---|---|---|
@@ -156,7 +174,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-GOLDEN-001 | 2 | ✅ pass | C1 fixed; golden case SINR now uses per-interferer path loss |
 | VAL-GOLDEN-002 | 3 | ✅ pass | C1 + M3 + M4 all fixed |
 
-### Passing with manual visual evidence
+### Legacy manual visual evidence (supplementary to browser automation)
 
 | VAL ID | Phase | Status | Note |
 |---|---|---|---|
@@ -169,22 +187,11 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | VAL-FV-008 | 4 | ✅ browser pass | `validate-visual-browser.ts` verifies replay-mode overlay/link parity and replay metadata visibility |
 | VAL-FV-009 | 6 | ✅ browser pass | `validate-visual-browser.ts` verifies `dapsSource` / `dapsTarget` dual-active links in live mode and preserves them in replay via observed truth |
 
-### Partial / Deferred (need integration, curation, or automation)
+### Deferred hardening IDs
 
-| VAL ID | Phase | Status | Needs |
-|---|---|---|---|
-| VAL-ORB-001 | 1 | deferred | headless vs frontend orbit diff |
-| VAL-VIZ-001 | 1 | ✅ pass | `validate-replay-manifest.ts` plus browser replay proof verify replay ordering, time offsets, and artifact-backed hydration |
-| VAL-BEAM-001 | 2 | deferred | beam footprint geometry |
-| VAL-KPI-001 | 2 | deferred | headless vs replay KPI comparison |
-| VAL-MB-001 | 3 | deferred | active-beam gating determinism |
-| VAL-FV-005 | 3 | ✅ browser pass | `validate-visual-browser.ts` verifies live HOBS beam membership stays inside the visible set and advances with observer-sky time |
-| VAL-RT-001 | 4 | ✅ pass | `validate-replay-manifest.ts` verifies `real-trace-validation` artifact-backed replay/controller identity |
-| VAL-RT-002 | 4 | ✅ pass | `validate-replay-manifest.ts` verifies replay-manifest reconstruction and artifact-backed initial snapshot parity |
-| VAL-CUR-001 | 4 | ✅ pass | deterministic curation is recorded in replay manifest + replay artifact and verified by `validate-replay-manifest.ts` |
-| VAL-EXP-001 | 5 | ✅ browser pass | `validate-visual-browser.ts` verifies low-SINR truth plus inactive-beam explainability via `BhExplainabilityPanel` on `bh-resource-energy-proof` |
+None remain. `VAL-ORB-001`, `VAL-KPI-001`, `VAL-MB-001`, and `VAL-BEAM-001` are all now covered by the standard validation chain.
 
-### Defined but not yet passing (remediation gates, added to validation-matrix.md)
+### Remediation gates added historically, now passing
 
 | VAL ID | Category | Check | Blocker |
 |---|---|---|---|
@@ -206,7 +213,7 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 2. ~~**CHO/MC-HO missing (C2):**~~ Fixed 2026-03-23. CHO, Timer-CHO, and MC-HO implemented in cho.ts and mc-ho.ts with proper FSMs and event traces.
 3. ~~**Single-UE only (C3):**~~ Fixed 2026-03-23/25. Phase A shared-serving and Phase B independent per-UE handover are both present.
 4. ~~**Ka-band channel wrong (M3+M4):**~~ Fixed 2026-03-23. Ka-band shadow fading tables added; atmospheric loss model implemented for frequencies ≥10 GHz.
-5. **Real-trace integration baseline is closed for the current SDD set:** frontend `useSimulation` and `useReplay` can both build deterministic SGP4/showcase paths, replay manifests and replay artifacts are emitted in the benchmark artifact path, and end-to-end replay identity is now validated by `validate-replay-manifest.ts`.
+5. **Real-trace integration baseline is closed for the current SDD set:** frontend `useSimulation` and `useReplay` can both build deterministic SGP4/showcase paths, replay manifests and replay artifacts are emitted in the benchmark artifact path, and `validate-replay-manifest.ts` now validates both replay identity and snapshot-based KPI parity.
 6. **Replay de-scope remains explicit:** snapshot replay used by `useReplay` is the authoritative frontend path; the legacy artifact-bundle `createReplayController()` path is retained only as an explicit compatibility/error boundary, not as a second replay family.
 7. **Beam visualization baseline is landed:** `EarthMovingBeamLayer` and `EarthFixedCellLayer` are connected in `SceneShell`; `BeamFootprintLayer` has been deleted.
 8. **BH research donor mapping remains broader than the proof path:** the deterministic `bh-resource-energy-proof` closes current SDD proof requirements, but future paper-specific BH scheduler families are still a donor-integration extension rather than a closure blocker.

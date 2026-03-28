@@ -12,6 +12,7 @@ export interface ChannelResult {
   fsplDb: number;
   shadowFadingDb: number;
   clutterLossDb: number;
+  implementationLossDb: number;
   beamGainDb: number;
   atmosphericDb: number;
   /** Tier 5: small-scale fading in dB (Shadowed-Rician). 0 if disabled. */
@@ -43,35 +44,47 @@ export interface BeamGainInput {
   slantRangeKm?: number;
 }
 
-/** Per-interferer channel parameters for SINR computation. */
+/**
+ * Per-interferer pre-computed received power for SINR computation.
+ *
+ * Use ChannelResult.rxPowerDbm from computeLinkBudget() directly.
+ * This ensures all enabled channel tiers (FSPL, beam gain, atmospheric,
+ * fading, etc.) are included symmetrically with the serving link.
+ */
 export interface InterferingSignal {
-  beamGainDb: number;
-  pathLossDb: number;
-  shadowFadingDb: number;
-  clutterLossDb: number;
+  /** Pre-computed received power in dBm (= txEirp − totalPathLossDb).
+   *  Includes beam gain and all enabled tiers. */
+  rxPowerDbm: number;
 }
 
-/** Options for SINR computation. */
+/**
+ * Options for SINR computation.
+ *
+ * Both serving and interfering powers must come from computeLinkBudget()
+ * so that all enabled channel tiers are included in the SINR calculation.
+ */
 export interface SinrComputeOptions {
-  servingBeamGainDb: number;
-  servingPathLossDb: number;
-  servingShadowFadingDb: number;
-  servingClutterLossDb: number;
-  txEirpDbm: number;
+  /** Pre-computed serving link received power in dBm (ChannelResult.rxPowerDbm). */
+  servingRxPowerDbm: number;
   noisePowerDbm: number;
-  /** Per-interferer channel data. Each interferer uses its own path loss. */
+  /** Per-interferer pre-computed received powers. */
   interferingSignals: InterferingSignal[];
 }
 
 /** Options for link-budget computation. */
+export type LargeScaleModel = '3gpp-baseline' | '3gpp-extended';
+export type DeploymentEnvironment = 'rural' | 'suburban' | 'dense-urban';
+
 export interface LinkBudgetOptions {
   distanceKm: number;
   frequencyGhz: number;
   txEirpDbm: number;
   elevationDeg: number;
-  environment: 'suburban';
+  environment: DeploymentEnvironment;
+  largeScaleModel?: LargeScaleModel;
   beamGainInput: BeamGainInput | null;
   noisePowerDbm: number;
+  implementationLossDb?: number;
   /** Channel tier enable flags. */
   tier1LargeScale: boolean;
   tier2Clutter: boolean;

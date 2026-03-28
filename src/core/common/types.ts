@@ -32,6 +32,13 @@ export interface SourceReference {
   id: string;
   /** Human-readable note. */
   note?: string;
+  /**
+   * Optional parameter-level locator for fine-grained provenance.
+   * Format: "<configSection>.<fieldName>" e.g. "rf.frequency_ghz", "handover.ttt_ms".
+   * When set, allows validate:trace to check this specific parameter's source.
+   * Omit for profile-level (whole-profile) source references.
+   */
+  parameterPath?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +171,23 @@ export type ContinuityState =
   | 'post-ho';
 
 /**
+ * Handover event entry for the HO event log overlay.
+ * Emitted per tick — overlays accumulate them into a running log.
+ */
+export interface HoLogEntry {
+  timeSec: number;
+  /** 'complete' | 'fail' | 'cho-execute' | 'mc-ho-dual-end' | 'rlf-declared' */
+  type: string;
+  sourceSatId: string | null;
+  targetSatId: string | null;
+  /** SINR at source at time of trigger (dB). Null if not available. */
+  sinrDb: number | null;
+  /** Estimated interruption time (ms). Null for non-complete events. */
+  interruptionMs: number | null;
+  ueId: string;
+}
+
+/**
  * A single simulation tick output.
  * This is the ONLY interface viz may consume from core.
  */
@@ -178,6 +202,8 @@ export interface SimulationSnapshot {
   bhSlot?: BhSlotSnapshot;
   /** DAPS state (daps handover type only, non-idle phases). */
   daps?: DapsSnapshot;
+  /** HO events that occurred this tick (may be empty). */
+  recentHoEvents?: HoLogEntry[];
 }
 
 /** Per-beam snapshot for visualization (SDD §8, frontend-beam-visual-sdd §7). */
@@ -233,6 +259,6 @@ export interface UeState {
   secondaryBeamId?: string | null;
   /** Truth-driven continuity state for overlays. */
   continuityState?: ContinuityState;
-  /** Serving link SINR in dB (null if unserved). Truth from engine — not recomputed in frontend. */
+  /** Per-UE serving SINR truth in dB (null if unserved). Emitted by engine, never recomputed in frontend. */
   sinrDb: number | null;
 }

@@ -1,8 +1,8 @@
 # NTN Sim Core — Final Closure Checklist
 
-**Version:** 0.3.0  
-**Date:** 2026-03-25  
-**Status:** Closed Companion — all project-level closure items are closed (2026-03-25)
+**Version:** 0.3.2  
+**Date:** 2026-03-27  
+**Status:** Closed Companion — all project-level closure items and hardening IDs are closed for the current enforced SDD set
 
 ---
 
@@ -63,7 +63,7 @@ It is a closure companion that records the 3 closure buckets and their final dis
 **Closure evidence**
 
 1. `validate-visual-browser.ts` now runs in a real browser via `playwright-core` + local Chrome and is part of `validate:stage`.
-2. `VAL-FV-005` through `VAL-FV-009` are now covered by automated browser-visible checks using the frontend validation probe.
+2. `VAL-BEAM-001` and `VAL-FV-005` through `VAL-FV-009` are now covered by automated browser-visible checks using the frontend validation probe.
 3. overlay/link validation remains truth-driven and non-authoritative; the browser probe reads snapshot-driven renderer reports and does not recompute KPI values.
 
 **What remains out of scope**
@@ -74,10 +74,11 @@ It is a closure companion that records the 3 closure buckets and their final dis
 **Primary gates**
 
 1. `VAL-FV-005`
-2. `VAL-FV-006`
-3. `VAL-FV-007`
-4. `VAL-FV-008`
-5. `VAL-FV-009`
+2. `VAL-BEAM-001`
+3. `VAL-FV-006`
+4. `VAL-FV-007`
+5. `VAL-FV-008`
+6. `VAL-FV-009`
 
 ### FC-3 Phase 5/6 Proof Closure — ✅ closed (2026-03-25)
 
@@ -108,8 +109,9 @@ It is a closure companion that records the 3 closure buckets and their final dis
 
 This condition is now satisfied.
 
-`ntn-sim-core` may now be described as "fully complete against the current SDD set" because:
+`ntn-sim-core` may now be described as "fully complete against the current enforced SDD set" because:
 
 1. `FC-1`, `FC-2`, and `FC-3` are all closed;
 2. replay identity/parity is validated through the saved replay-artifact path;
-3. `ntn-sim-core-implementation-status.md`, `ntn-sim-core-validation-matrix.md`, and the frontend companion docs are expected to reflect the closed project-level state.
+3. `ntn-sim-core-implementation-status.md`, `ntn-sim-core-validation-matrix.md`, and the frontend companion docs are expected to reflect the closed project-level state;
+4. no deferred hardening IDs remain in the current enforced closure set.

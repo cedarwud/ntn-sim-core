@@ -43,6 +43,7 @@ export function generateWalkerConstellation(config: WalkerConfig): OrbitElement[
           id: `${shell.id}-P${p}-S${s}`,
           shellId: shell.id,
           altitudeKm: shell.altitudeKm,
+          orbitType: shell.orbitType ?? 'leo',
           epochUtcMs: config.epochUtcMs,
           eccentricity: 0.0001,
           inclinationRad: incRad,

@@ -10,7 +10,7 @@
  *   - Source tiers: per-module (see channel/, handover/, kpi/, beam/, energy/)
  */
 
-import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, BhSlotSnapshot, DapsSnapshot, UeState } from './common/types';
+import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, BhSlotSnapshot, DapsSnapshot, UeState, HoLogEntry } from './common/types';
 import { createRng } from './common/types';
 import type { Policy, PolicyObservation } from './policy/types';
 import type { TrajectoryCache, TrajectorySample } from './orbit/types';
@@ -21,6 +21,7 @@ import { getActivePassesAt, interpolatePass } from './orbit/trajectory-cache';
 import { computeLinkBudget } from './channel/link-budget';
 import { computeSinr } from './channel/sinr';
 import { computeOffAxisAngle, computeBeamGain } from './channel/beam-gain';
+import { computeDopplerShiftHz, estimateRadialVelocityKmS, dopplerSinrDegradationDb } from './channel/doppler';
 import type { InterferingSignal } from './channel/types';
 import { createBaselineFromConfig } from './handover/baselines';
 import { createKpiAccumulator } from './kpi/accumulator';
@@ -34,7 +35,7 @@ import type { TrafficConfig } from './traffic/generator';
 import { generateHexagonalBeamLayout } from './beam/layout';
 import { selectBeamForUe } from './beam/selection';
 import type { SatelliteBeamLayout, BeamSelectionResult } from './beam/types';
-import { createEnergyLayer1 } from './energy/layer1';
+import { createEnergyLayer1, DEFAULT_ENERGY_LAYER1_CONFIG } from './energy/layer1';
 import type { EnergyLayer1Manager } from './energy/layer1';
 import type { EnergyEfficiencyMetrics, EnergyLayer1Config } from './energy/types';
 
@@ -78,6 +79,17 @@ export interface SimEngine {
   getEnergyLayer2States(): SatelliteEnergyLayer2State[];
   /** Get current BH slot decision, or null if BH scheduler not active. */
   getBhSlotDecision(): BhSlotDecision | null;
+  /**
+   * MG2 / VAL-POLICY-001: Return the policy observation built during the last tick.
+   * Returns null before the first tick. Used by external pull-model RL controllers.
+   */
+  getObservation(): import('./policy/types').PolicyObservation | null;
+  /**
+   * MG2 / VAL-POLICY-001: Queue an external policy action to be applied on the next tick.
+   * Overrides any injected `policy.selectAction()` for that tick.
+   * Pass null to clear any pending action.
+   */
+  applyAction(action: import('./policy/types').PolicyAction | null): void;
   /** Reset all state. */
   reset(): void;
 }
@@ -134,6 +146,28 @@ function mwToDbm(mw: number): number {
   return 10 * Math.log10(mw);
 }
 
+/**
+ * Compute Tier 6 Doppler SINR degradation in dB.
+ * Uses elevation angle to estimate radial velocity, then ICI power formula.
+ * Returns 0 if Tier 6 is disabled in profile.
+ */
+function computeDopplerDegradationDb(
+  elevationDeg: number,
+  altitudeKm: number,
+  frequencyGhz: number,
+  tier6Enabled: boolean,
+  subcarrierSpacingKhz: number = 30,
+): number {
+  if (!tier6Enabled) return 0;
+  const GM_KM3_S2 = 398600.4418;
+  const R_E_KM = 6371;
+  const orbitalVelocityKmS = Math.sqrt(GM_KM3_S2 / (R_E_KM + altitudeKm));
+  // isApproaching: sign does not affect magnitude (dopplerSinrDegradationDb uses abs)
+  const radialVelocityKmS = estimateRadialVelocityKmS(orbitalVelocityKmS, elevationDeg, true);
+  const dopplerHz = computeDopplerShiftHz(radialVelocityKmS, frequencyGhz);
+  return dopplerSinrDegradationDb(dopplerHz, subcarrierSpacingKhz);
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -144,6 +178,15 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // Derived RF parameters (computed once)
   const txEirp = eirpDbm(profile.rf.eirp_density_dbw_per_mhz, profile.rf.bandwidth_mhz);
   const noiseDbm = noisePowerDbm(profile.rf.noise_temperature_k, profile.rf.bandwidth_mhz, profile.rf.noise_figure_db);
+  const deploymentEnvironment = profile.channel.deployment_environment ?? 'suburban';
+  const largeScaleModel =
+    profile.channel.large_scale_model ??
+    (profile.channel.tier4_atmospheric ? '3gpp-extended' : '3gpp-baseline');
+  const implementationLossDb = profile.rf.implementation_loss_db ?? 0;
+
+  // MG2 / VAL-POLICY-001: pull-model RL interface state
+  let lastObservation: import('./policy/types').PolicyObservation | null = null;
+  let pendingExternalAction: import('./policy/types').PolicyAction | null = null;
 
   // Seeded RNG for shadow fading
   let rng = createRng(profile.seed);
@@ -217,14 +260,15 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // Energy layer 1 (optional)
   let energyManager: EnergyLayer1Manager | null = null;
   if (profile.energy.layer1_enabled) {
-    const energyConfig: EnergyLayer1Config = {
-      txPowerPerBeamDbm: 43, // assumption-backed: PAP-2024-HOBS
-      activeBeamPowerW: 20, // PAP-2025-SMASH-MADQL
-      idlePowerW: 5, // PAP-2025-SMASH-MADQL
-      offBeamPowerW: 0.1, // assumption-backed
-      dpcEnabled: false,
-      dpcTargetSinrDb: 3,
-    };
+    // Use DEFAULT_ENERGY_LAYER1_CONFIG (txPowerPerBeamDbm = 40 dBm = spec P1 per PAP-2025-MAAC-BHPOWER [S10]).
+    //
+    // NOTE: profile.rf.max_tx_power_dbm is intentionally NOT wired here.
+    // max_tx_power_dbm represents the total satellite TX power budget (used for
+    // power-aware BH scheduling via bh_power_budget_w); it is NOT the per-beam
+    // TX power. Directly substituting it as txPowerPerBeamDbm would be a
+    // unit/semantic error (e.g. HOBS max_tx_power_dbm=50 dBm = 100 W per beam,
+    // physically implausible). See spec GAP-7 and ASSUME-ENERGY-001.
+    const energyConfig: EnergyLayer1Config = { ...DEFAULT_ENERGY_LAYER1_CONFIG };
     energyManager = createEnergyLayer1(energyConfig);
   }
 
@@ -275,6 +319,32 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   /** Set of satIds already initialized in L2. */
   const l2InitializedSats = new Set<string>();
 
+  // Non-LEO satellite IDs: excluded from handover candidate selection.
+  // GEO/MEO sats are visible for SINR/display but do not participate in HO.
+  const nonLeoSatIds = new Set<string>();
+  if (profile.orbital.geoSatellites) {
+    for (const geo of profile.orbital.geoSatellites) nonLeoSatIds.add(geo.id);
+  }
+  if (profile.orbital.extra_shells) {
+    for (const shell of profile.orbital.extra_shells) {
+      if (shell.orbitType && shell.orbitType !== 'leo') {
+        for (let p = 0; p < shell.num_planes; p++) {
+          for (let s = 0; s < shell.sats_per_plane; s++) {
+            nonLeoSatIds.add(`${shell.id}-P${p}-S${s}`);
+          }
+        }
+      }
+    }
+  }
+  if (profile.orbital.orbitType && profile.orbital.orbitType !== 'leo') {
+    // Primary shell is non-LEO — all its sats excluded from HO
+    for (let p = 0; p < profile.orbital.num_planes; p++) {
+      for (let s = 0; s < profile.orbital.sats_per_plane; s++) {
+        nonLeoSatIds.add(`${profile.id}-shell-P${p}-S${s}`);
+      }
+    }
+  }
+
   /** Tick step size tracking for L2. */
   let lastTickTimeSec: number | null = null;
 
@@ -292,7 +362,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       frequencyGhz: profile.rf.frequency_ghz,
       txEirpDbm: txEirp,
       elevationDeg: servingSample.elevationDeg,
-      environment: 'suburban',
+      environment: deploymentEnvironment,
+      largeScaleModel,
       beamGainInput: profile.channel.tier3_beam_gain
         ? {
             offAxisAngleDeg: 0, // UE at beam center for serving
@@ -304,6 +375,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           }
         : null,
       noisePowerDbm: noiseDbm,
+      implementationLossDb,
       tier1LargeScale: profile.channel.tier1_large_scale,
       tier2Clutter: profile.channel.tier2_clutter,
       tier3BeamGain: profile.channel.tier3_beam_gain,
@@ -321,7 +393,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         frequencyGhz: profile.rf.frequency_ghz,
         txEirpDbm: txEirp,
         elevationDeg: iSample.elevationDeg,
-        environment: 'suburban',
+        environment: deploymentEnvironment,
+        largeScaleModel,
         beamGainInput: profile.channel.tier3_beam_gain
           ? {
               offAxisAngleDeg: computeOffAxisAngle(
@@ -337,33 +410,37 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             }
           : null,
         noisePowerDbm: noiseDbm,
-        tier1LargeScale: false, // deterministic for interference
-        tier2Clutter: false,
+        implementationLossDb,
+        tier1LargeScale: profile.channel.tier1_large_scale,
+        tier2Clutter: profile.channel.tier2_clutter,
         tier3BeamGain: profile.channel.tier3_beam_gain,
-        tier4Atmospheric: false,
-        rngNext: null,
-        isLos: true,
+        tier4Atmospheric: profile.channel.tier4_atmospheric,
+        tier5Fading: profile.channel.tier5_fading,
+        rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
+        isLos: iSample.elevationDeg >= 20,
       });
       interferingSignals.push({
-        beamGainDb: iChannel.beamGainDb,
-        pathLossDb: iChannel.fsplDb,
-        shadowFadingDb: iChannel.shadowFadingDb,
-        clutterLossDb: iChannel.clutterLossDb,
+        rxPowerDbm: iChannel.rxPowerDbm,
       });
     }
 
-    // Compute SINR with per-interferer channel data
+    // Compute SINR — use rxPowerDbm from full link budget (all enabled tiers)
     const sinrResult = computeSinr({
-      servingBeamGainDb: servingChannel.beamGainDb,
-      servingPathLossDb: servingChannel.fsplDb,
-      servingShadowFadingDb: servingChannel.shadowFadingDb,
-      servingClutterLossDb: servingChannel.clutterLossDb,
-      txEirpDbm: txEirp,
+      servingRxPowerDbm: servingChannel.rxPowerDbm,
       noisePowerDbm: noiseDbm,
       interferingSignals,
     });
 
-    return sinrResult.sinrDb;
+    // Tier 6 Doppler ICI degradation (P1 fix: wire Doppler into SINR path)
+    const dopplerLossDb = computeDopplerDegradationDb(
+      servingSample.elevationDeg,
+      servingSample.altKm,
+      profile.rf.frequency_ghz,
+      profile.channel.tier6_doppler ?? false,
+      profile.channel.subcarrier_spacing_khz ?? 30,
+    );
+
+    return sinrResult.sinrDb - dopplerLossDb;
   }
 
   // ---------------------------------------------------------------------------
@@ -388,7 +465,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       frequencyGhz: profile.rf.frequency_ghz,
       txEirpDbm: txEirp,
       elevationDeg: servingSample.elevationDeg,
-      environment: 'suburban',
+      environment: deploymentEnvironment,
+      largeScaleModel,
       beamGainInput: profile.channel.tier3_beam_gain
         ? {
             offAxisAngleDeg: servingSelection.offAxisAngleDeg,
@@ -400,6 +478,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           }
         : null,
       noisePowerDbm: noiseDbm,
+      implementationLossDb,
       tier1LargeScale: profile.channel.tier1_large_scale,
       tier2Clutter: profile.channel.tier2_clutter,
       tier3BeamGain: profile.channel.tier3_beam_gain,
@@ -429,7 +508,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           frequencyGhz: profile.rf.frequency_ghz,
           txEirpDbm: txEirp,
           elevationDeg: servingSample.elevationDeg,
-          environment: 'suburban',
+          environment: deploymentEnvironment,
+          largeScaleModel,
           beamGainInput: {
             offAxisAngleDeg: beam.offAxisAngleDeg,
             model: profile.antenna.model,
@@ -439,18 +519,17 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             slantRangeKm: servingSample.rangeKm,
           },
           noisePowerDbm: noiseDbm,
-          tier1LargeScale: false,
-          tier2Clutter: false,
+          implementationLossDb,
+          tier1LargeScale: profile.channel.tier1_large_scale,
+          tier2Clutter: profile.channel.tier2_clutter,
           tier3BeamGain: true,
-          tier4Atmospheric: false,
-          rngNext: null,
-          isLos: true,
+          tier4Atmospheric: profile.channel.tier4_atmospheric,
+          tier5Fading: profile.channel.tier5_fading,
+          rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
+          isLos: servingSample.elevationDeg >= 20,
         });
         interferingSignals.push({
-          beamGainDb: iChannel.beamGainDb,
-          pathLossDb: iChannel.fsplDb,
-          shadowFadingDb: iChannel.shadowFadingDb,
-          clutterLossDb: iChannel.clutterLossDb,
+          rxPowerDbm: iChannel.rxPowerDbm,
         });
       }
 
@@ -467,7 +546,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           frequencyGhz: profile.rf.frequency_ghz,
           txEirpDbm: txEirp,
           elevationDeg: other.sample.elevationDeg,
-          environment: 'suburban',
+          environment: deploymentEnvironment,
+          largeScaleModel,
           beamGainInput: {
             offAxisAngleDeg: crossOffAxisDeg,
             model: profile.antenna.model,
@@ -477,33 +557,37 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             slantRangeKm: other.sample.rangeKm,
           },
           noisePowerDbm: noiseDbm,
-          tier1LargeScale: false,
-          tier2Clutter: false,
+          implementationLossDb,
+          tier1LargeScale: profile.channel.tier1_large_scale,
+          tier2Clutter: profile.channel.tier2_clutter,
           tier3BeamGain: true,
-          tier4Atmospheric: false,
-          rngNext: null,
-          isLos: true,
+          tier4Atmospheric: profile.channel.tier4_atmospheric,
+          tier5Fading: profile.channel.tier5_fading,
+          rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
+          isLos: other.sample.elevationDeg >= 20,
         });
         interferingSignals.push({
-          beamGainDb: iChannel.beamGainDb,
-          pathLossDb: iChannel.fsplDb,
-          shadowFadingDb: iChannel.shadowFadingDb,
-          clutterLossDb: iChannel.clutterLossDb,
+          rxPowerDbm: iChannel.rxPowerDbm,
         });
       }
     }
 
     const sinrResult = computeSinr({
-      servingBeamGainDb: servingChannel.beamGainDb,
-      servingPathLossDb: servingChannel.fsplDb,
-      servingShadowFadingDb: servingChannel.shadowFadingDb,
-      servingClutterLossDb: servingChannel.clutterLossDb,
-      txEirpDbm: txEirp,
+      servingRxPowerDbm: servingChannel.rxPowerDbm,
       noisePowerDbm: noiseDbm,
       interferingSignals,
     });
 
-    return sinrResult.sinrDb;
+    // Tier 6 Doppler ICI degradation (P1 fix: wire Doppler into SINR path)
+    const dopplerLossDb3 = computeDopplerDegradationDb(
+      servingSample.elevationDeg,
+      servingSample.altKm,
+      profile.rf.frequency_ghz,
+      profile.channel.tier6_doppler ?? false,
+      profile.channel.subcarrier_spacing_khz ?? 30,
+    );
+
+    return sinrResult.sinrDb - dopplerLossDb3;
   }
 
   // ---------------------------------------------------------------------------
@@ -518,20 +602,42 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
   function computeUeSinrFromSatEntry(
     ue: UePosition,
-    satEntry: { satId: string; sample: TrajectorySample; sinrDb: number; bestBeamId: string },
-  ): { sinrDb: number; beamId: string } {
+    satEntry: {
+      satId: string;
+      sample: TrajectorySample;
+      sinrDb: number;
+      bestBeamId: string;
+      referenceOffAxisAngleDeg: number;
+    },
+  ): { sinrDb: number; beamId: string } | null {
     if (ue.id === PRIMARY_UE_ID) {
       // Primary UE at beam center — use pre-computed SINR directly
       return { sinrDb: satEntry.sinrDb, beamId: satEntry.bestBeamId };
     }
 
     const slantRangeKm = satEntry.sample.rangeKm;
+    const referenceGainDb = computeBeamGain({
+      offAxisAngleDeg: satEntry.referenceOffAxisAngleDeg,
+      model: profile.antenna.model,
+      peakGainDbi: profile.antenna.peak_gain_dbi,
+      beamDiameterKm: profile.antenna.beam_diameter_km,
+      altitudeKm: satEntry.sample.altKm,
+      slantRangeKm,
+    });
+    const activeBeamIds = lastBhSlotDecision?.activeBeamsPerSat.get(satEntry.satId);
+    if (lastBhSlotDecision && (!activeBeamIds || activeBeamIds.length === 0)) {
+      return null;
+    }
 
     if (isMultiBeam && profile.channel.tier3_beam_gain) {
       // Multi-beam: select closest beam for UE's ground offset
       const layout = getOrCreateBeamLayout(satEntry.satId, satEntry.sample.altKm);
       const ueSelection = selectBeamForUe(
-        layout, ue.offsetEastKm, ue.offsetNorthKm, profile.antenna,
+        layout,
+        ue.offsetEastKm,
+        ue.offsetNorthKm,
+        profile.antenna,
+        activeBeamIds,
       );
       // Gain at UE position relative to the new best beam boresight
       const gainDb = computeBeamGain({
@@ -542,7 +648,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         altitudeKm: satEntry.sample.altKm,
         slantRangeKm,
       });
-      return { sinrDb: satEntry.sinrDb + gainDb, beamId: ueSelection.bestBeamId };
+      return {
+        sinrDb: satEntry.sinrDb + (gainDb - referenceGainDb),
+        beamId: ueSelection.bestBeamId,
+      };
     }
 
     // Single-beam: radial beam gain roll-off from beam center
@@ -555,7 +664,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       altitudeKm: satEntry.sample.altKm,
       slantRangeKm,
     });
-    return { sinrDb: satEntry.sinrDb + gainReductionDb, beamId: satEntry.bestBeamId };
+    return {
+      sinrDb: satEntry.sinrDb + (gainReductionDb - referenceGainDb),
+      beamId: satEntry.bestBeamId,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -587,6 +699,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // ---------------------------------------------------------------------------
 
   function doTick(timeSec: number, tickNumber: number): SimulationSnapshot {
+    // Accumulate HO log entries across both Phase A and Phase B paths
+    const tickHoLog: HoLogEntry[] = [];
+
     // 0. P4: update UE positions (mobility)
     const tickStepSec = lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1;
     mobilityUpdater.update(uePositions, tickStepSec);
@@ -646,7 +761,19 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             }
           }
         }
-        lastBhSlotDecision = bhScheduler.getSlotDecision(timeSec, demandPerBeam);
+        // Build sinrPerBeam from last observation for sinr-greedy strategy (uses t-1 SINR).
+        const sinrPerBeam = new Map<string, number>();
+        if (lastObservation) {
+          for (const satObs of lastObservation.satellites) {
+            const layout = beamLayouts.get(satObs.satId);
+            if (layout) {
+              for (const beam of layout.beams) {
+                sinrPerBeam.set(beam.beamId, satObs.sinrDb);
+              }
+            }
+          }
+        }
+        lastBhSlotDecision = bhScheduler.getSlotDecision(timeSec, demandPerBeam, sinrPerBeam);
       }
 
       // Force current serving beam active so it is never filtered out of SINR computation.
@@ -674,6 +801,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       sample: TrajectorySample;
       sinrDb: number;
       bestBeamId: string;
+      referenceOffAxisAngleDeg: number;
     }>;
 
     if (!isMultiBeam) {
@@ -685,7 +813,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           .filter((_, j) => j !== i)
           .map((s) => s.sample);
         const sinrDb = computeSatSinrPhase2(sample, others);
-        satSinrs.push({ satId, sample, sinrDb, bestBeamId: `${satId}-b0` });
+        satSinrs.push({
+          satId,
+          sample,
+          sinrDb,
+          bestBeamId: `${satId}-b0`,
+          referenceOffAxisAngleDeg: 0,
+        });
       }
     } else {
       // --- Phase 3 path: multi-beam ---
@@ -698,16 +832,12 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
       for (const { satId, sample } of satSamples) {
         const layout = getOrCreateBeamLayout(satId, sample.altKm);
-        // Phase 3: UE at satellite sub-point → offset (0, 0)
-        const selection = selectBeamForUe(layout, 0, 0, profile.antenna);
-
-        // BH filter: if BH active, skip satellites whose best beam is not in this slot
-        if (lastBhSlotDecision) {
-          const activeBeams = lastBhSlotDecision.activeBeamsPerSat.get(satId);
-          if (activeBeams && !activeBeams.includes(selection.bestBeamId)) {
-            continue; // best beam not active this slot → satellite cannot serve
-          }
+        const activeBeams = lastBhSlotDecision?.activeBeamsPerSat.get(satId);
+        if (lastBhSlotDecision && (!activeBeams || activeBeams.length === 0)) {
+          continue;
         }
+        // Phase 3: primary UE sits at beam center; if BH is active, choose among active beams only.
+        const selection = selectBeamForUe(layout, 0, 0, profile.antenna, activeBeams);
 
         selections.push({ satId, sample, selection });
       }
@@ -720,7 +850,13 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           .filter((_, j) => j !== i)
           .map((s) => ({ satId: s.satId, sample: s.sample, selection: s.selection }));
         const sinrDb = computeSatSinrPhase3(satId, sample, selection, otherSats);
-        satSinrs.push({ satId, sample, sinrDb, bestBeamId: selection.bestBeamId });
+        satSinrs.push({
+          satId,
+          sample,
+          sinrDb,
+          bestBeamId: selection.bestBeamId,
+          referenceOffAxisAngleDeg: selection.offAxisAngleDeg,
+        });
       }
     }
 
@@ -735,6 +871,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     // 4–7. Handover tick + KPI recording
     // representativeServing = primary UE's serving (used for energy accounting in step 8)
     let representativeServing: ServingState | null = null;
+    const snapshotSinrByUe = new Map<string, number | null>();
 
     if (independentHandover) {
       // ======= Phase B (MS2): independent HO per UE =======
@@ -745,11 +882,15 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         // C2: filter to only BH-active satellites (same coupling as Phase A)
         const ueCandidates: HandoverCandidate[] = [];
         for (const satEntry of satSinrs) {
+          // Exclude non-LEO satellites from HO candidates
+          if (nonLeoSatIds.has(satEntry.satId)) continue;
           if (lastBhSlotDecision) {
             const activeBeams = lastBhSlotDecision.activeBeamsPerSat.get(satEntry.satId);
             if (!activeBeams || activeBeams.length === 0) continue;
           }
-          const { sinrDb, beamId } = computeUeSinrFromSatEntry(ue, satEntry);
+          const candidate = computeUeSinrFromSatEntry(ue, satEntry);
+          if (!candidate) continue;
+          const { sinrDb, beamId } = candidate;
           ueCandidates.push({
             satId: satEntry.satId,
             beamId,
@@ -767,7 +908,11 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         let ueServingSinrDb: number | null = null;
         let uePropDelayMs: number | undefined;
         if (ueHoState.serving) {
-          const servCand = ueCandidates.find((c) => c.satId === ueHoState.serving!.satId);
+          const servCand = ueCandidates.find(
+            (c) =>
+              c.satId === ueHoState.serving!.satId &&
+              c.beamId === ueHoState.serving!.beamId,
+          );
           // null (not -100) so manager "servingSinrDb === null → doRelease" fires immediately
           ueServingSinrDb = servCand !== undefined ? servCand.sinrDb : null;
           const servSatEntry = satSinrs.find((s) => s.satId === ueHoState.serving!.satId);
@@ -792,27 +937,36 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         // Use POST-TICK serving state so new attachments (tick 0) are also captured.
         const ueServing = ueHoMgr.getState().serving;
         kpiAcc.recordServiceState(ue.id, ueServing !== null, timeSec);
+        let snapshotSinrDb: number | null = null;
         if (ueServing !== null) {
           // Look up the post-tick serving satellite in this tick's candidate list.
           // If the satellite was just acquired this tick (pre-tick serving was null),
           // it will still be found here (since it was in ueCandidates this tick).
-          const postServCand = ueCandidates.find((c) => c.satId === ueServing.satId);
+          const postServCand = ueCandidates.find(
+            (c) =>
+              c.satId === ueServing.satId &&
+              c.beamId === ueServing.beamId,
+          );
           if (postServCand !== undefined) {
             kpiAcc.recordSinr(ue.id, postServCand.sinrDb, timeSec);
+            snapshotSinrDb = postServCand.sinrDb;
           }
         }
+        snapshotSinrByUe.set(ue.id, snapshotSinrDb);
 
         // Drain and record HO events for this UE
         for (const evt of ueHoMgr.drainEvents()) {
           if (evt.type === 'ho-complete') {
+            const intMs = computeInterruptionMs(evt.targetSatId, satSinrs);
             kpiAcc.recordHandover({
               timeSec: evt.timeSec,
               type: 'complete',
               sourceId: evt.sourceSatId ?? '',
               targetId: evt.targetSatId ?? '',
               sourceSinrDb: evt.sinrDb ?? 0,
-              interruptionMs: computeInterruptionMs(evt.targetSatId, satSinrs),
+              interruptionMs: intMs,
             });
+            tickHoLog.push({ timeSec: evt.timeSec, type: 'ho-complete', sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: intMs, ueId: ue.id });
             // A8: HO energy debit on target satellite (if L2 active)
             const hoEnergyJ = profile.energy.energy_per_handover_j ?? 0;
             if (hoEnergyJ > 0 && energyL2Manager && evt.targetSatId) {
@@ -827,6 +981,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
               sourceSinrDb: evt.sinrDb ?? 0,
               interruptionMs: computeInterruptionMs(evt.sourceSatId, satSinrs),
             });
+            tickHoLog.push({ timeSec: evt.timeSec, type: 'ho-fail', sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: null, ueId: ue.id });
+          } else if (evt.type === 'cho-execute' || evt.type === 'mc-ho-dual-end' || evt.type === 'rlf-declared') {
+            tickHoLog.push({ timeSec: evt.timeSec, type: evt.type, sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: null, ueId: ue.id });
           }
         }
       }
@@ -843,6 +1000,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       // active beam this slot — it would have no signal to measure).
       const candidates: HandoverCandidate[] = satSinrs
         .filter((s) => {
+          // Exclude non-LEO satellites from HO candidates (MEO/GEO do not participate in handover)
+          if (nonLeoSatIds.has(s.satId)) return false;
           if (!lastBhSlotDecision) return true; // no BH active — all candidates valid
           const activeBeams = lastBhSlotDecision.activeBeamsPerSat.get(s.satId);
           return activeBeams !== undefined && activeBeams.length > 0;
@@ -859,7 +1018,11 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       const hoState = hoManager.getState();
       let servingSinrDb: number | null = null;
       if (hoState.serving) {
-        const servingEntry = satSinrs.find((s) => s.satId === hoState.serving!.satId);
+        const servingEntry = satSinrs.find(
+          (s) =>
+            s.satId === hoState.serving!.satId &&
+            s.bestBeamId === hoState.serving!.beamId,
+        );
         // null (not -100) so manager.ts "servingSinrDb === null → doRelease" fires immediately
         servingSinrDb = servingEntry !== undefined ? servingEntry.sinrDb : null;
       }
@@ -878,10 +1041,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         dapsTargetSinrDb = tgtEntry ? tgtEntry.sinrDb : null;
       }
 
-      // 5c. Policy action (C5): build observation and call selectAction() if policy attached
+      // 5c. Policy action (C5): build observation every tick (cached for pull-model getObservation)
+      // and call selectAction() if a policy is attached or an external action is queued (MG2).
       let policyFilteredCandidates = candidates;
-      if (policy) {
-        const obs: PolicyObservation = {
+      const tickObs: PolicyObservation = {
           tick: tickNumber,
           timeSec,
           satellites: satSinrs.map((s) => ({
@@ -907,22 +1070,30 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
               ? satSinrs.reduce((sum, s) => sum + s.sinrDb, 0) / satSinrs.length
               : 0,
           },
-        };
-        const action = policy.selectAction(obs);
-        const { mode, targetSatId } = action.handoverAction;
-        if (mode === 'defer') {
-          // Suppress HO evaluation: pass empty candidates
-          policyFilteredCandidates = [];
-        } else if (mode === 'trigger' && targetSatId) {
-          // Force HO to target: only expose target as candidate
-          const targetCand = candidates.find((c) => c.satId === targetSatId);
-          if (targetCand) {
-            policyFilteredCandidates = [targetCand];
-            servingSinrDb = -100; // force HO trigger
+      };
+      lastObservation = tickObs;
+
+      // Determine action only when policy or pending external action is present
+      if (policy || pendingExternalAction !== null) {
+        const action = pendingExternalAction ?? policy?.selectAction(tickObs);
+        pendingExternalAction = null; // consume queued action
+
+        if (action) {
+          const { mode, targetSatId } = action.handoverAction;
+          if (mode === 'defer') {
+            // Suppress HO evaluation: pass empty candidates
+            policyFilteredCandidates = [];
+          } else if (mode === 'trigger' && targetSatId) {
+            // Force HO to target: only expose target as candidate
+            const targetCand = candidates.find((c) => c.satId === targetSatId);
+            if (targetCand) {
+              policyFilteredCandidates = [targetCand];
+              servingSinrDb = -100; // force HO trigger
+            }
+            // else: invalid action — fall through to 'auto' (no change)
           }
-          // else: invalid action — fall through to 'auto' (no change)
+          // 'auto': policyFilteredCandidates remains unchanged
         }
-        // 'auto': policyFilteredCandidates remains unchanged
       }
 
       // 6. Run handover tick (P2: propagation delay from serving satellite slant range)
@@ -951,7 +1122,11 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         if (dapsDualActive && dapsSourceSinrDb !== null && dapsTargetSinrDb !== null) {
           primarySinrDb = Math.max(dapsSourceSinrDb, dapsTargetSinrDb);
         } else {
-          const servEntry = satSinrs.find((s) => s.satId === currentServing.satId);
+          const servEntry = satSinrs.find(
+            (s) =>
+              s.satId === currentServing.satId &&
+              s.bestBeamId === currentServing.beamId,
+          );
           primarySinrDb = servEntry ? servEntry.sinrDb : null;
         }
       }
@@ -963,6 +1138,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       for (const ue of uePositions) {
         kpiAcc.recordServiceState(ue.id, isServed, timeSec);
 
+        let ueSnapshotSinrDb: number | null = null;
         if (isServed && currentServing && servingSatEntry && primarySinrDb !== null) {
           let ueSinrDb: number;
           if (ue.id === PRIMARY_UE_ID) {
@@ -983,26 +1159,30 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             ueSinrDb = primarySinrDb + gainReductionDb;
           }
           kpiAcc.recordSinr(ue.id, ueSinrDb, timeSec);
+          ueSnapshotSinrDb = ueSinrDb;
         }
+        snapshotSinrByUe.set(ue.id, ueSnapshotSinrDb);
       }
 
       // Record handover events to KPI
       const hoEvents = hoManager.drainEvents();
       for (const evt of hoEvents) {
         if (evt.type === 'ho-complete') {
+          const intMs = computeInterruptionMs(evt.targetSatId, satSinrs);
           kpiAcc.recordHandover({
             timeSec: evt.timeSec,
             type: 'complete',
             sourceId: evt.sourceSatId ?? '',
             targetId: evt.targetSatId ?? '',
             sourceSinrDb: evt.sinrDb ?? 0,
-            interruptionMs: computeInterruptionMs(evt.targetSatId, satSinrs),
+            interruptionMs: intMs,
           });
           // A8: HO transaction energy debit
           const hoEnergyJ = profile.energy.energy_per_handover_j ?? 0;
           if (hoEnergyJ > 0 && energyL2Manager && evt.targetSatId) {
             energyL2Manager.debitEnergy(evt.targetSatId, hoEnergyJ);
           }
+          tickHoLog.push({ timeSec: evt.timeSec, type: 'ho-complete', sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: intMs, ueId: 'ue-0' });
         } else if (evt.type === 'ho-fail') {
           kpiAcc.recordHandover({
             timeSec: evt.timeSec,
@@ -1012,6 +1192,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
             sourceSinrDb: evt.sinrDb ?? 0,
             interruptionMs: computeInterruptionMs(evt.sourceSatId, satSinrs),
           });
+          tickHoLog.push({ timeSec: evt.timeSec, type: 'ho-fail', sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: null, ueId: 'ue-0' });
+        } else if (evt.type === 'cho-execute' || evt.type === 'mc-ho-dual-end' || evt.type === 'rlf-declared') {
+          tickHoLog.push({ timeSec: evt.timeSec, type: evt.type, sourceSatId: evt.sourceSatId ?? null, targetSatId: evt.targetSatId ?? null, sinrDb: evt.sinrDb ?? null, interruptionMs: null, ueId: 'ue-0' });
         }
       }
 
@@ -1042,8 +1225,6 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           energyManager.applyDpc(
             servEntry.bestBeamId,
             servEntry.sinrDb,
-            3,
-            43,
           );
         }
       }
@@ -1058,6 +1239,12 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       }
 
       lastEnergyMetrics = energyManager.computeMetrics(throughputs);
+      // Inject EE into KPI accumulator so it appears in KpiBundle
+      kpiAcc.recordEnergyMetrics({
+        systemEeBitsPerJoule: lastEnergyMetrics.systemEeBitsPerJoule,
+        totalPowerW: lastEnergyMetrics.totalPowerW,
+        activeBeamRatio: lastEnergyMetrics.activeBeamRatio,
+      });
     } else {
       lastEnergyMetrics = null;
     }
@@ -1204,9 +1391,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
               ? 'single-active'
               : undefined;
 
-      // Expose serving SINR truth for overlay use (read from satSinrs, not recomputed)
-      const servingEntry = servingSatId ? satSinrs.find((s) => s.satId === servingSatId) : null;
-      const sinrDb = servingEntry ? servingEntry.sinrDb : null;
+      const sinrDb = snapshotSinrByUe.get(ue.id) ?? null;
       return {
         id: ue.id,
         latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
@@ -1255,6 +1440,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       ues,
       bhSlot,
       daps,
+      recentHoEvents: tickHoLog.length > 0 ? tickHoLog : undefined,
     };
   }
 
@@ -1288,7 +1474,17 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       return lastBhSlotDecision;
     },
 
+    getObservation(): import('./policy/types').PolicyObservation | null {
+      return lastObservation;
+    },
+
+    applyAction(action: import('./policy/types').PolicyAction | null): void {
+      pendingExternalAction = action;
+    },
+
     reset(): void {
+      lastObservation = null;
+      pendingExternalAction = null;
       rng = createRng(profile.seed);
       kpiAcc.reset();
       beamLayouts.clear();

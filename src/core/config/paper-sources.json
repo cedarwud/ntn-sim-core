@@ -23,6 +23,12 @@
       "topic": "min_elevation_deg = 10°, trigger_threshold_db = -3 dB reference",
       "usedIn": ["src/core/profiles/defaults.ts"]
     },
+    "PAP-2022-SENSORS-BH": {
+      "title": "Three-Dimensional Resource Allocation for Beam Hopping in LEO Satellite Networks",
+      "year": 2022,
+      "topic": "Beam geometry and implementation losses (0.5 dB feeder + 2.0 dB pointing)",
+      "usedIn": ["src/core/profiles/defaults.ts"]
+    },
     "PAP-2024-BEAM-MGMT-SPECTRUM": {
       "title": "Beam Management and Spectrum Reuse in Multi-Beam LEO",
       "year": 2024,
@@ -38,7 +44,7 @@
     "PAP-2024-HOBS": {
       "title": "Handover Optimization for Beam-Switching in LEO Networks (HOBS)",
       "year": 2024,
-      "topic": "19-beam HOBS constellation, EIRP 46 dBW, FRF=3",
+      "topic": "Walker(55°,72,6,F=1), 550km, Ka-band 28GHz, 100MHz BW, 37 beams, FRF=3, Pmax=50dBm, gamma_thr=10dB",
       "usedIn": ["src/core/profiles/defaults.ts"]
     },
     "PAP-2024-MADRL-CORE": {
@@ -144,8 +150,8 @@
     "STD-3GPP-38811": {
       "id": "3GPP TR 38.811",
       "title": "Study on New Radio (NR) to support non-terrestrial networks",
-      "relevantSections": ["Table 6.6.2-1 (SF/CL path loss)", "§6.7 (NTN channel model)"],
-      "usedIn": ["src/core/channel/large-scale.ts", "src/core/channel/link-budget.ts"]
+      "relevantSections": ["Table 6.6.2-1 (dense-urban SF/CL)", "Table 6.6.2-3 (suburban/rural SF/CL)", "§6.7 (NTN channel model)"],
+      "usedIn": ["src/core/channel/link-budget.ts", "src/core/channel/shadow-fading.ts"]
     },
     "STD-3GPP-38821": {
       "id": "3GPP TR 38.821",
@@ -168,6 +174,30 @@
       "title": "Satellite antenna radiation pattern for use as a design objective",
       "relevantSections": ["Bessel J1/J3 antenna pattern"],
       "usedIn": ["src/core/channel/beam-gain.ts"]
+    },
+    "STD-3GPP-38811-TABLE-4.4-1": {
+      "id": "3GPP TR 38.811",
+      "title": "Study on New Radio (NR) to support non-terrestrial networks — UE noise figure table",
+      "version": "15.x",
+      "relevantSections": ["Table 4.4-1: handheld UE NF = 9 dB; laptop/VSAT NF = 5 dB"],
+      "usedIn": ["src/core/profiles/defaults.ts"],
+      "note": "Handheld profiles (S-band case 9) use NF=9 dB; Ka-band VSAT-like profiles use NF=5 dB"
+    },
+    "3GPP-NTN-ACCESS": {
+      "id": "3GPP TR 38.811 / TS 38.821",
+      "title": "3GPP NTN access baseline — channel model and minimum elevation",
+      "relevantSections": [
+        "TR 38.811 §6.6 (FSPL, shadow fading, clutter loss by deployment environment)",
+        "TR 38.811 §6.7 (NTN channel tiers)",
+        "TS 38.821 §5.2 (Walker constellation for NTN)",
+        "TR 38.811 §3.1 (minimum elevation 10°)"
+      ],
+      "usedIn": [
+        "src/core/profiles/defaults.ts",
+        "src/core/channel/shadow-fading.ts",
+        "src/core/channel/link-budget.ts"
+      ],
+      "note": "Used as sourceMap id '3GPP-NTN-ACCESS' in profile sourceMap entries; covers minimum elevation, deployment-environment-dependent SF/CL, and NTN channel tier selection"
     }
   },
 
@@ -178,11 +208,20 @@
     "ASSUME-CHAN-001": "Path loss Tier 1–6 applied sequentially; each tier adds to total loss in dB",
     "ASSUME-BEAM-001": "Beam footprint radius = slant-range × tan(half-angle); off-axis angle uses spherical law of cosines",
     "ASSUME-BEAM-002": "FRF group assignment is deterministic (beam index mod FRF); no dynamic frequency planning",
-    "ASSUME-HO-001": "HO execution is instantaneous (0 ms interruption) for hard-HO; DAPS achieves zero interruption",
+    "ASSUME-HO-001": "Hard-HO / A3 / A4 / D2 / CHO interruption is approximated by RTT = 2 x one-way propagation delay; DAPS and MC-HO use 0 ms interruption because the dual-active path is maintained during execution",
     "ASSUME-HO-DAPS": "DAPS dual-active phase bounded by max_dual_sec; packet duplication optional",
+    "ASSUME-ATM-001": "Tier 4 atmospheric loss uses fixed mid-latitude zenith estimates from ITU-R simplified models: gaseous 0.35 dB (10–25 GHz) / 0.6 dB (25+ GHz) from ITU-R P.676; rain 0.8 dB (10–25 GHz) / 1.5 dB (25+ GHz) from ITU-R P.618 at 99% availability; scintillation 0.4 dB Ka-band from ITU-R P.618 tropospheric. Claim scope: LEO NTN Ka-band baseline only; not for site-specific or availability-sensitive studies. Source: link-budget.ts Tier 4 block.",
+    "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed",
+    "ASSUME-HO-ENERGY-001": "Per-handover energy cost E_u,HO has no corpus-backed numeric default in the final simulator spec. If energy_per_handover_j is set, it must be labeled assumption-backed, provenance-tagged at parameterPath=energy.energy_per_handover_j, and reported as a scenario sensitivity parameter rather than a paper-backed baseline constant.",
     "ASSUME-ENE-001": "Layer 2 energy: solar panel output constant during eclipse = 0; beta angle determines eclipse fraction",
-    "ASSUME-RF-001": "UE noise figure NF = 7 dB (handheld); satellite EIRP from profile; link margin not separately budgeted",
+    "ASSUME-RF-001": "UE noise figure: 9 dB (handheld, S-band case 9 per 3GPP TR 38.811 Table 4.4-1) or 5 dB (VSAT/Ka-band per same table). noise_temperature_k represents T_ant = 290K (clear-sky conservative). satellite EIRP from profile. link margin not separately budgeted.",
     "ASSUME-CUR-002": "Thermal noise T_sys = T_ant + T_0*(NF-1); T_ant = 290 K (clear sky); T_0 = 290 K",
-    "ASSUME-TRAJECTORY-CACHE-PRECOMPUTE": "Satellite positions pre-computed at 0.5 s intervals; interpolated cubically between ticks"
+    "ASSUME-TRAJECTORY-CACHE-PRECOMPUTE": "Satellite positions pre-computed at 0.5 s intervals; interpolated cubically between ticks",
+    "ASSUME-MEO-BASELINE": "MEO cross-orbit comparison baseline: O3b-like circular orbit ~8062 km equatorial, Ka-band, single beam per satellite",
+    "ASSUME-GEO-BASELINE": "GEO cross-orbit comparison baseline: 35786 km geostationary, shadow fraction near-zero except equinox season (β ≈ 0°)",
+    "ASSUME-ORB-REPRO-RT1": "RT-1 (PAP-2022-SINR-ELEVATION) reproduction: Walker F=1 phasing used; paper does not specify exact epoch or phasing factor",
+    "ASSUME-ORB-REPRO-RT2": "RT-2 (PAP-2024-HOBS) reproduction: Walker F=1 phasing used; paper does not specify exact epoch",
+    "ASSUME-ORB-REPRO-RT3": "RT-3 (PAP-2025-TIMERCHO-CORE) reproduction: Walker 24×22 used as Starlink-like proxy; paper does not mandate exact constellation layout",
+    "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope"
   }
 }

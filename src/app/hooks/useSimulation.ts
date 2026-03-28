@@ -8,17 +8,16 @@
  */
 
 import { useFrame } from '@react-three/fiber';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
-import { loadProfile, buildWalkerConfig } from '@/core/profiles';
-import { generateWalkerConstellation } from '@/core/orbit';
-import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
+import { loadProfile, resolveProfile } from '@/core/profiles';
+import type { HandoverType } from '@/core/profiles/types';
+import { buildInteractiveTrajectoryCache, buildSyntheticOrbitElements } from '@/core/orbit';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
 import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import { createSimEngine } from '@/core/engine';
 import type { SimEngine } from '@/core/engine';
 import type { SimulationSnapshot } from '@/core/common/types';
-import type { WalkerConfig } from '@/core/orbit/types';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -28,6 +27,8 @@ export interface UseSimulationOptions {
   profileId?: string;   // default: 'case9-access-baseline'
   speed?: number;       // playback speed multiplier, default 1
   paused?: boolean;
+  /** Override handover algorithm at runtime without reloading the profile. */
+  handoverTypeOverride?: HandoverType | null;
 }
 
 export interface UseSimulationResult {
@@ -41,6 +42,8 @@ export interface UseSimulationResult {
   servingBeamId: string | null;
   handoverCount: number;
   profileId: string;
+  /** Finalize and return current KPI bundle. Returns null if engine not ready. */
+  exportKpi: () => import('@/core/kpi/types').KpiBundle | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,15 +63,16 @@ export function useSimulation(
     profileId = 'case9-access-baseline',
     speed = 1,
     paused = false,
+    handoverTypeOverride = null,
   } = options ?? {};
 
-  // ── 1. Build constellation + cache + engine (once per profileId) ──
+  // ── 1. Build constellation + cache + engine (once per profileId + handoverTypeOverride) ──
 
   const { engine, profile, durationSec, satelliteCount } = useMemo(() => {
-    const prof = loadProfile(profileId);
-
-    // Cache step is 10s for performance; engine tick rate (stepSec) is separate.
-    const CACHE_STEP_SEC = 10;
+    let prof = loadProfile(profileId);
+    if (handoverTypeOverride) {
+      prof = resolveProfile(prof, { handover: { ...prof.handover, type: handoverTypeOverride } });
+    }
 
     let elements;
 
@@ -97,21 +101,10 @@ export function useSimulation(
       const satrecs = ommToSatrecs(sampled);
       elements = satrecsToOrbitElements(satrecs);
     } else {
-      // Synthetic Walker path (A4: multi-shell via buildWalkerConfig)
-      elements = generateWalkerConstellation(
-        buildWalkerConfig(prof, prof.timeControl.epochUtcMs),
-      );
+      elements = buildSyntheticOrbitElements(prof);
     }
 
-    const cache = buildTrajectoryCache({
-      elements,
-      observerLatDeg: prof.observer.latitudeDeg,
-      observerLonDeg: prof.observer.longitudeDeg,
-      observerAltKm: prof.observer.altitudeM / 1000,
-      durationSec: prof.timeControl.durationSec,
-      stepSec: CACHE_STEP_SEC,
-      epochUtcMs: prof.timeControl.epochUtcMs,
-    });
+    const cache = buildInteractiveTrajectoryCache(prof, elements);
 
     const eng = createSimEngine({
       profile: prof,
@@ -124,7 +117,7 @@ export function useSimulation(
       durationSec: prof.timeControl.durationSec,
       satelliteCount: elements.length,
     };
-  }, [profileId]);
+  }, [profileId, handoverTypeOverride]);
 
   // ── 2. Mutable sim-time ref (avoids per-frame re-renders) ──
 
@@ -137,6 +130,16 @@ export function useSimulation(
   const handoverCountRef = useRef(0);
   const prevServingSatIdRef = useRef<string | null>(null);
   const lastKnownServingRef = useRef<string | null>(null);
+
+  // Reset sim time and counters when engine rebuilds (profile or strategy change)
+  useEffect(() => {
+    simTimeRef.current = 0;
+    lastSnapshotTimeRef.current = 0;
+    handoverCountRef.current = 0;
+    prevServingSatIdRef.current = null;
+    lastKnownServingRef.current = null;
+    setSnapshot(null);
+  }, [engine]);
 
   // ── 4. Frame loop ──
 
@@ -189,6 +192,12 @@ export function useSimulation(
   const servingSatId = snapshot?.ues[0]?.servingSatId ?? null;
   const servingBeamId = snapshot?.ues[0]?.servingBeamId ?? null;
 
+  const exportKpi = useCallback(() => {
+    if (!engine) return null;
+    const wallMs = performance.now();
+    return engine.getKpiAccumulator().finalize(wallMs);
+  }, [engine]);
+
   return {
     snapshot,
     isReady: engine != null,
@@ -200,5 +209,6 @@ export function useSimulation(
     servingBeamId,
     handoverCount: handoverCountRef.current,
     profileId,
+    exportKpi,
   };
 }

@@ -14,19 +14,20 @@ import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/common/types';
 import { usePublishValidationSection } from '@/viz/validation/store';
-import {
-  projectToSkyDome,
-  DEFAULT_SKY_PROJECTION,
-} from '@/viz/satellite/observer-sky-projection';
 import { selectBeamSatellites } from './beam-selection';
+import {
+  computeMovingBeamGroundTarget,
+  isUeAnchoredMovingBeam,
+  MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
+  MOVING_BEAM_GROUND_Y,
+  resolveMovingBeamProjection,
+} from './moving-beam-geometry';
 
 // ---------------------------------------------------------------------------
 // VISUAL-ONLY constants
 // ---------------------------------------------------------------------------
 
 const SEGMENTS = 32;
-const GROUND_Y = 1;
-const FOOTPRINT_RADIUS = 56;
 
 const POLARIZATION_A = '#ff8844'; // orange (odd index)
 const POLARIZATION_B = '#44aaff'; // blue   (even index)
@@ -140,7 +141,7 @@ function createObliqueConeSide(
   positions.push(apex[0], apex[1], apex[2]);
   for (let i = 0; i < SEGMENTS; i++) {
     const angle = (i / SEGMENTS) * Math.PI * 2;
-    positions.push(cx + Math.cos(angle) * radius, GROUND_Y, cz + Math.sin(angle) * radius);
+    positions.push(cx + Math.cos(angle) * radius, MOVING_BEAM_GROUND_Y, cz + Math.sin(angle) * radius);
   }
   for (let i = 0; i < SEGMENTS; i++) {
     indices.push(0, i + 1, ((i + 1) % SEGMENTS) + 1);
@@ -155,10 +156,10 @@ function createObliqueConeSide(
 function createGroundDisc(cx: number, cz: number, radius: number): THREE.BufferGeometry {
   const positions: number[] = [];
   const indices: number[] = [];
-  positions.push(cx, GROUND_Y + 0.2, cz);
+  positions.push(cx, MOVING_BEAM_GROUND_Y + 0.2, cz);
   for (let i = 0; i < SEGMENTS; i++) {
     const angle = (i / SEGMENTS) * Math.PI * 2;
-    positions.push(cx + Math.cos(angle) * radius, GROUND_Y + 0.2, cz + Math.sin(angle) * radius);
+    positions.push(cx + Math.cos(angle) * radius, MOVING_BEAM_GROUND_Y + 0.2, cz + Math.sin(angle) * radius);
   }
   for (let i = 0; i < SEGMENTS; i++) {
     indices.push(0, i + 1, ((i + 1) % SEGMENTS) + 1);
@@ -181,10 +182,46 @@ function sinrColor(sinrDb: number): string {
   return '#ff4444';
 }
 
+interface RenderedBeamPlan {
+  beam: SatelliteBeamSnapshot;
+  beamIndex: number;
+  satPos: [number, number, number];
+  groundX: number;
+  groundZ: number;
+  footprintRadiusWorld: number;
+  isUeAnchored: boolean;
+}
+
+function buildRenderedBeamPlans(
+  sat: SatelliteState,
+  beams: readonly SatelliteBeamSnapshot[],
+): RenderedBeamPlan[] {
+  const projection = resolveMovingBeamProjection(sat, beams);
+
+  return beams.map((beam, beamIndex) => {
+    const target = computeMovingBeamGroundTarget(
+      projection,
+      beam,
+      isUeAnchoredMovingBeam(beam),
+    );
+
+    return {
+      beam,
+      beamIndex,
+      satPos: projection.satPos,
+      groundX: target.groundX,
+      groundZ: target.groundZ,
+      footprintRadiusWorld: target.footprintRadiusWorld,
+      isUeAnchored: target.isUeAnchored,
+    };
+  });
+}
+
 const BeamCone = React.memo(function BeamCone({
   satPos,
   groundX,
   groundZ,
+  footprintRadiusWorld,
   beam,
   beamIndex,
   color,
@@ -195,6 +232,7 @@ const BeamCone = React.memo(function BeamCone({
   satPos: [number, number, number];
   groundX: number;
   groundZ: number;
+  footprintRadiusWorld: number;
   beam: SatelliteBeamSnapshot;
   beamIndex: number;
   color: string;
@@ -223,19 +261,19 @@ const BeamCone = React.memo(function BeamCone({
   });
 
   const coneGeo = useMemo(
-    () => createObliqueConeSide(satPos, groundX, groundZ, FOOTPRINT_RADIUS),
-    [satPos[0], satPos[1], satPos[2], groundX, groundZ],
+    () => createObliqueConeSide(satPos, groundX, groundZ, footprintRadiusWorld),
+    [satPos[0], satPos[1], satPos[2], groundX, groundZ, footprintRadiusWorld],
   );
   const discGeo = useMemo(
-    () => createGroundDisc(groundX, groundZ, FOOTPRINT_RADIUS),
-    [groundX, groundZ],
+    () => createGroundDisc(groundX, groundZ, footprintRadiusWorld),
+    [groundX, groundZ, footprintRadiusWorld],
   );
 
   const labelPos = useMemo<[number, number, number]>(() => {
     const t = 0.35;
     return [
       satPos[0] + (groundX - satPos[0]) * t,
-      satPos[1] + (GROUND_Y - satPos[1]) * t,
+      satPos[1] + (MOVING_BEAM_GROUND_Y - satPos[1]) * t,
       satPos[2] + (groundZ - satPos[2]) * t,
     ];
   }, [satPos[0], satPos[1], satPos[2], groundX, groundZ]);
@@ -278,7 +316,7 @@ const BeamCone = React.memo(function BeamCone({
       </mesh>
       <Line
         ref={lineRef}
-        points={[satPos, [groundX, GROUND_Y, groundZ]]}
+        points={[satPos, [groundX, MOVING_BEAM_GROUND_Y, groundZ]]}
         color={color}
         lineWidth={style.width}
         transparent
@@ -343,36 +381,27 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
   const beams = sat.beams;
   if (!beams || beams.length === 0) return null;
 
-  const satPos = useMemo<[number, number, number]>(
-    () => projectToSkyDome(sat.azimuthDeg, sat.elevationDeg, DEFAULT_SKY_PROJECTION),
-    [sat.azimuthDeg, sat.elevationDeg],
-  );
-
-  const beamSpacingKm = beams.length > 1
-    ? Math.sqrt(beams[1].offsetEastKm ** 2 + beams[1].offsetNorthKm ** 2) || 25
-    : 25;
-  const kmToWorld = (2 * FOOTPRINT_RADIUS) / beamSpacingKm;
-
-  const groundCenterX = satPos[0];
-  const groundCenterZ = satPos[2];
-
   const isDapsTarget = daps?.phase === 'dual-active' && sat.id === daps.targetSatId;
   const isServingSat = Boolean(servingBeamId && beams.some((b) => b.beamId === servingBeamId));
-
-  const chosenBeams = selectRenderableBeams(beams, isCandidate);
+  const chosenBeams = useMemo(
+    () => selectRenderableBeams(beams, isCandidate),
+    [beams, isCandidate],
+  );
+  const renderedBeamPlans = useMemo(
+    () => buildRenderedBeamPlans(sat, chosenBeams),
+    [sat, chosenBeams],
+  );
 
   return (
     <group>
-      {chosenBeams.map((beam, index) => {
+      {renderedBeamPlans.map(({ beam, beamIndex, satPos, groundX, groundZ, footprintRadiusWorld }) => {
         const isServingBeam = isServingSat && beam.beamId === servingBeamId;
-        const groundX = isServingBeam ? 0 : groundCenterX + beam.offsetEastKm * kmToWorld;
-        const groundZ = isServingBeam ? 0 : groundCenterZ - beam.offsetNorthKm * kmToWorld;
 
         const color = isCandidate
           ? '#aaaaaa'
           : isDapsTarget && beam.role === 'secondary'
             ? SECONDARY_COLOR
-            : getBeamColor(beam, index);
+            : getBeamColor(beam, beamIndex);
         const style: BeamStyle = isCandidate
           ? { cone: 0.06, disc: 0.04, line: 0.30, width: 1.5, dashed: true }
           : isDapsTarget && beam.role === 'secondary'
@@ -385,8 +414,9 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
             satPos={satPos}
             groundX={groundX}
             groundZ={groundZ}
+            footprintRadiusWorld={footprintRadiusWorld}
             beam={beam}
-            beamIndex={index}
+            beamIndex={beamIndex}
             color={color}
             style={style}
             sinrDb={isServingBeam ? servingSinrDb : null}
@@ -439,22 +469,45 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
   const validationSummary = useMemo(() => {
     const roleCounts: Record<string, number> = {};
     let renderedBeamCount = 0;
+    const renderedSatIds: string[] = [];
+    const geometrySamples = [];
 
     for (const sat of beamSats) {
-      const chosenBeams = selectRenderableBeams(sat.beams ?? []);
-      renderedBeamCount += chosenBeams.length;
-      for (const beam of chosenBeams) {
+      const isCandidate = !tier1SatIds.has(sat.id);
+      const chosenBeams = selectRenderableBeams(sat.beams ?? [], isCandidate);
+      const renderedBeamPlans = buildRenderedBeamPlans(sat, chosenBeams);
+      if (renderedBeamPlans.length > 0) {
+        renderedSatIds.push(sat.id);
+      }
+      renderedBeamCount += renderedBeamPlans.length;
+      for (const { beam, satPos, groundX, groundZ, isUeAnchored } of renderedBeamPlans) {
         roleCounts[beam.role] = (roleCounts[beam.role] ?? 0) + 1;
+        geometrySamples.push({
+          satId: sat.id,
+          beamId: beam.beamId,
+          role: beam.role,
+          isActive: beam.isActive,
+          isCandidate,
+          isUeAnchored,
+          satX: satPos[0],
+          satZ: satPos[2],
+          groundX,
+          groundZ,
+          offsetEastKm: beam.offsetEastKm,
+          offsetNorthKm: beam.offsetNorthKm,
+        });
       }
     }
 
     return {
       present: beamSats.length > 0,
-      renderedSatIds: beamSats.map((sat) => sat.id),
+      renderedSatIds,
       renderedBeamCount,
+      footprintRadiusWorld: MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
       roleCounts,
+      geometrySamples,
     };
-  }, [beamSats]);
+  }, [beamSats, tier1SatIds]);
 
   usePublishValidationSection('earthMovingBeamLayer', validationSummary);
 

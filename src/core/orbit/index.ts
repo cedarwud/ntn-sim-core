@@ -3,12 +3,14 @@
  */
 
 export type {
+  OrbitType,
   OrbitElement,
   OrbitPoint,
   ObserverContext,
   TopocentricPoint,
   WalkerShell,
   WalkerConfig,
+  GeoStationaryConfig,
   TrajectorySample,
   SatellitePass,
   TrajectoryCache,
@@ -23,6 +25,13 @@ export {
   interpolatePass,
   getActivePassesAt,
 } from './trajectory-cache';
+export {
+  INTERACTIVE_TRAJECTORY_CACHE_STEP_SEC,
+  buildSyntheticOrbitElements,
+  buildTrajectoryCacheForProfile,
+  buildInteractiveTrajectoryCache,
+} from './profile-runtime';
 export type { OmmRecord, SatrecEntry } from './tle-loader';
 export { loadOmmRecords, ommToSatrecs, sampleRecords } from './tle-loader';
 export { propagateSgp4, satrecsToOrbitElements } from './sgp4-adapter';
+export { geoConfigToOrbitElements, propagateGeo } from './geo-stationary';

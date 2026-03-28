@@ -20,9 +20,8 @@
 import { useFrame } from '@react-three/fiber';
 import { useState, useMemo, useRef } from 'react';
 
-import { loadProfile, buildWalkerConfig } from '@/core/profiles';
-import { generateWalkerConstellation } from '@/core/orbit';
-import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
+import { loadProfile } from '@/core/profiles';
+import { buildInteractiveTrajectoryCache, buildSyntheticOrbitElements } from '@/core/orbit';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
 import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import { createSimEngine } from '@/core/engine';
@@ -32,7 +31,6 @@ import { createReplaySelectionPlan } from '@/runner/curation';
 import type { SimulationSnapshot } from '@/core/common/types';
 import type { ReplayManifest } from '@/core/trace/types';
 import type { ReplayState } from '@/runner/replay/types';
-import type { WalkerConfig } from '@/core/orbit/types';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -79,7 +77,6 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
 
   const { controller, satelliteCount, replayManifest, selectionReason } = useMemo(() => {
     const prof = loadProfile(profileId);
-    const CACHE_STEP_SEC = 10;
 
     let elements;
 
@@ -100,21 +97,10 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
       const satrecs = ommToSatrecs(sampled);
       elements = satrecsToOrbitElements(satrecs);
     } else {
-      // A4: multi-shell via buildWalkerConfig
-      elements = generateWalkerConstellation(
-        buildWalkerConfig(prof, prof.timeControl.epochUtcMs),
-      );
+      elements = buildSyntheticOrbitElements(prof);
     }
 
-    const cache = buildTrajectoryCache({
-      elements,
-      observerLatDeg: prof.observer.latitudeDeg,
-      observerLonDeg: prof.observer.longitudeDeg,
-      observerAltKm: prof.observer.altitudeM / 1000,
-      durationSec: prof.timeControl.durationSec,
-      stepSec: CACHE_STEP_SEC,
-      epochUtcMs: prof.timeControl.epochUtcMs,
-    });
+    const cache = buildInteractiveTrajectoryCache(prof, elements);
 
     const engine = createSimEngine({ profile: prof, trajectoryCache: cache });
 

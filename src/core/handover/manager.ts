@@ -22,8 +22,8 @@ import type {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Ping-pong window in simulation seconds. */
-const PING_PONG_WINDOW_SEC = 5;
+/** Default ping-pong window in simulation seconds (LEO). */
+const DEFAULT_PING_PONG_WINDOW_SEC = 5;
 
 // RLF defaults (3GPP TS 38.331 + TR 38.821 NTN)
 const DEFAULT_RLF_QOUT_DB  = -8.0;  // out-of-sync threshold
@@ -80,7 +80,9 @@ function a4Condition(
 }
 
 // ---------------------------------------------------------------------------
-// A3 condition: candidate SINR > serving SINR + offset (trigger_threshold_db used as offset)
+// A3 condition: candidate SINR > serving SINR + a3_offset_db + hysteresis_db
+// Uses config.a3_offset_db (spec H1: 2 dB default). Falls back to 0 if not set.
+// NOTE: trigger_threshold_db is NOT used here — it is A4-only.
 // ---------------------------------------------------------------------------
 
 function a3Condition(
@@ -89,7 +91,8 @@ function a3Condition(
   config: HandoverConfig,
 ): boolean {
   if (!bestCandidate) return false;
-  return bestCandidate.sinrDb > servingSinrDb + config.trigger_threshold_db + config.hysteresis_db;
+  const offset = config.a3_offset_db ?? 0;
+  return bestCandidate.sinrDb > servingSinrDb + offset + config.hysteresis_db;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +105,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
   let previousServingSatId: string | null = null;
 
   const baseTttSec = config.ttt_ms / 1000;
+  const pingPongWindowSec = config.pingPongWindowSec ?? DEFAULT_PING_PONG_WINDOW_SEC;
 
   // A6: SINR EMA state — smoothed SINR tracking per tick
   // α=1 disables smoothing; α<1 applies exponential averaging
@@ -309,7 +313,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     // Ping-pong detection
     const isPingPong =
       previousServingSatId === target.satId &&
-      input.timeSec - state.lastHoTimeSec <= PING_PONG_WINDOW_SEC;
+      input.timeSec - state.lastHoTimeSec <= pingPongWindowSec;
 
     if (isPingPong) {
       state.totalPingPongs++;

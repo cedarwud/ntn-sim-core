@@ -1,8 +1,8 @@
 # NTN Sim Core — Software Design Document
 
-**Version:** 1.0.0
-**Date:** 2026-03-25
-**Status:** Active — Remediation Complete
+**Version:** 1.1.0
+**Date:** 2026-03-27
+**Status:** Active — Remediation Complete + Extended Features
 
 ---
 
@@ -300,7 +300,7 @@ Must provide:
 | Tier 3 | beam-gain family (rpsat-3gpp, bessel-j1, itu-r) | `beam-gain.ts` | mandatory for multi-beam and BH studies |
 | Tier 4 | atmospheric loss: gaseous absorption (ITU-R P.676), rain (ITU-R P.618), scintillation | `link-budget.ts` | mandatory for Ka-band profiles (≥10 GHz) |
 | Tier 5 | small-scale fading: Shadowed-Rician (SR) model with Nakagami-m LOS + Rayleigh scatter | `small-scale-fading.ts` | recommended for channel model completeness claims; elevation-dependent SR parameters |
-| Tier 6 | Doppler shift and ICI SINR degradation | `doppler.ts` | available for Doppler-sensitive studies; not yet wired into engine SINR path |
+| Tier 6 | Doppler shift and ICI SINR degradation | `doppler.ts` | enabled via `channel.tier6_doppler: true`; wired into engine Phase 2 and Phase 3 SINR paths; controlled per-profile via `subcarrier_spacing_khz` |
 
 #### 9.2.2 Beam-Gain Mapping
 
@@ -415,7 +415,7 @@ Defines the observation-action-reward contract for external RL/DRL policy integr
 | `PolicyReward` | weighted: throughput (0.3), EE (0.2), HO cost (0.2), continuity (0.2), fairness (0.1) |
 | `Policy` | `selectAction(obs) → action`, `onReward(reward)`, `reset()` |
 
-Engine integration (future): `engine.getObservation()` → policy → `engine.applyAction()`.
+Engine integration: `engine.getObservation()` returns `PolicyObservation | null` (non-null after first tick); `engine.applyAction(action | null)` queues an external action consumed on the next tick (priority over injected policy). Both are exposed on the `SimEngine` interface. Validated by VAL-POLICY-001-E (E-10 golden case).
 
 ---
 

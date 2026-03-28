@@ -9,6 +9,9 @@
  * Paper sources:
  *   - PAP-2024-HOBS: system EE = throughput / power, DPC concept
  *   - PAP-2025-EEBH-UPLINK: P_total = sum P_b * eta_b where eta_b in {0,1}
+ *     → EE denominator uses TX power of active beams only (Option A).
+ *       Idle/off beam overhead (circuit power) is tracked separately in totalPowerW
+ *       but is NOT included in the EE denominator per PAP-2025-EEBH-UPLINK Eq.(5).
  *   - PAP-2025-SMASH-MADQL: TX/RX/idle power states with explicit values
  *   - PAP-2025-EAQL: reward = lambda * throughput - (1-lambda) * energy
  */
@@ -34,17 +37,14 @@ export interface EnergyLayer1Manager {
   ): void;
 
   /**
-   * Apply DPC: adjust TX power for a beam to meet target SINR.
+   * Apply DPC: adjust TX power for a beam to meet the configured target SINR.
+   * Uses internal config.dpcTargetSinrDb and current stored txPowerDbm.
    * newPowerDbm = currentPowerDbm + (targetSinrDb - currentSinrDb),
    * clamped to [0, config.txPowerPerBeamDbm].
+   * Also updates consumptionW to reflect the new TX power in watts.
    * Source: PAP-2024-HOBS DPC concept.
    */
-  applyDpc(
-    beamId: string,
-    currentSinrDb: number,
-    targetSinrDb: number,
-    currentTxPowerDbm: number,
-  ): number;
+  applyDpc(beamId: string, currentSinrDb: number): number;
 
   /** Compute EE metrics for current tick. */
   computeMetrics(throughputs: Map<string, number>): EnergyEfficiencyMetrics;
@@ -61,12 +61,22 @@ export interface EnergyLayer1Manager {
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_ENERGY_LAYER1_CONFIG: EnergyLayer1Config = {
-  txPowerPerBeamDbm: 43, // PAP-2024-HOBS: 50 dBm / ~5 beams
-  activeBeamPowerW: 20, // PAP-2025-SMASH-MADQL typical TX power
-  idlePowerW: 5, // PAP-2025-SMASH-MADQL idle state
-  offBeamPowerW: 0.1, // assumption-backed
+  // @assumption ASSUME-ENERGY-001
+  // txPowerPerBeamDbm=40 dBm = 10 W, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10].
+  // Previous legacy value was 43 dBm (= 20 W), an internal engineering estimate that
+  // caused the EE denominator to be ~3 dB too high vs spec. Now corrected.
+  // This Layer-1 cap is per-beam only. Aggregate satellite TX budgets such as
+  // profile.rf.max_tx_power_dbm belong to scheduling/power-budget semantics and
+  // must not be substituted here. See spec GAP-7 and ASSUME-ENERGY-001.
+  txPowerPerBeamDbm: 40,
+  // @assumption activeBeamPowerW=20 W and idlePowerW=5 W are unverified.
+  // PAP-2025-SMASH-MADQL is cited in comments but the specific numeric values
+  // could not be confirmed from the local paper text. See spec GAP-5.
+  activeBeamPowerW: 20,
+  idlePowerW: 5,
+  offBeamPowerW: 0.1, // @assumption no paper locator; internal calibration only
   dpcEnabled: false,
-  dpcTargetSinrDb: 3,
+  dpcTargetSinrDb: 10, // PAP-2024-HOBS Table I: γ_thr = 10 dB ✓
 };
 
 // ---------------------------------------------------------------------------
@@ -133,30 +143,30 @@ export function createEnergyLayer1(
       satellites.set(satId, { satId, beams });
     },
 
-    applyDpc(
-      beamId: string,
-      currentSinrDb: number,
-      targetSinrDb: number,
-      currentTxPowerDbm: number,
-    ): number {
-      if (!config.dpcEnabled) {
-        return currentTxPowerDbm;
-      }
-
-      const adjustment = targetSinrDb - currentSinrDb;
-      const newPower = currentTxPowerDbm + adjustment;
-
-      // Clamp to [0, maxPowerDbm]
-      const clamped = Math.max(0, Math.min(config.txPowerPerBeamDbm, newPower));
-
-      // Update stored entry if it exists
+    applyDpc(beamId: string, currentSinrDb: number): number {
+      // Find current beam entry
+      let foundEntry: BeamPowerEntry | null = null;
       for (const sat of satellites.values()) {
         const entry = sat.beams.get(beamId);
         if (entry && entry.state === 'active') {
-          entry.txPowerDbm = clamped;
+          foundEntry = entry;
           break;
         }
       }
+
+      if (!config.dpcEnabled || !foundEntry) {
+        return foundEntry?.txPowerDbm ?? config.txPowerPerBeamDbm;
+      }
+
+      // DPC: newPower = current + (target - actual), clamped to config max
+      const adjustment = config.dpcTargetSinrDb - currentSinrDb;
+      const newPower = foundEntry.txPowerDbm + adjustment;
+      const clamped = Math.max(0, Math.min(config.txPowerPerBeamDbm, newPower));
+
+      foundEntry.txPowerDbm = clamped;
+      // Sync consumptionW so EE denominator reflects actual TX power
+      // Simple model: consumptionW = txPowerW (ignores fixed circuit overhead)
+      foundEntry.consumptionW = clamped > 0 ? Math.pow(10, clamped / 10) / 1000 : 0;
 
       return clamped;
     },
@@ -165,6 +175,10 @@ export function createEnergyLayer1(
       throughputs: Map<string, number>,
     ): EnergyEfficiencyMetrics {
       let totalPowerW = 0;
+      // Option A (PAP-2025-EEBH-UPLINK Eq.(5)): EE denominator = TX power of
+      // active beams only. Idle/off circuit overhead is tracked in totalPowerW
+      // but excluded from the EE denominator.
+      let activeTxPowerW = 0;
       let totalActiveBeams = 0;
       let totalBeams = 0;
       const perBeamEe: Array<{ beamId: string; eeBitsPerJoule: number }> = [];
@@ -176,6 +190,7 @@ export function createEnergyLayer1(
 
           if (entry.state === 'active') {
             totalActiveBeams += 1;
+            activeTxPowerW += entry.consumptionW;
           }
 
           const throughput = throughputs.get(entry.beamId) ?? 0;
@@ -190,7 +205,8 @@ export function createEnergyLayer1(
         0,
       );
 
-      const systemEe = totalPowerW > 0 ? totalThroughput / totalPowerW : 0;
+      // EE = R_total / Σ p_b·η_b  (active TX power only, PAP-2025-EEBH-UPLINK)
+      const systemEe = activeTxPowerW > 0 ? totalThroughput / activeTxPowerW : 0;
 
       return {
         systemEeBitsPerJoule: systemEe,

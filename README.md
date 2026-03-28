@@ -1,6 +1,6 @@
 # NTN Sim Core
 
-Research-Grade NTN/LEO Simulation Shell — 以研究型模擬器為目標的前端殼層與 3D 視覺化基礎。
+Research-Grade NTN/LEO Simulator — 研究型 NTN/LEO 模擬器主專案，含 runtime、channel、handover、energy、beam hopping、replay 與 3D 視覺化。
 
 ---
 
@@ -15,9 +15,31 @@ Research-Grade NTN/LEO Simulation Shell — 以研究型模擬器為目標的前
 
 ## 簡介
 
-NTN Sim Core 是一個基於 Three.js 的研究型 NTN/LEO 模擬器前端殼層。它目前保留國立臺北大學（NTPU）校園場景、UAV 與 satellite 資產，並已開始按照 SDD 轉成 `app / viz / core / runner` 分層架構。
+NTN Sim Core 是本 repo 目前的 **主 simulator**。它不再只是前端殼層，而是已經包含：
+
+- synthetic Walker 與 real-trace TLE/SGP4 軌道路徑
+- multi-beam SINR / link budget / Doppler / fading channel family
+- A3 / A4 / D2 / CHO / Timer-CHO / MC-HO / DAPS handover runtime
+- Layer 1 / Layer 2 energy modeling
+- beam hopping scheduler families
+- deterministic replay / benchmark / validation artifacts
+- 對應的 3D 視覺化與 explainability overlays
+
+它目前仍保留國立臺北大學（NTPU）校園場景、UAV 與 satellite 資產，並按照 SDD 轉成 `app / viz / core / runner` 分層架構。
 
 技術架構採用 **React + TypeScript + Vite**，透過 **React Three Fiber** 將 Three.js 整合進 React 生態系，實現宣告式的 3D 場景管理。
+
+## 文件權威關係
+
+對 `ntn-sim-core` 的工作，請優先以下列文件為 authority：
+
+1. [SDD 文件總覽](./sdd/README.md)
+2. [Implementation Status](./sdd/ntn-sim-core-implementation-status.md)
+3. [Profile Baselines](./sdd/ntn-sim-core-profile-baselines.md)
+4. [Development Constraints](./sdd/ntn-sim-core-development-constraints.md)
+5. [Assumption Policy](./sdd/ntn-sim-core-assumption-policy.md)
+
+本 README 的角色是專案入口與導覽頁，不取代上述 SDD/狀態文件。
 
 ## 快速開始
 
@@ -90,6 +112,16 @@ npm run preview
 14. [最終 closure checklist](./sdd/ntn-sim-core-final-closure-checklist.md)
 
 目前 `leo-parity` mode 已有同頁切換入口與第一版 presenter-driven beam density，可用 `?view=leo-parity` 直接進入。
+
+## 目前狀態摘要
+
+依 [Implementation Status](./sdd/ntn-sim-core-implementation-status.md)：
+
+- 目前 phase 0 到 phase 6 為 closure-complete
+- `validate:stage` 為 passing 狀態
+- 已含 channel / handover / replay / beam hopping / energy L1/L2 / DAPS 主線
+
+因此閱讀本專案時，應把它視為 **研究型模擬器主體**，不是單純的 Three.js frontend shell。
 
 ### 可用指令
 

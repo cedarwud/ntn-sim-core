@@ -223,7 +223,7 @@ console.log('');
 
 console.log('=== 3. 3GPP Shadow Fading & Clutter Loss Table (VAL-CHAN-002) ===\n');
 
-// Source: 3GPP TR 38.811 v15.4.0, Table 6.6.2-1 (suburban)
+// Source: 3GPP TR 38.811 v15.4.0, Table 6.6.2-3 (suburban / rural)
 // As extracted in PAP-2022-SINR-ELEVATION channelParameterTable
 const TABLE_EL =       [10,    20,    30,    40,    50,    60,    70,    80,    90];
 const TABLE_LOS_SF =   [1.79,  1.14,  1.14,  0.92,  1.42,  1.56,  0.85,  0.72,  0.72];

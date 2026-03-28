@@ -311,22 +311,27 @@ checkBool('Inner ring dominates interference (>50%)', I_inner / I_sum > 0.5,
 
 console.log('\n=== VAL-EE-001: Energy Layer 1 ===\n');
 
-// 19 beams, 5 active. Power model from HOBS/BH papers.
+// 19 beams, 5 active.
+// Power constants from DEFAULT_ENERGY_LAYER1_CONFIG (src/core/energy/layer1.ts):
+//   activeBeamPowerW = 20 W  (@assumption ASSUME-ENERGY-001)
+//   idleBeamPowerW   =  5 W  (@assumption ASSUME-ENERGY-001)
+//   offBeamPowerW    =  0.1 W (@assumption — internal calibration)
+// Updated 2026-03-28: aligned with actual runtime defaults (was using toy 10W/1W model).
 const numBeams = 19;
 const activeBeams = 5;
 const idleBeams = numBeams - activeBeams;
-const activeW = 10;   // watts per active beam
-const idleW = 1;      // watts per idle beam
+const activeW = 20;   // watts per active beam (ASSUME-ENERGY-001)
+const idleW = 5;      // watts per idle beam   (ASSUME-ENERGY-001)
 
 const totalPower = activeBeams * activeW + idleBeams * idleW;
-const expectedPower = 5 * 10 + 14 * 1;
-checkAbs('Total power (5 active, 14 idle)', totalPower, expectedPower, 0.001, 'W');
-checkAbs('Total power = 64W', totalPower, 64, 0.001, 'W');
+const expectedPower = 5 * 20 + 14 * 5;  // 100 + 70 = 170 W
+checkAbs('Total power (5 active × 20W, 14 idle × 5W)', totalPower, expectedPower, 0.001, 'W');
+checkAbs('Total power = 170W', totalPower, 170, 0.001, 'W');
 
 // EE = throughput / power
 const throughput_bps = 500e6; // 500 Mbps
 const EE = throughput_bps / totalPower;
-const expectedEE = 500e6 / 64;
+const expectedEE = 500e6 / 170;
 checkAbs('EE = throughput/power', EE, expectedEE, 0.01, 'bps/W');
 
 // Changing active beam count changes EE proportionally
@@ -339,7 +344,7 @@ checkBool('More active beams → lower EE (same throughput)',
 
 // Proportionality: power ratio
 const powerRatio = totalPower2 / totalPower;
-const expectedPowerRatio = (10 * 10 + 9 * 1) / (5 * 10 + 14 * 1);
+const expectedPowerRatio = (10 * 20 + 9 * 5) / (5 * 20 + 14 * 5);  // 245/170
 checkAbs('Power ratio (10 vs 5 active)', powerRatio, expectedPowerRatio, 0.001);
 
 // ═══════════════════════════════════════════════════════════════════

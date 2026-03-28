@@ -9,9 +9,35 @@
  */
 
 import type { AntennaConfig } from '@/core/profiles/types';
+import { EARTH_RADIUS_KM } from '@/core/common/constants';
 import type { SatelliteBeamLayout, BeamSelectionResult } from './types';
 
-const RAD_TO_DEG = 180 / Math.PI;
+/**
+ * Convert local ground-plane separation into the satellite off-axis angle.
+ *
+ * Beam layouts are expressed as ENU offsets on the Earth surface relative to the
+ * sub-satellite point. For beam selection we care about the angle between a beam
+ * boresight (its ground footprint center) and the UE ground point as seen from the
+ * satellite, so we first map the local surface separation to a central angle
+ * `ψ = s / R_E`, then reuse the same spherical geometry used elsewhere in the
+ * channel stack:
+ *
+ *   θ = atan2(R_E sin ψ, R_E + h - R_E cos ψ)
+ *
+ * This removes the earlier planar `atan(dist / altitude)` approximation and keeps
+ * beam ranking aligned with the simulator's main off-axis / beam-gain geometry.
+ */
+function computeLocalOffAxisAngleDeg(
+  groundSeparationKm: number,
+  altitudeKm: number,
+): number {
+  const centralAngleRad = groundSeparationKm / EARTH_RADIUS_KM;
+  const offAxisRad = Math.atan2(
+    EARTH_RADIUS_KM * Math.sin(centralAngleRad),
+    EARTH_RADIUS_KM + altitudeKm - EARTH_RADIUS_KM * Math.cos(centralAngleRad),
+  );
+  return offAxisRad * (180 / Math.PI);
+}
 
 /**
  * Select the best beam for a UE given its ENU offset from the satellite sub-point.
@@ -27,8 +53,13 @@ export function selectBeamForUe(
   ueOffsetEastKm: number,
   ueOffsetNorthKm: number,
   antennaConfig: AntennaConfig,
+  activeBeamIds?: readonly string[],
 ): BeamSelectionResult {
-  const { beams, altitudeKm } = layout;
+  const activeBeamSet = activeBeamIds ? new Set(activeBeamIds) : null;
+  const beams = activeBeamSet
+    ? layout.beams.filter((beam) => activeBeamSet.has(beam.beamId))
+    : layout.beams;
+  const { altitudeKm } = layout;
 
   if (beams.length === 0) {
     throw new Error('Cannot select beam from empty layout');
@@ -38,8 +69,8 @@ export function selectBeamForUe(
   const beamAngles = beams.map((beam) => {
     const dEast = ueOffsetEastKm - beam.offsetEastKm;
     const dNorth = ueOffsetNorthKm - beam.offsetNorthKm;
-    const distKm = Math.sqrt(dEast * dEast + dNorth * dNorth);
-    const offAxisAngleDeg = Math.atan(distKm / altitudeKm) * RAD_TO_DEG;
+    const groundSeparationKm = Math.sqrt(dEast * dEast + dNorth * dNorth);
+    const offAxisAngleDeg = computeLocalOffAxisAngleDeg(groundSeparationKm, altitudeKm);
 
     return {
       beamId: beam.beamId,

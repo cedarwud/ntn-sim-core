@@ -14,13 +14,18 @@
     "validate:core-purity": "node scripts/validate-core-purity.mjs",
     "validate:final": "node scripts/validate-final.mjs",
     "validate:runtime": "node scripts/validate-runtime.mjs",
+    "validate:orbit-parity": "node --import tsx scripts/validate-orbit-parity.ts",
+    "validate:multibeam-gating": "node --import tsx scripts/validate-multibeam-gating.ts",
     "validate:replay-manifest": "node --import tsx scripts/validate-replay-manifest.ts",
     "validate:visual-browser": "node --import tsx scripts/validate-visual-browser.ts",
     "validate:golden-orbit": "node scripts/golden-case-orbit.mjs",
     "validate:golden-channel": "node scripts/golden-case-channel.mjs",
     "validate:golden-engine": "node --import tsx scripts/golden-case-engine.ts",
     "validate:baseline": "node --import tsx scripts/run-baseline.ts",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine"
+    "validate:reproduction": "npx tsx scripts/run-reproduction-comparison.ts",
+    "validate:audit-profiles": "node --import tsx scripts/audit-profiles.ts",
+    "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles"
   },
   "keywords": [
     "3d",

@@ -25,11 +25,48 @@ export interface ValidationRuntimeSummary {
   replayWindowEndSec: number | null;
 }
 
+export interface OrbitParitySatelliteSample {
+  id: string;
+  latDeg: number;
+  lonDeg: number;
+  altKm: number;
+  azimuthDeg: number;
+  elevationDeg: number;
+  rangeKm: number;
+  isVisible: boolean;
+}
+
+export interface OrbitParitySummary {
+  present: boolean;
+  mode: 'live' | 'replay';
+  profileId: string;
+  timeSec: number | null;
+  sampleCount: number;
+  satellites: OrbitParitySatelliteSample[];
+}
+
+export interface EarthMovingBeamGeometrySample {
+  satId: string;
+  beamId: string;
+  role: BeamRole;
+  isActive: boolean;
+  isCandidate: boolean;
+  isUeAnchored: boolean;
+  satX: number;
+  satZ: number;
+  groundX: number;
+  groundZ: number;
+  offsetEastKm: number;
+  offsetNorthKm: number;
+}
+
 export interface EarthMovingLayerSummary {
   present: boolean;
   renderedSatIds: string[];
   renderedBeamCount: number;
+  footprintRadiusWorld: number;
   roleCounts: Partial<Record<BeamRole, number>>;
+  geometrySamples: EarthMovingBeamGeometrySample[];
 }
 
 export interface EarthFixedLayerSummary {
@@ -71,6 +108,7 @@ export interface HandoverLinkOverlaySummary {
 export interface VisualValidationState {
   updatedAt: number;
   runtime?: ValidationRuntimeSummary;
+  orbitParity?: OrbitParitySummary;
   earthMovingBeamLayer?: EarthMovingLayerSummary;
   earthFixedCellLayer?: EarthFixedLayerSummary;
   beamInfoOverlay?: BeamInfoOverlaySummary;

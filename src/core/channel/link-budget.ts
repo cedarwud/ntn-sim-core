@@ -37,6 +37,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     txEirpDbm,
     elevationDeg,
     environment,
+    largeScaleModel,
     beamGainInput,
     tier1LargeScale,
     tier2Clutter,
@@ -48,6 +49,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     scanAngleDeg,
     scanMaxAngleDeg,
     scanLossMaxDb,
+    implementationLossDb,
   } = opts;
 
   // Tier 0: FSPL (always mandatory)
@@ -58,7 +60,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
   if (tier1LargeScale && rngNext) {
     const params = getShadowFadingParams(elevationDeg, environment, frequencyGhz);
     const sigma = isLos ? params.losSigmaDb : params.nlosSigmaDb;
-    shadowFadingDb = Math.abs(sampleShadowFading(sigma, rngNext));
+    shadowFadingDb = sampleShadowFading(sigma, rngNext);
   }
 
   // Tier 2: clutter loss (NLOS only)
@@ -90,8 +92,16 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
   // Tier 4: atmospheric loss (M4 fix: simplified ITU-R model for Ka-band)
   // Gaseous absorption (O2 + H2O) + rain attenuation, elevation-dependent
   // Source: ITU-R P.676 (gaseous), ITU-R P.618 (rain), simplified for LEO NTN
+  //
+  // @assumption ASSUME-ATM-001
+  // Zenith values below are fixed mid-latitude estimates, NOT full ITU-R table lookups.
+  //   - gaseous: 0.35 dB (10–25 GHz) / 0.6 dB (25+ GHz)  [ITU-R P.676 typical clear-sky]
+  //   - rain:    0.8 dB (10–25 GHz) / 1.5 dB (25+ GHz)   [ITU-R P.618 99% availability]
+  //   - scintillation: 0.4 dB (Ka-band)                   [ITU-R P.618 tropospheric]
+  // Claim scope: suitable for LEO NTN Ka-band baseline; not for site-specific or
+  // availability-sensitive comparisons. See sdd/ntn-sim-core-assumption-policy.md §9.
   let atmosphericDb = 0;
-  if (tier4Atmospheric && frequencyGhz >= 10) {
+  if (tier4Atmospheric && (largeScaleModel ?? '3gpp-baseline') === '3gpp-extended' && frequencyGhz >= 10) {
     // Gaseous absorption: ~0.15 dB/km at 20 GHz, ~0.25 dB/km at 28 GHz (clear sky)
     // Effective path through atmosphere ≈ 10 km / sin(elevation)
     const zenithGaseousDb = frequencyGhz >= 25 ? 0.6 : 0.35;
@@ -124,7 +134,8 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
 
   // Total path loss (positive value = loss)
   // smallScaleFadingDb can be + or - (normalized to 0 dB mean)
-  const totalPathLossDb = fsplDb + shadowFadingDb + clutterLossDb + atmosphericDb + scanLossDb - beamGainDb - smallScaleFadingDb;
+  const implementationDb = implementationLossDb ?? 0;
+  const totalPathLossDb = fsplDb + implementationDb + shadowFadingDb + clutterLossDb + atmosphericDb + scanLossDb - beamGainDb - smallScaleFadingDb;
 
   // Received power
   const rxPowerDbm = txEirpDbm - totalPathLossDb;
@@ -133,6 +144,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     fsplDb,
     shadowFadingDb,
     clutterLossDb,
+    implementationLossDb: implementationDb,
     beamGainDb,
     atmosphericDb,
     scanLossDb,

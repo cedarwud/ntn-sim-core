@@ -17,6 +17,7 @@ import type {
   ObserverLocation,
   TimeControl,
 } from '@/core/common/types';
+import type { OrbitType, GeoStationaryConfig } from '@/core/orbit/types';
 
 // Re-export for convenience
 export type { SourceTier, SourceReference, OrbitMode, BeamSemantics };
@@ -30,13 +31,17 @@ export type ProfileFamily =
   | 'hobs-multibeam-baseline'
   | 'bh-resource-baseline'
   | 'real-trace-validation'
-  | 'case9-daps-baseline';
+  | 'case9-daps-baseline'
+  | 'meo-constellation-baseline'
+  | 'geo-relay-baseline';
 
 // ---------------------------------------------------------------------------
 // Sub-config types
 // ---------------------------------------------------------------------------
 
 export interface OrbitalConfig {
+  /** Orbit regime. Defaults to 'leo' when omitted. */
+  orbitType?: OrbitType;
   altitude_km: number;
   inclination_deg: number;
   num_planes: number;
@@ -58,21 +63,49 @@ export interface OrbitalConfig {
     num_planes: number;
     sats_per_plane: number;
     phasing_factor?: number;
+    orbitType?: OrbitType;
   }>;
+  /** GEO fixed-position satellites. Merged into constellation alongside Walker shells. */
+  geoSatellites?: GeoStationaryConfig[];
 }
 
 export interface RfConfig {
   frequency_ghz: number;
   bandwidth_mhz: number;
-  /** EIRP spectral density in dBW/MHz. */
+  /**
+   * EIRP spectral density in dBW/MHz.
+   *
+   * @spec-deviation simulator-parameter-spec.md §5 (line 165) classifies
+   * eirpDensityDbwPerMHz as a "derived reporting quantity" (= P_beam_max · G_T(θ=0))
+   * and states it must not be exposed as an independent input.
+   * This field is retained as a profile input for practical reasons:
+   * papers specify EIRP directly, and computing it from P1 + antenna gain
+   * requires the full antenna model to be evaluated first.
+   * Claim scope: acceptable as a provenance-tagged compatibility input for
+   * paper families that report EIRP directly; must not be independently swept
+   * or exposed as a free user control without recomputing dependent quantities
+   * such as noise floor and HO thresholds.
+   */
   eirp_density_dbw_per_mhz: number;
-  /** Maximum transmit power in dBm (used for energy accounting). */
+  /**
+   * Maximum total satellite transmit power in dBm (aggregate across all beams).
+   * Used as the power budget ceiling for power-aware BH scheduling.
+   * This is NOT the per-beam TX power; do not conflate with Energy Layer 1
+   * txPowerPerBeamDbm (= spec P1 = 40 dBm = 10 W per beam).
+   * Set to null to disable the power budget constraint.
+   */
   max_tx_power_dbm: number | null;
   /** Noise temperature in K (antenna + sky). */
   noise_temperature_k: number;
   /** UE receiver noise figure in dB (MS5 fix). Default 7 dB (3GPP typical UE).
    *  System noise temp = T_ant + T_0·(10^(NF/10) - 1) where T_0 = 290K */
   noise_figure_db?: number;
+  /**
+   * Feeder + pointing implementation loss in dB.
+   * Replaces the legacy systemLossDb fudge factor from donor projects.
+   * @source PAP-2022-SENSORS-BH Table 3 (0.5 dB feeder + 2.0 dB pointing)
+   */
+  implementation_loss_db?: number;
 }
 
 export interface AntennaConfig {
@@ -100,7 +133,7 @@ export interface BeamConfig {
   /** Number of slots per BH frame (default ceil(num_beams / bh_max_active_per_slot)). */
   bh_slots_per_frame?: number;
   /** BH scheduling strategy (default 'round-robin'). */
-  bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' | 'deterministic-fixed';
+  bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' | 'deterministic-fixed' | 'proportional-fair' | 'sinr-greedy';
   /** Power budget per satellite for power-aware BH scheduling (W). Required for 'power-aware' strategy. */
   bh_power_budget_w?: number;
   /** Traffic model for demand-aware BH scheduling. */
@@ -110,6 +143,9 @@ export interface BeamConfig {
 }
 
 /** Channel model tier enable flags (profile-baselines §8.1). */
+export type LargeScaleModel = '3gpp-baseline' | '3gpp-extended';
+export type DeploymentEnvironment = 'rural' | 'suburban' | 'dense-urban';
+
 export interface ChannelConfig {
   /** Tier 0: FSPL — always mandatory. */
   tier0_fspl: true;
@@ -123,6 +159,34 @@ export interface ChannelConfig {
   tier4_atmospheric: boolean;
   /** Tier 5: small-scale fading (SR / Rician / Loo). */
   tier5_fading: boolean;
+  /**
+   * Large-scale NTN path loss family selection.
+   * `3gpp-baseline` = FSPL + SF + CL
+   * `3gpp-extended` = baseline + atmospheric chain when Tier 4 is enabled
+   */
+  large_scale_model?: LargeScaleModel;
+  /**
+   * Scenario class for SF / CL lookup.
+   * Current simulator spec only exposes rural / suburban / dense-urban.
+   */
+  deployment_environment?: DeploymentEnvironment;
+  /**
+   * Tier 3.5: phased-array scan loss (Ka-band only).
+   * NOT YET WIRED — setting this flag has no effect until the engine
+   * computes per-beam scan angles and passes them to computeLinkBudget().
+   * The underlying formula exists in link-budget.ts (tier35ScanLoss path)
+   * but the engine does not yet supply scanAngleDeg per beam.
+   * @status dead-path — do not use in benchmark claims.
+   */
+  tier3_5_scan_loss?: boolean;
+  /**
+   * Tier 6: Doppler ICI SINR degradation.
+   * Enabled for OFDM systems at high carrier frequency or high satellite speed.
+   * Reference: 3GPP TR 38.821 §6.1, PAP-2024-BEAM-MGMT-SPECTRUM.
+   */
+  tier6_doppler?: boolean;
+  /** OFDM subcarrier spacing for Tier 6 Doppler ICI computation (kHz). Default 30. */
+  subcarrier_spacing_khz?: number;
 }
 
 export type HandoverType =
@@ -139,14 +203,34 @@ export type HandoverType =
 
 export interface HandoverConfig {
   type: HandoverType;
-  /** A3/A4 trigger threshold in dB. */
+  /**
+   * A4 absolute SINR threshold (dB). Used **only** for A4-event and attach decisions.
+   * Semantics: handover triggers when serving SINR < trigger_threshold_db.
+   * Do NOT use as A3 offset — see a3_offset_db below.
+   *
+   * @spec-deviation simulator-parameter-spec.md §6 H3 states this threshold
+   * must be derived as: A4_thr = N_floor + Q_out (noise floor + outage margin).
+   * This field is retained as a direct profile input for flexibility; profiles
+   * that set it manually must document the derivation or disclose the assumption.
+   * For spec-compliant baselines, compute via: noise_floor_dBm + rlf_qout_db.
+   */
   trigger_threshold_db: number;
+  /**
+   * A3 relative offset (dB). Used **only** for A3-event condition.
+   * Semantics: HO triggers when candidate SINR > serving SINR + a3_offset_db + hysteresis_db.
+   * Defaults to 0 if omitted (no offset beyond hysteresis).
+   * @source spec H1: 2 dB per PAP-2022-A4EVENT-CORE Table I + TS 38.331 §5.5.4.4
+   */
+  a3_offset_db?: number;
   /** Time-to-trigger in ms. */
   ttt_ms: number;
   /** Hysteresis in dB. */
   hysteresis_db: number;
   /** Minimum elevation angle for candidate cells in degrees. */
   min_elevation_deg: number;
+  /** Ping-pong suppression window in seconds. Default 5 (LEO).
+   *  Recommended: 60 for MEO, 300 for GEO. */
+  pingPongWindowSec?: number;
 
   // --- CHO / Timer-CHO parameters (C2) ---
   /** CHO: A3 offset for conditional execution condition (dB). Default 0. */
@@ -158,6 +242,20 @@ export interface HandoverConfig {
    *  a = 1/2^(k/4), F_n = (1-a)·F_{n-1} + a·M_n
    *  @source 3GPP TS 38.331, PAP-2025-TIMERCHO-CORE */
   cho_filter_k?: number;
+
+  // --- DAPS parameters ---
+  /**
+   * DAPS: preparation phase duration before dual-active starts (seconds).
+   * Default 0.5 s — time for path setup and L2 preparation.
+   * @source PAP-2025-DAPS-CORE §III-B (preparation phase semantics)
+   */
+  daps_preparation_time_sec?: number;
+  /**
+   * DAPS: maximum dual-active window before forced path switch (seconds).
+   * Default 2.0 s — covers typical LEO HO window.
+   * @source PAP-2025-DAPS-CORE §III-C, PAP-2024-MCCHO-CORE (dual-active duration)
+   */
+  daps_max_dual_active_sec?: number;
 
   // --- MC-HO parameters (C2) ---
   /** MC-HO: maximum dual-active duration (seconds). Default 2.0.
@@ -231,8 +329,13 @@ export interface EnergyConfig {
   /**
    * Energy cost per handover transaction in Joules (A8).
    * Applied as a one-shot debit to the satellite energy budget when HO executes.
-   * Default: 0 (disabled). Typical value: 3 J (from leo-simulator).
-   * @source leo-simulator/src/config/energy.config.ts
+   *
+   * Governance:
+   *   - No paper-backed default is adopted in the final simulator spec.
+   *   - If a profile sets this field, it must carry an assumption-backed
+   *     sourceMap entry with parameterPath = 'energy.energy_per_handover_j'.
+   *   - Do not label any numeric value paper-backed unless a corpus-backed
+   *     locator is added to the source registry.
    */
   energy_per_handover_j?: number;
   /**

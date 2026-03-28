@@ -21,7 +21,19 @@ export type SchedulerStrategy =
   | 'round-robin'
   | 'max-demand'
   | 'power-aware'
-  | 'deterministic-fixed';
+  | 'deterministic-fixed'
+  /**
+   * Proportional Fair (PF): beam priority = demand / historicalServiceCount.
+   * Standard cellular scheduling baseline; most DRL papers compare against PF.
+   * Reference: 3GPP TS 36.213 §6.2.2 PF scheduling rule.
+   */
+  | 'proportional-fair'
+  /**
+   * SINR-Greedy: activate beams with highest current SINR estimate.
+   * Upper-bound baseline for channel-aware beam selection.
+   * Reference: PAP-2024-HOBS non-DRL greedy comparison.
+   */
+  | 'sinr-greedy';
 
 export interface BhSchedulerConfig {
   /** BH frame duration in seconds. Default 0.64 (640 ms from papers). */
@@ -34,6 +46,12 @@ export interface BhSchedulerConfig {
   strategy: SchedulerStrategy;
   /** For power-aware: target total power budget in watts. */
   powerBudgetW?: number;
+  /**
+   * Proportional-fair forgetting factor (0 < α ≤ 1).
+   * Low α = long memory; high α = reactive to current demand.
+   * Default 0.1 (standard PF time constant ≈ 10 slots).
+   */
+  pfAlpha?: number;
 }
 
 export interface BhSlotDecision {
@@ -51,6 +69,7 @@ export interface BhScheduler {
   getSlotDecision(
     timeSec: number,
     demandPerBeam?: Map<string, number>,
+    sinrPerBeam?: Map<string, number>,
   ): BhSlotDecision;
   /** Get current frame and slot indices. */
   getCurrentIndices(timeSec: number): { frameIndex: number; slotIndex: number };
@@ -127,6 +146,45 @@ function deterministicFixedSelect(
   return beamIds.slice(0, max);
 }
 
+/**
+ * Proportional Fair selection: priority = demand_b / historicalServiceCount_b.
+ * historicalServiceCount is updated externally after each slot decision.
+ */
+function proportionalFairSelect(
+  beamIds: string[],
+  max: number,
+  demandPerBeam: Map<string, number>,
+  historicalService: Map<string, number>,
+): string[] {
+  const scored = beamIds.map((id) => {
+    const demand = demandPerBeam.get(id) ?? 1; // default 1 to avoid starvation
+    const history = historicalService.get(id) ?? 1;
+    return { id, score: demand / history };
+  });
+  scored.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1));
+  return scored.slice(0, max).map((s) => s.id);
+}
+
+/**
+ * SINR-greedy: activate beams in descending order of current SINR estimate.
+ * Uses round-robin as fallback when SINR data is unavailable.
+ */
+function sinrGreedySelect(
+  beamIds: string[],
+  max: number,
+  sinrPerBeam: Map<string, number>,
+  slotIndex: number,
+): string[] {
+  const hasSinr = beamIds.some((id) => sinrPerBeam.has(id));
+  if (!hasSinr) return roundRobinSelect(beamIds, max, slotIndex);
+  const scored = beamIds.map((id) => ({
+    id,
+    sinr: sinrPerBeam.get(id) ?? -100,
+  }));
+  scored.sort((a, b) => b.sinr - a.sinr || (a.id < b.id ? -1 : 1));
+  return scored.slice(0, max).map((s) => s.id);
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -161,10 +219,15 @@ export function createBhScheduler(
       ? cfg.powerBudgetW / maxActiveBeamsPerSlot
       : undefined;
 
+  // PF: historical service counts per beam (exponential moving average with α = pfAlpha).
+  const pfAlpha = cfg.pfAlpha ?? 0.1;
+  const historicalService = new Map<string, number>();
+
   function selectForSat(
     satId: string,
     slotIndex: number,
     demandPerBeam?: Map<string, number>,
+    sinrPerBeam?: Map<string, number>,
   ): string[] {
     const beamIds = sortedBeamIds.get(satId);
     if (!beamIds || beamIds.length === 0) return [];
@@ -192,10 +255,33 @@ export function createBhScheduler(
       case 'deterministic-fixed':
         return deterministicFixedSelect(beamIds, max);
 
+      case 'proportional-fair':
+        return proportionalFairSelect(
+          beamIds, max, demandPerBeam ?? new Map(), historicalService,
+        );
+
+      case 'sinr-greedy':
+        return sinrGreedySelect(beamIds, max, sinrPerBeam ?? new Map(), slotIndex);
+
       default: {
         // Exhaustive check.
         const _: never = strategy;
         throw new Error(`Unknown strategy: ${_}`);
+      }
+    }
+  }
+
+  /** Update PF historical service counts after each slot. */
+  function updatePfHistory(activeBeamIds: string[]): void {
+    const activeSet = new Set(activeBeamIds);
+    for (const beamId of [...historicalService.keys()]) {
+      const wasActive = activeSet.has(beamId) ? 1 : 0;
+      historicalService.set(beamId, (1 - pfAlpha) * historicalService.get(beamId)! + pfAlpha * wasActive);
+    }
+    // Initialize new beams.
+    for (const beamId of activeBeamIds) {
+      if (!historicalService.has(beamId)) {
+        historicalService.set(beamId, pfAlpha); // start with small positive value
       }
     }
   }
@@ -208,6 +294,7 @@ export function createBhScheduler(
   function getSlotDecision(
     timeSec: number,
     demandPerBeam?: Map<string, number>,
+    sinrPerBeam?: Map<string, number>,
   ): BhSlotDecision {
     const { frameIndex, slotIndex } = computeIndices(
       timeSec,
@@ -216,7 +303,8 @@ export function createBhScheduler(
     );
 
     // Advance global counter when slot changes.
-    if (frameIndex !== lastFrameIndex || slotIndex !== lastSlotIndex) {
+    const slotChanged = frameIndex !== lastFrameIndex || slotIndex !== lastSlotIndex;
+    if (slotChanged) {
       if (lastFrameIndex >= 0) {
         // Count how many slots have passed.
         const prevGlobal = lastFrameIndex * slotsPerFrame + lastSlotIndex;
@@ -231,8 +319,14 @@ export function createBhScheduler(
     for (const satId of sortedBeamIds.keys()) {
       activeBeamsPerSat.set(
         satId,
-        selectForSat(satId, globalSlotCounter, demandPerBeam),
+        selectForSat(satId, globalSlotCounter, demandPerBeam, sinrPerBeam),
       );
+    }
+
+    // Update PF history after each slot transition.
+    if (strategy === 'proportional-fair' && slotChanged) {
+      const allActive = [...activeBeamsPerSat.values()].flat();
+      updatePfHistory(allActive);
     }
 
     const totalActive = [...activeBeamsPerSat.values()].reduce(
@@ -257,12 +351,22 @@ export function createBhScheduler(
     /** Register a satellite that appeared after scheduler init. */
     registerSatellite(satId: string, layout: SatelliteBeamLayout): void {
       if (sortedBeamIds.has(satId)) return;
-      sortedBeamIds.set(satId, [...layout.beams.map((b) => b.beamId)].sort());
+      const beamIds = [...layout.beams.map((b) => b.beamId)].sort();
+      sortedBeamIds.set(satId, beamIds);
+      // Initialize PF history for new beams.
+      if (strategy === 'proportional-fair') {
+        for (const beamId of beamIds) {
+          if (!historicalService.has(beamId)) {
+            historicalService.set(beamId, pfAlpha);
+          }
+        }
+      }
     },
     reset() {
       globalSlotCounter = 0;
       lastFrameIndex = -1;
       lastSlotIndex = -1;
+      historicalService.clear();
     },
   };
 }

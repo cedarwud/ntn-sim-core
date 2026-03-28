@@ -1,8 +1,8 @@
 # NTN Sim Core — Academic Remediation Plan
 
-**Version:** 1.0.0
-**Date:** 2026-03-25
-**Status:** Active — all 22 remediation items resolved
+**Version:** 1.1.0
+**Date:** 2026-03-27
+**Status:** Complete — all 22 remediation items resolved + 6 post-remediation extensions landed
 **Purpose:** Identify and track all gaps that prevent ntn-sim-core from meeting academic peer-review standards for a LEO multi-beam handover + energy efficiency paper.
 
 ---
@@ -106,7 +106,7 @@ The following implementation-status claims are inaccurate and must be corrected:
 
 **Severity:** CRITICAL
 **Effort:** High (engine architecture change)
-**Status:** ✅ Fixed (2026-03-23, Phase A). `ue/position-generator.ts` generates N UEs (uniform/clustered/hotspot) within beam footprint. Engine computes per-UE SINR from beam gain roll-off at each UE's off-axis angle. Shared serving satellite (Phase A). KPI accumulator records per-UE. VAL-UE-001/002 passing. Phase B (independent HO per UE) deferred.
+**Status:** ✅ Fixed (2026-03-23 Phase A; 2026-03-25 Phase B). Phase A: `ue/position-generator.ts`, per-UE SINR from beam roll-off, shared serving. Phase B: `Map<ueId, HandoverManager>` per-UE independent HO, per-UE best-satellite selection in engine tick. `ueConfig.independentHandover: true` enables Phase B. VAL-UE-003 + E-3/E-4/E-5 golden cases passing. N=100 stress test (E-4) completes in <400ms.
 
 ---
 
@@ -146,12 +146,12 @@ The following implementation-status claims are inaccurate and must be corrected:
 **Problem:** Ka-band profiles (HOBS, BH) use the same S-band suburban table. 3GPP TR 38.811 provides separate tables for different frequency bands and environments.
 
 **Fix:**
-1. Add Ka-band shadow fading parameters (3GPP TR 38.811 Table 6.6.2-1)
+1. Add exact 3GPP shadow fading / clutter tables for dense-urban (Table 6.6.2-1) and suburban/rural (Table 6.6.2-3)
 2. Parameterize by frequency band and environment
 3. Profile selects the correct table
 
 **Effort:** Medium
-**Status:** ✅ Fixed (2026-03-23). `shadow-fading.ts` now has Ka-band suburban tables (3GPP TR 38.811 Table 6.6.2-1) with `FrequencyBand` dispatch. `getShadowFadingParams()` accepts optional `frequencyGhz`. `link-budget.ts` passes frequency to shadow fading lookup. VAL-CHAN-003 passing.
+**Status:** ✅ Fixed (2026-03-23, expanded 2026-03-28). `shadow-fading.ts` now dispatches exact 3GPP dense-urban tables (Table 6.6.2-1) and suburban/rural tables (Table 6.6.2-3) for both S-band and Ka-band. `getShadowFadingParams()` accepts both environment and optional `frequencyGhz`. `link-budget.ts` passes frequency to shadow fading lookup. VAL-CHAN-003 passing.
 
 ---
 
@@ -243,22 +243,18 @@ offAxisRad = arctan(R_E * sin(centralAngle) / (R_E + h - R_E * cos(centralAngle)
 
 ### MS2. Multi-UE engine
 
-**Current state:** Phase A implemented (2026-03-23): N UEs with per-UE SINR from beam roll-off, shared serving satellite. Phase B (independent HO per UE) not yet implemented.
+**Status:** ✅ Fixed (2026-03-25). Both Phase A and Phase B fully implemented.
 
-**Required for:** Per-UE HO rate, load balancing, multi-satellite scheduling, cell-edge HO behavior.
-
-**Phase B approach:**
-1. ✅ UE position generator — done (`ue/position-generator.ts`)
-2. ✅ Per-UE off-axis angle → per-UE SINR — done (engine C3 fix)
-3. ❌ Independent HO per UE: `Map<ueId, HandoverManager>` — not started
+**Phase B implementation:**
+1. ✅ UE position generator — `ue/position-generator.ts`
+2. ✅ Per-UE off-axis angle → per-UE SINR — engine C3 fix
+3. ✅ Independent HO per UE: `Map<ueId, HandoverManager>` — implemented
 4. ✅ KPI accumulator per-UE tracking — done
-5. ❌ Per-UE serving satellite selection (each UE finds its own best satellite) — not started
+5. ✅ Per-UE serving satellite selection — each UE finds its own best candidate
 
 **Config:** `ueConfig.independentHandover: true` enables Phase B (SDD §9.3.2).
 
-**Effort:** Medium (Phase A infrastructure exists, main work is per-UE HO manager map + per-UE best-satellite selection in engine tick)
-
-**Performance note:** Phase B with 100 UE × 20 candidates = 2000 HO evaluations per tick. SDD §13 limits headless Phase B to ≤ 100 UEs.
+**Performance note:** Phase B with N=100 UE × 20 candidates = 2000 HO evaluations per tick; measured at 342ms for 300 ticks (E-4 golden case). SDD §13 limits headless Phase B to ≤ 100 UEs.
 
 ---
 
@@ -453,6 +449,7 @@ These are physical models that the original SDD does not mention but that are re
    - 記錄偏差原因（simplification, implementation choice 等）
 
 **Effort:** High（需要仔細的 paper-by-paper 參數對齊）
+**Status:** ✅ Fixed (2026-03-27). Three reproduction profiles created (`sinr-elevation-reproduction`, `hobs-reproduction`, `timer-cho-reproduction`). Comparison script `scripts/run-reproduction-comparison.ts` runs all three and logs deviation vs paper targets. Results recorded in `sdd/ntn-sim-core-reproduction-results.md`. `validate:reproduction` added to `validate:integration` chain. RT-3 Timer-CHO produces ≥1 HO / 0 failures (E-9 golden case).
 
 ---
 
@@ -482,6 +479,7 @@ These are physical models that the original SDD does not mention but that are re
 4. Phase 6 的 policy runtime 對接這個介面
 
 **Effort:** Medium（介面設計 + engine 擴展）
+**Status:** ✅ Fixed (2026-03-27). `SimEngine` interface extended with `getObservation(): PolicyObservation | null` and `applyAction(action | null)`. Engine builds observation every tick and caches it; external action queue is consumed once per tick (priority over injected policy). E-10 golden case in `golden-case-engine.ts` validates pull-model interface. `VAL-POLICY-001` now has E-level coverage.
 
 ---
 
@@ -515,49 +513,64 @@ These are physical models that the original SDD does not mention but that are re
 4. Implementation status 中明確區分這兩級
 
 **Effort:** Medium（需要 engine-level test harness）
+**Status:** ✅ Fixed (2026-03-27). Added E-5 through E-11 to `golden-case-engine.ts`:
+- E-5: VAL-SINR-002-E — N=5 UEs in HOBS profile produce distinct per-UE SINR values
+- E-6: VAL-HO-003-E — CHO state transitions appear in `recentHoEvents` during Timer-CHO run
+- E-7: VAL-DELAY-001-E — one-way propagation delay 1.8–4.4ms for LEO 550km
+- E-8: VAL-MOBILITY-001-E — UE position changes measurably at 60 km/h
+- E-9: VAL-REPRO-001-E — RT-3 Timer-CHO produces ≥1 HO and 0 failures in 600s
+- E-10: VAL-POLICY-001-E — pull-model RL interface (`getObservation`/`applyAction`) validated
+- E-11: VAL-DOPPLER-001-E — Tier 6 Doppler produces measurable SINR degradation (0.01–5 dB)
+Added `npm run validate:integration` (engine + reproduction suite).
 
 ---
 
 ## 11. Execution Priority Order (Revised)
 
-Supersedes §9 for execution planning. Incorporates physics + methodology gaps.
+> **2026-03-27 Update:** All 22 remediation items (R0–R4) and 6 post-remediation extensions are complete. This section is preserved as historical record.
 
-### Phase R0 — Fix Foundations (blocks everything)
+### Phase R0 — Fix Foundations ✅ Complete
 
-1. **C1** — Per-interferer path loss in SINR
-2. **M3 + M4** — Ka-band channel (shadow fading tables + atmospheric loss)
-3. **M5** — DAPS combining correction
-4. **M8** — Off-axis angle spherical geometry
+1. **C1** — Per-interferer path loss in SINR ✅
+2. **M3 + M4** — Ka-band channel (shadow fading tables + atmospheric loss) ✅
+3. **M5** — DAPS combining correction ✅
+4. **M8** — Off-axis angle spherical geometry ✅
 
-### Phase R1 — Prove Credibility
+### Phase R1 — Prove Credibility ✅ Complete
 
-5. **MG1** — Paper reproduction methodology (select 2-3 reference papers, define reproduction profiles)
-6. **C2** — CHO + MC-HO + Timer-CHO baselines
-7. **P2** — Propagation delay in handover FSM
-8. **MS1** — Tier 5 small-scale fading (from beamHO-bench)
-9. **M2** — Beam gain θ_3dB for off-nadir
+5. **MG1** — Paper reproduction methodology ✅ (profiles + comparison script + results)
+6. **C2** — CHO + MC-HO + Timer-CHO baselines ✅
+7. **P2** — Propagation delay in handover FSM ✅
+8. **MS1** — Tier 5 small-scale fading ✅
+9. **M2** — Beam gain θ_3dB for off-nadir ✅
 
-### Phase R2 — Physical Completeness
+### Phase R2 — Physical Completeness ✅ Complete
 
-10. **P1** — Doppler model
-11. **P3** — Traffic model (for BH scheduling)
-12. **MG2** — RL policy interface specification
-13. **M1** — Walker F parameter
-14. **Profile corrections** (§6)
+10. **P1** — Doppler model ✅ (Tier 6 wired into engine SINR, E-11 validated)
+11. **P3** — Traffic model ✅
+12. **MG2** — RL policy interface ✅ (pull-model, E-10 validated)
+13. **M1** — Walker F parameter ✅
+14. **Profile corrections** (§6) ✅
 
-### Phase R3 — Multi-UE and Fairness
+### Phase R3 — Multi-UE and Fairness ✅ Complete
 
-15. **C3** — Multi-UE engine
-16. **P4** — UE mobility model
-17. **MG3** — Performance budget definition
+15. **C3** — Multi-UE engine ✅ (Phase A + Phase B)
+16. **P4** — UE mobility model ✅
+17. **MG3** — Performance budget definition ✅
 
-### Phase R4 — Strengthening
+### Phase R4 — Strengthening ✅ Complete
 
-18. **P5** — FRF geometry documentation
-19. **M7** — Beta angle for solar/shadow
-20. **MG4** — Validation split (formula vs engine)
-21. **MS3 + MS4** — Beam visualization improvements
-22. **MS5** — Thermal noise model
+18. **P5** — FRF geometry documentation ✅
+19. **M7** — Beta angle for solar/shadow ✅
+20. **MG4** — Validation split (formula vs engine) ✅ (E-5 through E-11)
+21. **MS3 + MS4** — Beam visualization ✅
+22. **MS5** — Thermal noise model ✅
+
+### Post-Remediation Extensions (2026-03-27) ✅ Complete
+
+23. **BH schedulers** — `proportional-fair` + `sinr-greedy` strategies; `bh-pf-baseline` + `bh-sinr-greedy-baseline` profiles
+24. **Profile audit tooling** — `scripts/audit-profiles.ts` with 10 automated checks; `validate:audit-profiles` in stage chain
+25. **validate:visual-browser fix** — `SceneShell` now reads `?profile=` URL param; `gotoScenario` polling corrected; all DAPS/Replay/BH browser tests pass
 
 ---
 

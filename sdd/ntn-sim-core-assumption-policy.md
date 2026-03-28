@@ -138,7 +138,7 @@ Assumptions introduced during academic hardening that are not directly from a si
 
 | ID | Module | Assumption | Justification | Claim Limit |
 |---|---|---|---|---|
-| ASSUME-KA-SF-001 | `shadow-fading.ts` | Ka-band suburban LOS/NLOS σ_SF and CL values | Derived from 3GPP TR 38.811 Table 6.6.2-1 general Ka-band range; exact table access not available in paper corpus | `provisional` — replace with exact table if standard PDF obtained |
+| ASSUME-KA-SF-001 | `shadow-fading.ts` | Retired on 2026-03-28 | Exact dense-urban values now use 3GPP TR 38.811 Table 6.6.2-1 and suburban/rural values use Table 6.6.2-3 | no longer active |
 | ASSUME-ATM-001 | `link-budget.ts` | Atmospheric loss: zenith gaseous 0.35/0.6 dB, rain 0.8/1.5 dB, scintillation 0.4 dB | Simplified from ITU-R P.676/P.618 typical values; not a full ITU-R calculation | `provisional` — sufficient for interference-limited scenarios where atmospheric loss is secondary |
 | ASSUME-SR-001 | `small-scale-fading.ts` | Shadowed-Rician parameters (m, b₀, Ω) per elevation | Based on PAP-2021-SHADOWED-RICIAN Table II structure; specific numeric values are representative suburban S-band | `provisional` — paper-specific profiles should override if paper provides explicit SR parameters |
 | ASSUME-TIMER-CHO-001 | `cho.ts` | Timer-CHO geometry timer = α × TTT (simplified) | Full model requires beam radius, UE position in beam, satellite velocity — not available in HO manager scope | disclosed simplification; full geometry timer needs engine-level data |

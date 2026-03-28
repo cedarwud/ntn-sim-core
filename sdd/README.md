@@ -45,17 +45,19 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - defines claim levels, artifact bundles, tolerance lifecycle, and blocker-aware reproduction rules
 14. `ntn-sim-core-reproduction-targets.md`
    - defines 3 reference paper reproduction targets with profiles, tolerances, and comparison workflow
-15. `ntn-sim-core-final-closure-checklist.md`
+15. `ntn-sim-core-reproduction-results.md`
+   - records the current comparison results and open reproduction deltas for the 3 reference targets
+16. `ntn-sim-core-final-closure-checklist.md`
    - records the final disposition of the project-level closure items
-16. `ntn-sim-core-fc1-replay-closure-checklist.md`
+17. `ntn-sim-core-fc1-replay-closure-checklist.md`
    - records the landed replay identity/parity closure pass
-17. `ntn-sim-core-frontend-beam-visual-sdd.md`
+18. `ntn-sim-core-frontend-beam-visual-sdd.md`
    - normative frontend beam-rendering contract + §12 implementation checklist (MS3, MS4, TLE frontend, replay)
-18. `ntn-sim-core-frontend-beam-visual-acceptance.md`
+19. `ntn-sim-core-frontend-beam-visual-acceptance.md`
    - acceptance criteria for beam visualization (7 role semantics, browser screenshot evidence)
-19. `ntn-sim-core-frontend-donor-mapping.md`
+20. `ntn-sim-core-frontend-donor-mapping.md`
    - donor repo → frontend module mapping (leo-beam-sim, leo-simulator, beamHO-bench)
-20. `ntn-sim-core-frontend-leo-parity-mode.md`
+21. `ntn-sim-core-frontend-leo-parity-mode.md`
    - **closed** — leo-parity experiment concluded; useful selection logic merged into `beam-selection.ts`; dual view-mode system removed
 
 ## Working Rule

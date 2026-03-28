@@ -9,6 +9,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
+const DEFAULT_PROFILE_ID = 'hobs-multibeam-baseline';
+
 export interface SceneQueryState {
   speed: number;
   paused: boolean;
@@ -17,11 +19,12 @@ export interface SceneQueryState {
   replayMode: boolean;
   replaySeekSec: number | null;
   validationMode: boolean;
+  profileId: string;
 }
 
 function readQueryState(): SceneQueryState {
   if (typeof window === 'undefined') {
-    return { speed: 5, paused: false, showBeams: true, showLabels: true, replayMode: false, replaySeekSec: null, validationMode: false };
+    return { speed: 5, paused: false, showBeams: true, showLabels: true, replayMode: false, replaySeekSec: null, validationMode: false, profileId: DEFAULT_PROFILE_ID };
   }
   const p = new URLSearchParams(window.location.search);
   const speed = Number(p.get('speed'));
@@ -34,6 +37,7 @@ function readQueryState(): SceneQueryState {
     replayMode: p.get('replay') === '1',
     replaySeekSec: Number.isFinite(seek) && seek > 0 ? seek : null,
     validationMode: p.get('validate') === '1',
+    profileId: p.get('profile') ?? DEFAULT_PROFILE_ID,
   };
 }
 
@@ -58,6 +62,7 @@ export interface UseSceneQueryStateResult {
   replayMode: boolean;
   replaySeekSec: number | null;
   validationMode: boolean;
+  profileId: string;
   setSpeed: (speed: number) => void;
   togglePaused: () => void;
   toggleShowBeams: () => void;
@@ -77,7 +82,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
   const validationMode = bootstrap.validationMode;
 
   useEffect(() => {
-    syncQueryState({ speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode });
+    syncQueryState({ speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId: bootstrap.profileId });
   }, [paused, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
 
   const setSpeed = useCallback((s: number) => setSpeedRaw(s), []);
@@ -94,6 +99,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
     replayMode,
     replaySeekSec,
     validationMode,
+    profileId: bootstrap.profileId,
     setSpeed,
     togglePaused,
     toggleShowBeams,

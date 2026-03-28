@@ -42,6 +42,7 @@ export const ValidationProbe = React.memo(function ValidationProbe({
   if (!visible) return null;
 
   const runtime = state.runtime;
+  const orbitParity = state.orbitParity;
   const moving = state.earthMovingBeamLayer;
   const fixed = state.earthFixedCellLayer;
   const beamInfo = state.beamInfoOverlay;
@@ -76,11 +77,25 @@ export const ValidationProbe = React.memo(function ValidationProbe({
       </div>
 
       <div
+        data-testid="validation-orbit-parity"
+        data-present={String(Boolean(orbitParity?.present))}
+        data-profile-id={orbitParity?.profileId ?? ''}
+        data-mode={orbitParity?.mode ?? ''}
+        data-time-sec={orbitParity?.timeSec ?? ''}
+        data-sample-count={orbitParity?.sampleCount ?? 0}
+        data-satellites={stringify(orbitParity?.satellites ?? [])}
+      >
+        orbit={stringify(orbitParity ?? null)}
+      </div>
+
+      <div
         data-testid="validation-earth-moving"
         data-present={String(Boolean(moving?.present))}
         data-rendered-sat-ids={stringify(moving?.renderedSatIds ?? [])}
         data-rendered-beam-count={moving?.renderedBeamCount ?? 0}
+        data-footprint-radius-world={moving?.footprintRadiusWorld ?? 0}
         data-role-counts={stringify(moving?.roleCounts ?? {})}
+        data-geometry-sample-count={moving?.geometrySamples?.length ?? 0}
       >
         moving={stringify(moving ?? null)}
       </div>

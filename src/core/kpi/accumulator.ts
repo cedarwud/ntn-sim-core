@@ -34,6 +34,15 @@ export interface KpiAccumulatorConfig {
 // ---------------------------------------------------------------------------
 
 export interface KpiAccumulator {
+  /** Inject energy efficiency metrics from the last completed tick.
+   *  Call this each tick when energy.layer1_enabled = true.
+   *  The last injected values are used in finalize(). */
+  recordEnergyMetrics(metrics: {
+    systemEeBitsPerJoule: number;
+    totalPowerW: number;
+    activeBeamRatio: number;
+  }): void;
+
   /** Record a SINR sample for a UE at this tick. */
   recordSinr(ueId: string, sinrDb: number, timeSec: number): void;
 
@@ -124,6 +133,9 @@ export function createKpiAccumulator(config: KpiAccumulatorConfig): KpiAccumulat
   let totalTicks = 0;
   let maxTimeSec = 0;
   let cachedBundle: KpiBundle | null = null;
+  // EE state: accumulated over all ticks for run-level average (layer1, optional)
+  let eeAccum = { systemEeBitsPerJoule: 0, totalPowerW: 0, activeBeamRatio: 0 };
+  let eeTicks = 0;
 
   function getTracker(ueId: string): UeTracker {
     let t = ueTrackers.get(ueId);
@@ -147,9 +159,24 @@ export function createKpiAccumulator(config: KpiAccumulatorConfig): KpiAccumulat
     totalTicks = 0;
     maxTimeSec = 0;
     cachedBundle = null;
+    eeAccum = { systemEeBitsPerJoule: 0, totalPowerW: 0, activeBeamRatio: 0 };
+    eeTicks = 0;
   }
 
   return {
+    recordEnergyMetrics(metrics: {
+      systemEeBitsPerJoule: number;
+      totalPowerW: number;
+      activeBeamRatio: number;
+    }): void {
+      cachedBundle = null;
+      // Accumulate for run-level average (not last-tick snapshot)
+      eeAccum.systemEeBitsPerJoule += metrics.systemEeBitsPerJoule;
+      eeAccum.totalPowerW += metrics.totalPowerW;
+      eeAccum.activeBeamRatio += metrics.activeBeamRatio;
+      eeTicks++;
+    },
+
     recordSinr(ueId: string, sinrDb: number, timeSec: number): void {
       cachedBundle = null;
       const t = getTracker(ueId);
@@ -347,6 +374,9 @@ export function createKpiAccumulator(config: KpiAccumulatorConfig): KpiAccumulat
         meanServiceTimeSec,
         serviceAvailability,
         jainFairnessIndex,
+        systemEeBitsPerJoule: eeTicks > 0 ? eeAccum.systemEeBitsPerJoule / eeTicks : 0,
+        totalPowerW: eeTicks > 0 ? eeAccum.totalPowerW / eeTicks : 0,
+        activeBeamRatio: eeTicks > 0 ? eeAccum.activeBeamRatio / eeTicks : 0,
       };
 
       cachedBundle = bundle;

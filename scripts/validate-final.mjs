@@ -50,7 +50,6 @@ const requiredModules = {
   'src/core/orbit/sgp4-adapter.ts': 4,
   'src/runner/curation/pass-ranker.ts': 4,
   'src/runner/curation/window-selector.ts': 4,
-  'src/viz/beam/BeamFootprintLayer.tsx': 4,
   // Phase 5
   'src/core/beam/scheduler.ts': 5,
   'src/core/energy/layer2.ts': 5,
@@ -157,8 +156,13 @@ const coveredByRuntime = [
   { id: 'VAL-CHAN-001',    phase: 2, note: 'covered by golden-case-channel.mjs' },
   { id: 'VAL-CHAN-002',    phase: 2, note: 'covered by golden-case-channel.mjs' },
   { id: 'VAL-HO-001',     phase: 2, note: 'covered by validate-runtime.mjs' },
+  { id: 'VAL-HO-002',     phase: 2, note: 'covered by the landed event-trace path plus CHO/MC-HO remediation trace checks' },
+  { id: 'VAL-KPI-001',    phase: 2, note: 'covered by validate-replay-manifest.ts (headless vs snapshot KPI parity)' },
+  { id: 'VAL-GOLDEN-001', phase: 2, note: 'covered by golden-case-engine.ts E-1' },
   { id: 'VAL-SINR-001',   phase: 3, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-EE-001',     phase: 3, note: 'covered by validate-runtime.mjs' },
+  { id: 'VAL-MB-001',     phase: 3, note: 'covered by validate-multibeam-gating.ts' },
+  { id: 'VAL-GOLDEN-002', phase: 3, note: 'covered by golden-case-engine.ts E-2' },
   { id: 'VAL-RT-001',     phase: 4, note: 'covered by validate-replay-manifest.ts (real-trace replay identity)' },
   { id: 'VAL-RT-002',     phase: 4, note: 'covered by validate-replay-manifest.ts' },
   { id: 'VAL-CUR-001',    phase: 4, note: 'covered by validate-replay-manifest.ts' },
@@ -168,6 +172,8 @@ const coveredByRuntime = [
 ];
 
 const coveredByBrowser = [
+  { id: 'VAL-ORB-001',    phase: 1, note: 'covered by validate-orbit-parity.ts (browser vs headless live orbit parity)' },
+  { id: 'VAL-BEAM-001',   phase: 2, note: 'covered by validate-visual-browser.ts (earth-moving beam geometry contract)' },
   { id: 'VAL-FV-004',     phase: 5, note: 'covered by validate-visual-browser.ts' },
   { id: 'VAL-FV-005',     phase: 3, note: 'covered by validate-visual-browser.ts' },
   { id: 'VAL-FV-006',     phase: 3, note: 'covered by validate-visual-browser.ts' },
@@ -177,15 +183,7 @@ const coveredByBrowser = [
   { id: 'VAL-EXP-001',    phase: 5, note: 'covered by validate-visual-browser.ts' },
 ];
 
-const needsIntegration = [
-  { id: 'VAL-ORB-001',    phase: 1, note: 'needs headless vs frontend orbit diff' },
-  { id: 'VAL-BEAM-001',   phase: 2, note: 'needs browser beam geometry test' },
-  { id: 'VAL-HO-002',     phase: 2, note: 'needs event trace export verification' },
-  { id: 'VAL-KPI-001',    phase: 2, note: 'needs headless vs replay KPI comparison' },
-  { id: 'VAL-GOLDEN-001', phase: 2, note: 'needs end-to-end golden case run' },
-  { id: 'VAL-GOLDEN-002', phase: 3, note: 'needs HOBS multibeam golden case' },
-  { id: 'VAL-MB-001',     phase: 3, note: 'needs active-beam gating determinism' },
-];
+const needsIntegration = [];
 
 for (const g of coveredByRuntime) {
   results.push({ id: g.id, phase: g.phase, status: 'RT-PASS', method: g.note });

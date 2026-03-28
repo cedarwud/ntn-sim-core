@@ -1,8 +1,8 @@
 # NTN Sim Core — Reproduction Targets
 
-**Version:** 0.2.0
-**Date:** 2026-03-25
-**Status:** Active
+**Version:** 0.3.0
+**Date:** 2026-03-27
+**Status:** Active — dedicated reproduction profiles landed; current results remain review/provisional
 **Purpose:** Define reference paper reproduction targets, profile mappings, tolerance thresholds, and comparison workflows for validating ntn-sim-core against published results.
 
 ---
@@ -17,7 +17,7 @@ Each reproduction target has:
 3. a metric, comparison mode, and tolerance;
 4. documented assumptions where source parameters are incomplete.
 
-**Current status note:** dedicated reproduction-specific profiles are not all created yet. The current workflow uses existing canonical baselines plus explicit overrides until those dedicated profiles are added.
+**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. Current comparison outputs are recorded in `sdd/ntn-sim-core-reproduction-results.md` and remain `REVIEW` while all tolerances stay `provisional`.
 
 ---
 
@@ -26,7 +26,7 @@ Each reproduction target has:
 | # | Paper ID | Title Focus | Family | Why Selected |
 |---|---|---|---|---|
 | 1 | PAP-2022-SINR-ELEVATION | SINR vs elevation angle, multi-beam interference | FAM-ACCESS-SYNTH | canonical SINR reference, Table III has explicit parameters |
-| 2 | PAP-2024-HOBS | HOBS beam scheduling, multi-beam EE | FAM-MB-HOBS-SYNTH | target-topic paper, explicit 19-beam Ka-band setup |
+| 2 | PAP-2024-HOBS | HOBS beam scheduling, multi-beam EE | FAM-MB-HOBS-SYNTH | target-topic paper, explicit 37-beam Ka-band setup (Table I) |
 | 3 | PAP-2025-TIMERCHO-CORE | Timer-CHO handover, geometry-assisted | FAM-ACCESS-SYNTH | CHO validation, explicit RLF/UHO metrics |
 
 ---
@@ -51,12 +51,10 @@ Each reproduction target has:
 
 ### 3.2 Reproduction Profile
 
-Use `case9-access-baseline` with overrides:
-- Verify altitude_km = 600
-- Verify all RF parameters match Table II
-- Enable tier1-3, disable tier4 (S-band)
-
-**Profile status:** no dedicated `sinr-elevation-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
+Use dedicated profile `sinr-elevation-reproduction`.
+- Derived from `case9-access-baseline`
+- Locks 600 km altitude, 30 MHz bandwidth, 19-beam FRF=1, and the Table II RF assumptions into one seed-fixed profile
+- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
 
 ### 3.3 Comparison Metric
 
@@ -75,8 +73,9 @@ Use `case9-access-baseline` with overrides:
 ### 3.5 Known Assumptions
 
 1. Paper's exact satellite positions at simulation epoch are not reproduced (Walker F=1 used).
-2. Paper may use slightly different beam gain normalization.
-3. Our shadow fading uses Box-Muller sampling; paper's RNG is unspecified.
+2. The dedicated profile currently uses the deterministic repo observer (`BEIJING_OBSERVER`); the paper's receiver location is unspecified.
+3. Paper may use slightly different beam gain normalization.
+4. Our shadow fading uses Box-Muller sampling; paper's RNG is unspecified.
 
 ---
 
@@ -89,23 +88,21 @@ Use `case9-access-baseline` with overrides:
 | Constellation | Walker(55°, 72, 6, F=1) | Paper §IV |
 | Altitude | 550 km | Paper §IV |
 | Frequency | 28 GHz (Ka-band) | Paper §IV |
-| Bandwidth | 250 MHz | Paper §IV |
-| Beams per satellite | 19 | Paper §IV |
+| Bandwidth | 100 MHz | Paper Table I |
+| Beams per satellite | 37 | Paper Table I |
 | FRF | 3 | Paper §IV |
 | Beam gain | Bessel-J1 | Paper §III |
-| Active power per beam | 20 W | Paper Table II |
-| Idle power | 5 W | Paper Table II |
+| Active power per beam | 20 W | Assumption-backed (`ASSUME-ENERGY-001`), not directly confirmed from HOBS |
+| Idle power | 5 W | Assumption-backed (`ASSUME-ENERGY-001`), not directly confirmed from HOBS |
 | Shadow fading | Ka-band suburban | 3GPP TR 38.811 |
 | Atmospheric loss | enabled | Ka-band requirement |
 
 ### 4.2 Reproduction Profile
 
-Use `hobs-multibeam-baseline` with overrides:
-- Verify frequency_ghz = 28
-- Enable tier1-5 (full channel model)
-- EE L1 enabled
-
-**Profile status:** no dedicated `hobs-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
+Use dedicated profile `hobs-reproduction`.
+- Derived from `hobs-multibeam-baseline`
+- Locks 550 km orbit, 28 GHz, 100 MHz (Table I), 37 beams (Table I) with FRF=3, and EE Layer 1 for the comparison bundle
+- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
 
 ### 4.3 Comparison Metric
 
@@ -138,13 +135,10 @@ Use `hobs-multibeam-baseline` with overrides:
 
 ### 5.2 Reproduction Profile
 
-Use `case9-access-baseline` with overrides:
-- `handover.type = 'timer-cho'`
-- `handover.cho_alpha = 0.85`
-- `handover.cho_filter_k = 4`
-- `handover.cho_offset_db = 0`
-
-**Profile status:** no dedicated `timer-cho-reproduction` profile exists yet; current reproduction uses the canonical baseline plus overrides.
+Use dedicated profile `timer-cho-reproduction`.
+- Derived from the access-baseline family with a reproduction-specific 550 km Starlink-like proxy (`24 x 22` Walker shell)
+- Locks Timer-CHO parameters `α = 0.85`, `L3 filter k = 4`, `TTT = 640 ms`, `offset = 0 dB`
+- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
 
 ### 5.3 Comparison Metric
 
@@ -157,7 +151,8 @@ Use `case9-access-baseline` with overrides:
 ### 5.4 Known Assumptions
 
 1. Paper's geometry timer uses full beam geometry (ToS_remain); our Timer-CHO simplifies to α×TTT. This may affect absolute RLF reduction ratio.
-2. Paper runs 1000 UE Monte Carlo; our multi-UE Phase A uses shared serving.
+2. The dedicated profile uses a `24 x 22` synthetic Walker proxy for the paper's Starlink-like constellation; the paper does not mandate exact shell phasing in an implementation-ready form.
+3. The current reproduction run is a deterministic single-UE profile, not the paper's 1000-UE Monte Carlo study.
 
 ---
 
@@ -165,18 +160,20 @@ Use `case9-access-baseline` with overrides:
 
 ### Step 1: Profile Alignment
 
-For each target, create a dedicated reproduction profile, or until then verify the documented baseline-plus-override mapping:
-```
-node scripts/validate-profile-layout.mjs  # verify profile structure
+Verify the dedicated reproduction profiles and their metadata:
+``` 
+node scripts/validate-profile-layout.mjs
+node --import tsx scripts/audit-profiles.ts
 ```
 
 ### Step 2: Benchmark Run
 
+Run the batch comparison workflow:
 ```
-node scripts/benchmark-runner.mjs --profile <profile> --seed 42 --duration 600
+npx tsx scripts/run-reproduction-comparison.ts
 ```
 
-Output: KPI bundle (SINR timeseries, HO events, EE metrics).
+Output: per-target KPI comparison tables plus the current result snapshot in `sdd/ntn-sim-core-reproduction-results.md`.
 
 ### Step 3: Comparison
 

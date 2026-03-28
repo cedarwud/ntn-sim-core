@@ -5,7 +5,7 @@
  * Pure first-principles Kepler + FSPL calculations compared against
  * profile baseline values from defaults.ts.
  *
- * Covers: VAL-ORB-001, VAL-ORB-002, REF-ORB-001, REF-CHAN-001
+ * Covers: VAL-ORB-002, REF-ORB-001, REF-CHAN-001
  *
  * Usage:  node scripts/golden-case-orbit.mjs
  * Exit:   0 if all PASS, 1 if any FAIL

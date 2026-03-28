@@ -83,7 +83,7 @@ The intent is to be concrete enough for implementation and review, without prete
 | carrier frequency | `28 GHz` | fixed HOBS baseline | `PAP-2024-HOBS` | do not silently downgrade to 20 GHz |
 | bandwidth | `100 MHz` | fixed HOBS baseline | `PAP-2024-HOBS` | must remain explicit in source trace |
 | EIRP density | `46 dBW/MHz` | Ka-band adjusted | `PAP-2024-HOBS` | Ka-band requires +12 dB vs S-band to partially compensate ~22 dB additional FSPL (2026-03-23 correction from 34→46) |
-| max transmit power | `50 dBm` | fixed HOBS baseline unless sensitivity-tagged | `PAP-2024-HOBS` | used for energy layer 1 and SINR |
+| max transmit power | `50 dBm` total satellite TX budget | fixed HOBS baseline unless sensitivity-tagged | `PAP-2024-HOBS` | aggregate satellite power-budget anchor only; do not reinterpret as per-beam TX power for Energy Layer 1 or SINR |
 | beams per satellite | `19` | FRF=3, 2-ring hexagonal | `PAP-2024-HOBS` | changed from 37 (FRF=1) to 19 (FRF=3) after engine validation: 37-beam FRF=1 produces catastrophic co-channel interference (-20 dB mean SINR); 19-beam FRF=3 is standard multi-beam configuration (2026-03-23 correction) |
 | frequency reuse factor | `3` | 3-color hexagonal | `PAP-2024-HOBS` | changed from FRF=1 to FRF=3 for physically meaningful SINR (2026-03-23 correction) |
 | beam gain model | Bessel J1 family | Bessel-based family, exact variant profile-declared | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN` | see Section 8 |
@@ -131,6 +131,40 @@ The intent is to be concrete enough for implementation and review, without prete
 | altitude | `1200 km` | `PAP-2025-EEBH-UPLINK` | uplink-specific branch |
 | cells / active beams | `144 cells`, `9 active beams/slot` | `PAP-2025-EEBH-UPLINK` | useful when extending beyond downlink-first studies |
 | usage | extension branch | `PAP-2025-EEBH-UPLINK` | do not replace the main downlink-focused branch with this by accident |
+
+---
+
+## 6.4 `bh-pf-baseline` — Proportional-Fair BH Scheduler
+
+Derived from `bh-resource-baseline`. All physical parameters (orbit, RF, antenna, channel tiers) are inherited unchanged. Only the BH scheduling strategy differs.
+
+| Parameter | Value | Source Anchors | Notes |
+|---|---|---|---|
+| profile family | `bh-resource-baseline` | inherited | physical layer identical to §6.1 |
+| bh_strategy | `proportional-fair` | `PAP-2024-HOBS` Fig. 6, `PAP-2025-SMASH-MADQL` Table II | PF is the primary non-DRL baseline in both papers |
+| traffic model | `hotspot` | `PAP-2025-SMASH-MADQL` | uneven demand distribution stresses the PF fairness property |
+| UE count | 10 | project baseline | manageable multi-UE count for scheduler comparison |
+| energy layer | Layer 1 enabled, Layer 2 disabled | same as `bh-resource-baseline` | EE denominator uses active-beam TX power (PAP-2025-EEBH-UPLINK Eq.(5)) |
+| energy values | assumption-backed (ASSUME-ENERGY-001) | see `ntn-sim-core-assumption-policy.md §9` | **do not label as paper-backed in thesis tables** |
+
+**Claim scope:** this profile may be used as the non-DRL proportional-fair baseline in beam-hopping scheduler comparisons. EE metrics must disclose the current Layer-1 assumption set: per-beam TX cap = 40 dBm (10 W) in runtime, while 20 W / 5 W beam-state consumption remains assumption-backed.
+
+---
+
+## 6.5 `bh-sinr-greedy-baseline` — SINR-Greedy BH Scheduler
+
+Derived from `bh-resource-baseline`. All physical parameters inherited unchanged. Only the BH scheduling strategy differs.
+
+| Parameter | Value | Source Anchors | Notes |
+|---|---|---|---|
+| profile family | `bh-resource-baseline` | inherited | physical layer identical to §6.1 |
+| bh_strategy | `sinr-greedy` | `PAP-2026-DRL-BHOPT` | SINR-greedy is the channel-aware upper-bound baseline for DRL BH optimization |
+| traffic model | `uniform` | project default | uniform demand removes traffic bias from the SINR-maximizing selection |
+| UE count | 5 | project baseline | minimal multi-UE footprint; greedy behavior is independent of traffic |
+| energy layer | Layer 1 enabled, Layer 2 disabled | same as `bh-resource-baseline` | same EE accounting as PF baseline |
+| energy values | assumption-backed (ASSUME-ENERGY-001) | see assumption policy | **do not label as paper-backed in thesis tables** |
+
+**Claim scope:** this profile serves as the channel-aware greedy upper bound in DRL beam-scheduling comparisons. It is not a paper reproduction target; it is an engineering reference baseline. SINR figures from this profile may be compared against DRL policy outputs to quantify the gap.
 
 ---
 

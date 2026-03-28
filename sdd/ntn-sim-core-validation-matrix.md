@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.3.0
-**Date:** 2026-03-25
-**Status:** Active — Formula/Engine/Browser gates passing; no project-level closure items remain open
+**Version:** 1.6.4
+**Date:** 2026-03-27
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage now extends through E-11; no hardening IDs remain deferred
 
 ---
 
@@ -81,7 +81,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 
 | ID | Category | Check | Remediation Item |
 |---|---|---|---|
-| `VAL-DOPPLER-001` | channel | Doppler shift computation produces ±24 kHz at S-band / ±336 kHz at Ka-band for LEO 550km | P1 |
+| `VAL-DOPPLER-001` | channel | Doppler shift computation produces ±24 kHz at S-band / ±336 kHz at Ka-band for LEO 550km; Tier 6 engine integration produces measurable SINR degradation | P1; EXT-6 |
 | `VAL-DELAY-001` | handover | handover TTT includes propagation delay (RTT) from slant range | P2 |
 | `VAL-TRAFFIC-001` | traffic | BH scheduler receives non-zero per-cell demand from traffic generator | P3 |
 | `VAL-MOBILITY-001` | UE | UE position changes over time when speed_kmh > 0 | P4 |
@@ -110,9 +110,11 @@ Each validation check operates at one of three levels:
 | VAL ID | Level | Script |
 |---|---|---|
 | VAL-RNG-001 | F | validate-runtime.mjs |
+| VAL-ORB-001 | E/V | validate-orbit-parity.ts (browser `useSimulation` vs headless interactive orbit parity on synthetic profiles) |
 | VAL-ORB-002 | F | validate-runtime.mjs, golden-case-orbit.mjs |
 | VAL-CHAN-001 | F | validate-runtime.mjs, golden-case-channel.mjs |
 | VAL-CHAN-002 | F | golden-case-channel.mjs |
+| VAL-BEAM-001 | V | `validate-visual-browser.ts` — HOBS live browser probe verifies fixed footprint radius, UE-anchored origin pinning, off-center beam displacement, and donor-aligned earth-moving geometry projection |
 | VAL-HO-001 | F | validate-runtime.mjs |
 | VAL-SINR-001 | F | validate-runtime.mjs |
 | VAL-SINR-002 | F | validate-runtime.mjs |
@@ -129,9 +131,19 @@ Each validation check operates at one of three levels:
 | VAL-FADING-001 | F | validate-runtime.mjs |
 | VAL-GOLDEN-001 | E | golden-case-engine.ts E-1 |
 | VAL-GOLDEN-002 | E | golden-case-engine.ts E-2 |
+| VAL-HO-002 | E | golden-case-engine.ts E-6 plus remediation trace coverage from `VAL-HO-003` / `VAL-HO-004` |
+| VAL-MB-001 | E | validate-multibeam-gating.ts (actual beam-layout + active-beam-manager + selection runtime path) |
 | VAL-UE-003 | E | golden-case-engine.ts E-3 / E-4 |
+| VAL-SINR-002 | E | golden-case-engine.ts E-5 (N=5 UEs, distinct per-UE SINR) |
+| VAL-HO-003 | E | golden-case-engine.ts E-6 (CHO event types in recentHoEvents) |
+| VAL-DELAY-001 | E | golden-case-engine.ts E-7 (one-way delay 1.8–5ms at LEO 550km) |
+| VAL-MOBILITY-001 | E | golden-case-engine.ts E-8 (UE position δ > 0.001° over 300s at 60 km/h) |
+| VAL-REPRO-001 | E | golden-case-engine.ts E-9 + run-reproduction-comparison.ts |
+| VAL-POLICY-001 | E | golden-case-engine.ts E-10 (getObservation/applyAction pull-model) |
+| VAL-DOPPLER-001 | E | golden-case-engine.ts E-11 (Tier 6 Doppler produces 0.01–5 dB SINR degradation at S-band 30 kHz SCS) |
 | VAL-VIZ-002 | E | engine snapshot + SceneShell integration, manual code-path verification |
 | VAL-VIZ-001 | E/V | validate-replay-manifest.ts + validate-visual-browser.ts |
+| VAL-KPI-001 | E | validate-replay-manifest.ts (full-run headless KPI vs snapshot recomputation, plus replay-window KPI parity) |
 | VAL-RT-001 | E | validate-replay-manifest.ts (`real-trace-validation` replay artifact/controller identity) |
 | VAL-RT-002 | E | validate-replay-manifest.ts |
 | VAL-CUR-001 | E | validate-replay-manifest.ts |
@@ -147,7 +159,9 @@ Each validation check operates at one of three levels:
 | VAL-ARCH-001 | structural | validate-core-purity.mjs |
 | VAL-ARCH-002 | structural | validate-structure.mjs |
 
-**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass and are now part of `npm run validate:stage` via `node --import tsx`. Browser-level visual checks (`VAL-FV-004` through `VAL-FV-009`, plus `VAL-EXP-001`) are automated via `validate-visual-browser.ts`. Replay manifests and replay artifacts are emitted in the benchmark artifact path, frontend replay hydrates from the replay-artifact contract, and replay identity is validated end-to-end by `validate-replay-manifest.ts`.
+**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass and are part of `npm run validate:stage` via `node --import tsx`. Engine coverage now extends through E-11, including `VAL-POLICY-001` and `VAL-DOPPLER-001` in addition to the earlier E-5 through E-9 expansion. `npm run validate:integration` runs all engine + reproduction checks. Browser-level visual checks (`VAL-BEAM-001`, `VAL-FV-004` through `VAL-FV-009`, and `VAL-EXP-001`) are automated via `validate-visual-browser.ts`, and `VAL-ORB-001` is now browser/headless-hybrid validated by `validate-orbit-parity.ts`.
+
+**Deferred hardening IDs:** none remain in the current enforced closure set.
 
 ---
 
@@ -178,8 +192,9 @@ Paper-family SINR targets should therefore be implemented as `golden cases`, not
 
 Each phase must pass:
 
-1. all earlier-phase validation IDs
-2. all validation IDs assigned to the current phase
+1. all earlier-phase validation IDs that are active for the current SDD closure set;
+2. all validation IDs assigned to the current phase that are active for the current SDD closure set;
+3. any deferred hardening IDs for that phase only when the corresponding hardening work is explicitly in scope.
 
 ### Research Claim Gate
 

@@ -30,37 +30,31 @@ function linearToDbm(linear: number): number {
 /**
  * Compute SINR for a UE served by a single beam in a multi-beam environment.
  *
- * Signal power: txEirpDbm + servingBeamGainDb - servingPathLossDb - servingShadowFadingDb - servingClutterLossDb
- * Per-interferer power: txEirpDbm + iGainDb - iPathLossDb - iShadowDb - iClutterDb
+ * Signal power:      servingRxPowerDbm (= txEirp − totalPathLoss, all tiers)
+ * Interferer power:  iSig.rxPowerDbm   (= txEirp − totalPathLoss, all tiers)
  * SINR = S_linear / (I_linear + N_linear)
+ *
+ * Both serving and interfering powers must come from computeLinkBudget().
+ *
+ * Tier symmetry: both serving and interfering links use the same computeLinkBudget()
+ * composition path. Each interferer carries its own distance, elevation, SF/CL
+ * lookup, beam gain, atmospheric loss, and optional fading draw.
  *
  * @tier paper-backed
  * @source PAP-2022-SINR-ELEVATION
  */
 export function computeSinr(opts: SinrComputeOptions): SinrResult {
-  const {
-    servingBeamGainDb,
-    servingPathLossDb,
-    servingShadowFadingDb,
-    servingClutterLossDb,
-    txEirpDbm,
-    noisePowerDbm,
-    interferingSignals,
-  } = opts;
+  const { servingRxPowerDbm, noisePowerDbm, interferingSignals } = opts;
 
-  // Serving signal power (dBm)
-  const signalDbm =
-    txEirpDbm + servingBeamGainDb - servingPathLossDb - servingShadowFadingDb - servingClutterLossDb;
+  // Serving signal: pre-computed by computeLinkBudget (all enabled tiers)
+  const signalLinear = dbmToLinear(servingRxPowerDbm);
 
-  // Interference: each interferer uses its own channel parameters (C1 fix)
+  // Interference: each interferer's rxPowerDbm includes its own link budget
   let interferenceLinear = 0;
   for (const iSig of interferingSignals) {
-    const iPowerDbm =
-      txEirpDbm + iSig.beamGainDb - iSig.pathLossDb - iSig.shadowFadingDb - iSig.clutterLossDb;
-    interferenceLinear += dbmToLinear(iPowerDbm);
+    interferenceLinear += dbmToLinear(iSig.rxPowerDbm);
   }
 
-  const signalLinear = dbmToLinear(signalDbm);
   const noiseLinear = dbmToLinear(noisePowerDbm);
 
   const sinrLinear = signalLinear / (interferenceLinear + noiseLinear);
@@ -70,7 +64,7 @@ export function computeSinr(opts: SinrComputeOptions): SinrResult {
     interferenceLinear > 0 ? linearToDbm(interferenceLinear) : -Infinity;
 
   return {
-    signalDbm,
+    signalDbm: servingRxPowerDbm,
     interferenceDbm,
     noiseDbm: noisePowerDbm,
     sinrDb,

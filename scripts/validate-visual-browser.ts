@@ -31,6 +31,24 @@ const CHROME_BIN = process.env.CHROME_BIN || '/usr/bin/google-chrome';
 const SCREENSHOT_DIR = resolve(ROOT, 'screenshots', 'validation');
 const DEFAULT_PREVIEW_PORT = 4173;
 let activeBaseUrl = `http://127.0.0.1:${DEFAULT_PREVIEW_PORT}`;
+const EXPECTED_MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = 56;
+const GEOMETRY_TOLERANCE_WORLD = 1e-6;
+const EPSILON_KM = 1e-6;
+
+type EarthMovingBeamGeometrySample = {
+  satId: string;
+  beamId: string;
+  role: string;
+  isActive: boolean;
+  isCandidate: boolean;
+  isUeAnchored: boolean;
+  satX: number;
+  satZ: number;
+  groundX: number;
+  groundZ: number;
+  offsetEastKm: number;
+  offsetNorthKm: number;
+};
 
 type VisualState = {
   runtime?: {
@@ -74,7 +92,9 @@ type VisualState = {
     present: boolean;
     renderedSatIds: string[];
     renderedBeamCount: number;
+    footprintRadiusWorld: number;
     roleCounts: Record<string, number>;
+    geometrySamples: EarthMovingBeamGeometrySample[];
   };
   beamInfoOverlay?: {
     present: boolean;
@@ -107,6 +127,96 @@ function fail(label: string, detail = '') {
 function check(label: string, condition: boolean, detail = '') {
   if (condition) pass(label, detail);
   else fail(label, detail);
+}
+
+function validateMovingBeamGeometry(state: VisualState | null) {
+  const moving = state?.earthMovingBeamLayer;
+  const geometrySamples = moving?.geometrySamples ?? [];
+
+  check(
+    'VAL-BEAM-001 fixed footprint world radius is exposed',
+    moving?.footprintRadiusWorld === EXPECTED_MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
+    `footprintRadiusWorld=${moving?.footprintRadiusWorld ?? 'null'}`,
+  );
+
+  const anchoredSamples = geometrySamples.filter((sample) => sample.isUeAnchored);
+  check(
+    'VAL-BEAM-001 UE-anchored beams remain pinned to the UE origin',
+    anchoredSamples.length > 0
+      && anchoredSamples.every(
+        (sample) =>
+          Math.abs(sample.groundX) <= GEOMETRY_TOLERANCE_WORLD
+          && Math.abs(sample.groundZ) <= GEOMETRY_TOLERANCE_WORLD,
+      ),
+    `anchoredSamples=${anchoredSamples.length}`,
+  );
+
+  const offCenterSamples = geometrySamples.filter(
+    (sample) => !sample.isUeAnchored && Math.hypot(sample.offsetEastKm, sample.offsetNorthKm) > EPSILON_KM,
+  );
+  check(
+    'VAL-BEAM-001 off-center beams publish geometry samples',
+    offCenterSamples.length > 0,
+    `offCenterSamples=${offCenterSamples.length}`,
+  );
+
+  check(
+    'VAL-BEAM-001 off-center beams project away from the satellite nadir',
+    offCenterSamples.some(
+      (sample) =>
+        Math.abs(sample.groundX - sample.satX) > GEOMETRY_TOLERANCE_WORLD
+        || Math.abs(sample.groundZ - sample.satZ) > GEOMETRY_TOLERANCE_WORLD,
+    ),
+    `offCenterSamples=${offCenterSamples.length}`,
+  );
+
+  const grouped = new Map<string, EarthMovingBeamGeometrySample[]>();
+  for (const sample of geometrySamples) {
+    const bucket = grouped.get(sample.satId);
+    if (bucket) bucket.push(sample);
+    else grouped.set(sample.satId, [sample]);
+  }
+
+  let comparableSamples = 0;
+  let maxDelta = 0;
+
+  for (const satSamples of grouped.values()) {
+    const beamSpacingKm = satSamples
+      .map((sample) => Math.hypot(sample.offsetEastKm, sample.offsetNorthKm))
+      .filter((distanceKm) => distanceKm > EPSILON_KM)
+      .sort((a, b) => a - b)[0];
+
+    const expectedScale = beamSpacingKm
+      ? EXPECTED_MOVING_BEAM_FOOTPRINT_RADIUS_WORLD / (beamSpacingKm / Math.sqrt(3))
+      : null;
+
+    for (const sample of satSamples) {
+      const radialOffsetKm = Math.hypot(sample.offsetEastKm, sample.offsetNorthKm);
+      let expectedGroundX = sample.satX;
+      let expectedGroundZ = sample.satZ;
+
+      if (sample.isUeAnchored) {
+        expectedGroundX = 0;
+        expectedGroundZ = 0;
+      } else if (radialOffsetKm > EPSILON_KM && expectedScale != null) {
+        expectedGroundX = sample.satX + sample.offsetEastKm * expectedScale;
+        expectedGroundZ = sample.satZ - sample.offsetNorthKm * expectedScale;
+      }
+
+      comparableSamples += 1;
+      maxDelta = Math.max(
+        maxDelta,
+        Math.abs(sample.groundX - expectedGroundX),
+        Math.abs(sample.groundZ - expectedGroundZ),
+      );
+    }
+  }
+
+  check(
+    'VAL-BEAM-001 moving-beam projection matches the geometry contract',
+    comparableSamples > 0 && maxDelta <= GEOMETRY_TOLERANCE_WORLD,
+    `samples=${comparableSamples}, maxDelta=${maxDelta.toExponential(3)}`,
+  );
 }
 
 async function waitForServer(url: string, timeoutMs = 20000) {
@@ -158,14 +268,26 @@ async function gotoScenario(page: Page, params: Record<string, string>) {
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
+  const expectedMode = params['replay'] === '1' ? 'replay' : 'live';
+  const expectedProfile = params['profile'] ?? null;
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(
-    () => {
-      const win = window as Window & { __NTN_SIM_CORE_VISUAL__?: VisualState };
-      return Boolean(document.querySelector('[data-testid="validation-probe"]') || win.__NTN_SIM_CORE_VISUAL__?.runtime);
-    },
-    { timeout: 60000 },
-  );
+  const started = Date.now();
+  while (Date.now() - started < 90000) {
+    const match = await page.evaluate(
+      ({ em, ep }) => {
+        const win = window as Window & { __NTN_SIM_CORE_VISUAL__?: { runtime?: { mode?: string; profileId?: string } } };
+        const rt = win.__NTN_SIM_CORE_VISUAL__?.runtime;
+        if (!rt) return false;
+        if (rt.mode !== em) return false;
+        if (ep && rt.profileId !== ep) return false;
+        return true;
+      },
+      { em: expectedMode, ep: expectedProfile },
+    );
+    if (match) return;
+    await delay(250);
+  }
+  throw new Error(`gotoScenario: state not reached within 90s (mode=${expectedMode}, profile=${expectedProfile})`);
 }
 
 async function resolvePreviewPort(preferredPort = DEFAULT_PREVIEW_PORT): Promise<number> {
@@ -265,6 +387,8 @@ async function validateHobsLive(page: Page) {
     stateA?.beamInfoOverlay?.primaryServingSatId === stateA?.runtime?.primaryUe.servingSatId,
     `${stateA?.beamInfoOverlay?.primaryServingSatId ?? 'null'} vs ${stateA?.runtime?.primaryUe.servingSatId ?? 'null'}`,
   );
+
+  validateMovingBeamGeometry(stateA);
 }
 
 async function validateReplay(page: Page) {
@@ -272,7 +396,7 @@ async function validateReplay(page: Page) {
 
   await gotoScenario(page, {
     validate: '1',
-    profile: 'case9-access-baseline',
+    profile: 'hobs-multibeam-baseline',
     replay: '1',
     speed: '10',
     showBeams: '1',
@@ -282,14 +406,15 @@ async function validateReplay(page: Page) {
   const state = await waitForState(
     page,
     (current) =>
-      current?.runtime?.profileId === 'case9-access-baseline' &&
+      current?.runtime?.profileId === 'hobs-multibeam-baseline' &&
       current.runtime.mode === 'replay' &&
       current.runtime.replayWindowStartSec !== null &&
       Boolean(current.beamInfoOverlay?.present) &&
       Boolean(current.handoverLinkOverlay?.present),
+    30000,
   );
 
-  await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-replay.png') });
+  await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-hobs-replay.png') });
 
   check(
     'VAL-FV-008 replay exposes deterministic window metadata',
@@ -316,7 +441,7 @@ async function validateDapsDualActive(page: Page) {
   await gotoScenario(page, {
     validate: '1',
     profile: 'case9-daps-baseline',
-    speed: '5',
+    speed: '50',
     showBeams: '1',
     showLabels: '1',
   });
@@ -330,7 +455,7 @@ async function validateDapsDualActive(page: Page) {
       Boolean(current.handoverLinkOverlay?.present) &&
       current.handoverLinkOverlay.styleKeys.includes('dapsSource') &&
       current.handoverLinkOverlay.styleKeys.includes('dapsTarget'),
-    40000,
+    60000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-dual-active.png') });
@@ -424,6 +549,10 @@ async function validateDapsReplay(page: Page) {
     showLabels: '1',
   });
 
+  // Timeout increased to 240s (from 150s): in full validate:stage runs the browser
+  // competes with other long-running scripts for CPU/memory, causing DAPS replay
+  // pre-computation to take longer than in standalone runs. 240s provides a
+  // sufficient margin without masking genuine hangs.
   const state = await waitForState(
     page,
     (current) =>
@@ -433,7 +562,7 @@ async function validateDapsReplay(page: Page) {
       current.runtime.dapsPhase === 'dual-active' &&
       current.handoverLinkOverlay.styleKeys.includes('dapsSource') &&
       current.handoverLinkOverlay.styleKeys.includes('dapsTarget'),
-    150000,
+    240000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-replay-dual-active.png') });

@@ -17,6 +17,7 @@ import type {
 } from './types';
 import { MIN_VISIBLE_ELEVATION_DEG } from '@/core/common/constants';
 import { propagateOrbitElement } from './propagation';
+import { propagateGeo } from './geo-stationary';
 import { createObserverContext, computeTopocentricPoint } from './topocentric';
 
 // ── Public options ──
@@ -88,7 +89,9 @@ export function buildTrajectoryCache(opts: BuildCacheOptions): TrajectoryCache {
     for (let i = 0; i < nSteps; i++) {
       const timeSec = i * stepSec;
       const utcMs = epochUtcMs + timeSec * 1000;
-      const point = propagateOrbitElement(elem, utcMs);
+      const point = elem.orbitType === 'geo'
+        ? propagateGeo(elem, utcMs)
+        : propagateOrbitElement(elem, utcMs);
       const topo = computeTopocentricPoint(observer, point.ecefKm);
       samples[i] = {
         timeSec,

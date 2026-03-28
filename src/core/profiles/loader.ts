@@ -33,6 +33,7 @@ export function buildWalkerConfig(profile: ProfileConfig, epochUtcMs: number): W
     planes: orb.num_planes,
     satsPerPlane: orb.sats_per_plane,
     phasingFactor: 1,
+    orbitType: orb.orbitType,
   };
 
   const extraShells = (orb.extra_shells ?? []).map((s, i) => ({
@@ -42,6 +43,7 @@ export function buildWalkerConfig(profile: ProfileConfig, epochUtcMs: number): W
     planes: s.num_planes,
     satsPerPlane: s.sats_per_plane,
     phasingFactor: s.phasing_factor ?? 1,
+    orbitType: s.orbitType,
   }));
 
   return {

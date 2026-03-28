@@ -6,6 +6,7 @@
  *   - deterministic window selection is shared by frontend/headless paths
  *   - benchmark artifacts persist replayManifest metadata
  *   - recordWindow preserves the same truth/timing as slicing the full run
+ *   - KPI bundles can be recomputed from snapshot traces deterministically
  *
  * Usage:
  *   node --import tsx scripts/validate-replay-manifest.ts
@@ -15,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { loadProfile } from '../src/core/profiles/loader';
+import { recomputeKpiFromSnapshots } from '../src/core/kpi/recompute';
 import { generateWalkerConstellation } from '../src/core/orbit/walker';
 import { buildTrajectoryCache } from '../src/core/orbit/trajectory-cache';
 import { createSimEngine } from '../src/core/engine';
@@ -29,6 +31,7 @@ import type { OrbitElement, TrajectoryCache } from '../src/core/orbit/types';
 import type { OmmRecord } from '../src/core/orbit/tle-loader';
 import type { ReplayManifest } from '../src/core/trace/types';
 import type { SimulationSnapshot } from '../src/core/common/types';
+import type { KpiBundle } from '../src/core/kpi/types';
 
 let failures = 0;
 
@@ -105,6 +108,38 @@ function compareManifestIdentity(label: string, a: ReplayManifest, b: ReplayMani
 
 function snapshotSignature(snapshot: SimulationSnapshot): string {
   return JSON.stringify(snapshot);
+}
+
+function compareKpiBundles(label: string, actual: KpiBundle, expected: KpiBundle) {
+  const mismatches: string[] = [];
+
+  for (const key of Object.keys(expected) as (keyof KpiBundle)[]) {
+    const actualValue = actual[key];
+    const expectedValue = expected[key];
+
+    if (Number.isNaN(actualValue) && Number.isNaN(expectedValue)) {
+      continue;
+    }
+
+    const tol =
+      Number.isInteger(actualValue) && Number.isInteger(expectedValue)
+        ? 0
+        : 1e-9;
+
+    if (Math.abs(actualValue - expectedValue) > tol) {
+      mismatches.push(
+        `${String(key)} ${actualValue.toFixed(6)} vs ${expectedValue.toFixed(6)}`,
+      );
+    }
+  }
+
+  checkBool(
+    label,
+    mismatches.length === 0,
+    mismatches.length === 0
+      ? `${Object.keys(expected).length} fields matched`
+      : mismatches.slice(0, 4).join('; '),
+  );
 }
 
 function validateProfile(profileId: string) {
@@ -186,6 +221,17 @@ function validateProfile(profileId: string) {
   const totalTicks = Math.floor(profile.timeControl.durationSec / profile.timeControl.stepSec);
   const fullEngine = createSimEngine({ profile, trajectoryCache: cache });
   const fullSnapshots = recordRun(fullEngine, totalTicks, profile.timeControl.stepSec);
+  const fullReplayKpi = recomputeKpiFromSnapshots({
+    snapshots: fullSnapshots,
+    bandwidthMhz: profile.rf.bandwidth_mhz,
+    wallClockMs: benchmarkRun.kpiBundle.wallClockMs,
+  });
+
+  compareKpiBundles(
+    'headless full-run KPI matches snapshot recomputation',
+    fullReplayKpi,
+    benchmarkRun.kpiBundle,
+  );
 
   const windowEngine = createSimEngine({ profile, trajectoryCache: cache });
   const windowSnapshots = recordWindow(
@@ -216,6 +262,21 @@ function validateProfile(profileId: string) {
     'recordWindow preserves full-run truth inside replay window',
     sameSnapshots,
     `${windowSnapshots.length} snapshots compared`,
+  );
+
+  const slicedWindowKpi = recomputeKpiFromSnapshots({
+    snapshots: slicedSnapshots,
+    bandwidthMhz: profile.rf.bandwidth_mhz,
+  });
+  const artifactReplayKpi = recomputeKpiFromSnapshots({
+    snapshots: artifactReplayArtifact.snapshots,
+    bandwidthMhz: profile.rf.bandwidth_mhz,
+  });
+
+  compareKpiBundles(
+    'replayArtifact window KPI matches authoritative full-run slice',
+    artifactReplayKpi,
+    slicedWindowKpi,
   );
 
   const localReplayArtifact = createReplayArtifact(artifactReplayManifest, windowSnapshots);

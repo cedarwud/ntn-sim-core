@@ -9,3 +9,5 @@
 export type { KpiBundle } from './types';
 export type { KpiAccumulatorConfig, KpiAccumulator } from './accumulator';
 export { createKpiAccumulator } from './accumulator';
+export type { RecomputeKpiFromSnapshotsConfig } from './recompute';
+export { recomputeKpiFromSnapshots } from './recompute';

@@ -7,11 +7,16 @@
  * This file must not import React, Three.js, or scene code.
  */
 
+/** Orbit regime classification. */
+export type OrbitType = 'leo' | 'meo' | 'geo';
+
 /** Keplerian orbital element for a single satellite. */
 export interface OrbitElement {
   id: string;
   shellId: string;
   altitudeKm: number;
+  /** Orbit regime. Defaults to 'leo' when omitted (backward compatible). */
+  orbitType?: OrbitType;
   /** Reference epoch in UTC milliseconds. */
   epochUtcMs: number;
   eccentricity: number;
@@ -65,6 +70,17 @@ export interface WalkerShell {
   /** Walker phasing factor F (default 1). Affects inter-plane phase offset.
    *  Formula: planePhaseOffset = 2π·p·F / totalSats */
   phasingFactor?: number;
+  /** Orbit regime for satellites in this shell. Defaults to 'leo'. */
+  orbitType?: OrbitType;
+}
+
+/** GEO satellite fixed-position config. No Kepler propagation needed. */
+export interface GeoStationaryConfig {
+  id: string;
+  /** Sub-satellite longitude in degrees. */
+  longitudeDeg: number;
+  /** Altitude in km. Defaults to 35786 (standard GEO). */
+  altitudeKm?: number;
 }
 
 /** Walker constellation generation config. */

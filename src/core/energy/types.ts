@@ -69,11 +69,11 @@ export interface EnergyEfficiencyMetrics {
 /**
  * Energy Layer 1 configuration.
  *
- * Default values are assumption-backed from multiple papers:
- *   - txPowerPerBeamDbm: 43 dBm (PAP-2024-HOBS: 50 dBm / ~5 beams)
- *   - activeBeamPowerW: 20 W (PAP-2025-SMASH-MADQL typical TX power)
- *   - idlePowerW: 5 W (PAP-2025-SMASH-MADQL idle state)
- *   - offBeamPowerW: 0.1 W (assumption-backed)
+ * Default values are assumption-backed internal calibration values:
+ *   - txPowerPerBeamDbm: 40 dBm = 10 W per beam (spec P1, PAP-2025-MAAC-BHPOWER [S10])
+ *   - activeBeamPowerW: 20 W (unverified; ASSUME-ENERGY-001)
+ *   - idlePowerW: 5 W (unverified; ASSUME-ENERGY-001)
+ *   - offBeamPowerW: 0.1 W (internal calibration; ASSUME-ENERGY-001)
  */
 export interface EnergyLayer1Config {
   /** TX power per active beam in dBm. */
