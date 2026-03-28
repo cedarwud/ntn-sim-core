@@ -207,7 +207,7 @@ Those remain tied to the synthetic profile family or paper baseline being valida
 | Tier 3 | beam gain family | mandatory for multi-beam or BH studies | `hobs-multibeam-baseline`, `bh-resource-baseline` | `PAP-2021-SHADOWED-RICIAN`, `PAP-2024-HOBS` |
 | Tier 4 | atmospheric absorption and other Ka-band extras | recommended when using Ka-band paper-default runs | `hobs-multibeam-baseline`, `bh-resource-baseline` | Ka-band papers |
 | Tier 5 | small-scale fading: Shadowed-Rician (SR) model — Nakagami-m LOS + Rayleigh scatter, elevation-dependent parameters | recommended for channel completeness claims | any profile with `tier5_fading: true` | `PAP-2021-SHADOWED-RICIAN`; implemented in `small-scale-fading.ts` |
-| Tier 6 | Doppler shift and ICI SINR degradation | available for Doppler-sensitive studies | any profile | `PAP-2024-BEAM-MGMT-SPECTRUM`; implemented in `doppler.ts`, not yet wired into engine SINR |
+| Tier 6 | Doppler shift and ICI SINR degradation | available for Doppler-sensitive studies | any profile with `tier6_doppler: true` | `PAP-2024-BEAM-MGMT-SPECTRUM`; implemented in `doppler.ts` and wired into engine SINR (Phase 2+3 paths); validated by VAL-DOPPLER-001-E (E-11) — measured 0.7 dB degradation for S-band 30 kHz SCS |
 
 ### 8.2 Beam-Gain Mapping by Profile
 

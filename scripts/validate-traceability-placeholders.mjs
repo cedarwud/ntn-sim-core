@@ -72,6 +72,7 @@ const defaultsSrc = readFileSync(defaultsPath, 'utf8');
 const baselineBlocks = {
   'case9-access-baseline': defaultsSrc.match(/CASE9_ACCESS_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
   'hobs-multibeam-baseline': defaultsSrc.match(/HOBS_MULTIBEAM_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
+  'realistic-first-screen': defaultsSrc.match(/REALISTIC_FIRST_SCREEN[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
 };
 
 const requiredParameterPaths = {
@@ -84,6 +85,12 @@ const requiredParameterPaths = {
     'rf.frequency_ghz',
     'rf.bandwidth_mhz',
     'rf.max_tx_power_dbm',
+  ],
+  'realistic-first-screen': [
+    'rf.tx_power_per_beam_dbm',
+    'rf.noise_temperature_k',
+    'handover.trigger_threshold_db',
+    'channel.los_elevation_deg',
   ],
 };
 

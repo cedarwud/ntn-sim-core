@@ -153,6 +153,13 @@
       "relevantSections": ["Table 6.6.2-1 (dense-urban SF/CL)", "Table 6.6.2-3 (suburban/rural SF/CL)", "§6.7 (NTN channel model)"],
       "usedIn": ["src/core/channel/link-budget.ts", "src/core/channel/shadow-fading.ts"]
     },
+    "STD-3GPP-38811-LOS-20DEG": {
+      "id": "3GPP TR 38.811 §6.7 LOS threshold approximation",
+      "title": "LOS elevation threshold 20° — simplified approximation of TR 38.811 §6.7 LOS probability function",
+      "relevantSections": ["§6.7 (NTN channel model, elevation-dependent LOS probability)"],
+      "note": "The 20° single-threshold approximation replaces the continuous probability function P_LOS(α) with a binary decision: elevation ≥ 20° → LOS; <20° → NLOS. This is a conventional simulator simplification used across multiple corpus papers. The exact value 20° is not normatively mandated but is consistent with §6.7 minimum operational elevation angle guidance.",
+      "usedIn": ["src/core/engine.ts", "src/core/profiles/defaults.ts"]
+    },
     "STD-3GPP-38821": {
       "id": "3GPP TR 38.821",
       "title": "Solutions for NR to support non-terrestrial networks",
@@ -222,6 +229,9 @@
     "ASSUME-ORB-REPRO-RT1": "RT-1 (PAP-2022-SINR-ELEVATION) reproduction: Walker F=1 phasing used; paper does not specify exact epoch or phasing factor",
     "ASSUME-ORB-REPRO-RT2": "RT-2 (PAP-2024-HOBS) reproduction: Walker F=1 phasing used; paper does not specify exact epoch",
     "ASSUME-ORB-REPRO-RT3": "RT-3 (PAP-2025-TIMERCHO-CORE) reproduction: Walker 24×22 used as Starlink-like proxy; paper does not mandate exact constellation layout",
-    "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope"
+    "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope",
+    "ASSUME-HO-TTT-NTN": "NTN-extended TTT=640 ms: all canonical profiles use ttt_ms=640 as a representative 3GPP NTN value. Rationale: spec H2 lists paper-backed presets of 0/40/256 ms (PAP-2022-A4EVENT-CORE uses 40 ms); the NTN context adds propagation delay compensation overhead (~2×one-way delay ≈ 2×4 ms at 600 km). 640 ms is used as a conservative NTN baseline that was common in early 3GPP NTN study-item discussions, but no specific corpus paper assigns exactly 640 ms as the default. Claim scope: assumption-backed placeholder for NTN TTT; must be swept in sensitivity analysis for handover-timing-sensitive experiments. Spec mode: Advanced (not Realistic per H2). Do not present 640 ms as a paper-backed fixed default in thesis comparison tables.",
+    "ASSUME-HO-THRESHOLD-SINR": "SINR-relative trigger threshold: all profiles use trigger_threshold_db=−6 dB as a SINR-relative handover threshold. This is a design-level simplification vs spec H3, which specifies an A4 absolute power threshold derived as noise_floor_dBm + Q_out. The −6 dB SINR form is an engineering choice that avoids maintaining a noise-floor estimate in the trigger path; no corpus paper explicitly uses −6 dB SINR as the A4 threshold in this relative form. Claim scope: assumption-backed SINR gating value; must be declared in thesis as a simplification of the full H3 derivation. Spec mode: Advanced (manual setting; Realistic requires derivation per H3).",
+    "ASSUME-SINR-LOS-THRESHOLD": "DEPRECATED legacy alias for the LOS-threshold provenance entry. New sourceMap entries must use STD-3GPP-38811-LOS-20DEG instead. This ASSUME-* id predates the later reclassification of the 20° LOS threshold as a standard-backed approximation of 3GPP TR 38.811 §6.7. Keep only for backward audit traceability; do not use in new Realistic profiles or new UI/schema exposure logic."
   }
 }

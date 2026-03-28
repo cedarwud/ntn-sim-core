@@ -1,0 +1,178 @@
+/**
+ * validate-specmode-gating.mjs
+ *
+ * Semantic validation for specMode / tier / source-id consistency in profile sourceMaps.
+ *
+ * Rules enforced (exit 1 on failure):
+ *   Rule 1: Internal-only entries must never have tier='paper-backed' or 'standard-backed'
+ *   Rule 2: Every assumption-backed entry's ID must be registered in paper-sources.json assumptions
+ *   Rule 3: assumption-backed entry with specMode='Realistic' is a contradiction — FAIL
+ *           (assumption-backed values are by definition not Realistic paper-backed defaults)
+ *   Rule 4: standard-backed entry whose ID exists in the assumptions registry is a tier/id mismatch — FAIL
+ *           (ASSUME-* IDs must never be tagged as standard-backed)
+ *   Rule 5: realistic-first-screen sourceMap must contain NO entries with specMode='Advanced' — FAIL if found
+ *           (Realistic preset must be clean for thesis baseline tables)
+ *   Rule 6: any profile with layer1_enabled=true must have at least one energy sourceMap entry — FAIL if absent
+ *           (P5/P6/P7 beam-state power assumptions must be disclosed in AssumptionSet)
+ *
+ * Warnings (exit 0 but reported):
+ *   Warn A: assumption-backed entries without any specMode tag
+ *   Warn B: profiles with tx_power_per_beam_dbm absent but eirp_density_dbw_per_mhz present
+ *           (derived quantity used as primary signal-path input — Advanced/compatibility only)
+ *
+ * Exits 0 on pass, 1 on failure.
+ */
+
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = join(__dirname, '..');
+
+const paperSourcesPath = join(root, 'src/core/config/paper-sources.json');
+const paperSources = JSON.parse(readFileSync(paperSourcesPath, 'utf8'));
+const assumptionIds = new Set(Object.keys(paperSources.assumptions ?? {}));
+const standardIds = new Set(Object.keys(paperSources.standards ?? {}));
+const paperIds = new Set(Object.keys(paperSources.papers ?? {}));
+
+const defaultsPath = join(root, 'src/core/profiles/defaults.ts');
+const defaultsText = readFileSync(defaultsPath, 'utf8');
+
+// Extract sourceMap entries using regex
+const entryPattern = /\{\s*tier:\s*'([^']+)',\s*id:\s*'([^']+)'([^}]*)\}/g;
+
+let failures = 0;
+const entries = [];
+
+let m;
+while ((m = entryPattern.exec(defaultsText)) !== null) {
+  const tier = m[1];
+  const id = m[2];
+  const rest = m[3];
+  const specModeMatch = rest.match(/specMode:\s*'([^']+)'/);
+  const specMode = specModeMatch ? specModeMatch[1] : undefined;
+  entries.push({ tier, id, specMode, raw: m[0] });
+}
+
+console.log(`validate-specmode-gating: found ${entries.length} sourceMap entries`);
+
+// --- Rule 1 ---
+for (const e of entries) {
+  if (e.specMode === 'Internal-only' && (e.tier === 'paper-backed' || e.tier === 'standard-backed')) {
+    console.error(`  FAIL [Rule 1]: Internal-only entry has incompatible tier='${e.tier}': id='${e.id}'`);
+    failures++;
+  }
+}
+
+// --- Rule 2 ---
+for (const e of entries) {
+  if (e.tier === 'assumption-backed' && !assumptionIds.has(e.id)) {
+    console.error(`  FAIL [Rule 2]: assumption-backed entry id='${e.id}' not in paper-sources.json assumptions`);
+    failures++;
+  }
+}
+
+// --- Rule 3: assumption-backed + specMode='Realistic' is a contradiction ---
+for (const e of entries) {
+  if (e.tier === 'assumption-backed' && e.specMode === 'Realistic') {
+    console.error(`  FAIL [Rule 3]: assumption-backed entry tagged specMode='Realistic' — contradiction:`);
+    console.error(`    id='${e.id}' (assumption-backed values are not Realistic paper-backed defaults)`);
+    console.error(`    Entry: ${e.raw.slice(0, 160)}`);
+    failures++;
+  }
+}
+
+// --- Rule 4: standard-backed entry with ASSUME-* id (tier/id type mismatch) ---
+for (const e of entries) {
+  if (e.tier === 'standard-backed' && assumptionIds.has(e.id)) {
+    console.error(`  FAIL [Rule 4]: standard-backed entry uses assumption-registry id='${e.id}' — tier/id mismatch`);
+    console.error(`    ASSUME-* IDs must use tier='assumption-backed', not 'standard-backed'`);
+    failures++;
+  }
+}
+
+// --- Rule 5: realistic-first-screen must not contain specMode='Advanced' ---
+// Extract the realistic-first-screen profile block
+const rfScreenSourceMapBlock = (() => {
+  // Find the block between 'realistic-first-screen' id and the next top-level export
+  const match = defaultsText.match(/id:\s*'realistic-first-screen'[\s\S]*?(?=^export const |\nexport const )/m);
+  return match ? match[0] : '';
+})();
+
+if (rfScreenSourceMapBlock) {
+  // Find all sourceMap entries in this block
+  const rfEntries = [];
+  const rfPattern = /\{\s*tier:\s*'([^']+)',\s*id:\s*'([^']+)'([^}]*)\}/g;
+  let rm;
+  while ((rm = rfPattern.exec(rfScreenSourceMapBlock)) !== null) {
+    const specModeMatch = rm[3].match(/specMode:\s*'([^']+)'/);
+    const specMode = specModeMatch ? specModeMatch[1] : undefined;
+    rfEntries.push({ tier: rm[1], id: rm[2], specMode });
+  }
+  for (const e of rfEntries) {
+    if (e.specMode === 'Advanced') {
+      console.error(`  FAIL [Rule 5]: realistic-first-screen contains specMode='Advanced' entry — violates Realistic preset governance`);
+      console.error(`    id='${e.id}' tier='${e.tier}' — Advanced entries must not appear in Realistic first-screen`);
+      failures++;
+    }
+  }
+}
+
+// --- Rule 6: layer1_enabled=true profile must have energy sourceMap entry ---
+// Find all profile blocks and check layer1_enabled vs energy sourceMap coverage
+const profileBlockPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?(?=^\s*\{[^}]*id:\s*'[^']+|\Z)/mg;
+// Use a simpler heuristic: scan for layer1_enabled: true occurrences and check nearby sourceMap
+const layer1Matches = [...defaultsText.matchAll(/layer1_enabled\s*:\s*true/g)];
+for (const lm of layer1Matches) {
+  // Extract a window of 3000 chars around this occurrence to find the enclosing profile id and sourceMap
+  const windowStart = Math.max(0, lm.index - 2000);
+  const windowEnd = Math.min(defaultsText.length, lm.index + 5000);
+  const window = defaultsText.slice(windowStart, windowEnd);
+  // Find the nearest id: 'xxx' before this point
+  const idMatches = [...window.slice(0, lm.index - windowStart).matchAll(/id:\s*'([^']+)'/g)];
+  const profileId = idMatches.length > 0 ? idMatches[idMatches.length - 1][1] : '(unknown)';
+  // Check if there's an energy-related sourceMap entry in this window
+  // Also accept spread sourceMap inheritance (e.g. ...BH_RESOURCE_BASELINE.sourceMap)
+  // which transitively includes the parent's energy entries
+  const hasSpreaderSourceMap = /\.\.\.[A-Z_]+\.sourceMap/.test(window);
+  const hasEnergyEntry = /ASSUME-ENERGY|ASSUME-ENE/i.test(window) ||
+    /parameterPath:\s*'energy\./i.test(window) ||
+    hasSpreaderSourceMap;
+  if (!hasEnergyEntry) {
+    console.error(`  FAIL [Rule 6]: profile id='${profileId}' has layer1_enabled=true but no energy-related sourceMap entry`);
+    console.error(`    P5/P6/P7 beam-state power values must be disclosed (add ASSUME-ENERGY-001 or equivalent)`);
+    failures++;
+  }
+}
+
+// --- Warn A: assumption-backed entries without specMode ---
+let warnA = 0;
+for (const e of entries) {
+  if (e.tier === 'assumption-backed' && !e.specMode) {
+    warnA++;
+  }
+}
+if (warnA > 0) {
+  console.log(`  WARN [A]: ${warnA} assumption-backed entries have no specMode — add Internal-only or Advanced before Phase 4`);
+}
+
+// --- Warn B: eirp_density present but tx_power_per_beam_dbm absent in realistic-first-screen ---
+// Check by looking at the profile block for 'realistic-first-screen'
+const rfScreenBlock = defaultsText.match(/id:\s*'realistic-first-screen'[\s\S]*?sourceMap:/);
+if (rfScreenBlock) {
+  const block = rfScreenBlock[0];
+  const hasP1 = /tx_power_per_beam_dbm/.test(block);
+  const hasEirp = /eirp_density_dbw_per_mhz/.test(block);
+  if (hasEirp && !hasP1) {
+    console.log(`  WARN [B]: realistic-first-screen specifies eirp_density_dbw_per_mhz without tx_power_per_beam_dbm`);
+    console.log(`    eirp_density is a derived quantity (spec §8) — should not be primary input in Realistic profile`);
+  }
+}
+
+if (failures > 0) {
+  console.error(`\nvalidate-specmode-gating: FAIL (${failures} violation(s))`);
+  process.exit(1);
+} else {
+  console.log(`validate-specmode-gating: OK`);
+}

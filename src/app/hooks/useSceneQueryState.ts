@@ -9,7 +9,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-const DEFAULT_PROFILE_ID = 'hobs-multibeam-baseline';
+/**
+ * Default profile: Realistic first-screen preset per simulator-parameter-spec.md §10.
+ * All user-facing parameters are paper-backed or standard-backed; no Advanced entries.
+ * One Internal-only entry (ASSUME-CHAN-001: noise_temperature_k=290K) is present for audit
+ * traceability but is not exposed as a UI control (spec R7 fixed engineering constant).
+ */
+const DEFAULT_PROFILE_ID = 'realistic-first-screen';
 
 export interface SceneQueryState {
   speed: number;
@@ -51,6 +57,7 @@ function syncQueryState(s: SceneQueryState) {
   if (s.replayMode) p.set('replay', '1'); else p.delete('replay');
   if (s.replaySeekSec !== null && Number.isFinite(s.replaySeekSec)) p.set('replaySeekSec', String(s.replaySeekSec)); else p.delete('replaySeekSec');
   if (s.validationMode) p.set('validate', '1'); else p.delete('validate');
+  if (s.profileId && s.profileId !== DEFAULT_PROFILE_ID) p.set('profile', s.profileId); else p.delete('profile');
   window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
 }
 
@@ -68,6 +75,8 @@ export interface UseSceneQueryStateResult {
   toggleShowBeams: () => void;
   toggleShowLabels: () => void;
   toggleReplayMode: () => void;
+  /** Change the active profile and sync to URL. */
+  setProfileId: (id: string) => void;
 }
 
 export function useSceneQueryState(): UseSceneQueryStateResult {
@@ -79,17 +88,19 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
   const [showLabels, setShowLabels] = useState(bootstrap.showLabels);
   const [replayMode, setReplayMode] = useState(bootstrap.replayMode);
   const [replaySeekSec] = useState(bootstrap.replaySeekSec);
+  const [profileId, setProfileIdRaw] = useState(bootstrap.profileId);
   const validationMode = bootstrap.validationMode;
 
   useEffect(() => {
-    syncQueryState({ speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId: bootstrap.profileId });
-  }, [paused, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
+    syncQueryState({ speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId });
+  }, [paused, profileId, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
 
   const setSpeed = useCallback((s: number) => setSpeedRaw(s), []);
   const togglePaused = useCallback(() => setPaused((p) => !p), []);
   const toggleShowBeams = useCallback(() => setShowBeams((b) => !b), []);
   const toggleShowLabels = useCallback(() => setShowLabels((l) => !l), []);
   const toggleReplayMode = useCallback(() => setReplayMode((r) => !r), []);
+  const setProfileId = useCallback((id: string) => setProfileIdRaw(id), []);
 
   return {
     speed,
@@ -99,11 +110,12 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
     replayMode,
     replaySeekSec,
     validationMode,
-    profileId: bootstrap.profileId,
+    profileId,
     setSpeed,
     togglePaused,
     toggleShowBeams,
     toggleShowLabels,
     toggleReplayMode,
+    setProfileId,
   };
 }

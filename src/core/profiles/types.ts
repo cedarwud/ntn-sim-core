@@ -33,7 +33,16 @@ export type ProfileFamily =
   | 'real-trace-validation'
   | 'case9-daps-baseline'
   | 'meo-constellation-baseline'
-  | 'geo-relay-baseline';
+  | 'geo-relay-baseline'
+  /**
+   * Spec §10 Realistic first-screen preset: all user-facing parameters are
+   * paper-backed or standard-backed; no Advanced entries. One Internal-only
+   * entry (ASSUME-CHAN-001: noise_temperature_k=290K) is retained for audit
+   * traceability but is not exposed as a UI control (spec R7). Safe for
+   * thesis baseline tables.
+   * Defined in defaults.ts as REALISTIC_FIRST_SCREEN.
+   */
+  | 'realistic-first-screen';
 
 // ---------------------------------------------------------------------------
 // Sub-config types
@@ -75,27 +84,61 @@ export interface RfConfig {
   /**
    * EIRP spectral density in dBW/MHz.
    *
-   * @spec-deviation simulator-parameter-spec.md §5 (line 165) classifies
-   * eirpDensityDbwPerMHz as a "derived reporting quantity" (= P_beam_max · G_T(θ=0))
-   * and states it must not be exposed as an independent input.
-   * This field is retained as a profile input for practical reasons:
+   * @spec-deviation simulator-parameter-spec.md §8 classifies
+   * eirpDensityDbwPerMHz as a "derived reporting quantity"
+   * (= P_beam_max · G_T(θ=0) peak on-axis) and states it must NOT be exposed
+   * as an independent input or independently swept in any mode.
+   *
+   * This field is retained as a profile input for backwards compatibility:
    * papers specify EIRP directly, and computing it from P1 + antenna gain
    * requires the full antenna model to be evaluated first.
-   * Claim scope: acceptable as a provenance-tagged compatibility input for
-   * paper families that report EIRP directly; must not be independently swept
-   * or exposed as a free user control without recomputing dependent quantities
-   * such as noise floor and HO thresholds.
+   *
+   * @spec-mode Advanced (compatibility input only — not a Realistic free slider)
+   * Claim scope: use as a provenance-tagged paper-reproduction compatibility value
+   * for profiles whose source paper reports EIRP directly. Must not be swept
+   * independently or presented as a UI control. Do not expose in first-screen
+   * Realistic mode. Any profile that changes this field must recompute
+   * dependent quantities (noise floor, HO thresholds) accordingly.
    */
   eirp_density_dbw_per_mhz: number;
   /**
+   * Per-beam maximum transmit power in dBm (spec P1).
+   *
+   * This is the per-beam TX power cap (\(P_{\mathrm{beam},\max}\)).
+   * Source: PAP-2025-MAAC-BHPOWER [S10]: P1 = 10 dBW = 40 dBm = 10 W.
+   *
+   * When set, the engine:
+   *   1. Computes txEirp from this value + antenna.peak_gain_dbi (instead of
+   *      eirp_density_dbw_per_mhz), aligning the signal path with P1.
+   *   2. Uses it as the Energy Layer 1 txPowerPerBeamDbm, aligning EE path.
+   *
+   * When absent, falls back to eirp_density_dbw_per_mhz for signal path
+   * and DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm (40 dBm) for EE.
+   *
+   * @spec-mode Realistic (spec P1, paper-backed)
+   * Must NOT be confused with max_tx_power_dbm (which is P2, aggregate).
+   */
+  tx_power_per_beam_dbm?: number;
+  /**
    * Maximum total satellite transmit power in dBm (aggregate across all beams).
+   * This is the aggregate TX power budget (spec P2 = 13 dBW ≈ 43 dBm ≈ 20 W).
    * Used as the power budget ceiling for power-aware BH scheduling.
-   * This is NOT the per-beam TX power; do not conflate with Energy Layer 1
-   * txPowerPerBeamDbm (= spec P1 = 40 dBm = 10 W per beam).
+   * This is NOT the per-beam TX power; do not conflate with tx_power_per_beam_dbm
+   * (spec P1 = 40 dBm = 10 W per beam).
    * Set to null to disable the power budget constraint.
    */
   max_tx_power_dbm: number | null;
-  /** Noise temperature in K (antenna + sky). */
+  /**
+   * Reference noise temperature in K (antenna + sky background).
+   *
+   * @spec-mode Internal-only — per simulator-parameter-spec.md R7.
+   * This is a fixed engineering constant (290 K = IEEE/ITU standard T_0).
+   * It must NOT be exposed as a UI slider or swept as a sensitivity parameter.
+   * Runtime uses it only via T_sys = noise_temperature_k + T_0·(NF_linear − 1).
+   * Profile field is retained for audit traceability; value must always be 290 K
+   * for standard-backed clear-sky baselines. Non-standard values require an
+   * explicit assumption entry and may only be used in Internal-only scenarios.
+   */
   noise_temperature_k: number;
   /** UE receiver noise figure in dB (MS5 fix). Default 7 dB (3GPP typical UE).
    *  System noise temp = T_ant + T_0·(10^(NF/10) - 1) where T_0 = 290K */
@@ -187,6 +230,20 @@ export interface ChannelConfig {
   tier6_doppler?: boolean;
   /** OFDM subcarrier spacing for Tier 6 Doppler ICI computation (kHz). Default 30. */
   subcarrier_spacing_khz?: number;
+  /**
+   * LOS elevation threshold (degrees).
+   * UE link is classified LOS when servingSample.elevationDeg ≥ this value,
+   * which gates shadow-fading and clutter-loss branch selection.
+   *
+   * @spec-mode Realistic (standard-backed: 3GPP TR 38.811 §6.7 LOS probability model
+   *   simplified to a hard threshold; 20° is the conventional single-threshold
+   *   approximation used across multiple papers in the catalog)
+   * @source STD-3GPP-38811-LOS-20DEG
+   * Legacy note: ASSUME-SINR-LOS-THRESHOLD is deprecated; use the STD-* id for
+   * current sourceMap / UI-schema provenance.
+   * @default 20 (degrees)
+   */
+  los_elevation_deg?: number;
 }
 
 export type HandoverType =
@@ -204,15 +261,31 @@ export type HandoverType =
 export interface HandoverConfig {
   type: HandoverType;
   /**
-   * A4 absolute SINR threshold (dB). Used **only** for A4-event and attach decisions.
+   * Link-quality floor / trigger threshold in dB. Used for A4-event and attach decisions.
    * Semantics: handover triggers when serving SINR < trigger_threshold_db.
    * Do NOT use as A3 offset — see a3_offset_db below.
    *
-   * @spec-deviation simulator-parameter-spec.md §6 H3 states this threshold
-   * must be derived as: A4_thr = N_floor + Q_out (noise floor + outage margin).
-   * This field is retained as a direct profile input for flexibility; profiles
-   * that set it manually must document the derivation or disclose the assumption.
-   * For spec-compliant baselines, compute via: noise_floor_dBm + rlf_qout_db.
+   * Runtime uses this field in two contexts:
+   *   1. A4 / controller-style SINR trigger logic (legacy/spec-deviation path).
+   *   2. Initial attach / re-attach gate, where profiles may bind it to the
+   *      minimum link-quality floor (for example trigger_threshold_db = Q_out).
+   *
+   * @spec-deviation simulator-parameter-spec.md §6 H3 specifies a4ThresholdDbm
+   * as an ABSOLUTE power threshold (dBm) derived as:
+   *   noise_floor_dBm = 10·log10(k · T_sys · bandwidth_hz · 1000)  [in dBm]
+   *   A4_thr_dBm = noise_floor_dBm + rlf_qout_db
+   *
+   * Profiles that keep the legacy SINR-relative tuning value (for example −6 dB)
+   * must document it as assumption-backed / Advanced via ASSUME-HO-THRESHOLD-SINR.
+   *
+   * The first-screen Realistic A3 preset instead sets trigger_threshold_db = Q_out
+   * = −8 dB and sources it from TS 38.133 §7.6 as a standard-backed attach floor.
+   * This is still distinct from the full H3 absolute-power derivation, but it is
+   * no longer the same claim as the old manual −6 dB tuning knob.
+   *
+   * @spec-mode Context-dependent:
+   *   - Realistic when bound to the standard-backed attach floor (for example Q_out)
+   *   - Advanced when used as a manual SINR-relative tuning parameter
    */
   trigger_threshold_db: number;
   /**

@@ -176,7 +176,18 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   const { profile, trajectoryCache, policy = null } = config;
 
   // Derived RF parameters (computed once)
-  const txEirp = eirpDbm(profile.rf.eirp_density_dbw_per_mhz, profile.rf.bandwidth_mhz);
+  // P1-path: if tx_power_per_beam_dbm (spec P1) is set, derive EIRP from it +
+  // peak_gain_dbi - implementation_loss_db. This aligns the signal path with the
+  // EE path and removes the eirp_density_dbw_per_mhz derived-quantity override.
+  // Fallback: use eirp_density_dbw_per_mhz (Advanced compatibility input, spec §8).
+  let txEirp: number;
+  if (profile.rf.tx_power_per_beam_dbm !== undefined) {
+    // EIRP(dBm) = P1(dBm) + G_peak(dBi) - L_impl(dB)
+    const implLoss = profile.rf.implementation_loss_db ?? 0;
+    txEirp = profile.rf.tx_power_per_beam_dbm + profile.antenna.peak_gain_dbi - implLoss;
+  } else {
+    txEirp = eirpDbm(profile.rf.eirp_density_dbw_per_mhz, profile.rf.bandwidth_mhz);
+  }
   const noiseDbm = noisePowerDbm(profile.rf.noise_temperature_k, profile.rf.bandwidth_mhz, profile.rf.noise_figure_db);
   const deploymentEnvironment = profile.channel.deployment_environment ?? 'suburban';
   const largeScaleModel =
@@ -200,7 +211,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
   // KPI accumulator
   let kpiAcc = createKpiAccumulator({
-    sinrOutageThresholdDb: -8, // PAP-2022-SINR-ELEVATION
+    sinrOutageThresholdDb: profile.handover.rlf_qout_db ?? -8, // PAP-2022-SINR-ELEVATION; configurable via handover.rlf_qout_db
     pingPongWindowSec: 5,
     bandwidthMhz: profile.rf.bandwidth_mhz,
   });
@@ -260,15 +271,20 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // Energy layer 1 (optional)
   let energyManager: EnergyLayer1Manager | null = null;
   if (profile.energy.layer1_enabled) {
-    // Use DEFAULT_ENERGY_LAYER1_CONFIG (txPowerPerBeamDbm = 40 dBm = spec P1 per PAP-2025-MAAC-BHPOWER [S10]).
+    // EE-path P1 convergence: if tx_power_per_beam_dbm (spec P1) is set in the
+    // profile, use it as the Energy Layer 1 per-beam cap. This aligns the EE path
+    // with the signal path (both driven by the same P1 value).
+    // Fallback: DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm = 40 dBm (spec P1
+    // assumption, ASSUME-ENERGY-001).
     //
-    // NOTE: profile.rf.max_tx_power_dbm is intentionally NOT wired here.
-    // max_tx_power_dbm represents the total satellite TX power budget (used for
-    // power-aware BH scheduling via bh_power_budget_w); it is NOT the per-beam
-    // TX power. Directly substituting it as txPowerPerBeamDbm would be a
-    // unit/semantic error (e.g. HOBS max_tx_power_dbm=50 dBm = 100 W per beam,
-    // physically implausible). See spec GAP-7 and ASSUME-ENERGY-001.
-    const energyConfig: EnergyLayer1Config = { ...DEFAULT_ENERGY_LAYER1_CONFIG };
+    // NOTE: max_tx_power_dbm (P2 aggregate) is intentionally NOT used here; it is
+    // the BH power-budget ceiling, not a per-beam cap. See types.ts RfConfig.
+    const energyConfig: EnergyLayer1Config = {
+      ...DEFAULT_ENERGY_LAYER1_CONFIG,
+      ...(profile.rf.tx_power_per_beam_dbm !== undefined
+        ? { txPowerPerBeamDbm: profile.rf.tx_power_per_beam_dbm }
+        : {}),
+    };
     energyManager = createEnergyLayer1(energyConfig);
   }
 
@@ -297,7 +313,15 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         maxActiveBeamsPerSlot: profile.beam.bh_max_active_per_slot ?? Math.min(4, profile.beam.num_beams),
         frameDurationSec: profile.beam.bh_frame_duration_sec,
         slotsPerFrame: profile.beam.bh_slots_per_frame,
-        powerBudgetW: profile.beam.bh_power_budget_w,
+        // P2 cap wiring: prefer explicit bh_power_budget_w; if absent, derive from
+        // rf.max_tx_power_dbm (spec P2: 13 dBW ≈ 20 W). This keeps the BH scheduler
+        // bounded by the spec power cap even when the field is not explicitly set.
+        // Signal path (eirp_density) remains independent per spec §8 boundary.
+        powerBudgetW:
+          profile.beam.bh_power_budget_w ??
+          (profile.rf.max_tx_power_dbm != null
+            ? Math.pow(10, profile.rf.max_tx_power_dbm / 10) / 1000
+            : undefined),
       },
       beamLayouts,
     );
@@ -382,7 +406,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       tier4Atmospheric: profile.channel.tier4_atmospheric,
       tier5Fading: profile.channel.tier5_fading,
       rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-      isLos: servingSample.elevationDeg >= 20, // simplified LOS model
+      isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20), // LOS threshold: profile.channel.los_elevation_deg (default 20°, ASSUME-SINR-LOS-THRESHOLD)
     });
 
     // C1 fix: each interferer computes its own full link budget
@@ -417,7 +441,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         tier4Atmospheric: profile.channel.tier4_atmospheric,
         tier5Fading: profile.channel.tier5_fading,
         rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-        isLos: iSample.elevationDeg >= 20,
+        isLos: iSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
       });
       interferingSignals.push({
         rxPowerDbm: iChannel.rxPowerDbm,
@@ -485,7 +509,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       tier4Atmospheric: profile.channel.tier4_atmospheric,
       tier5Fading: profile.channel.tier5_fading,
       rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-      isLos: servingSample.elevationDeg >= 20,
+      isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
     });
 
     // --- C1 fix: collect per-interferer channel data ---
@@ -526,7 +550,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           tier4Atmospheric: profile.channel.tier4_atmospheric,
           tier5Fading: profile.channel.tier5_fading,
           rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-          isLos: servingSample.elevationDeg >= 20,
+          isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
         });
         interferingSignals.push({
           rxPowerDbm: iChannel.rxPowerDbm,
@@ -564,7 +588,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           tier4Atmospheric: profile.channel.tier4_atmospheric,
           tier5Fading: profile.channel.tier5_fading,
           rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-          isLos: other.sample.elevationDeg >= 20,
+          isLos: other.sample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
         });
         interferingSignals.push({
           rxPowerDbm: iChannel.rxPowerDbm,

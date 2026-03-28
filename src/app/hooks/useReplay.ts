@@ -67,7 +67,7 @@ const SNAPSHOT_INTERVAL_MS = 50;
 
 export function useReplay(options?: UseReplayOptions): UseReplayResult {
   const {
-    profileId = 'case9-access-baseline',
+    profileId = 'realistic-first-screen',
     speed = 1,
     paused = false,
     initialSeekSec = null,

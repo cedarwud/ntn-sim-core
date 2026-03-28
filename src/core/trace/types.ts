@@ -34,6 +34,21 @@ export interface RunManifest {
   durationSec: number;
   stepSec: number;
   engineVersion: string;
+  /**
+   * Index of SpecMode-classified source entries in this run.
+   * Populated by the benchmark runner from the profile's sourceMap.
+   * Used to gate thesis claim review: Internal-only entries must never
+   * be presented as paper-backed; Advanced entries require explicit justification.
+   * Omitted when sourceMap is empty or runner does not classify entries.
+   */
+  specModeIndex?: {
+    /** parameterPaths or source IDs with specMode='Internal-only' */
+    internalOnly: string[];
+    /** parameterPaths or source IDs with specMode='Advanced' */
+    advanced: string[];
+    /** parameterPaths or source IDs with specMode='Sensitivity' */
+    sensitivity: string[];
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +141,14 @@ export interface RunArtifactBundle {
   kpiBundle: KpiBundleShell;
   replayManifest?: ReplayManifest;
   replayArtifact?: ReplayArtifact;
+  /**
+   * Assumption records collected from this run's profile sourceMap.
+   * Populated for any source entry with tier='assumption-backed' or
+   * specMode='Internal-only'. Required for thesis audit compliance:
+   * every assumption affecting KPI-impacting paths must appear here.
+   * Omitted when no assumption-backed entries are present.
+   */
+  assumptionSet?: AssumptionRecord[];
 }
 
 // ---------------------------------------------------------------------------

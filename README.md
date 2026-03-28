@@ -110,6 +110,7 @@ npm run preview
 12. [前端 donor 對應表](./sdd/ntn-sim-core-frontend-donor-mapping.md)
 13. [leo-parity 前端模式 SDD](./sdd/ntn-sim-core-frontend-leo-parity-mode.md)
 14. [最終 closure checklist](./sdd/ntn-sim-core-final-closure-checklist.md)
+15. [UI / 參數暴露層規範](./sdd/ntn-sim-core-ui-exposure-spec.md)
 
 目前 `leo-parity` mode 已有同頁切換入口與第一版 presenter-driven beam density，可用 `?view=leo-parity` 直接進入。
 
@@ -277,6 +278,36 @@ index.html
 | 滑鼠左鍵拖曳 | 旋轉場景 |
 | 滑鼠右鍵拖曳 | 平移場景 |
 | 滾輪 | 縮放（距離限制 10 ~ 2000） |
+
+## 參數暴露層（UI Exposure Layer）
+
+Simulator 的參數依照 `system-model-refs/simulator-parameter-spec.md` §0 分為四個 mode：
+
+| Mode | UI 入口 | 說明 |
+|---|---|---|
+| **Realistic** | Profile selector 第一選項（預設） | 論文/標準文件直接背書的參數；安全用於論文比較表 |
+| **Advanced** | Profile selector Advanced 群組 + HO override | 有明確文獻來源的次級設定；非 first-screen 預設 |
+| **Sensitivity** | Profile selector Sensitivity 群組 | 再現目標與分析型 sweep |
+| **Internal-only** | **不暴露** | 僅 runtime 使用；不可作為 UI 滑桿 |
+
+### Profile Selector
+
+左下角控制面板 `Profile:` 下拉選單選擇情境設定檔。預設為 `realistic-first-screen`（Ka 20 GHz、A3 HO、FR3）。
+亦可直接用 URL 參數切換：`?profile=hobs-multibeam-baseline`
+
+### HO Strategy Override
+
+`HO:` 下拉選單可臨時覆蓋 HO 策略（不改 profile）。A3/A4 為 Realistic；CHO/MC-HO/DAPS 標示 `[Adv]`。
+
+### 衍生量禁止作為自由控制項
+
+以下不可作為 UI 滑桿或直接輸入值：
+- `α`（仰角）、`d`（斜距）、`θ`（偏軸角）、`PL`（路徑損耗）
+- 原始雜訊功率（使用 NF 作為控制項）
+- `eirpDensityDbwPerMHz`（從 P1 + 天線增益推算）
+- `systemLossDb = 70 dB`（已廢棄）
+
+詳細規範見 [UI 暴露層 SDD](./sdd/ntn-sim-core-ui-exposure-spec.md)。
 
 ## 開發注意事項
 

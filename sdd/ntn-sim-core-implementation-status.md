@@ -66,8 +66,8 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | EXT-2 | MG4 E-level golden cases E-5 through E-11 | ✅ (VAL-SINR-002-E, VAL-HO-003-E, VAL-DELAY-001-E, VAL-MOBILITY-001-E, VAL-REPRO-001-E, VAL-POLICY-001-E, VAL-DOPPLER-001-E) |
 | EXT-3 | MG2 RL pull-model: `getObservation()`/`applyAction()` on `SimEngine` | ✅ (cached observation every tick, external action queue, E-10 validated) |
 | EXT-4 | BH scheduler extensions: `proportional-fair` + `sinr-greedy` | ✅ (`scheduler.ts`; `bh-pf-baseline`, `bh-sinr-greedy-baseline` profiles) |
-| EXT-5 | Profile audit tooling: `scripts/audit-profiles.ts` 10-check suite | ✅ (13 profiles pass; added to `validate:stage`) |
-| EXT-6 | Doppler Tier 6 wired into engine SINR: Phase 2 + Phase 3 paths | ✅ (`tier6_doppler` flag, E-11 validates 2.6 dB degradation for S-band 30 kHz SCS) |
+| EXT-5 | Profile audit tooling: `scripts/audit-profiles.ts` 10-check suite | ✅ (14 profiles pass; added to `validate:stage`) |
+| EXT-6 | Doppler Tier 6 wired into engine SINR: Phase 2 + Phase 3 paths | ✅ (`tier6_doppler` flag, E-11 validates 0.711 dB degradation for S-band 30 kHz SCS) |
 
 ---
 

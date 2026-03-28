@@ -25,6 +25,17 @@ export type SourceTier =
   | 'assumption-backed'
   | 'debug-only';
 
+/**
+ * Spec-mode classification per simulator-parameter-spec.md §0.
+ *
+ * - Realistic:      paper- or standard-backed defaults; safe for baseline experiments
+ * - Advanced:       valid secondary settings from papers; requires explicit justification
+ * - Sensitivity:    parameter sweeps for analysis; range may be synthesized
+ * - Internal-only:  assumption-backed calibration values; must NOT be exposed in UI
+ *                   or presented as paper-backed in thesis tables
+ */
+export type SpecMode = 'Realistic' | 'Advanced' | 'Sensitivity' | 'Internal-only';
+
 /** Metadata for a source-tier annotation. */
 export interface SourceReference {
   tier: SourceTier;
@@ -39,6 +50,16 @@ export interface SourceReference {
    * Omit for profile-level (whole-profile) source references.
    */
   parameterPath?: string;
+  /**
+   * Spec-mode classification per simulator-parameter-spec.md §0.
+   * When set, the UI / audit layer uses this to gate parameter exposure:
+   *   - Internal-only → must never appear in user-facing controls or thesis baselines
+   *   - Sensitivity   → sweep-only; never a fixed default
+   *   - Advanced      → requires explicit justification; not first-screen
+   *   - Realistic     → safe for baseline experiments and paper comparison tables
+   * Omit for profile-level source references where no single mode applies.
+   */
+  specMode?: SpecMode;
 }
 
 // ---------------------------------------------------------------------------

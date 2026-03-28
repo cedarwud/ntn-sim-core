@@ -28,8 +28,8 @@ import { BatchKpiPanel } from '@/viz/overlays/BatchKpiPanel';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import type { SimulationSnapshot } from '@/core/common/types';
 
-// Default profile shown when no ?profile= URL param is provided.
-const DEFAULT_PROFILE_ID = 'hobs-multibeam-baseline';
+// Default profile: Realistic first-screen preset (spec §10). Matches useSceneQueryState default.
+const DEFAULT_PROFILE_ID = 'realistic-first-screen';
 
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -238,7 +238,7 @@ function ReplayLayer({ onStatsUpdate, onSnapshotUpdate, onExportKpiReady, speed,
 export function SceneShell() {
   const {
     speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId,
-    setSpeed, togglePaused, toggleShowBeams, toggleShowLabels, toggleReplayMode,
+    setSpeed, togglePaused, toggleShowBeams, toggleShowLabels, toggleReplayMode, setProfileId,
   } = useSceneQueryState();
   const [hudData, setHudData] = useState<SimHudProps | null>(null);
   const [liveSnapshot, setLiveSnapshot] = useState<SimulationSnapshot | null>(null);
@@ -305,6 +305,8 @@ export function SceneShell() {
         onOpenBatchKpi={() => setShowBatchKpi(true)}
         hoTypeOverride={hoTypeOverride}
         onHoTypeOverrideChange={setHoTypeOverride}
+        profileId={profileId}
+        onProfileChange={setProfileId}
       />
       <Canvas
         shadows

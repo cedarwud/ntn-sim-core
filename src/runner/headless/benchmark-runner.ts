@@ -193,6 +193,24 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
   const kpiBundle = engine.getKpiAccumulator().finalize(wallClockMs);
 
   // 7. Create trace artifacts
+
+  // Collect SpecMode index from sourceMap for manifest
+  const specModeIndex: NonNullable<ReturnType<typeof createRunManifest>['specModeIndex']> = {
+    internalOnly: [],
+    advanced: [],
+    sensitivity: [],
+  };
+  for (const s of profile.sourceMap) {
+    const key = s.parameterPath ?? s.id;
+    if (s.specMode === 'Internal-only') specModeIndex.internalOnly.push(key);
+    else if (s.specMode === 'Advanced') specModeIndex.advanced.push(key);
+    else if (s.specMode === 'Sensitivity') specModeIndex.sensitivity.push(key);
+  }
+  const hasSpecModeEntries =
+    specModeIndex.internalOnly.length > 0 ||
+    specModeIndex.advanced.length > 0 ||
+    specModeIndex.sensitivity.length > 0;
+
   const manifest = createRunManifest({
     profileId: profile.id,
     profileFamily: profile.family,
@@ -202,6 +220,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     durationSec,
     stepSec,
     engineVersion: '0.1.0',
+    specModeIndex: hasSpecModeEntries ? specModeIndex : undefined,
   });
 
   const resolvedConfig = createResolvedConfig(
@@ -217,6 +236,19 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
       claimScope: s.note ?? '',
     })),
   );
+
+  // Collect assumption records from assumption-backed / Internal-only entries
+  const assumptionSet = profile.sourceMap
+    .filter((s) => s.tier === 'assumption-backed' || s.specMode === 'Internal-only')
+    .map((s) => ({
+      id: s.id,
+      category: 'parameter' as const,
+      affectedModule: s.parameterPath ?? profile.family,
+      chosenValue: s.note ?? '',
+      rationale: s.note ?? '',
+      impactScope: s.specMode === 'Internal-only' ? 'internal-only: must not appear in thesis tables' : 'assumption-backed: requires sensitivity sweep',
+      claimScope: s.note ?? '',
+    }));
 
   const { replayManifest } = createReplaySelectionPlan(
     profile,
@@ -249,6 +281,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     replayArtifact,
     eventLog,
     kpiBundleShell,
+    assumptionSet.length > 0 ? assumptionSet : undefined,
   );
 
   // 8. Return result

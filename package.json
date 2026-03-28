@@ -10,6 +10,8 @@
     "lint": "tsc --noEmit",
     "validate:structure": "node scripts/validate-structure.mjs",
     "validate:trace": "node scripts/validate-traceability-placeholders.mjs",
+    "validate:specmode": "node scripts/validate-specmode-gating.mjs",
+    "validate:assumption-manifest": "node scripts/validate-assumption-manifest.mjs",
     "validate:profiles": "node scripts/validate-profile-layout.mjs",
     "validate:core-purity": "node scripts/validate-core-purity.mjs",
     "validate:final": "node scripts/validate-final.mjs",
@@ -25,7 +27,7 @@
     "validate:reproduction": "npx tsx scripts/run-reproduction-comparison.ts",
     "validate:audit-profiles": "node --import tsx scripts/audit-profiles.ts",
     "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles"
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:specmode && npm run validate:assumption-manifest && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles"
   },
   "keywords": [
     "3d",

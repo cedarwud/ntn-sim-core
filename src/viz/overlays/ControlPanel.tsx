@@ -31,7 +31,40 @@ export interface ControlPanelProps {
   onOpenBatchKpi?: () => void;
   hoTypeOverride?: HandoverType | null;
   onHoTypeOverrideChange?: (type: HandoverType | null) => void;
+  /** Current active profile ID (spec §10 tier-based selector). */
+  profileId?: string;
+  /** Callback to switch profile (profile change reloads the simulation). */
+  onProfileChange?: (profileId: string) => void;
 }
+
+// ---------------------------------------------------------------------------
+// Profile tier groups (simulator-parameter-spec.md §0 Mode Classification)
+// ---------------------------------------------------------------------------
+//
+// Realistic: paper/standard-backed defaults; safe for thesis comparison tables.
+// Advanced:  valid secondary settings from papers; requires explicit justification.
+// Sensitivity: reproduction targets & parameter sweeps for analysis.
+// Internal-only: not listed here — kept in runtime only, never exposed in UI.
+
+const PROFILE_OPTIONS: Array<{ value: string; label: string; tier: 'Realistic' | 'Advanced' | 'Sensitivity' }> = [
+  // --- Realistic ---
+  { value: 'realistic-first-screen', label: 'Realistic — Ka 20 GHz, A3 HO (spec §10)', tier: 'Realistic' },
+  // --- Advanced ---
+  { value: 'case9-access-baseline',     label: 'Advanced — Case-9 Access (S-band A4)',     tier: 'Advanced' },
+  { value: 'hobs-multibeam-baseline',   label: 'Advanced — HOBS Multi-Beam (Ka 28 GHz)',   tier: 'Advanced' },
+  { value: 'bh-resource-baseline',      label: 'Advanced — BH Resource (Ka 20 GHz)',       tier: 'Advanced' },
+  { value: 'case9-daps-baseline',       label: 'Advanced — DAPS Dual-Active',              tier: 'Advanced' },
+  { value: 'real-trace-validation',     label: 'Advanced — Real-Trace (TLE/SGP4)',         tier: 'Advanced' },
+  { value: 'meo-constellation-baseline',label: 'Advanced — MEO Constellation',            tier: 'Advanced' },
+  { value: 'geo-relay-baseline',        label: 'Advanced — GEO Relay',                    tier: 'Advanced' },
+  // --- Sensitivity / Reproduction ---
+  { value: 'sinr-elevation-reproduction', label: 'Sensitivity — SINR-Elevation Repro',   tier: 'Sensitivity' },
+  { value: 'hobs-reproduction',           label: 'Sensitivity — HOBS Repro',              tier: 'Sensitivity' },
+  { value: 'timer-cho-reproduction',      label: 'Sensitivity — Timer-CHO Repro',         tier: 'Sensitivity' },
+  { value: 'bh-pf-baseline',             label: 'Sensitivity — BH Proportional-Fair',    tier: 'Sensitivity' },
+  { value: 'bh-sinr-greedy-baseline',    label: 'Sensitivity — BH SINR-Greedy',          tier: 'Sensitivity' },
+  { value: 'bh-resource-energy-proof',   label: 'Sensitivity — BH Energy Proof',         tier: 'Sensitivity' },
+];
 
 const SPEEDS = [1, 5, 10, 20] as const;
 
@@ -128,42 +161,83 @@ export const ControlPanel = React.memo(function ControlPanel({
   onOpenBatchKpi,
   hoTypeOverride = null,
   onHoTypeOverrideChange,
+  profileId,
+  onProfileChange,
 }: ControlPanelProps) {
   const handleHoTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     onHoTypeOverrideChange?.(val === '' ? null : val as HandoverType);
   }, [onHoTypeOverrideChange]);
+
+  const handleProfileChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onProfileChange?.(e.target.value);
+  }, [onProfileChange]);
+
+  const selectStyle: React.CSSProperties = {
+    background: '#222',
+    color: '#e0e0e0',
+    border: '1px solid #444',
+    borderRadius: 4,
+    padding: '2px 6px',
+    fontFamily: 'inherit',
+    fontSize: 12,
+    cursor: 'pointer',
+    outline: 'none',
+  };
+
   return (
     <div style={containerStyle} data-testid="control-panel">
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
-      {/* HO Strategy override */}
+      {/* Profile selector (spec §10 Realistic/Advanced/Sensitivity tiers) */}
+      {onProfileChange && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Profile:</span>
+          <select
+            data-testid="profile-select"
+            value={profileId ?? 'realistic-first-screen'}
+            onChange={handleProfileChange}
+            style={{ ...selectStyle, maxWidth: 220 }}
+            title="Select simulation scenario. Realistic = paper/standard-backed defaults. Advanced = valid secondary settings. Sensitivity = reproduction / sweep targets."
+          >
+            {(['Realistic', 'Advanced', 'Sensitivity'] as const).map((tier) => (
+              <optgroup key={tier} label={`── ${tier} ──`}>
+                {PROFILE_OPTIONS.filter((o) => o.tier === tier).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* HO Strategy override
+          Realistic: A3 (profile default for realistic-first-screen), A4
+          Advanced:  CHO, Timer-CHO, MC-HO, DAPS, Hard-HO
+          Per spec H8: A3/A4 = Realistic; CHO/Timer-CHO/MC-HO/DAPS = Advanced */}
       {onHoTypeOverrideChange && (
         <div style={rowStyle}>
-          <span style={labelStyle}>Strategy:</span>
+          <span style={labelStyle}>HO:</span>
           <select
             data-testid="ho-strategy-select"
             value={hoTypeOverride ?? ''}
             onChange={handleHoTypeChange}
-            style={{
-              background: '#222',
-              color: '#e0e0e0',
-              border: '1px solid #444',
-              borderRadius: 4,
-              padding: '2px 6px',
-              fontFamily: 'inherit',
-              fontSize: 12,
-              cursor: 'pointer',
-              outline: 'none',
-            }}
+            style={selectStyle}
+            title="Override handover mode. Realistic: A3/A4. Advanced: CHO/Timer-CHO/MC-HO/DAPS."
           >
             <option value="">profile default</option>
-            <option value="a4-event">A4</option>
-            <option value="cho">CHO</option>
-            <option value="mc-ho">MC-HO</option>
-            <option value="daps">DAPS</option>
-            <option value="hard-ho">Hard-HO</option>
+            <optgroup label="── Realistic ──">
+              <option value="a3-event">A3 (Realistic)</option>
+              <option value="a4-event">A4 (Realistic)</option>
+            </optgroup>
+            <optgroup label="── Advanced ──">
+              <option value="cho">CHO [Adv]</option>
+              <option value="timer-cho">Timer-CHO [Adv]</option>
+              <option value="mc-ho">MC-HO [Adv]</option>
+              <option value="daps">DAPS [Adv]</option>
+              <option value="hard-ho">Hard-HO [Adv]</option>
+            </optgroup>
           </select>
         </div>
       )}

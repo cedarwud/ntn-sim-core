@@ -24,7 +24,7 @@ import type { SimulationSnapshot } from '@/core/common/types';
 // ---------------------------------------------------------------------------
 
 export interface UseSimulationOptions {
-  profileId?: string;   // default: 'case9-access-baseline'
+  profileId?: string;   // default: 'realistic-first-screen'
   speed?: number;       // playback speed multiplier, default 1
   paused?: boolean;
   /** Override handover algorithm at runtime without reloading the profile. */
@@ -60,7 +60,7 @@ export function useSimulation(
   options?: UseSimulationOptions,
 ): UseSimulationResult {
   const {
-    profileId = 'case9-access-baseline',
+    profileId = 'realistic-first-screen',
     speed = 1,
     paused = false,
     handoverTypeOverride = null,

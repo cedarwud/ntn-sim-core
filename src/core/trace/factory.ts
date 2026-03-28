@@ -18,6 +18,7 @@ import type {
   ReplayIdentityRecord,
   ReplayIdentitySample,
   RunArtifactBundle,
+  AssumptionRecord,
 } from './types';
 import type { SimulationSnapshot } from '@/core/common/types';
 
@@ -34,6 +35,8 @@ export interface CreateRunManifestOpts {
   durationSec: number;
   stepSec: number;
   engineVersion: string;
+  /** Optional SpecMode index collected from the profile's sourceMap. */
+  specModeIndex?: RunManifest['specModeIndex'];
 }
 
 export function createRunManifest(opts: CreateRunManifestOpts): RunManifest {
@@ -48,6 +51,7 @@ export function createRunManifest(opts: CreateRunManifestOpts): RunManifest {
     durationSec: opts.durationSec,
     stepSec: opts.stepSec,
     engineVersion: opts.engineVersion,
+    ...(opts.specModeIndex !== undefined ? { specModeIndex: opts.specModeIndex } : {}),
   };
 }
 
@@ -142,6 +146,7 @@ export function createRunArtifactBundle(
   replayArtifact?: ReplayArtifact,
   eventLog?: EventLog,
   kpiBundle?: KpiBundleShell,
+  assumptionSet?: AssumptionRecord[],
 ): RunArtifactBundle {
   return {
     manifest,
@@ -151,5 +156,6 @@ export function createRunArtifactBundle(
     kpiBundle: kpiBundle ?? createEmptyKpiBundle(),
     replayManifest,
     replayArtifact,
+    ...(assumptionSet !== undefined && assumptionSet.length > 0 ? { assumptionSet } : {}),
   };
 }

@@ -76,7 +76,16 @@ export const DEFAULT_ENERGY_LAYER1_CONFIG: EnergyLayer1Config = {
   idlePowerW: 5,
   offBeamPowerW: 0.1, // @assumption no paper locator; internal calibration only
   dpcEnabled: false,
-  dpcTargetSinrDb: 10, // PAP-2024-HOBS Table I: γ_thr = 10 dB ✓
+  // @assumption ASSUME-HO-THRESHOLD-SINR
+  // dpcTargetSinrDb = 10 dB: this reuses γ_thr = 10 dB from PAP-2024-HOBS Table I,
+  // but in this context it is used as a DPC (Dynamic Power Control) target threshold,
+  // not as a handover-link SINR threshold.
+  // Per spec E3: "if runtime keeps a distinct controller-specific DPC target, that
+  // value must remain assumption / internal-only". The paper-backed semantic is
+  // handover SINR threshold; the DPC-controller semantic is an engineering re-use.
+  // Must NOT be labeled paper-backed in thesis tables when used as DPC target.
+  // Spec mode: Internal-only (DPC disabled by default; only relevant when dpcEnabled=true).
+  dpcTargetSinrDb: 10,
 };
 
 // ---------------------------------------------------------------------------

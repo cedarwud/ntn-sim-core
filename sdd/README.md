@@ -59,6 +59,8 @@ This folder contains the normative design and execution plan for `ntn-sim-core`.
    - donor repo → frontend module mapping (leo-beam-sim, leo-simulator, beamHO-bench)
 21. `ntn-sim-core-frontend-leo-parity-mode.md`
    - **closed** — leo-parity experiment concluded; useful selection logic merged into `beam-selection.ts`; dual view-mode system removed
+22. `ntn-sim-core-ui-exposure-spec.md`
+   - normative UI / parameter exposure layer: which parameters are exposed in Realistic / Advanced / Sensitivity / Internal-only mode; profile selector groups; HO override rules; derived-quantity prohibition list
 
 ## Working Rule
 
