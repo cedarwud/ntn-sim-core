@@ -49,7 +49,7 @@ These files define the current active development program. This program must com
 3. `phase1-parameter-registry-sdd.md`
    - canonical parameter registry and provenance core
 4. `phase2-model-bundle-sdd.md`
-   - pluggable geometry/path-loss/SINR/power/EE/policy model interfaces
+   - pluggable 8-family model interfaces: geometry/path-loss/beam-gain/SINR/handover/power/EE/policy
 5. `phase3-scenario-profile-experiment-split.md`
    - scenario/profile/experiment separation
 6. `phase4-runtime-contract-sdd.md`

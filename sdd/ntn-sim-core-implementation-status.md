@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.0.6
+**Version:** 4.0.7
 **Date:** 2026-03-29
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0A+0B complete — vocabulary, target module map, ParameterEntry schema, model-family interfaces, ProfileConfig mapping, and contract boundaries recorded in `sdd/phase0-architecture-spec.md §0B`. Phase 0C (migration plan + acceptance criteria) is the next step.
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete — §0A (current-state audit), §0B (target architecture + vocabulary), and §0C (migration plan + acceptance criteria) all recorded in `sdd/phase0-architecture-spec.md`. Phase 1 (Parameter Registry) can begin immediately.
 
 ---
 
@@ -19,6 +19,19 @@
 | 6 | DAPS/DC-Like | ✅ complete | DAPS dual-active FSM, engine dual-link path, benchmark comparison runner, `DapsSnapshot` in engine, dual-active beam viz, `case9-daps-baseline` profile, screenshot proof, truth-driven continuity link overlay, automated `VAL-FV-009` browser gate for both live and replay | — |
 
 Closure note: this table tracks the now-complete hardening/closure program. As of 2026-03-27, the previously deferred hardening IDs had either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure became aligned. As of 2026-03-29, this is no longer the active roadmap; the active program is `sdd/ntn-sim-core-platform-refactor-roadmap.md`.
+
+---
+
+## 1b. Platform Refactor Phase Status
+
+| Phase | Name | Status | Completion Criteria Location |
+|---|---|---|---|
+| 0 | Architecture Audit + Target Design | ✅ complete | `sdd/phase0-architecture-spec.md §0C.7` |
+| 1 | Parameter Registry | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-001/002/003 |
+| 2 | Model Bundle Interfaces | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-004/004b/005 |
+| 3 | Scenario/Profile/Experiment Split | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-006/007 |
+| 4 | Runtime Contract Freeze | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-008/009/010 |
+| 5 | Cleanup + Modularization | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-011/012 |
 
 ---
 

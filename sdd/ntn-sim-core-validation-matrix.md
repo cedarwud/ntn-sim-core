@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.6.4
-**Date:** 2026-03-27
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage now extends through E-11; no hardening IDs remain deferred
+**Version:** 1.7.0
+**Date:** 2026-03-29
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor gates VAL-PLAT-001 through VAL-PLAT-012 added (not yet enforced — activated per phase)
 
 ---
 
@@ -61,6 +61,24 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-DAPS-001` | continuity | DAPS/DC-like state transitions are logged and replayable | 6 |
 | `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
 | `VAL-FV-009` | visualization | DAPS/DC-like dual-active continuity links or equivalent explainers are visible without inventing unsupported states | 6 |
+
+### Platform Refactor Gates (added 2026-03-29, from Phase 0C)
+
+| ID | Category | Check | Phase | Script |
+|---|---|---|---|---|
+| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` (two-layer: `GlobalParameterSpec` + `ProfileParameterBinding[]`) non-empty; all `P`-classified fields from phase0-architecture-spec.md §0B.6 have at least one binding | P1 | `validate-parameter-registry.mjs` (new) |
+| `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | P1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with PAP-*/STD-*/ASSUME-* namespaces | P1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-004` | model bundle | `engine.ts` contains no raw tier-flag if/else chains for path loss, beam gain, or SINR after model-family extraction | P2 | `validate-model-bundle.mjs` (new) |
+| `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 interface files (`geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`); `ModelBundle` in `src/core/models/model-bundle.ts` (not `config/`) | P2 | `validate-model-bundle.mjs` |
+| `VAL-PLAT-005` | model bundle | `ModelBundle` factory produces non-null bundle for all 14 current profiles | P2 | `validate-model-bundle.mjs` |
+| `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, and `ExperimentBundle` types exist and are distinct; no circular imports | P3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-007` | scenario split | all 14 profiles pass `composeProfile()` round-trip: composed result equals original flat ProfileConfig | P3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-008` | runtime contract | `src/core/contracts/runtime-v1.ts` exports all frozen snapshot types with `@frozen` annotation | P4 | `validate-contracts.mjs` (new) |
+| `VAL-PLAT-009` | runtime contract | no viz-layer file imports directly from `core/common/types.ts` or `core/profiles/types.ts` | P4 | `validate-contracts.mjs` |
+| `VAL-PLAT-010` | exposure contract | `getProfileList()` returns entries for all 14 profiles with valid `family` and `tier` fields | P4 | `validate-contracts.mjs` |
+| `VAL-PLAT-011` | cleanup | no file in `src/core/` exceeds 650 lines | P5 | `validate-structure.mjs` (augmented) |
+| `VAL-PLAT-012` | cleanup | `engine.ts` is thin orchestrator (≤200 lines); sub-modules in `engine/` directory; no direct physics formula calls in orchestrator | P5 | `validate-structure.mjs` (augmented) |
 
 ### Remediation Gates (added 2026-03-21, from the historical academic remediation program)
 

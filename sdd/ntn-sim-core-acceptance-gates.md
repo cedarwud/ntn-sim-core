@@ -1,8 +1,8 @@
 # NTN Sim Core — Acceptance Gates
 
-**Version:** 0.3.0  
-**Date:** 2026-03-25  
-**Status:** Active Companion-Updated Gates
+**Version:** 0.4.0
+**Date:** 2026-03-29
+**Status:** Active — §10 Platform Refactor Phase Gate added
 
 ---
 
@@ -155,3 +155,27 @@ For parallel development:
 2. shared contracts must be stabilized first;
 3. the main agent must run the final acceptance checks after integration;
 4. no sub-agent result is considered landed until the merged tree passes the merge gate.
+
+---
+
+## 10. Platform Refactor Phase Gate
+
+This gate applies to every commit that is part of the Platform Refactor program (Phases 1–5).
+
+A platform refactor commit is accepted only when ALL of the following hold:
+
+1. **Existing validation gates intact:** `npm run validate:stage` passes with no regressions on the pre-existing VAL-* ID set.
+2. **New VAL-PLAT-* IDs active for the completed phase pass:** see `ntn-sim-core-validation-matrix.md §2 Platform Refactor Gates` for per-phase assignment.
+3. **No interface stability regression:** types that were frozen in a prior phase (e.g. `contracts/runtime-v1.ts`) may not be modified without a version bump.
+4. **SDD staleness resolved:** any document listed as stale in `phase0-architecture-spec.md §0C.5` for the completed phase has been updated in the same change set.
+5. **Completion criteria satisfied:** the "Phase N complete" definition in `phase0-architecture-spec.md §0C.3` is verifiably met.
+6. **No downstream programs started early:** no MODQN training loop or estnet-ui integration code has been added unless the gating conditions in `phase0-architecture-spec.md §0C.6` are satisfied.
+
+### Rejection Conditions Specific to Platform Refactor
+
+A platform refactor PR is immediately rejected if:
+
+1. `engine.ts` is structurally split (sub-modules) before Phase 4 is complete (contract freeze is a prerequisite).
+2. `ProfileConfig` monolith is deleted before `composeProfile()` shim exists and all callers have been updated.
+3. A new model variant is added in Phase 2 instead of only wrapping existing implementations.
+4. The `sourceMap[]` field is removed from `ProfileConfig` before Phase 1 registry is the authoritative provenance source.

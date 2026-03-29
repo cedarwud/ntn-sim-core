@@ -1,12 +1,14 @@
 # Phase 0 — Architecture Spec
 
-**Status:** Phase 0B complete (patched) — vocabulary, target module map, ProfileConfig mapping, ParameterEntry schema, model-family interface draft, and contract boundary decisions recorded; Phase 0C (migration plan + acceptance criteria) pending
+**Status:** Complete — Phase 0A/0B/0C all done; Phase 1 entry criteria satisfied; see §0C.7
 **Date (0A):** 2026-03-29
 **Date (0A rev 2):** 2026-03-29 — three blind spots patched: provenance surface, de-facto contract map, orbit bootstrap boundary
 **Date (0A rev 3):** 2026-03-29 — section numbering normalized; stale inventory notes removed
 **Date (0B):** 2026-03-29 — vocabulary, target architecture, ProfileConfig mapping, ParameterEntry schema, model-family interfaces, contract boundaries
 **Date (0B rev 1):** 2026-03-29 — three critical findings fixed: C1 ParameterEntry split into GlobalParameterSpec+ProfileParameterBinding; C2 model-family list aligned to 8 families (added GeometryModel, PolicyModel, clarified BeamLayoutModel/SchedulerModel/TrafficModel exclusions); C3 L1 leaf contradiction resolved via shared-primitives exemption, L1/L6 co-location resolved via config/exposure/ subdirectory plan
 **Date (0B rev 2):** 2026-03-29 — two medium findings fixed: M1 phase1-parameter-registry-sdd.md Scope updated to GlobalParameterSpec+ProfileParameterBinding two-layer model; M2 ParameterMetadataResponse redesigned as profile-scoped ParameterView projection (exposureMode resolved per-profile before response); Model Bundle vocabulary hardened: 8 top-level families final, BeamLayoutModel/SchedulerModel/TrafficModel exclusion recorded as non-reopenable
+**Date (0C):** 2026-03-29 — migration plan, high-risk strategies, VAL-PLAT-001–012, phase dependency graph, SDD staleness inventory, MODQN/UI/estnet gating
+**Date (0C rev 1):** 2026-03-29 — two post-0C audit findings fixed: M1 §0B.2 target module map updated to show src/core/models/ as model-interface home (aligns with §0C.1 steps and §0C.3 acceptance criteria); M2 Phase 5 P5-7 and "Phase 5 complete" condition 6 updated to include composeProfile() shim deletion alongside sourceMap removal
 **Depends on:** none
 
 ---
@@ -481,37 +483,45 @@ src/
 │   │   └── types.ts      (SimulationSnapshot, SatelliteState, UeState,
 │   │                       SourceReference, SpecMode — no physics)
 │   │
-│   ├── channel/          ← LAYER 2: Model Bundle — path loss + SINR
-│   │   ├── types.ts      (PathLossModel, BeamGainModel, SinrModel interfaces)
+│   ├── models/           ← LAYER 2: Model-Family Interfaces (Phase 2 output — new directory)
+│   │   │  All 8 top-level model-family interface contracts live here.
+│   │   │  Implementations remain in their per-subsystem directories below.
+│   │   ├── geometry.ts   (GeometryModel interface + input/result types)
+│   │   ├── path-loss.ts  (PathLossModel interface + input/result types)
+│   │   ├── beam-gain.ts  (BeamGainModel interface + input types)
+│   │   ├── sinr.ts       (SinrModel interface + input types)
+│   │   ├── handover.ts   (HandoverModel interface)
+│   │   ├── power-ee.ts   (PowerModel + EeModel interfaces)
+│   │   ├── policy.ts     (PolicyModel = Policy alias; re-exports from policy/types.ts)
+│   │   └── model-bundle.ts (ModelBundle composition type + buildModelBundle factory)
+│   │
+│   ├── channel/          ← LAYER 2: Model Bundle — path loss + SINR (implementations)
 │   │   ├── fspl.ts       (implements PathLossModel tier 0)
 │   │   ├── beam-gain.ts  (implements BeamGainModel)
 │   │   ├── shadow-fading.ts, small-scale-fading.ts, doppler.ts
 │   │   ├── sinr.ts       (SinrModel: aggregates serving + interferers)
 │   │   └── link-budget.ts (PathLossModel composition — existing, keep)
 │   │
-│   ├── beam/             ← LAYER 2: Model Bundle — beam layout + scheduler
-│   │   ├── types.ts      (BeamLayoutModel, SchedulerModel interfaces)
+│   ├── beam/             ← LAYER 2: Model Bundle — beam layout + scheduler (implementations)
 │   │   ├── layout.ts, selection.ts, active-beam-manager.ts
-│   │   ├── scheduler.ts  (SchedulerModel implementations)
+│   │   ├── scheduler.ts  (SchedulerModel sub-interface implementation)
 │   │   └── frequency-reuse.ts
 │   │
-│   ├── handover/         ← LAYER 2: Model Bundle — handover FSMs
-│   │   ├── types.ts      (HandoverModel interface — wraps existing HandoverManager)
+│   ├── handover/         ← LAYER 2: Model Bundle — handover FSMs (implementations)
 │   │   ├── manager.ts, baselines.ts, cho.ts, mc-ho.ts, daps.ts
 │   │   ├── ranking.ts, d2-distance.ts
 │   │   └── index.ts
 │   │
-│   ├── energy/           ← LAYER 2: Model Bundle — power + EE
-│   │   ├── types.ts      (PowerModel, EeModel interfaces)
+│   ├── energy/           ← LAYER 2: Model Bundle — power + EE (implementations)
 │   │   ├── layer1.ts, layer2.ts
 │   │   └── index.ts
 │   │
 │   ├── policy/           ← LAYER 2: Model Bundle — policy/DRL (already correct)
-│   │   ├── types.ts      (Policy interface — existing, is the template)
+│   │   ├── types.ts      (Policy interface — existing, is the template; re-exported by models/policy.ts)
 │   │   ├── plugins/      (greedy-sinr, no-op, invalid-probe)
 │   │   └── index.ts
 │   │
-│   ├── orbit/            ← LAYER 2 (geometry): orbit propagation
+│   ├── orbit/            ← LAYER 2 (geometry): orbit propagation (GeometryModel implementations)
 │   │   ├── profile-runtime.ts  (SINGLE OWNER of orbit bootstrap:
 │   │   │                         buildSyntheticOrbitElements,
 │   │   │                         buildInteractiveTrajectoryCache,
@@ -1135,3 +1145,454 @@ Phase 0C (migration plan + acceptance criteria) must produce:
 4. An inventory of existing SDD documents that will become stale after each phase and must be updated in the same change set
 
 **Go/no-go: Phase 0C can begin immediately.**
+
+---
+
+## Phase 0C — Migration Plan and Acceptance Criteria
+
+**Status:** Complete
+**Date:** 2026-03-29
+
+This section records the Phase 0C deliverables:
+
+1. Per-phase migration sequencing with ordered code-change steps
+2. Risk-controlled migration strategy for every high-risk file
+3. Verifiable completion criteria (acceptance gates) per phase
+4. Dependency graph
+5. SDD-staleness inventory per phase
+6. MODQN / UI / estnet gating rules
+
+---
+
+### 0C.1 Migration Sequencing: Phase 1–5
+
+Each phase entry is structured as: goal → main outputs → ordered code-change steps → what must NOT happen in this phase → entry dependency.
+
+---
+
+#### Phase 1 — Parameter Registry
+
+**Goal:** Replace scattered TSDoc provenance with a machine-readable parameter registry. After Phase 1, every KPI-impacting parameter has a PARAM-* ID, a GlobalParameterSpec, and at least one ProfileParameterBinding.
+
+**Main outputs:**
+- `src/core/config/parameter-registry.ts` — `ParameterEntry[]` using the §0B.4 schema
+- All `P`-classified fields from §0B.6 mapped to PARAM-* IDs
+- `paper-sources.json` augmented where new PARAM-* IDs require new PAP-*/ASSUME-* entries
+- `scripts/validate-parameter-registry.mjs` — new validation script
+
+**Ordered code-change steps:**
+
+| Step | File | Change | validate:stage stays green? |
+|---|---|---|---|
+| P1-1 | `src/core/config/parameter-registry.ts` (new) | Create empty registry file; export `ParameterEntry[]` as empty array | ✅ no existing code changes |
+| P1-2 | `src/core/config/parameter-registry.ts` | Populate P-classified orbit parameters (§0B.6: orbital.*) from `defaults.ts` sourceMap entries | ✅ registry is additive |
+| P1-3 | `src/core/config/parameter-registry.ts` | Populate rf.*, antenna.*, beam.* P-classified parameters | ✅ |
+| P1-4 | `src/core/config/parameter-registry.ts` | Populate channel.*, handover.*, energy.*, ueConfig.* P-classified parameters | ✅ |
+| P1-5 | `paper-sources.json` | Add missing PAP-*/ASSUME-* entries required by new ProfileParameterBindings | ✅ additive |
+| P1-6 | `scripts/validate-parameter-registry.mjs` (new) | Script: assert registry non-empty; all bindings have sourceId in paper-sources.json; no PARAM-* ID collision | ✅ new script |
+| P1-7 | `package.json` | Add `validate:registry` to `validate:stage` chain | ✅ |
+
+**What must NOT happen in Phase 1:**
+- Do not modify `ProfileConfig` (types.ts) — that is Phase 3
+- Do not modify `defaults.ts` (adding/removing profile fields) — read-only in Phase 1
+- Do not wire the registry into `engine.ts` — that is Phase 2/3
+- Do not add UI for parameter display — that is Phase 4
+
+**Entry dependency:** Phase 0B complete (§0B.4 schema, §0B.6 field mapping).
+
+---
+
+#### Phase 2 — Model Bundle Interfaces
+
+**Goal:** Replace the model-selection if/switch chains in `engine.ts` with calls through typed model-family interfaces (§0B.5). After Phase 2, all 8 model-family selections (geometry, pathLoss, beamGain, sinr, handover, power, ee, policy) are dispatched via interfaces in `src/core/models/`; existing implementations remain in their per-subsystem directories (`channel/`, `beam/`, `handover/`, `energy/`, `orbit/`, `policy/`).
+
+**Main outputs:**
+- `src/core/models/` (new directory) — 8 interface files (one per family) + `model-bundle.ts`; implementations stay in subsystem dirs
+- `engine.ts` — dispatch replaced by interface calls (file NOT yet split)
+- `ModelBundle` type and `buildModelBundle` factory in `src/core/models/model-bundle.ts`
+
+**Ordered code-change steps (one family at a time, validate:stage green after each):**
+
+| Step | Files | Change |
+|---|---|---|
+| P2-1 | `src/core/models/path-loss.ts` (new) | Extract `PathLossModel` interface + wrap existing tier-flag logic as `ThreegppBaselinePathLoss: PathLossModel` |
+| P2-2 | `engine.ts` | Replace path-loss tier-flag chain with `pathLossModel.compute(...)` call |
+| P2-3 | `src/core/models/beam-gain.ts` (new) | Extract `BeamGainModel` interface + wrap existing model-string switch as concrete impl |
+| P2-4 | `engine.ts` | Replace beam-gain model-string switch with `beamGainModel.computeGainDb(...)` |
+| P2-5 | `src/core/models/sinr.ts` (new) | Extract `SinrModel` interface + wrap Phase2/Phase3 path as concrete impls |
+| P2-6 | `engine.ts` | Replace Phase2/Phase3 branch with `sinrModel.computeDb(...)` |
+| P2-7 | `src/core/models/handover.ts` (new) | Extract `HandoverModel` interface; existing `HandoverManager` factory becomes default impl |
+| P2-8 | `engine.ts` | Replace handover FSM construction with `handoverModel.createManager(...)` |
+| P2-9 | `src/core/models/power-ee.ts` (new) | Extract `PowerModel` + `EeModel` interfaces + wrap existing L1/L2 logic |
+| P2-10 | `engine.ts` | Replace energy computation with interface calls |
+| P2-11 | `src/core/models/geometry.ts` (new) | Extract `GeometryModel` interface; wrap Walker/SGP4 orbit calls |
+| P2-12 | `engine.ts` | Replace orbit propagation calls with `geometryModel.compute(...)` |
+| P2-13 | `src/core/models/model-bundle.ts` (new) | Define `ModelBundle` type; add factory `buildModelBundle(profile: ProfileConfig): ModelBundle`; add `src/core/models/policy.ts` re-export of `Policy` as `PolicyModel` alias |
+| P2-14 | `scripts/validate-model-bundle.mjs` (new) | Assert: engine only references model families via interfaces; no raw tier-flag branches remain |
+
+**What must NOT happen in Phase 2:**
+- Do not split `engine.ts` into sub-files — that is Phase 5
+- Do not change `ProfileConfig` fields — they remain the bundle selection source until Phase 3
+- Do not move existing implementations out of their current directories (keep `channel/`, `handover/`, etc.) — only add wrapper/interface layer
+- Do not implement new model variants — only wrap existing implementations
+
+**Entry dependency:** Phase 1 complete (PARAM-* IDs exist; model families reference parameters by ID in their factory functions).
+
+---
+
+#### Phase 3 — Scenario / Profile / Experiment Split
+
+**Goal:** Decompose `ProfileConfig` into the three distinct vocabulary types (ScenarioConfig, ModelBundleSelection, ExperimentBundle) per §0B.1 + §0B.6 classification. After Phase 3, a new paper baseline can be added by composing typed objects, not inflating one monolithic profile.
+
+**Main outputs:**
+- `src/core/profiles/types.ts` — `ProfileConfig` decomposed into `ScenarioConfig + ModelBundleSelection + ExperimentBundle + ProfileMetadata`
+- `src/core/profiles/defaults.ts` — each profile rewritten using composed types; split into per-family files
+- `src/core/profiles/scenario-defaults.ts`, `experiment-defaults.ts` (new)
+- `src/core/profiles/profile-composer.ts` (new) — `composeProfile(scene, bundle, exp): ProfileConfig` for backwards compat
+
+**Ordered code-change steps:**
+
+| Step | Files | Change |
+|---|---|---|
+| P3-1 | `src/core/profiles/types.ts` | Add new types: `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, `ProfileMetadata`. Keep `ProfileConfig` as an alias/union for backwards compat |
+| P3-2 | `src/core/profiles/profile-composer.ts` (new) | `composeProfile(scene, bundle, exp, meta): ProfileConfig` — compatibility shim so engine + runner need zero changes in this step |
+| P3-3 | `src/core/profiles/defaults.ts` | Rewrite each of 14 profiles using `composeProfile(...)` calls internally; no runtime change |
+| P3-4 | `src/core/profiles/defaults.ts` → split | Move per-family profile defaults to `scenario-defaults.ts`, `experiment-defaults.ts`; `defaults.ts` becomes re-export index |
+| P3-5 | `src/core/profiles/types.ts` | After all callers updated: remove `ProfileConfig` monolith; callers now use composed types |
+| P3-6 | `engine.ts` | Update to accept `ProfileConfig` composed type (transparent — `composeProfile` ensures backwards compat) |
+| P3-7 | `src/core/profiles/types.ts` | Remove `tier3_5_scan_loss` dead field (DEAD classification, ST-1) |
+| P3-8 | `scripts/validate-profiles.mjs` | Add check: no profile object has fields from more than one vocabulary layer without going through `composeProfile` |
+
+**What must NOT happen in Phase 3:**
+- Do not change model-family implementations — Phase 2 is responsible
+- Do not freeze runtime contract types yet — that is Phase 4
+- Do not migrate `benchmark-runner.ts` orbit bootstrap — that is Phase 5
+
+**DECISION POINT (must resolve before P3-5):** Should `ProfileConfig` remain a flat merged type as a compatibility alias, or should the engine be refactored in Phase 3 to accept `(ScenarioConfig, ModelBundleSelection, ExperimentBundle)` as separate arguments? This choice affects the Phase 4 contract surface. **Recommendation:** keep flat `ProfileConfig` as composed alias through Phase 3; engine signature change is Phase 4.
+
+**Entry dependency:** Phase 2 complete (ModelBundle type exists; engine calls via interfaces).
+
+---
+
+#### Phase 4 — Runtime Contract
+
+**Goal:** Declare stable, versioned input/output contracts for all external consumers (viz, headless runner, MODQN trainer, estnet-ui). After Phase 4, external consumers do not need to know internal file layout or `ProfileConfig` internals.
+
+**Main outputs:**
+- `src/core/contracts/` (new directory) — version-stamped runtime contract re-exports
+- `src/core/contracts/runtime-v1.ts` — `SimulationSnapshot`, `SatelliteState`, `UeState`, `BhSlotSnapshot`, `DapsSnapshot`, `HoLogEntry` frozen as v1
+- `src/core/contracts/kpi-v1.ts` — `KpiBundle` frozen
+- `src/core/contracts/policy-v1.ts` — `PolicyObservation`, `PolicyAction` frozen (MODQN dependency)
+- `src/core/contracts/exposure-v1.ts` — `ParameterView`, `ParameterMetadataResponse`, `ProfileListEntry` (new, §0B.7)
+- `src/runner/runner-exposure-api.ts` (new) — `RunnerExposureApi` interface; `useBatchKpi` migrated to call this instead of direct runner import
+
+**Ordered code-change steps:**
+
+| Step | Files | Change |
+|---|---|---|
+| P4-1 | `src/core/contracts/` (new) | Create directory with `index.ts` |
+| P4-2 | `src/core/contracts/runtime-v1.ts` | Re-export frozen types from `common/types.ts`; add `@version v1` and `@frozen` annotations |
+| P4-3 | `src/core/contracts/kpi-v1.ts`, `policy-v1.ts` | Same for KpiBundle, PolicyObservation/Action |
+| P4-4 | `src/core/contracts/exposure-v1.ts` | Implement `ParameterView`, `ParameterMetadataResponse`, `ProfileListEntry` backed by Phase 1 registry |
+| P4-5 | `src/runner/runner-exposure-api.ts` (new) | Define `RunnerExposureApi`; implement default adapter wrapping `executeBenchmarkRun` |
+| P4-6 | `src/app/hooks/useBatchKpi.ts` | Replace direct `benchmark-runner` import with `RunnerExposureApi` call |
+| P4-7 | `src/viz/overlays/ControlPanel.tsx` | Replace `PROFILE_OPTIONS` hardcoded array with call to `getProfileList()` from exposure API; remove `HandoverType` direct import (UI-1, UI-3 fixes) |
+| P4-8 | `scripts/validate-contracts.mjs` (new) | Assert: no file outside `src/core/contracts/` directly imports internal `common/types.ts` runtime types from viz or runner layers |
+
+**What must NOT happen in Phase 4:**
+- Do not split `engine.ts` or `defaults.ts` structurally — Phase 5
+- Do not implement MODQN training loop — downstream gating
+- Do not delete legacy `sourceMap` field from `ProfileConfig` — that can only be removed after Phase 3 is complete and registry is the authority
+
+**Entry dependency:** Phase 3 complete (ProfileConfig decomposed; ScenarioConfig/ExperimentBundle types stable).
+
+---
+
+#### Phase 5 — Cleanup and Modularization
+
+**Goal:** Remove all structural debt that Phases 1–4 intentionally left in place. After Phase 5, no oversized mixed-responsibility files remain and downstream programs (MODQN, estnet-ui) can start without editing monolithic files.
+
+**Main outputs:**
+- `engine.ts` split into focused sub-modules under `src/core/engine/`
+- `defaults.ts` fully replaced by per-family files (completing Phase 3 split)
+- `benchmark-runner.ts` orbit bootstrap migrated to `orbit/profile-runtime.ts` (DL-1)
+- Dead code removed: `tier3_5_scan_loss`, any stale `Phase2`/`Phase3` SINR path labels
+- Naming collision resolved: `viz/beam/beam-selection.ts` → `viz/beam/beam-ui-selection.ts`
+- Sync XHR in `useSimulation.ts` replaced with async (UI-4)
+
+**Ordered code-change steps:**
+
+| Step | Files | Change |
+|---|---|---|
+| P5-1 | `src/core/engine/` (new directory) | Create sub-modules: `tick.ts`, `orbit-step.ts`, `channel-step.ts`, `handover-step.ts`, `kpi-step.ts`, `scheduler-step.ts` |
+| P5-2 | `src/core/engine.ts` | Extract each tick-phase into its sub-module; `engine.ts` becomes a thin orchestrator |
+| P5-3 | `src/core/profiles/` | Delete `tier3_5_scan_loss` field (ST-1); remove Phase2/Phase3 label dead branches if any remain |
+| P5-4 | `src/runner/headless/benchmark-runner.ts` | Replace lines 130–175 (own Walker/TLE orbit build) with calls to `orbit/profile-runtime.ts` |
+| P5-5 | `src/app/hooks/useSimulation.ts` | Replace sync XHR (line 87) with async fetch |
+| P5-6 | `src/viz/beam/beam-selection.ts` | Rename to `beam-ui-selection.ts` to resolve naming collision with `core/beam/selection.ts` |
+| P5-7 | `src/core/profiles/` | Remove `sourceMap` field from `ProfileConfig` (now redundant with Phase 1 registry); delete `composeProfile()` shim from `profile-composer.ts` (shim was introduced in Phase 3 P3-2, kept through Phase 4 as compatibility layer — now safe to remove since contracts are frozen and engine accepts composed types) |
+| P5-8 | `scripts/validate-structure.mjs` | Add check: no file in `src/core/` exceeds 650 lines |
+
+**What must NOT happen in Phase 5:**
+- Do not add new model variants or algorithm features — Phase 5 is structural cleanup only
+- Do not change external contract types (frozen in Phase 4)
+- Do not start MODQN or estnet-ui integration — gating is defined in §0C.5
+
+**Entry dependency:** Phase 4 complete (contracts frozen; no caller depends on engine.ts internal layout).
+
+---
+
+### 0C.2 High-Risk Area Migration Strategy
+
+For each high-risk area identified in Phase 0A, the staged migration strategy and legacy-path deletion timing are recorded here.
+
+---
+
+#### engine.ts (1547 lines — OS-1, AC-3, AC-4, DL-2, DL-3)
+
+| Concern | Strategy | Legacy-path deletion |
+|---|---|---|
+| Phase2/Phase3 SINR coexistence | Phase 2 Step P2-5/P2-6: both wrapped as `SinrModel` impls; the `sinrVersion` branch is replaced by `sinrModel.computeDb()` dispatch | After P2-6 is complete and `validate:stage` passes, the raw branch is dead; delete in Phase 5 P5-3 |
+| Phase A / Phase B HO coexistence | Phase 2 Step P2-7/P2-8: both wrapped as `HandoverModel` impls | Same as above — delete branch in Phase 5 P5-3 |
+| BH scheduler lazy init embedded in tick | Phase 2 P2-12/P2-13: `ModelBundle` factory builds scheduler; engine receives it at construction, not at tick | Delete lazy init in Phase 5 P5-2 |
+| Structural size (1547 lines) | Phase 5 P5-1/P5-2: split into sub-modules | **NOT touched before Phase 5** — Phases 1–4 only call through new interfaces, never split the file |
+| Utility functions at top of engine.ts | Phase 2: move to `models/` or `common/` as part of interface extraction | Delete originals after P2-* steps confirm no other importers |
+
+**Critical rule:** Do not attempt to split `engine.ts` in Phase 2 or 3. The interface extraction (Phase 2) and the structural split (Phase 5) must be separate operations. Doing both simultaneously is the single highest-risk failure mode.
+
+---
+
+#### profiles/types.ts (491 lines — AC-1)
+
+| Concern | Strategy | Legacy-path deletion |
+|---|---|---|
+| Monolithic `ProfileConfig` | Phase 3 P3-1: add new types alongside; P3-2: add `composeProfile` shim. `ProfileConfig` stays as composed alias. | Remove monolith in Phase 3 P3-5 after all callers verified |
+| `tier3_5_scan_loss` dead field | Classified DEAD in §0B.6 | Delete in Phase 3 P3-7 (part of the vocabulary split) |
+| Types imported by viz layer (UI-1) | Phase 4 P4-2: viz layer migrates to contract types; direct imports die | After P4-7: viz no longer imports from `profiles/types.ts` |
+
+**Compatibility shim lifetime:** `composeProfile()` shim exists from Phase 3 P3-2 through end of Phase 4. It is deleted in Phase 5 P5-7 after `sourceMap` removal and contract freeze.
+
+---
+
+#### profiles/defaults.ts (1320 lines — OS-2)
+
+| Concern | Strategy | Legacy-path deletion |
+|---|---|---|
+| 14 profiles in one file | Phase 3 P3-4: split to per-family files; `defaults.ts` becomes re-export index | Re-export index stays through Phase 5; the split sub-files are the truth after Phase 3 |
+| `sourceMap[]` annotations | Phase 1: read as data-collection input for `ProfileParameterBinding` population | Remove from `defaults.ts` in Phase 5 P5-7 after registry is the authority |
+| Reproduction profiles (sinr-elevation, hobs, timer-cho) | These are valid baseline profiles; keep them in Phase 3 split; do not delete | No deletion |
+
+---
+
+#### Orbit Bootstrap Chain (DL-1)
+
+| Caller | Current state | Migration |
+|---|---|---|
+| `useSimulation.ts` | Already uses `orbit/profile-runtime.ts` | No change in any phase |
+| `useReplay.ts` | Already uses `orbit/profile-runtime.ts` | No change in any phase |
+| `benchmark-runner.ts` lines 130–175 | Owns its own Walker+TLE build sequence | Phase 5 P5-4: replace with `orbit/profile-runtime.ts` calls |
+
+**Rule:** Do not touch `benchmark-runner.ts` orbit build in Phases 1–4. The duplicate code is safe as long as it produces identical results. Phase 5 removes the duplication.
+
+---
+
+#### UI Exposure Metadata (UI-3, AC-5)
+
+| Concern | Strategy |
+|---|---|
+| `ControlPanel.PROFILE_OPTIONS` hardcoded (374 lines) | Phase 4 P4-7: replaced by `getProfileList()` from exposure API |
+| `HandoverType` imported from `core/profiles/types` in `ControlPanel.tsx` | Phase 4 P4-7: replaced by contract-layer type or enum |
+| `useBatchKpi` direct runner import (UI-5) | Phase 4 P4-5/P4-6: `RunnerExposureApi` shim introduced |
+
+**Rule:** Do not attempt to fix UI exposure imports in Phases 1–3. Those phases touch core types; any concurrent UI refactor increases conflict surface.
+
+---
+
+#### Runner / Replay / Artifact Types (EI-1)
+
+| Type group | Phase 4 action | After freeze |
+|---|---|---|
+| `SimulationSnapshot`, `SatelliteState`, `UeState`, etc. | Frozen in `contracts/runtime-v1.ts` | No changes without version bump |
+| `RunArtifactBundle`, `SourceTrace`, `AssumptionRecord` | Remain internal to runner layer; not frozen | May evolve in Phase 5 cleanup |
+| `ReplayArtifact`, `ReplayManifest` | Internal to replay layer; not frozen | Same as above |
+| `ResolvedConfig` | Runner-internal | Same |
+
+---
+
+### 0C.3 Acceptance Criteria and Completion Definitions
+
+#### New VAL-PLAT-* Validation IDs
+
+These IDs are defined here and must be added to `ntn-sim-core-validation-matrix.md` §2 in the same change set that implements each phase.
+
+| ID | Category | Check | Phase | Script |
+|---|---|---|---|---|
+| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` is non-empty and all `P`-classified fields from §0B.6 have at least one binding | 1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | 1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with PAP-*/STD-*/ASSUME-* namespaces | 1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-004` | model bundle | engine.ts contains no raw tier-flag if/else chains for path loss, beam gain, or SINR after model-family extraction | 2 | `validate-model-bundle.mjs` |
+| `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 required interface files: `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`; `ModelBundle` type is in `src/core/models/model-bundle.ts` (not `src/core/config/`) | 2 | `validate-model-bundle.mjs` |
+| `VAL-PLAT-005` | model bundle | `ModelBundle` factory produces a non-null bundle for all 14 current profiles | 2 | `validate-model-bundle.mjs` |
+| `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, and `ExperimentBundle` types exist and are distinct; no circular type imports between them | 3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-007` | scenario split | all 14 profiles pass `composeProfile()` round-trip: composed back to flat `ProfileConfig` equals original | 3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-008` | runtime contract | `src/core/contracts/runtime-v1.ts` exports `SimulationSnapshot`, `SatelliteState`, `UeState`, `BhSlotSnapshot`, `DapsSnapshot`, `HoLogEntry`; annotated `@frozen` | 4 | `validate-contracts.mjs` |
+| `VAL-PLAT-009` | runtime contract | no viz-layer file imports directly from `core/common/types.ts` or `core/profiles/types.ts` (must go through `core/contracts/`) | 4 | `validate-contracts.mjs` |
+| `VAL-PLAT-010` | exposure contract | `getProfileList()` returns entries for all 14 profiles with valid `family` and `tier` fields | 4 | `validate-contracts.mjs` |
+| `VAL-PLAT-011` | cleanup | no file in `src/core/` exceeds 650 lines | 5 | `validate-structure.mjs` (augmented) |
+| `VAL-PLAT-012` | cleanup | `engine.ts` is replaced by a thin orchestrator importing from `engine/` sub-modules; no direct physics formula calls remain in root orchestrator | 5 | `validate-structure.mjs` (augmented) |
+
+---
+
+#### "Phase N Complete" Definitions
+
+**"Phase 1 complete"** means ALL of the following:
+1. `src/core/config/parameter-registry.ts` exists and exports non-empty `ParameterEntry[]` (two-layer wrapper: `GlobalParameterSpec` + `ProfileParameterBinding[]`)
+2. VAL-PLAT-001, VAL-PLAT-002, VAL-PLAT-003 pass
+3. All existing VAL-* checks from prior phases still pass (`npm run validate:stage`)
+4. `ntn-sim-core-implementation-status.md` §1 Platform Refactor Phase 1 row = ✅ complete
+5. `sdd/phase1-parameter-registry-sdd.md` status header updated to "Complete"
+
+**"Phase 2 complete"** means ALL of the following:
+1. `src/core/models/` directory exists with all 8 interface files: `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `geometry.ts`, `policy.ts`, and `model-bundle.ts`
+2. `src/core/models/model-bundle.ts` (NOT `src/core/config/`) contains `ModelBundle` type and `buildModelBundle(profile)` factory
+3. VAL-PLAT-004, VAL-PLAT-004b, VAL-PLAT-005 pass
+4. All pre-existing VAL-* checks still pass (`npm run validate:stage`) — in particular VAL-GOLDEN-001, VAL-GOLDEN-002, all E-level golden cases
+5. `engine.ts` still exists as a single file (split is NOT part of Phase 2 completion)
+6. `sdd/phase2-model-bundle-sdd.md` status header updated to "Complete"
+
+**"Phase 3 complete"** means ALL of the following:
+1. `ProfileConfig` is composed from `ScenarioConfig + ModelBundleSelection + ExperimentBundle + ProfileMetadata` (flat alias is acceptable)
+2. `src/core/profiles/defaults.ts` is a re-export index; individual profiles live in per-family files
+3. `tier3_5_scan_loss` field is deleted from `ProfileConfig`
+4. VAL-PLAT-006, VAL-PLAT-007 pass
+5. All pre-existing VAL-* checks still pass
+6. `sdd/phase3-scenario-profile-experiment-split.md` status header updated to "Complete"
+
+**"Phase 4 complete"** means ALL of the following:
+1. `src/core/contracts/` directory exists with `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`
+2. `RunnerExposureApi` exists; `useBatchKpi.ts` no longer imports directly from `runner/headless/benchmark-runner`
+3. `ControlPanel.tsx` no longer imports `HandoverType` from `core/profiles/types` and no longer uses hardcoded `PROFILE_OPTIONS`
+4. VAL-PLAT-008, VAL-PLAT-009, VAL-PLAT-010 pass
+5. All pre-existing VAL-* checks still pass
+6. `sdd/phase4-runtime-contract-sdd.md` status header updated to "Complete"
+
+**"Phase 5 complete"** means ALL of the following:
+1. `src/core/engine.ts` is a thin orchestrator (≤200 lines); physics steps in `src/core/engine/` sub-modules
+2. No file in `src/core/` exceeds 650 lines
+3. `benchmark-runner.ts` orbit bootstrap calls `orbit/profile-runtime.ts` (lines 130–175 eliminated)
+4. Sync XHR in `useSimulation.ts` eliminated
+5. `viz/beam/beam-selection.ts` renamed to `viz/beam/beam-ui-selection.ts`
+6. `ProfileConfig.sourceMap[]` field removed; `composeProfile()` shim deleted from `profile-composer.ts`
+7. VAL-PLAT-011, VAL-PLAT-012 pass
+8. All pre-existing VAL-* checks still pass
+9. `sdd/phase5-cleanup-and-modularization-sdd.md` status header updated to "Complete"
+
+**"Platform Refactor Complete"** means:
+1. All five "Phase N complete" conditions above are satisfied
+2. `npm run validate:stage` passes cleanly with all new VAL-PLAT-* IDs in the enforced set
+3. `sdd/ntn-sim-core-platform-refactor-roadmap.md` §4 Exit Condition verified against repo state
+4. `sdd/ntn-sim-core-implementation-status.md` Platform Refactor section = ✅ all phases complete
+5. `docs/architecture/ntn-sim-core-architecture-blueprint.md` §12 milestones reflect final state
+
+---
+
+### 0C.4 Phase Dependency Graph
+
+```
+Phase 0 (Architecture Audit + Target Design)
+    └─ Phase 1 (Parameter Registry)
+           └─ Phase 2 (Model Bundle Interfaces)
+                  └─ Phase 3 (Scenario/Profile/Experiment Split)
+                         └─ Phase 4 (Runtime Contract Freeze)
+                                └─ Phase 5 (Cleanup + Modularization)
+```
+
+**Specific Phase 1 → Phase 2 required outputs:**
+- PARAM-* IDs must exist before `ModelBundle` factory can reference them for parameter lookup
+- `validate:registry` must pass before Phase 2 opens, to confirm no ID gaps
+
+**Specific Phase 2 → Phase 3 required outputs:**
+- `ModelBundleSelection` fields in §0B.6 must be resolvable as `ModelBundle` fields; this requires Phase 2 `ModelBundle` type to exist
+- Phase 3 `composeProfile()` calls `buildModelBundle()`; factory must exist first
+
+**Specific Phase 3 → Phase 4 required outputs:**
+- `ProfileConfig` must be stable and composed before the exposure contract types (`ParameterView`, `ProfileListEntry`) can be implemented — they reference the composed type structure
+- The DECISION POINT from Phase 3 (§0C.1, P3 section) must be resolved before Phase 4 begins
+
+**Specific Phase 4 → Phase 5 required outputs:**
+- Contract types must be frozen before `engine.ts` can be split (splitting changes import paths; frozen contracts prevent breakage)
+- `RunnerExposureApi` must exist before `benchmark-runner.ts` is touched in Phase 5
+
+**Phases that can run concurrently:**
+- None. The dependency chain is fully linear. However, **within a phase**, individual steps are ordered but isolated enough that separate branches can be opened and reviewed independently.
+
+---
+
+### 0C.5 SDD Staleness Inventory
+
+For each phase, the SDD documents that will become stale and must be updated **in the same change set** as the phase completion.
+
+| Phase completion | Documents that must be updated |
+|---|---|
+| Phase 1 complete | `sdd/phase1-parameter-registry-sdd.md` (status → Complete); `sdd/ntn-sim-core-implementation-status.md` (Platform Refactor table); `sdd/ntn-sim-core-validation-matrix.md` (add VAL-PLAT-001/002/003) |
+| Phase 2 complete | `sdd/phase2-model-bundle-sdd.md` (status → Complete); `sdd/ntn-sim-core-implementation-status.md`; `sdd/ntn-sim-core-validation-matrix.md` (add VAL-PLAT-004/004b/005) |
+| Phase 3 complete | `sdd/phase3-scenario-profile-experiment-split.md` (status → Complete); `sdd/ntn-sim-core-implementation-status.md`; `sdd/ntn-sim-core-validation-matrix.md` (add VAL-PLAT-006/007); `sdd/ntn-sim-core-profile-baselines.md` (if profile composition changes any baseline fields); `sdd/ntn-sim-core-development-constraints.md` (if ProfileConfig constraints are restated) |
+| Phase 4 complete | `sdd/phase4-runtime-contract-sdd.md` (status → Complete); `sdd/ntn-sim-core-implementation-status.md`; `sdd/ntn-sim-core-validation-matrix.md` (add VAL-PLAT-008/009/010); `sdd/ntn-sim-core-ui-exposure-spec.md` (exposure contract types finalized); `agent-governance.md` (if contract surface changes authority order) |
+| Phase 5 complete | `sdd/phase5-cleanup-and-modularization-sdd.md` (status → Complete); `sdd/ntn-sim-core-implementation-status.md`; `sdd/ntn-sim-core-validation-matrix.md` (add VAL-PLAT-011/012); `docs/architecture/ntn-sim-core-architecture-blueprint.md` (§7 directory layout finalized); `README.md` (entry-point guidance updated if directory layout changes) |
+| Platform Refactor complete | `sdd/ntn-sim-core-platform-refactor-roadmap.md` (exit condition verified); `docs/architecture/ntn-sim-core-architecture-blueprint.md` (§12 milestone table updated) |
+
+---
+
+### 0C.6 MODQN / UI / estnet Gating
+
+These downstream programs are explicitly blocked until specified phases complete.
+
+#### MODQN
+
+| Gate condition | Required phase | What unlocks |
+|---|---|---|
+| MODQN policy interface is stable | Phase 2 complete | `PolicyModel` (= existing `Policy`) is wrapped; `PolicyObservation`/`PolicyAction` exist at model layer |
+| MODQN can be a first-class plugin | Phase 2 complete | It can be registered as a `PolicyModel` impl in `ModelBundle` |
+| MODQN observation/reward schema can be extended | Phase 4 complete | `policy-v1.ts` is frozen; MODQN-specific extensions go in a `policy-v2.ts` or `modqn-contracts.ts` without reopening v1 |
+| MODQN training loop can start implementation | Phase 4 complete | Runtime contract frozen; MODQN trainer can import from `core/contracts/` without depending on internal file layout |
+| MODQN becomes active development (outline → active SDD) | **Phase 5 complete** | Only after structural debt removed; no monolithic files that MODQN would have to navigate; full gating per `agent-governance.md §3` |
+
+**Rationale:** Starting MODQN implementation during Phases 1–4 would create coupling between the training loop and unstable internal file layouts, forcing re-work when Phase 5 splits `engine.ts`. The cost of waiting is low; the cost of premature coupling is high.
+
+#### UI / Frontend Extensions
+
+| Gate condition | Required phase | What unlocks |
+|---|---|---|
+| Parameter display UI can be prototyped | Phase 1 complete | Parameter registry exists; `ParameterView` shape is known |
+| Profile list can be driven by API | Phase 4 complete | `getProfileList()` exists |
+| Full parameter metadata UI (sliders, ranges, provenance) | Phase 4 complete | `ParameterMetadataResponse` exposure contract frozen |
+| `ControlPanel.tsx` hardcoded arrays can be removed | Phase 4 complete (P4-7) | Already gated in Phase 4 plan |
+| New major UI features or additional overlay types | Phase 5 complete | `engine.ts` is no longer monolithic; safe to extend |
+
+#### estnet-ui / External Consumers
+
+| Gate condition | Required phase | What unlocks |
+|---|---|---|
+| estnet-ui can depend on snapshot types | Phase 4 complete | `runtime-v1.ts` frozen; import path is stable |
+| estnet-ui can consume parameter metadata | Phase 4 complete | Exposure contract types stable |
+| estnet-ui full integration protocol can be defined | Phase 5 complete | No internal churn remaining; integration scope is clean |
+| `project/estnet-ui-kickoff/` outline → active SDD | **Phase 5 complete** | Per `agent-governance.md §3.3` |
+
+---
+
+### 0C.7 Phase 0 Completion Declaration
+
+**Phase 0 (all three sub-phases) is complete when:**
+1. §0A, §0B, and §0C are all written in this document ✅
+2. `sdd/ntn-sim-core-implementation-status.md` reflects Platform Refactor Phase 0 = complete ✅ (version 4.0.6)
+3. `docs/architecture/ntn-sim-core-architecture-blueprint.md` updated to version 0.2.0 with 7-layer diagram ✅
+4. Phase 1 entry criteria from §0A.7 are satisfied ✅
+
+**Go/no-go: Phase 1 can begin immediately.**
+
+Phase 1 entry criteria (from §0A.7, confirmed satisfied):
+- ✅ §0B.6 field mapping complete — 91 fields classified
+- ✅ `paper-sources.json` confirmed to exist with PAP-*/STD-*/ASSUME-* registry
+- ✅ `ParameterEntry` schema defined (§0B.4)
+- ✅ PARAM-* namespace rule defined (distinct from PAP-*/STD-*/ASSUME-* namespaces)
+- ✅ All existing `validate:stage` checks passing (no regressions introduced by Phase 0)
