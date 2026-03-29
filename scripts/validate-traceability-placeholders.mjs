@@ -8,7 +8,7 @@ const requiredDocs = [
   'docs/architecture/ntn-sim-core-architecture-blueprint.md',
   'sdd/ntn-sim-core-sdd.md',
   'sdd/ntn-sim-core-profile-baselines.md',
-  'sdd/ntn-sim-core-roadmap.md',
+  'sdd/ntn-sim-core-platform-refactor-roadmap.md',
   'sdd/ntn-sim-core-validation-matrix.md',
   'sdd/ntn-sim-core-implementation-status.md',
   'sdd/ntn-sim-core-development-constraints.md',

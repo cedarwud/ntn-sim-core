@@ -12,9 +12,9 @@ This folder holds the architecture and SDD documents for `ntn-sim-core`.
    - product scope, code organization, profile model, and core invariants
 3. `../sdd/ntn-sim-core-profile-baselines.md`
    - detailed baseline envelopes, channel tiers, beam-gain mappings, and source families
-4. `../sdd/ntn-sim-core-roadmap.md`
-   - phase-by-phase development plan
-   - implementation order, paper baselines, donor modules, and exit criteria
+4. `../sdd/ntn-sim-core-platform-refactor-roadmap.md`
+   - current active program roadmap
+   - simulator-platform refactor order, phase boundaries, and exit criteria
 5. `../sdd/ntn-sim-core-validation-matrix.md`
    - validation and gate definitions
    - checks needed before research claims or visual demos are trusted
@@ -28,20 +28,16 @@ This folder holds the architecture and SDD documents for `ntn-sim-core`.
    - rules for when assumptions are allowed and how they must be recorded
 10. `../sdd/ntn-sim-core-frontend-beam-visual-sdd.md`
    - normative frontend beam-rendering contract for multibeam access and BH modes
-11. `../sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`
-   - browser-visible closure criteria for frontend beam delivery
-12. `../sdd/ntn-sim-core-frontend-donor-mapping.md`
-   - donor ownership map for moving-beam, BH-cell, and replay-facing visuals
-13. `../sdd/ntn-sim-core-final-closure-checklist.md`
-   - records the final project-level closure disposition
-14. `../sdd/ntn-sim-core-frontend-leo-parity-mode.md`
-   - narrow post-closure enhancement spec for a donor-like `leo-beam-sim` presentation mode; `Slice P1/P2` landed
+11. `../sdd/ntn-sim-core-ui-exposure-spec.md`
+   - current parameter exposure contract
+12. `../archive/ntn-sim-core-sdd-history-2026-03-29/`
+   - historical closure, donor, and one-shot acceptance documents
 
 ## Working Rule
 
 1. `architecture blueprint` defines the intended shape of the system.
 2. `SDD` defines the normative engineering contract.
-3. `roadmap` defines execution order.
+3. `platform-refactor roadmap` defines the current execution order.
 4. `validation matrix` defines what must be true before a phase can be considered done.
 5. companion governance docs constrain what may be merged, claimed, or assumed during implementation.
-6. frontend beam work in Phase 3 to Phase 6 is additionally constrained by the frontend beam companion docs.
+6. historical closure documents may explain how earlier work landed, but they do not override the active SDD set.

@@ -389,9 +389,9 @@ Prerequisite: 4V-3 (replay controller) must be completed first.
 
 ### 12.7 Final Frontend Closure Items
 
-Remaining frontend closure work is now compressed into the same 3 final project-level items tracked by:
+The prior frontend closure program was compressed into the same 3 final project-level items recorded in the historical closure note:
 
-`sdd/ntn-sim-core-final-closure-checklist.md`
+`archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-final-closure-checklist.md`
 
 | Closure Item | Frontend-specific meaning |
 |---|---|

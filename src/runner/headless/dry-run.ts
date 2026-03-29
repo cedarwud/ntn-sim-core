@@ -6,7 +6,7 @@
  *
  * Governance:
  *   - SDD: sdd/ntn-sim-core-sdd.md §7
- *   - Roadmap: sdd/ntn-sim-core-roadmap.md Phase 0
+ *   - Active program: sdd/ntn-sim-core-platform-refactor-roadmap.md
  *   - This file must not import React, Three.js, or scene code.
  */
 

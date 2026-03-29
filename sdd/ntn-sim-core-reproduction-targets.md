@@ -17,7 +17,7 @@ Each reproduction target has:
 3. a metric, comparison mode, and tolerance;
 4. documented assumptions where source parameters are incomplete.
 
-**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. Current comparison outputs are recorded in `sdd/ntn-sim-core-reproduction-results.md` and remain `REVIEW` while all tolerances stay `provisional`.
+**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. The last recorded comparison snapshot was archived to `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`; fresh reruns should produce new experiment artifacts rather than treating that snapshot as active authority.
 
 ---
 
@@ -54,7 +54,7 @@ Each reproduction target has:
 Use dedicated profile `sinr-elevation-reproduction`.
 - Derived from `case9-access-baseline`
 - Locks 600 km altitude, 30 MHz bandwidth, 19-beam FRF=1, and the Table II RF assumptions into one seed-fixed profile
-- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
+- Latest historical result bundle is archived at `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`
 
 ### 3.3 Comparison Metric
 
@@ -102,7 +102,7 @@ Use dedicated profile `sinr-elevation-reproduction`.
 Use dedicated profile `hobs-reproduction`.
 - Derived from `hobs-multibeam-baseline`
 - Locks 550 km orbit, 28 GHz, 100 MHz (Table I), 37 beams (Table I) with FRF=3, and EE Layer 1 for the comparison bundle
-- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
+- Latest historical result bundle is archived at `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`
 
 ### 4.3 Comparison Metric
 
@@ -138,7 +138,7 @@ Use dedicated profile `hobs-reproduction`.
 Use dedicated profile `timer-cho-reproduction`.
 - Derived from the access-baseline family with a reproduction-specific 550 km Starlink-like proxy (`24 x 22` Walker shell)
 - Locks Timer-CHO parameters `α = 0.85`, `L3 filter k = 4`, `TTT = 640 ms`, `offset = 0 dB`
-- Current result bundle is recorded in `sdd/ntn-sim-core-reproduction-results.md`
+- Latest historical result bundle is archived at `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`
 
 ### 5.3 Comparison Metric
 
@@ -173,7 +173,7 @@ Run the batch comparison workflow:
 npx tsx scripts/run-reproduction-comparison.ts
 ```
 
-Output: per-target KPI comparison tables plus the current result snapshot in `sdd/ntn-sim-core-reproduction-results.md`.
+Output: per-target KPI comparison tables plus a fresh result artifact bundle; the old snapshot is archived at `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`.
 
 ### Step 3: Comparison
 

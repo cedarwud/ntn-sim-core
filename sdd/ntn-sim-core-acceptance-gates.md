@@ -41,8 +41,8 @@ Any code change may be merged only if all of the following are true:
 If the change affects Phase 3 to Phase 6 frontend beam delivery, it must also update:
 
 1. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` when the rendering contract changes;
-2. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` when closure evidence rules change;
-3. `sdd/ntn-sim-core-frontend-donor-mapping.md` when donor ownership changes.
+2. `sdd/ntn-sim-core-validation-matrix.md` when visual evidence or gate definitions change;
+3. `sdd/ntn-sim-core-ui-exposure-spec.md` when the exposure contract or explainability-facing controls change.
 
 If the change adds or changes a frontend overlay or link explainer, it must also prove:
 
@@ -126,7 +126,7 @@ A replay, demo, or presentation sequence may be treated as a valid showcase only
 3. the selection process is deterministic;
 4. the output is explicitly labeled `showcase`;
 5. it can be regenerated from stored replay metadata without manual scene editing.
-6. any beam-related showcase satisfies `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`;
+6. any beam-related showcase satisfies `sdd/ntn-sim-core-frontend-beam-visual-sdd.md`;
 7. closure evidence includes browser-visible proof, not only script output.
 8. any overlay or link explainer in the showcase is derived from stored snapshot/trace truth and does not override the exported benchmark artifact.
 

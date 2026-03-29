@@ -1,73 +1,89 @@
 # SDD Document Set
 
-This folder contains the normative design and execution plan for `ntn-sim-core`.
+This folder contains the active design authority for `ntn-sim-core`.
 
-## Status Authority
+As of 2026-03-29, the project is being re-positioned from "paper-specific simulator hardening" to a longer-lived **parameter-driven, model-pluggable simulator platform**. The SDD set is therefore split into:
 
-1. `ntn-sim-core-implementation-status.md` is the authoritative status tracker.
-2. `ntn-sim-core-sdd.md` is the normative design contract.
-3. `ntn-sim-core-roadmap.md` is the execution order.
-4. `ntn-sim-core-validation-matrix.md` defines the gate expectations.
-5. `ntn-sim-core-development-constraints.md` defines implementation-time prohibitions.
-6. `ntn-sim-core-acceptance-gates.md` defines merge/result acceptance.
-7. `ntn-sim-core-assumption-policy.md` defines how assumptions are allowed and recorded.
-8. `ntn-sim-core-paper-family-matrix.md` defines the canonical literature families and claim ceilings.
-9. `ntn-sim-core-donor-integration-map.md` defines how the other project repos are absorbed and checked.
-10. `ntn-sim-core-reproduction-protocol.md` defines artifact bundles, claim levels, and tolerance status policy.
+1. **Core authority files** that remain normative across all programs
+2. **Active program files** that define the next development track
+3. **Outline files** for downstream work that depends on the active program
+4. **Historical / closure files** moved to `archive/`
 
-## Document Set
+## 1. Core Authority
+
+These files remain the long-lived authority set:
 
 1. `ntn-sim-core-sdd.md`
-   - product definition, architectural rules, target code organization
-2. `ntn-sim-core-profile-baselines.md`
-   - detailed parameter envelopes, beam-gain mappings, channel tiers, and source anchors
-3. `ntn-sim-core-roadmap.md`
-   - phase plan with donor sources, paper baselines, and exit criteria
-4. `ntn-sim-core-validation-matrix.md`
+   - top-level simulator design contract
+2. `ntn-sim-core-implementation-status.md`
+   - authoritative current-state tracker
+3. `ntn-sim-core-validation-matrix.md`
    - validation IDs and pass conditions
-5. `ntn-sim-core-implementation-status.md`
-   - current phase state and document ownership
-6. `ntn-sim-core-preflight-refactor-closure.md`
-   - records the completed shell-to-SDD preflight refactor
-7. `ntn-sim-core-development-constraints.md`
-   - non-negotiable development constraints for research-grade paths
-8. `ntn-sim-core-acceptance-gates.md`
-   - merge gate, benchmark gate, paper-claim gate, and showcase gate
-9. `ntn-sim-core-assumption-policy.md`
-   - assumption categories, metadata, and claim limits
-10. `ntn-sim-core-academic-remediation.md`
-   - academic compliance gap analysis, donor transfer map, and remediation priority order
-11. `ntn-sim-core-paper-family-matrix.md`
-   - maps paper clusters to canonical baseline families, donors, and claim ceilings
-12. `ntn-sim-core-donor-integration-map.md`
-   - defines repo-to-module donor roles, transfer classes, and parity requirements
-13. `ntn-sim-core-reproduction-protocol.md`
-   - defines claim levels, artifact bundles, tolerance lifecycle, and blocker-aware reproduction rules
-14. `ntn-sim-core-reproduction-targets.md`
-   - defines 3 reference paper reproduction targets with profiles, tolerances, and comparison workflow
-15. `ntn-sim-core-reproduction-results.md`
-   - records the current comparison results and open reproduction deltas for the 3 reference targets
-16. `ntn-sim-core-final-closure-checklist.md`
-   - records the final disposition of the project-level closure items
-17. `ntn-sim-core-fc1-replay-closure-checklist.md`
-   - records the landed replay identity/parity closure pass
-18. `ntn-sim-core-frontend-beam-visual-sdd.md`
-   - normative frontend beam-rendering contract + §12 implementation checklist (MS3, MS4, TLE frontend, replay)
-19. `ntn-sim-core-frontend-beam-visual-acceptance.md`
-   - acceptance criteria for beam visualization (7 role semantics, browser screenshot evidence)
-20. `ntn-sim-core-frontend-donor-mapping.md`
-   - donor repo → frontend module mapping (leo-beam-sim, leo-simulator, beamHO-bench)
-21. `ntn-sim-core-frontend-leo-parity-mode.md`
-   - **closed** — leo-parity experiment concluded; useful selection logic merged into `beam-selection.ts`; dual view-mode system removed
-22. `ntn-sim-core-ui-exposure-spec.md`
-   - normative UI / parameter exposure layer: which parameters are exposed in Realistic / Advanced / Sensitivity / Internal-only mode; profile selector groups; HO override rules; derived-quantity prohibition list
+4. `ntn-sim-core-development-constraints.md`
+   - non-negotiable implementation constraints
+5. `ntn-sim-core-acceptance-gates.md`
+   - merge / benchmark / claim / showcase gates
+6. `ntn-sim-core-assumption-policy.md`
+   - assumption taxonomy and disclosure rules
+7. `ntn-sim-core-profile-baselines.md`
+   - current baseline/profile family reference
+8. `ntn-sim-core-paper-family-matrix.md`
+   - literature family map and claim ceiling guide
+9. `ntn-sim-core-reproduction-protocol.md`
+   - reproduction claim discipline
+10. `ntn-sim-core-reproduction-targets.md`
+   - active reproduction target definitions
+11. `ntn-sim-core-ui-exposure-spec.md`
+   - current UI exposure contract
+12. `ntn-sim-core-frontend-beam-visual-sdd.md`
+   - frontend visual/rendering contract that still governs truth-driven beam rendering
 
-## Working Rule
+## 2. Active Program: Simulator Platform Refactor
+
+These files define the current active development program. This program must complete before MODQN runtime work or new UI integration work is treated as active implementation.
+
+1. `ntn-sim-core-platform-refactor-roadmap.md`
+   - master roadmap for the platform refactor program
+2. `phase0-architecture-spec.md`
+   - target architecture layering and boundary rules
+3. `phase1-parameter-registry-sdd.md`
+   - canonical parameter registry and provenance core
+4. `phase2-model-bundle-sdd.md`
+   - pluggable geometry/path-loss/SINR/power/EE/policy model interfaces
+5. `phase3-scenario-profile-experiment-split.md`
+   - scenario/profile/experiment separation
+6. `phase4-runtime-contract-sdd.md`
+   - runtime APIs and external integration contracts
+7. `phase5-cleanup-and-modularization-sdd.md`
+   - dead code cleanup, file-splitting, and deprecation retirement
+
+## 3. Deferred Program Outlines
+
+These are intentionally outline-level documents only. They must not be treated as implementation-ready SDDs until their dependency phases are complete and the repository is re-reviewed.
+
+1. `modqn-roadmap.md`
+2. `modqn-baseline-spec-outline.md`
+3. `modqn-runtime-outline.md`
+4. `modqn-experiment-outline.md`
+5. `ui-integration-roadmap.md`
+6. `estnet-ui-contract-outline.md`
+
+Each outline must explicitly state which preceding phase(s) must finish before the outline can be promoted into an active SDD.
+
+## 4. Archived Historical Documents
+
+Closed closure notes, stale roadmaps, donor-migration notes, and one-shot acceptance documents are no longer kept in this folder as authority. They are archived under:
+
+- `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/`
+
+Historical documents may be cited for forensic context, but they must not override the active authority set above.
+
+## 5. Working Rule
 
 1. No KPI-impacting implementation should land without a corresponding place in:
-   - the SDD
-   - the roadmap
+   - the core authority set
+   - the active program SDDs
    - the validation matrix
-   - the paper family / reproduction contract when relevant
-2. Architecture changes should update the blueprint under `docs/architecture/` in the same change set.
-3. Benchmark-capable changes should also satisfy the development constraints, acceptance gates, and assumption policy.
+2. Do not start MODQN implementation or new UI integration from outline files alone.
+3. Any outline promoted into active work must first be rewritten after re-checking current repo state.
+4. Architecture changes should update the blueprint under `docs/architecture/` in the same change set when that blueprint is still the governing view.

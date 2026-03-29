@@ -2,7 +2,7 @@
 
 **Version:** 4.0.4
 **Date:** 2026-03-27
-**Status:** Closure-complete for the current enforced SDD set; `validate:stage` passing; no hardening IDs remain deferred
+**Status:** Prior hardening/closure program complete for the old enforced SDD set; `validate:stage` passing; active development has now shifted to the simulator platform refactor program
 
 ---
 
@@ -18,13 +18,14 @@
 | 5 | Beam Hopping + Energy L2 | ✅ complete | BH scheduler (6 strategies: round-robin, max-demand, power-aware, deterministic-fixed, proportional-fair, sinr-greedy), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel, `EarthFixedCellLayer`, deterministic `bh-resource-energy-proof`, `BhExplainabilityPanel`, automated `VAL-FV-004` and `VAL-EXP-001` browser gates | — |
 | 6 | DAPS/DC-Like | ✅ complete | DAPS dual-active FSM, engine dual-link path, benchmark comparison runner, `DapsSnapshot` in engine, dual-active beam viz, `case9-daps-baseline` profile, screenshot proof, truth-driven continuity link overlay, automated `VAL-FV-009` browser gate for both live and replay | — |
 
-Closure note: this table tracks current closure blockers. As of 2026-03-27, the previously deferred hardening IDs have either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure are now aligned.
+Closure note: this table tracks the now-complete hardening/closure program. As of 2026-03-27, the previously deferred hardening IDs had either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure became aligned. As of 2026-03-29, this is no longer the active roadmap; the active program is `sdd/ntn-sim-core-platform-refactor-roadmap.md`.
 
 ---
 
 ## 2. Academic Remediation Tracker
 
-Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.md`
+Full gap analysis and remediation plan is preserved in the historical archive:
+`archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-academic-remediation.md`
 
 ### Critical (blocks any paper submission)
 
@@ -78,24 +79,25 @@ Full gap analysis and remediation plan: `sdd/ntn-sim-core-academic-remediation.m
 | `docs/architecture/ntn-sim-core-architecture-blueprint.md` | architecture blueprint | active |
 | `sdd/ntn-sim-core-sdd.md` | normative SDD | active (v1.1.0) — §9.2 Tier 6 Doppler wired; §9.7 RL pull-model engine integration updated |
 | `sdd/ntn-sim-core-profile-baselines.md` | detailed baseline companion | active, case9 altitude aligned at 600km |
-| `sdd/ntn-sim-core-roadmap.md` | implementation plan | active, Phase 3 to Phase 6 frontend closure rules are binding |
+| `sdd/ntn-sim-core-platform-refactor-roadmap.md` | current active implementation plan | active |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-roadmap.md` | prior closure-program implementation plan | historical |
 | `sdd/ntn-sim-core-validation-matrix.md` | gate definition | active, F/E/Browser passing for current SDD set |
-| `sdd/ntn-sim-core-preflight-refactor-closure.md` | preflight closure note | active |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-preflight-refactor-closure.md` | preflight closure note | historical |
 | `sdd/ntn-sim-core-development-constraints.md` | implementation-time prohibitions | active |
 | `sdd/ntn-sim-core-acceptance-gates.md` | acceptance and claim gates | active |
 | `sdd/ntn-sim-core-assumption-policy.md` | assumption governance | active |
-| `sdd/ntn-sim-core-academic-remediation.md` | academic gap analysis and remediation plan | active closure record (v1.1.0) |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-academic-remediation.md` | academic gap analysis and remediation plan | historical closure record |
 | `sdd/ntn-sim-core-paper-family-matrix.md` | paper-family clustering and claim ceilings | active (v1.0) |
-| `sdd/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | active (v1.0) |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-donor-integration-map.md` | cross-repo donor ownership and parity map | historical |
 | `sdd/ntn-sim-core-reproduction-protocol.md` | reproduction ladder, artifact policy, tolerance status | active (v1.0) |
 | `sdd/ntn-sim-core-reproduction-targets.md` | 3 reference paper reproduction targets | active (v0.3.0) — dedicated reproduction profiles landed |
-| `sdd/ntn-sim-core-reproduction-results.md` | current reproduction result snapshot | active (v0.1.0) — review state, all tolerances still provisional |
-| `sdd/ntn-sim-core-final-closure-checklist.md` | final closure record for project-level completion | active (v0.3.2) |
-| `sdd/ntn-sim-core-fc1-replay-closure-checklist.md` | replay closure record for the landed FC-1 pass | active (v0.2) |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md` | prior reproduction result snapshot | historical |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-final-closure-checklist.md` | final closure record for project-level completion | historical |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-fc1-replay-closure-checklist.md` | replay closure record for the landed FC-1 pass | historical |
 | `sdd/ntn-sim-core-frontend-beam-visual-sdd.md` | frontend beam-rendering contract + implementation checklist | active (v0.3.2) |
-| `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | active (v0.3.1) |
-| `sdd/ntn-sim-core-frontend-donor-mapping.md` | frontend donor repo → module mapping | active (v0.2) |
-| `sdd/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec (historical) | **closed** (v0.2.0) — leo-parity mode removed; useful selection logic merged into `beam-selection.ts`; single `hobs-multibeam-baseline` profile; no separate view modes |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-beam-visual-acceptance.md` | beam visualization acceptance criteria | historical acceptance evidence |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-donor-mapping.md` | frontend donor repo → module mapping | historical |
+| `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-leo-parity-mode.md` | post-closure frontend parity spec | historical / closed |
 | `sdd/ntn-sim-core-implementation-status.md` | this file | active |
 | `sdd/README.md` | document index | active |
 
@@ -226,8 +228,8 @@ None remain. `VAL-ORB-001`, `VAL-KPI-001`, `VAL-MB-001`, and `VAL-BEAM-001` are 
 
 ## 7. Final Closure Items
 
-Authoritative closure companion:
-`sdd/ntn-sim-core-final-closure-checklist.md`
+Historical closure companion:
+`archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-final-closure-checklist.md`
 
 No project-level closure items remain open for the current SDD set.
 
@@ -235,7 +237,7 @@ No project-level closure items remain open for the current SDD set.
 
 ## 8. Frontend Beam Architecture (Post-Simplification)
 
-The leo-parity experiment (formerly tracked in `sdd/ntn-sim-core-frontend-leo-parity-mode.md`) has been closed. Useful satellite selection logic was extracted into `src/viz/beam/beam-selection.ts` and the dual view-mode system was removed. The current frontend beam architecture is:
+The leo-parity experiment (formerly tracked in `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-leo-parity-mode.md`) has been closed. Useful satellite selection logic was extracted into `src/viz/beam/beam-selection.ts` and the dual view-mode system was removed. The current frontend beam architecture is:
 
 1. **`beam-selection.ts`** — decides which satellites show beams (`selectBeamSatellites()`) and which are cell candidates (`selectCellCandidateSatIds()`)
 2. **`EarthMovingBeamLayer`** — renders 3D beam cones for selected satellites

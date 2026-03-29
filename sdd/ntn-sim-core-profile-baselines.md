@@ -11,7 +11,7 @@
 This document is the detailed companion to:
 
 1. `sdd/ntn-sim-core-sdd.md`
-2. `sdd/ntn-sim-core-roadmap.md`
+2. `sdd/ntn-sim-core-platform-refactor-roadmap.md`
 3. `sdd/ntn-sim-core-validation-matrix.md`
 
 It pins the first-round parameter envelopes, beam-gain mappings, channel tiers, and continuity/energy source families for `ntn-sim-core`.

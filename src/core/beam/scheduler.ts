@@ -5,7 +5,7 @@
  *
  * Governance:
  *   - SDD: sdd/ntn-sim-core-sdd.md §8.2 Earth-Fixed / BH Mode
- *   - Roadmap: sdd/ntn-sim-core-roadmap.md Phase 5
+ *   - Active program: sdd/ntn-sim-core-platform-refactor-roadmap.md
  *   - Constraints: sdd/ntn-sim-core-development-constraints.md §3, §4
  *   - Frame duration 640ms from PAP-2026-BHFREQREUSE, PAP-2025-DIST-BH-HETERO
  *   - This file must not import React, Three.js, or scene code.

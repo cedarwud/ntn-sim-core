@@ -25,7 +25,7 @@ This document complements, but does not replace:
 2. `sdd/ntn-sim-core-profile-baselines.md` for parameter envelopes;
 3. `sdd/ntn-sim-core-validation-matrix.md` for validation IDs;
 4. `sdd/ntn-sim-core-reproduction-protocol.md` for artifact and tolerance policy;
-5. `sdd/ntn-sim-core-donor-integration-map.md` for repo-to-module transfer rules.
+5. the archived donor integration map under `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-donor-integration-map.md` for historical repo-to-module transfer context.
 
 If a conflict appears:
 

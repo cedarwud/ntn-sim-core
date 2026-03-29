@@ -16,7 +16,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 2. `sdd/ntn-sim-core-acceptance-gates.md`
 3. `sdd/ntn-sim-core-assumption-policy.md`
 4. `sdd/ntn-sim-core-frontend-beam-visual-sdd.md`
-5. `sdd/ntn-sim-core-frontend-beam-visual-acceptance.md`
+5. `sdd/ntn-sim-core-ui-exposure-spec.md`
 
 ---
 
@@ -62,7 +62,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
 | `VAL-FV-009` | visualization | DAPS/DC-like dual-active continuity links or equivalent explainers are visible without inventing unsupported states | 6 |
 
-### Remediation Gates (added 2026-03-21, from academic-remediation.md)
+### Remediation Gates (added 2026-03-21, from the historical academic remediation program)
 
 | ID | Category | Check | Remediation Item |
 |---|---|---|---|
@@ -77,7 +77,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-FADING-001` | channel | Tier 5 Shadowed-Rician fading produces non-zero variance under non-deterministic channel | MS1 |
 | `VAL-PROFILE-001` | profiles | all profile altitude_km values match cited source papers | profile fix |
 
-### Physics Model Gates (added 2026-03-21, from academic-remediation.md §9)
+### Physics Model Gates (added 2026-03-21, from the historical academic remediation program §9)
 
 | ID | Category | Check | Remediation Item |
 |---|---|---|---|
@@ -86,7 +86,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-TRAFFIC-001` | traffic | BH scheduler receives non-zero per-cell demand from traffic generator | P3 |
 | `VAL-MOBILITY-001` | UE | UE position changes over time when speed_kmh > 0 | P4 |
 
-### Methodology Gates (added 2026-03-21, from academic-remediation.md §10)
+### Methodology Gates (added 2026-03-21, from the historical academic remediation program §10)
 
 | ID | Category | Check | Remediation Item |
 |---|---|---|---|
@@ -211,4 +211,4 @@ Any showcase/demo sequence must additionally prove:
 1. the replay window was selected deterministically
 2. visual controls did not alter physical outcomes
 3. the event sequence can be regenerated from replay metadata
-4. any beam-facing showcase satisfies `ntn-sim-core-frontend-beam-visual-acceptance.md`
+4. any beam-facing showcase satisfies `ntn-sim-core-frontend-beam-visual-sdd.md`

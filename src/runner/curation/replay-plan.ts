@@ -6,7 +6,7 @@
  *
  * Governance:
  *   - SDD: sdd/ntn-sim-core-sdd.md §10
- *   - Final closure: sdd/ntn-sim-core-final-closure-checklist.md FC-1
+ *   - Historical closure reference: archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-final-closure-checklist.md FC-1
  *   - This file must not import React, Three.js, or scene code.
  */
 
