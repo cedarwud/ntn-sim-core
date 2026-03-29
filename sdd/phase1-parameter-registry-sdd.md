@@ -9,18 +9,26 @@ Make parameters the primary simulator contract rather than incidental fields ins
 
 ## Scope
 
-Each important simulator parameter must have a unified registry entry with:
+Each important simulator parameter is represented as a two-layer registry record (schema defined in `phase0-architecture-spec.md §0B.4`):
 
-1. identifier
+**`GlobalParameterSpec`** — one record per parameter, profile-agnostic:
+
+1. identifier (PARAM-* namespace)
 2. semantic meaning
 3. unit
-4. default
-5. allowed range or preset list
-6. source type
-7. source locator
-8. dependency rule
-9. exposure mode
-10. whether the parameter is derived or user-adjustable
+4. allowed range or preset list
+5. derived flag (isDerived)
+6. dependency rule
+7. vocabulary layer (scenario / model-bundle / experiment)
+
+**`ProfileParameterBinding`** — one record per (parameter × profile), profile-specific:
+
+1. profileId
+2. default value for that profile
+3. source tier (paper / standard / assumption)
+4. source locator (PAP-* / STD-* / ASSUME-* ID)
+5. source note (optional detail, e.g. table/equation reference)
+6. exposure mode for that profile (Realistic / Advanced / Sensitivity / Internal-only)
 
 ## Required Output
 

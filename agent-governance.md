@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-03-29-a`
+**Governance-Version:** `2026-03-29-b`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -66,6 +66,23 @@ Before writing any factual statement about repo state:
 3. "Does not exist" claims require a search.
 4. Implementation status should be checked against code, not inferred only from status docs.
 5. Validation scripts are part of the authority chain, not incidental tools; read them before characterizing what they enforce.
+
+### 4.1 Cross-Document Consistency Rules
+
+These rules apply when writing or reviewing architecture documents (phase SDDs, schemas, interface contracts):
+
+**Rule X1 — Schema-vs-data check:** When defining or reviewing a schema (e.g. `ParameterEntry`), verify the schema can represent the *actual* diversity in existing data files (e.g. `profiles/defaults.ts`). If a field is single-valued in the schema but appears as multiple different values across profiles in the data, the schema must be redesigned as a two-layer (global + per-profile) structure before declaring it complete.
+
+**Rule X2 — Cross-SDD family count:** When a document declares "N model-family interface contracts", verify N against *every other document* that mentions a family list. In this repo the authoritative count is in `phase2-model-bundle-sdd.md §Target Model Families`. Any Phase 0 or Phase 1 doc that states a different count must be corrected to match the Phase 2 authority.
+
+**Rule X3 — Layer-boundary self-consistency:** When a layer table declares a layer as "leaf" or "no imports", immediately check whether any type defined *inside* that same section uses a type from another module. If yes, either:
+  (a) introduce a "shared primitives" exemption and document it explicitly, or
+  (b) move the type into the layer so the leaf constraint holds.
+  Do not declare a leaf constraint and silently violate it in the same section.
+
+**Rule X4 — Directory-co-location ambiguity:** When two named layers are assigned the same directory, document either (a) a subdirectory split that will be applied in a future phase, or (b) an explicit note that the co-location is a current naming ambiguity with a plan to resolve it. Never leave two layers sharing a directory without a written disambiguation.
+
+**Rule X5 — "Ready for Phase N" gate:** Before writing "Phase N can begin immediately", verify that the document satisfies every input requirement listed in the Phase N stub SDD (specifically its "Depends on" and "Required Output" sections). If any requirement is not met, list the gap rather than declaring readiness.
 
 ## 5. Working Rules
 

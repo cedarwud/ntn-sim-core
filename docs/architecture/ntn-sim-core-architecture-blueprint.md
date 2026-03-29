@@ -1,8 +1,8 @@
 # NTN Sim Core — Architecture Blueprint
 
-**Version:** 0.1.0  
-**Date:** 2026-03-20  
-**Status:** Draft Blueprint
+**Version:** 0.2.0
+**Date:** 2026-03-29
+**Status:** Updated — Phase 0B target architecture supersedes the §6 layer diagram; see `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the normative target module map and dependency rules.
 
 ---
 
@@ -82,28 +82,48 @@ The new project therefore uses existing repos as references and donors, but not 
 
 ## 6. System Layers
 
+> **Note (2026-03-29):** The diagram below reflects the original blueprint intent. The Phase 0B target architecture (7 layers with explicit dependency rules) supersedes this diagram. See `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the authoritative target module map.
+
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Profiles + Source Maps + Scenario Definitions              │
-│ paper profiles · runtime overrides · source trace metadata │
+│ L1: Parameter Registry                                      │
+│ src/core/config/ — ParameterEntry[] (two-layer wrapper:    │
+│   GlobalParameterSpec + ProfileParameterBinding[]),        │
+│   paper-sources.json                                       │
 └──────────────────────────┬──────────────────────────────────┘
-                           │
+                           │ (IDs only)
 ┌──────────────────────────▼──────────────────────────────────┐
-│ Core Simulation Layer                                       │
-│ orbit · channel · beam · scheduler · handover · energy     │
-│ KPI · trace · deterministic RNG                            │
-└───────────────┬───────────────────────┬─────────────────────┘
-                │                       │
-┌───────────────▼──────────────┐ ┌──────▼─────────────────────┐
-│ Runner Layer                 │ │ Curation / Replay Layer    │
-│ headless batch · benchmarks  │ │ pass selection · replay    │
-│ validation harness           │ │ interpolation · showcase   │
-└───────────────┬──────────────┘ └──────┬─────────────────────┘
-                │                       │
-┌───────────────▼───────────────────────▼─────────────────────┐
-│ Visualization Layer                                         │
-│ scene · overlays · event explainers · camera presets        │
-└─────────────────────────────────────────────────────────────┘
+│ L2: Model Bundle Layer                                      │
+│ channel · beam · handover · energy · policy · orbit        │
+│ Each subsystem: typed interface + concrete implementations  │
+└───────────────┬──────────────────┬──────────────────────────┘
+                │                  │ (family selections)
+┌───────────────▼──────────┐  ┌────▼──────────────────────────┐
+│ L3: Scenario / Profile / │  │ L4: Runtime Core              │
+│ Experiment               │  │ engine.ts (orchestration)     │
+│ ScenarioConfig           │  │ kpi/ trace/ common/           │
+│ ProfileConfig (refactored)│  │ — calls L2 via interfaces     │
+│ ExperimentBundle          │  │ — produces SimulationSnapshot │
+└───────────────────────────┘  └───────────────┬───────────────┘
+                                               │
+┌──────────────────────────────────────────────▼───────────────┐
+│ L5: Audit / Artifact                                         │
+│ src/runner/ — headless, replay, curation                    │
+│ RunManifest, RunArtifactBundle, SourceTrace, AssumptionRecord│
+└──────────────────────────┬───────────────────────────────────┘
+                           │ (runtime contract types read-only)
+┌──────────────────────────▼───────────────────────────────────┐
+│ L6: Exposure Contract                                        │
+│ ParameterMetadataResponse, ProfileListEntry                  │
+│ — backed by L1 registry; no L4 engine internals             │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ (runtime contract + exposure contract)
+┌──────────────────────────▼───────────────────────────────────┐
+│ L7: Viz / UI                                                 │
+│ src/viz/ + src/app/ — React, R3F, overlays, hooks           │
+│ — reads SimulationSnapshot; reads L6 for parameter metadata │
+│ — must NOT import L2 implementations or L3 internals        │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---

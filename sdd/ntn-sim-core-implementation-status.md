@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.0.5
+**Version:** 4.0.6
 **Date:** 2026-03-29
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0A (current-state inventory) complete — findings are recorded in `sdd/phase0-architecture-spec.md` and Phase 0B is now the next active design step.
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0A+0B complete — vocabulary, target module map, ParameterEntry schema, model-family interfaces, ProfileConfig mapping, and contract boundaries recorded in `sdd/phase0-architecture-spec.md §0B`. Phase 0C (migration plan + acceptance criteria) is the next step.
 
 ---
 

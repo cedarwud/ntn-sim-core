@@ -1,6 +1,6 @@
 # ntn-sim-core Agent Rules
 
-**Governance-Version:** `2026-03-29-a`
+**Governance-Version:** `2026-03-29-b`
 
 This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 
