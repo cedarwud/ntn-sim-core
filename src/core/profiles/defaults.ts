@@ -136,7 +136,7 @@ export const CASE9_ACCESS_BASELINE = {
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: 'channel tiers 0-2, NTN channel model' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=9 dB (handheld UE, S-band case 9)' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 24x22=528 Starlink-like constellation at 600km/53°; paper does not mandate exact constellation' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed engineering constant; must NOT be exposed as UI slider' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed engineering constant; must NOT be exposed as UI slider' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption (not in spec H2 paper-backed presets of 0/40/256ms); conservative NTN value accounting for propagation delay; spec mode Advanced, not Realistic' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB: SINR-relative simplification vs spec H3 absolute derivation (N_floor + Q_out); assumption-backed; spec mode Advanced' },
   ],
@@ -240,7 +240,7 @@ export const HOBS_MULTIBEAM_BASELINE = {
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=5 dB (VSAT/laptop UE, Ka-band)' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-002', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 24x22=528 sats; HOBS paper constellation scale assumption' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-BEAM-001', parameterPath: 'antenna.peak_gain_dbi', specMode: 'Advanced', note: 'peak gain 38dBi, beam diameter 25km — representative Ka-band values (no single paper locator)' },
     { tier: 'assumption-backed', id: 'ASSUME-ATM-001', parameterPath: 'channel.tier4_atmospheric', specMode: 'Advanced', note: 'Tier 4 atmospheric: ITU-R P.676/P.618 mid-latitude Ka-band; gaseous 0.6dB, rain 1.5dB, scintillation 0.4dB; spec R3 Advanced mode only' },
     { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'txPowerPerBeamDbm=40 dBm (spec P1 Realistic); activeBeamPowerW=20, idlePowerW=5 are GAP-5 unverified calibration values (spec P5/P6 Internal-only)' },
@@ -337,11 +337,11 @@ export const BH_RESOURCE_BASELINE = {
     { tier: 'paper-backed', id: 'PAP-2025-MAAC-BHPOWER', parameterPath: 'rf.max_tx_power_dbm', note: '13 dBW aggregate satellite TX budget (43 dBm) from [S10]' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=5 dB (VSAT/laptop UE, Ka-band)' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-BEAM-002', parameterPath: 'antenna.peak_gain_dbi', specMode: 'Advanced', note: 'peak gain 35dBi — representative Ka/Ku-band BH value; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-BEAM-002', parameterPath: 'antenna.beam_diameter_km', specMode: 'Advanced', note: 'beam diameter 30km — representative Ka/Ku-band BH value; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-RF-001', parameterPath: 'rf.frequency_ghz', specMode: 'Advanced', note: 'Ka-band 20GHz — representative for BH resource studies; no single paper locator' },
-    { tier: 'assumption-backed', id: 'ASSUME-RF-001', parameterPath: 'rf.bandwidth_mhz', specMode: 'Advanced', note: '500MHz BW — representative for BH resource studies; no single paper locator' },
+    { tier: 'assumption-backed', id: 'ASSUME-BW-001', parameterPath: 'rf.bandwidth_mhz', specMode: 'Advanced', note: '500MHz BW — representative for BH resource studies; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption; spec H2 paper-backed presets are 0/40/256ms' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB SINR-relative; spec H3 requires absolute derivation' },
   ],
@@ -620,7 +620,7 @@ export const REAL_TRACE_VALIDATION = {
     { tier: 'normative', id: 'REAL-TRACE-POLICY', note: 'beam/channel/power inherited from validated synthetic profile per profile-baselines §7.2' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-003', specMode: 'Advanced', note: 'Starlink shell-1 nominal params (550km, 53deg, 72x22) — actual propagation uses TLE' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
   ],
 } as const satisfies ProfileConfig;
 
@@ -706,7 +706,7 @@ export const CASE9_DAPS_BASELINE = {
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted to expose dual-active inside the deterministic replay window' },
   ],
 } as const satisfies ProfileConfig;
@@ -1061,7 +1061,7 @@ export const HOBS_REPRODUCTION: ProfileConfig = {
     { tier: 'paper-backed', id: 'PAP-2021-SHADOWED-RICIAN', note: 'Bessel J1 beam gain family reference' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=5 dB (VSAT/laptop UE, Ka-band)' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-REPRO-RT2', specMode: 'Advanced', note: 'Walker F=1 used; paper does not specify exact epoch' },
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
   ],
 };
 
@@ -1158,7 +1158,7 @@ export const TIMER_CHO_REPRODUCTION: ProfileConfig = {
 //
 // Governance:
 //   - No Advanced entries (no entries with specMode='Advanced')
-//   - No assumption-backed entries except ASSUME-CHAN-001 (noise_temperature_k),
+//   - No assumption-backed entries except ASSUME-CUR-002 (noise_temperature_k),
 //     which is Internal-only per spec R7 and is present in all profiles
 //   - energy.layer1_enabled=false: beam-state power values P5/P6/P7 have no
 //     paper-backed Realistic default (spec GAP-5); enabling EE would require
@@ -1280,7 +1280,7 @@ export const REALISTIC_FIRST_SCREEN = {
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (feeder 0.5+pointing 2.0)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'NF=9dB handheld UE (TR 38.811 Table 4.4-1)', specMode: 'Realistic' },
     // noise_temperature_k: Internal-only fixed constant per spec R7; required for audit but not a user-facing slider
-    { tier: 'assumption-backed', id: 'ASSUME-CHAN-001', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only; not a user-facing slider' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only; not a user-facing slider' },
     // --- Antenna / Beam ---
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'antenna.beam_diameter_km', note: 'beam_diameter=50km from θ_3dB=arctan(25/600)=2.386° formula', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2025-TIMERCHO-CORE', parameterPath: 'beam.num_beams', note: '19 beams at 600km', specMode: 'Realistic' },

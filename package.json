@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "validate:structure": "node scripts/validate-structure.mjs",
     "validate:trace": "node scripts/validate-traceability-placeholders.mjs",
+    "validate:agent-docs": "node scripts/validate-agent-doc-sync.mjs",
     "validate:specmode": "node scripts/validate-specmode-gating.mjs",
     "validate:assumption-manifest": "node scripts/validate-assumption-manifest.mjs",
     "validate:profiles": "node scripts/validate-profile-layout.mjs",

@@ -1,0 +1,127 @@
+# NTN Sim Core Agent Governance
+
+**Governance-Version:** `2026-03-29-a`
+
+This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
+
+Both:
+
+- [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
+- [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)
+
+must remain thin wrappers around this document rather than independent full rule sets.
+
+## 1. Current Role
+
+1. `ntn-sim-core` is the current primary development target in the `papers` workspace.
+2. The active long-term direction is a **parameter-driven, model-pluggable simulator platform**, not a one-paper reproduction codebase.
+3. MODQN work, new UI work, and `estnet-ui-kickoff` integration are downstream programs and must not bypass the active platform-refactor SDD set.
+
+## 2. Authority Order
+
+When instructions conflict, use this order:
+
+1. [sdd/README.md](/home/u24/papers/ntn-sim-core/sdd/README.md)
+2. [sdd/ntn-sim-core-platform-refactor-roadmap.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-platform-refactor-roadmap.md)
+3. the active phase SDD for the current phase:
+   - [sdd/phase0-architecture-spec.md](/home/u24/papers/ntn-sim-core/sdd/phase0-architecture-spec.md)
+   - [sdd/phase1-parameter-registry-sdd.md](/home/u24/papers/ntn-sim-core/sdd/phase1-parameter-registry-sdd.md)
+   - [sdd/phase2-model-bundle-sdd.md](/home/u24/papers/ntn-sim-core/sdd/phase2-model-bundle-sdd.md)
+   - [sdd/phase3-scenario-profile-experiment-split.md](/home/u24/papers/ntn-sim-core/sdd/phase3-scenario-profile-experiment-split.md)
+   - [sdd/phase4-runtime-contract-sdd.md](/home/u24/papers/ntn-sim-core/sdd/phase4-runtime-contract-sdd.md)
+   - [sdd/phase5-cleanup-and-modularization-sdd.md](/home/u24/papers/ntn-sim-core/sdd/phase5-cleanup-and-modularization-sdd.md)
+4. core authority companions:
+   - [sdd/ntn-sim-core-sdd.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-sdd.md)
+   - [sdd/ntn-sim-core-implementation-status.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-implementation-status.md)
+   - [sdd/ntn-sim-core-validation-matrix.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-validation-matrix.md)
+   - [sdd/ntn-sim-core-development-constraints.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-development-constraints.md)
+   - [sdd/ntn-sim-core-acceptance-gates.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-acceptance-gates.md)
+   - [sdd/ntn-sim-core-assumption-policy.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-assumption-policy.md)
+5. current companion docs:
+   - [sdd/ntn-sim-core-profile-baselines.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-profile-baselines.md)
+   - [sdd/ntn-sim-core-paper-family-matrix.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-paper-family-matrix.md)
+   - [sdd/ntn-sim-core-reproduction-protocol.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-reproduction-protocol.md)
+   - [sdd/ntn-sim-core-reproduction-targets.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-reproduction-targets.md)
+   - [sdd/ntn-sim-core-ui-exposure-spec.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-ui-exposure-spec.md)
+   - [sdd/ntn-sim-core-frontend-beam-visual-sdd.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
+6. [README.md](/home/u24/papers/ntn-sim-core/README.md) and [docs/README.md](/home/u24/papers/ntn-sim-core/docs/README.md)
+7. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
+
+## 3. Active Program Rule
+
+1. Do not start MODQN implementation from outline docs alone.
+2. Do not start new UI integration or `estnet-ui-kickoff` integration from outline docs alone.
+3. The active work order is:
+   - current phase SDD
+   - validation and status sync
+   - only then promotion of downstream outline work
+4. If a downstream outline needs to become active, rewrite it first after re-checking current repo state.
+
+## 4. Verification Rules
+
+Before writing any factual statement about repo state:
+
+1. Read the file. Memory and prior conversation are not evidence.
+2. Default values come from actual config/default files, not from paper summaries alone.
+3. "Does not exist" claims require a search.
+4. Implementation status should be checked against code, not inferred only from status docs.
+5. Validation scripts are part of the authority chain, not incidental tools; read them before characterizing what they enforce.
+
+## 5. Working Rules
+
+1. Check `git status --short` before editing.
+2. Do not overwrite or revert unrelated local changes.
+3. Prefer editing one architectural layer at a time; do not mix phase goals casually.
+4. Keep runtime truth, parameter metadata, model bundle boundaries, and UI exposure semantics separate.
+5. Do not let a profile/default shortcut become the hidden authority for simulator behavior when the active SDD says the authority should be registry-driven or contract-driven.
+6. If a file is oversized or mixed-responsibility, split by responsibility rather than arbitrary line chopping:
+   - `<= 500` lines is normal
+   - `501-650` lines is warning territory
+   - `> 650` lines should be treated as required split territory unless there is a strong reason not to
+7. Historical closure docs may explain why the current code exists, but they do not authorize new implementation direction.
+
+## 6. Architecture Expectations
+
+Agents should bias toward the target platform shape defined by the active phases:
+
+1. parameters as first-class registry entries
+2. geometry/path-loss/SINR/power/EE/policy as pluggable model bundles
+3. scenario/profile/experiment/exposure semantics as distinct layers
+4. stable runtime contracts for external consumers
+5. source-backed provenance and assumption disclosure throughout
+
+## 7. Validation Rules
+
+When code behavior changes, run the smallest relevant set during iteration, then the required validating set before claiming completion.
+
+Required validation depends on scope, but typically includes:
+
+1. `npm run lint`
+2. `npm run validate:trace`
+3. `npm run validate:profiles`
+4. `npm run validate:runtime`
+5. `npm run validate:stage` when the change is broad enough to affect integrated behavior
+
+If browser-visible behavior changes, include the relevant visual validation path and state clearly if any browser validation could not be run.
+
+## 8. Documentation Sync Rules
+
+1. If a phase boundary, authority set, or contract changes, update the corresponding SDD in the same change set.
+2. When a phase meaningfully completes, update:
+   - [sdd/ntn-sim-core-implementation-status.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-implementation-status.md)
+   - the affected phase SDD
+   - [README.md](/home/u24/papers/ntn-sim-core/README.md) if the entry-point guidance changed
+3. Do not move historical notes back into the active `sdd/` directory.
+
+## 9. Provenance Rules
+
+1. No hidden KPI-impacting constants.
+2. Any new `ASSUME-*`, `PAP-*`, or `STD-*` reference must be registered on the correct source surface in the same change set.
+3. Do not let source registry metadata and runtime usage drift.
+4. If a parameter changes semantics, update the parameter spec / provenance docs in the same change set.
+
+## 10. Donor / External Project Rule
+
+1. `project/beamHO-bench/` is donor/reference-only for current `ntn-sim-core` work.
+2. `project/estnet-ui-kickoff/` or other external consumers should be treated as future contract consumers, not internal module owners.
+3. If borrowing ideas from donor repos, re-express them through `ntn-sim-core` contracts and active SDD vocabulary.

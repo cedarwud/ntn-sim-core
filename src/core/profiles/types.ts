@@ -37,7 +37,7 @@ export type ProfileFamily =
   /**
    * Spec §10 Realistic first-screen preset: all user-facing parameters are
    * paper-backed or standard-backed; no Advanced entries. One Internal-only
-   * entry (ASSUME-CHAN-001: noise_temperature_k=290K) is retained for audit
+   * entry (ASSUME-CUR-002: noise_temperature_k=290K) is retained for audit
    * traceability but is not exposed as a UI control (spec R7). Safe for
    * thesis baseline tables.
    * Defined in defaults.ts as REALISTIC_FIRST_SCREEN.

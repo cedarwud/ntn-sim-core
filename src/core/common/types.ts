@@ -39,7 +39,7 @@ export type SpecMode = 'Realistic' | 'Advanced' | 'Sensitivity' | 'Internal-only
 /** Metadata for a source-tier annotation. */
 export interface SourceReference {
   tier: SourceTier;
-  /** e.g. "PAP-2022-SINR-ELEVATION", "3GPP TR 38.811", "ASSUME-CHAN-001" */
+  /** e.g. "PAP-2022-SINR-ELEVATION", "3GPP TR 38.811", "ASSUME-CUR-002" */
   id: string;
   /** Human-readable note. */
   note?: string;

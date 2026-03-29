@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.0.4
-**Date:** 2026-03-27
-**Status:** Prior hardening/closure program complete for the old enforced SDD set; `validate:stage` passing; active development has now shifted to the simulator platform refactor program
+**Version:** 4.0.5
+**Date:** 2026-03-29
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0A (current-state inventory) complete — findings are recorded in `sdd/phase0-architecture-spec.md` and Phase 0B is now the next active design step.
 
 ---
 
@@ -114,7 +114,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
 | `orbit` | 9 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `index.ts` |
 | `channel` | 9 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `small-scale-fading.ts`, `doppler.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
-| `handover` | 7 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `types.ts`, `index.ts` |
+| `handover` | 9 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `ranking.ts`, `d2-distance.ts`, `types.ts`, `index.ts` |
 | `kpi` | 4 | `accumulator.ts`, `recompute.ts`, `types.ts`, `index.ts` |
 | `beam` | 7 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `frequency-reuse.ts`, `types.ts`, `index.ts` |
 | `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
@@ -133,9 +133,38 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 ### `src/viz/` — current inventory
 
+| Subdirectory | Files | Key Modules |
+|---|---|---|
+| `beam` | 4 | `moving-beam-geometry.ts`, `beam-selection.ts` (display-side), `bh-cell-analysis.ts`, `index.ts` |
+| `satellite` | 2 | `observer-sky-projection.ts`, `index.ts` |
+| `overlays` | 11 | `ControlPanel.tsx`, `SimHud.tsx`, `BeamInfoOverlay.tsx`, `HandoverLinkOverlay.tsx`, `BhExplainabilityPanel.tsx`, `BatchKpiPanel.tsx`, `HoEventLogOverlay.tsx`, `SinrCdfOverlay.tsx`, `SinrElevationScatter.tsx`, `SinrTimeSeriesOverlay.tsx`, `Starfield.tsx`, `ValidationProbe.tsx` |
+| `scene` | 3 | `SceneShell.tsx`, `NTPUScene.tsx`, `CameraRig.tsx` |
+| `validation` | 1 | `store.ts` (browser-side validation probe store) |
+
 ### `src/app/` — current inventory
 
+| Subdirectory | Files | Key Modules |
+|---|---|---|
+| `hooks` | 5 | `useSimulation.ts`, `useReplay.ts`, `useBatchKpi.ts` (imports benchmark-runner directly), `useSceneQueryState.ts`, `index.ts` |
+
 ### `scripts/` — current validation + utility scripts
+
+| Script | Role |
+|---|---|
+| `validate-specmode-gating.mjs` | Checks sourceMap tier/specMode rules (Rules 1–6) + heuristic semantic consistency between ASSUME-* IDs and their `parameterPath` (Rule 7); part of authority chain |
+| `validate-traceability-placeholders.mjs` | Checks ASSUME-/PAP-/STD- ID presence |
+| `validate-assumption-manifest.mjs` | Checks AssumptionRecord completeness |
+| `validate-core-purity.mjs` | Checks no React/Three.js imports in `src/core/` |
+| `validate-structure.mjs` | Checks directory/file structure |
+| `validate-runtime.mjs` | Runtime smoke checks |
+| `validate-profile-layout.mjs` | Profile schema compliance |
+| `validate-multibeam-gating.ts` | Multi-beam gate |
+| `validate-orbit-parity.ts`, `validate-replay-manifest.ts`, `validate-final.mjs`, `validate-visual-browser.ts` | Orbit / replay / final / browser gates |
+| `golden-case-channel.mjs`, `golden-case-engine.ts`, `golden-case-orbit.mjs` | Golden case reference checks |
+| `run-baseline.ts`, `run-reproduction-comparison.ts` | Baseline and reproduction runners |
+| `audit-profiles.ts`, `check-*.ts` | Debug / inspection utilities |
+
+**Note:** `validate:specmode` verifies ID presence, specMode rule compliance, and (Rule 7) a heuristic semantic consistency check between `paper-sources.json` definitions and `defaults.ts` sourceMap `parameterPath` usage. Rule 7 is term-matching only — it is not full semantic equivalence — but it catches the coarsest category of provenance drift. `validate:trace` verifies ASSUME-/PAP-/STD- ID presence only.
 
 ---
 

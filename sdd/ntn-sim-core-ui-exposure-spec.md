@@ -53,7 +53,7 @@ The profile selector is the primary user-facing parameter control. It exposes co
 |---|---|---|
 | `realistic-first-screen` | Realistic — Ka 20 GHz, A3 HO (spec §10) | 600 km, Ka 20 GHz, A3 HO, FR3, 19 beams, NF=9 dB |
 
-This is the **default profile** when no `?profile=` URL param is set. All user-facing parameters are paper-backed or standard-backed. No Advanced entries. One Internal-only entry (`ASSUME-CHAN-001`: `noise_temperature_k = 290 K`) is present in the profile for audit traceability but is not exposed as a UI control — it is a fixed engineering constant per spec R7. Safe for thesis baseline tables.
+This is the **default profile** when no `?profile=` URL param is set. All user-facing parameters are paper-backed or standard-backed. No Advanced entries. One Internal-only entry (`ASSUME-CUR-002`: `noise_temperature_k = 290 K`) is present in the profile for audit traceability but is not exposed as a UI control — it is a fixed engineering constant per spec R7. Safe for thesis baseline tables.
 
 #### Advanced
 
@@ -188,7 +188,7 @@ Current active assumptions (see `ntn-sim-core-assumption-policy.md` for full reg
 
 | Assumption ID | Parameter | Exposure mode |
 |---|---|---|
-| `ASSUME-CHAN-001` | `noise_temperature_k = 290 K` | Internal-only (all profiles) |
+| `ASSUME-CUR-002` | `noise_temperature_k = 290 K` | Internal-only (all profiles) |
 | `ASSUME-HO-TTT-NTN` | `ttt_ms = 640 ms` in legacy profiles | Advanced |
 | `ASSUME-HO-THRESHOLD-SINR` | `trigger_threshold_db = −6 dB` in legacy profiles | Advanced |
 | `ASSUME-ENERGY-001` | `activeBeamPowerW/idlePowerW = 20/5 W` | Internal-only |

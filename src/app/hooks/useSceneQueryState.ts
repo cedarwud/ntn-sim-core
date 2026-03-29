@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 /**
  * Default profile: Realistic first-screen preset per simulator-parameter-spec.md §10.
  * All user-facing parameters are paper-backed or standard-backed; no Advanced entries.
- * One Internal-only entry (ASSUME-CHAN-001: noise_temperature_k=290K) is present for audit
+ * One Internal-only entry (ASSUME-CUR-002: noise_temperature_k=290K) is present for audit
  * traceability but is not exposed as a UI control (spec R7 fixed engineering constant).
  */
 const DEFAULT_PROFILE_ID = 'realistic-first-screen';

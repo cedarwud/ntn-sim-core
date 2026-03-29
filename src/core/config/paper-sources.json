@@ -1,7 +1,6 @@
 {
   "_comment": "Canonical registry of paper source IDs used in @source annotations throughout ntn-sim-core.",
   "_format": "PAP-YYYY-LABEL: each entry maps to one reviewed paper; STD-*: 3GPP/ITU standards; ASSUME-*: explicit modeling assumptions.",
-
   "papers": {
     "PAP-2021-SHADOWED-RICIAN": {
       "title": "A Statistical Model for the Land Mobile Satellite Channel and Its Application to Nongeostationary Orbit Systems",
@@ -9,185 +8,273 @@
       "venue": "IEEE Trans. Veh. Technol.",
       "year": 2021,
       "topic": "Shadowed-Rician small-scale fading model (Tier 5)",
-      "usedIn": ["src/core/channel/small-scale-fading.ts"]
+      "usedIn": [
+        "src/core/channel/small-scale-fading.ts"
+      ]
     },
     "PAP-2022-A4EVENT-CORE": {
       "title": "Handover Management in LEO Satellite Networks (A4-event baseline)",
       "year": 2022,
       "topic": "A4 event trigger threshold, hysteresis, TTT parameters",
-      "usedIn": ["src/core/handover/manager.ts", "src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/handover/manager.ts",
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "PAP-2022-SINR-ELEVATION": {
       "title": "SINR and Elevation Threshold Co-design for LEO Handover",
       "year": 2022,
       "topic": "min_elevation_deg = 10°, trigger_threshold_db = -3 dB reference",
-      "usedIn": ["src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "PAP-2022-SENSORS-BH": {
       "title": "Three-Dimensional Resource Allocation for Beam Hopping in LEO Satellite Networks",
       "year": 2022,
       "topic": "Beam geometry and implementation losses (0.5 dB feeder + 2.0 dB pointing)",
-      "usedIn": ["src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "PAP-2024-BEAM-MGMT-SPECTRUM": {
       "title": "Beam Management and Spectrum Reuse in Multi-Beam LEO",
       "year": 2024,
       "topic": "FRF reuse-7 geometry, hex beam layout",
-      "usedIn": ["src/core/beam/frequency-reuse.ts"]
+      "usedIn": [
+        "src/core/beam/frequency-reuse.ts"
+      ]
     },
     "PAP-2024-HDMMA-MOBILITY": {
       "title": "Handover Decision-Making with Mobility Awareness for LEO NTN",
       "year": 2024,
       "topic": "UE mobility model integration with handover trigger",
-      "usedIn": ["src/core/ue/mobility.ts"]
+      "usedIn": [
+        "src/core/ue/mobility.ts"
+      ]
     },
     "PAP-2024-HOBS": {
       "title": "Handover Optimization for Beam-Switching in LEO Networks (HOBS)",
       "year": 2024,
       "topic": "Walker(55°,72,6,F=1), 550km, Ka-band 28GHz, 100MHz BW, 37 beams, FRF=3, Pmax=50dBm, gamma_thr=10dB",
-      "usedIn": ["src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "PAP-2024-MADRL-CORE": {
       "title": "Multi-Agent DRL for LEO Satellite Beam Hopping Scheduling",
       "year": 2024,
       "topic": "BH scheduling MADRL baseline, beam slot assignment",
-      "usedIn": ["src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/beam/scheduler.ts"
+      ]
     },
     "PAP-2024-MCCHO-CORE": {
       "title": "MC-CHO: Multi-Connectivity Conditional Handover for LEO NTN",
       "year": 2024,
       "topic": "MC-HO dual-active phase, packet duplication, CHO comparison",
-      "usedIn": ["src/core/handover/mc-ho.ts", "src/core/handover/cho.ts"]
+      "usedIn": [
+        "src/core/handover/mc-ho.ts",
+        "src/core/handover/cho.ts"
+      ]
     },
     "PAP-2025-DAPS-CORE": {
       "title": "DAPS Handover for LEO Non-Terrestrial Networks",
       "year": 2025,
       "topic": "DAPS dual-active procedure, path switch timing, zero-interruption HO",
-      "usedIn": ["src/core/handover/daps.ts"]
+      "usedIn": [
+        "src/core/handover/daps.ts"
+      ]
     },
     "PAP-2025-DIST-BH-HETERO": {
       "title": "Distributed Beam Hopping in Heterogeneous LEO Constellations",
       "year": 2025,
       "topic": "BH slot distribution, heterogeneous satellite power",
-      "usedIn": ["src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/beam/scheduler.ts"
+      ]
     },
     "PAP-2025-DYNLHT-VELOCITY": {
       "title": "Dynamic LEO Handover Threshold Adaption via Satellite Velocity",
       "year": 2025,
       "topic": "Velocity-aware TTT adjustment, Doppler-assisted trigger",
-      "usedIn": ["src/core/handover/manager.ts", "src/core/channel/doppler.ts"]
+      "usedIn": [
+        "src/core/handover/manager.ts",
+        "src/core/channel/doppler.ts"
+      ]
     },
     "PAP-2025-EAQL": {
       "title": "Energy-Aware Q-Learning for LEO Handover Optimization (EAQL)",
       "year": 2025,
       "topic": "Energy cost per HO, Q-learning reward function",
-      "usedIn": ["src/core/energy/layer1.ts"]
+      "usedIn": [
+        "src/core/energy/layer1.ts"
+      ]
     },
     "PAP-2025-EEBH-UPLINK": {
       "title": "Energy-Efficient Beam Hopping for Uplink LEO NTN",
       "year": 2025,
       "topic": "Uplink BH energy model, slot-level energy accounting",
-      "usedIn": ["src/core/energy/layer1.ts", "src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/energy/layer1.ts",
+        "src/core/beam/scheduler.ts"
+      ]
     },
     "PAP-2025-MAAC-BHPOWER": {
       "title": "Multi-Agent Actor-Critic for Beam Hopping Power Allocation in LEO",
       "year": 2025,
       "topic": "Joint BH pattern + power allocation, MAAC architecture",
-      "usedIn": ["src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/beam/scheduler.ts"
+      ]
     },
     "PAP-2025-MADQN-HO": {
       "title": "MADQN-based Handover for Multi-Satellite LEO Networks",
       "year": 2025,
       "topic": "Multi-agent DQN handover, shared observation space",
-      "usedIn": ["src/core/rl/policy.ts"]
+      "usedIn": [
+        "src/core/rl/policy.ts"
+      ]
     },
     "PAP-2025-RSMA": {
       "title": "Rate Splitting Multiple Access for GEO+LEO Soft Handover",
       "year": 2025,
       "topic": "RSMA dual-connectivity model, DAPS comparison",
-      "usedIn": ["src/core/handover/daps.ts"]
+      "usedIn": [
+        "src/core/handover/daps.ts"
+      ]
     },
     "PAP-2025-SMASH-MADQL": {
       "title": "SMASH: Satellite Multi-Agent SINR-Aware Handover (MADQL)",
       "year": 2025,
       "topic": "MADQL multi-satellite coordination, energy efficiency metric",
-      "usedIn": ["src/core/rl/policy.ts", "src/core/energy/layer1.ts"]
+      "usedIn": [
+        "src/core/rl/policy.ts",
+        "src/core/energy/layer1.ts"
+      ]
     },
     "PAP-2025-TIMERCHO-CORE": {
       "title": "Timer-CHO: Geometry-Assisted Conditional Handover for LEO NTN",
       "year": 2025,
       "topic": "Timer-CHO α factor, ToS_remain geometry, L3 IIR filter k",
-      "usedIn": ["src/core/handover/cho.ts", "src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/handover/cho.ts",
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "PAP-2026-BHFREQREUSE": {
       "title": "Beam Hopping with Frequency Reuse Optimization in LEO",
       "year": 2026,
       "topic": "FRF collision detection, BH+FRF co-scheduling",
-      "usedIn": ["src/core/beam/frequency-reuse.ts", "src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/beam/frequency-reuse.ts",
+        "src/core/beam/scheduler.ts"
+      ]
     },
     "PAP-2026-DRL-BHOPT": {
       "title": "DRL-based Beam Hopping Optimization for LEO Satellite Systems",
       "year": 2026,
       "topic": "DRL BH optimization, window-based scheduling",
-      "usedIn": ["src/core/beam/scheduler.ts"]
+      "usedIn": [
+        "src/core/beam/scheduler.ts"
+      ]
     }
   },
-
   "standards": {
     "STD-3GPP-38331": {
       "id": "3GPP TS 38.331",
       "title": "NR; Radio Resource Control (RRC) protocol specification",
       "version": "17.x",
-      "relevantSections": ["§5.3.10 (RLF T310/N310/N311)", "§5.3.3 (CHO)", "§6.3.2 (measurement config)"],
-      "usedIn": ["src/core/handover/manager.ts", "src/core/handover/cho.ts", "src/core/handover/types.ts"]
+      "relevantSections": [
+        "§5.3.10 (RLF T310/N310/N311)",
+        "§5.3.3 (CHO)",
+        "§6.3.2 (measurement config)"
+      ],
+      "usedIn": [
+        "src/core/handover/manager.ts",
+        "src/core/handover/cho.ts",
+        "src/core/handover/types.ts"
+      ]
     },
     "STD-3GPP-38133": {
       "id": "3GPP TS 38.133",
       "title": "NR; Requirements for support of radio resource management",
-      "relevantSections": ["§7.6 (Qout/Qin SINR thresholds for RLF)"],
-      "usedIn": ["src/core/handover/manager.ts"]
+      "relevantSections": [
+        "§7.6 (Qout/Qin SINR thresholds for RLF)"
+      ],
+      "usedIn": [
+        "src/core/handover/manager.ts"
+      ]
     },
     "STD-3GPP-38811": {
       "id": "3GPP TR 38.811",
       "title": "Study on New Radio (NR) to support non-terrestrial networks",
-      "relevantSections": ["Table 6.6.2-1 (dense-urban SF/CL)", "Table 6.6.2-3 (suburban/rural SF/CL)", "§6.7 (NTN channel model)"],
-      "usedIn": ["src/core/channel/link-budget.ts", "src/core/channel/shadow-fading.ts"]
+      "relevantSections": [
+        "Table 6.6.2-1 (dense-urban SF/CL)",
+        "Table 6.6.2-3 (suburban/rural SF/CL)",
+        "§6.7 (NTN channel model)"
+      ],
+      "usedIn": [
+        "src/core/channel/link-budget.ts",
+        "src/core/channel/shadow-fading.ts"
+      ]
     },
     "STD-3GPP-38811-LOS-20DEG": {
       "id": "3GPP TR 38.811 §6.7 LOS threshold approximation",
       "title": "LOS elevation threshold 20° — simplified approximation of TR 38.811 §6.7 LOS probability function",
-      "relevantSections": ["§6.7 (NTN channel model, elevation-dependent LOS probability)"],
+      "relevantSections": [
+        "§6.7 (NTN channel model, elevation-dependent LOS probability)"
+      ],
       "note": "The 20° single-threshold approximation replaces the continuous probability function P_LOS(α) with a binary decision: elevation ≥ 20° → LOS; <20° → NLOS. This is a conventional simulator simplification used across multiple corpus papers. The exact value 20° is not normatively mandated but is consistent with §6.7 minimum operational elevation angle guidance.",
-      "usedIn": ["src/core/engine.ts", "src/core/profiles/defaults.ts"]
+      "usedIn": [
+        "src/core/engine.ts",
+        "src/core/profiles/defaults.ts"
+      ]
     },
     "STD-3GPP-38821": {
       "id": "3GPP TR 38.821",
       "title": "Solutions for NR to support non-terrestrial networks",
-      "relevantSections": ["§6.3.4 (T310 extension for NTN propagation delay)"],
-      "usedIn": ["src/core/handover/manager.ts"]
+      "relevantSections": [
+        "§6.3.4 (T310 extension for NTN propagation delay)"
+      ],
+      "usedIn": [
+        "src/core/handover/manager.ts"
+      ]
     },
     "STD-ITU-P676": {
       "id": "ITU-R P.676-12",
       "title": "Attenuation by atmospheric gases and related effects",
-      "usedIn": ["src/core/channel/link-budget.ts"]
+      "usedIn": [
+        "src/core/channel/link-budget.ts"
+      ]
     },
     "STD-ITU-P618": {
       "id": "ITU-R P.618-14",
       "title": "Propagation data and prediction methods required for Earth-space systems",
-      "usedIn": ["src/core/channel/link-budget.ts"]
+      "usedIn": [
+        "src/core/channel/link-budget.ts"
+      ]
     },
     "STD-ITU-S672": {
       "id": "ITU-R S.672-4",
       "title": "Satellite antenna radiation pattern for use as a design objective",
-      "relevantSections": ["Bessel J1/J3 antenna pattern"],
-      "usedIn": ["src/core/channel/beam-gain.ts"]
+      "relevantSections": [
+        "Bessel J1/J3 antenna pattern"
+      ],
+      "usedIn": [
+        "src/core/channel/beam-gain.ts"
+      ]
     },
     "STD-3GPP-38811-TABLE-4.4-1": {
       "id": "3GPP TR 38.811",
       "title": "Study on New Radio (NR) to support non-terrestrial networks — UE noise figure table",
       "version": "15.x",
-      "relevantSections": ["Table 4.4-1: handheld UE NF = 9 dB; laptop/VSAT NF = 5 dB"],
-      "usedIn": ["src/core/profiles/defaults.ts"],
+      "relevantSections": [
+        "Table 4.4-1: handheld UE NF = 9 dB; laptop/VSAT NF = 5 dB"
+      ],
+      "usedIn": [
+        "src/core/profiles/defaults.ts"
+      ],
       "note": "Handheld profiles (S-band case 9) use NF=9 dB; Ka-band VSAT-like profiles use NF=5 dB"
     },
     "3GPP-NTN-ACCESS": {
@@ -207,7 +294,6 @@
       "note": "Used as sourceMap id '3GPP-NTN-ACCESS' in profile sourceMap entries; covers minimum elevation, deployment-environment-dependent SF/CL, and NTN channel tier selection"
     }
   },
-
   "assumptions": {
     "ASSUME-ORB-001": "Walker constellation: circular orbit, equal spacing, phasing factor F per 3GPP TR 38.821 §5.2",
     "ASSUME-ORB-002": "SGP4 propagation uses satellite.js; atmospheric drag model B* from TLE",
@@ -221,7 +307,7 @@
     "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed",
     "ASSUME-HO-ENERGY-001": "Per-handover energy cost E_u,HO has no corpus-backed numeric default in the final simulator spec. If energy_per_handover_j is set, it must be labeled assumption-backed, provenance-tagged at parameterPath=energy.energy_per_handover_j, and reported as a scenario sensitivity parameter rather than a paper-backed baseline constant.",
     "ASSUME-ENE-001": "Layer 2 energy: solar panel output constant during eclipse = 0; beta angle determines eclipse fraction",
-    "ASSUME-RF-001": "UE noise figure: 9 dB (handheld, S-band case 9 per 3GPP TR 38.811 Table 4.4-1) or 5 dB (VSAT/Ka-band per same table). noise_temperature_k represents T_ant = 290K (clear-sky conservative). satellite EIRP from profile. link margin not separately budgeted.",
+    "ASSUME-RF-001": "Carrier frequency assumption: Ka-band 20 GHz used as representative value for BH resource-allocation studies where no single corpus paper specifies the exact downlink frequency. Must be swept in frequency-sensitive experiments. NF and noise temperature are covered by STD-3GPP-38811-TABLE-4.4-1 and ASSUME-CUR-002 respectively.",
     "ASSUME-CUR-002": "Thermal noise T_sys = T_ant + T_0*(NF-1); T_ant = 290 K (clear sky); T_0 = 290 K",
     "ASSUME-TRAJECTORY-CACHE-PRECOMPUTE": "Satellite positions pre-computed at 0.5 s intervals; interpolated cubically between ticks",
     "ASSUME-MEO-BASELINE": "MEO cross-orbit comparison baseline: O3b-like circular orbit ~8062 km equatorial, Ka-band, single beam per satellite",
@@ -232,6 +318,7 @@
     "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope",
     "ASSUME-HO-TTT-NTN": "NTN-extended TTT=640 ms: all canonical profiles use ttt_ms=640 as a representative 3GPP NTN value. Rationale: spec H2 lists paper-backed presets of 0/40/256 ms (PAP-2022-A4EVENT-CORE uses 40 ms); the NTN context adds propagation delay compensation overhead (~2×one-way delay ≈ 2×4 ms at 600 km). 640 ms is used as a conservative NTN baseline that was common in early 3GPP NTN study-item discussions, but no specific corpus paper assigns exactly 640 ms as the default. Claim scope: assumption-backed placeholder for NTN TTT; must be swept in sensitivity analysis for handover-timing-sensitive experiments. Spec mode: Advanced (not Realistic per H2). Do not present 640 ms as a paper-backed fixed default in thesis comparison tables.",
     "ASSUME-HO-THRESHOLD-SINR": "SINR-relative trigger threshold: all profiles use trigger_threshold_db=−6 dB as a SINR-relative handover threshold. This is a design-level simplification vs spec H3, which specifies an A4 absolute power threshold derived as noise_floor_dBm + Q_out. The −6 dB SINR form is an engineering choice that avoids maintaining a noise-floor estimate in the trigger path; no corpus paper explicitly uses −6 dB SINR as the A4 threshold in this relative form. Claim scope: assumption-backed SINR gating value; must be declared in thesis as a simplification of the full H3 derivation. Spec mode: Advanced (manual setting; Realistic requires derivation per H3).",
-    "ASSUME-SINR-LOS-THRESHOLD": "DEPRECATED legacy alias for the LOS-threshold provenance entry. New sourceMap entries must use STD-3GPP-38811-LOS-20DEG instead. This ASSUME-* id predates the later reclassification of the 20° LOS threshold as a standard-backed approximation of 3GPP TR 38.811 §6.7. Keep only for backward audit traceability; do not use in new Realistic profiles or new UI/schema exposure logic."
+    "ASSUME-SINR-LOS-THRESHOLD": "DEPRECATED legacy alias for the LOS-threshold provenance entry. New sourceMap entries must use STD-3GPP-38811-LOS-20DEG instead. This ASSUME-* id predates the later reclassification of the 20° LOS threshold as a standard-backed approximation of 3GPP TR 38.811 §6.7. Keep only for backward audit traceability; do not use in new Realistic profiles or new UI/schema exposure logic.",
+    "ASSUME-BW-001": "500 MHz bandwidth: representative value for BH resource-allocation studies; no single corpus paper mandates this exact value; must be swept as sensitivity parameter in BW-sensitive experiments"
   }
 }

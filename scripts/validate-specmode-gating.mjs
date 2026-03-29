@@ -14,6 +14,11 @@
  *           (Realistic preset must be clean for thesis baseline tables)
  *   Rule 6: any profile with layer1_enabled=true must have at least one energy sourceMap entry — FAIL if absent
  *           (P5/P6/P7 beam-state power assumptions must be disclosed in AssumptionSet)
+ *   Rule 7: heuristic semantic consistency — for each ASSUME-* sourceMap entry that has a parameterPath,
+ *           the registry description in paper-sources.json must contain at least one key term related to
+ *           that parameterPath (e.g. 'noise_temperature' → registry must mention 'noise' or 'temperature';
+ *           'bandwidth' → 'bandwidth', 'BW', or 'MHz'). Catches obvious mismatches where an ID is reused
+ *           for an unrelated parameter. Heuristic only — does not guarantee full semantic equivalence.
  *
  * Warnings (exit 0 but reported):
  *   Warn A: assumption-backed entries without any specMode tag
@@ -142,6 +147,56 @@ for (const lm of layer1Matches) {
   if (!hasEnergyEntry) {
     console.error(`  FAIL [Rule 6]: profile id='${profileId}' has layer1_enabled=true but no energy-related sourceMap entry`);
     console.error(`    P5/P6/P7 beam-state power values must be disclosed (add ASSUME-ENERGY-001 or equivalent)`);
+    failures++;
+  }
+}
+
+// --- Rule 7: semantic consistency — ASSUME-* ID description must be plausibly related to parameterPath ---
+// Heuristic: extract key terms from parameterPath and check registry description contains at least one.
+// Only applied to entries that have both an ASSUME-* id and a parameterPath.
+const paramPathPattern = /\{\s*tier:\s*'([^']+)',\s*id:\s*'([^']+)'[^}]*parameterPath:\s*'([^']+)'[^}]*\}/g;
+const paramPathEntries = [];
+let pp;
+while ((pp = paramPathPattern.exec(defaultsText)) !== null) {
+  paramPathEntries.push({ tier: pp[1], id: pp[2], parameterPath: pp[3] });
+}
+
+const termMap = {
+  'noise_temperature': ['noise', 'temperature', 'T_ant', 'T_sys'],
+  'noise_figure':      ['noise', 'figure', 'NF'],
+  'path_loss':         ['path loss', 'path_loss', 'tier', 'FSPL', 'attenuation'],
+  'frequency':         ['frequency', 'freq', 'GHz', 'band'],
+  'bandwidth':         ['bandwidth', 'BW', 'MHz'],
+  'tx_power':          ['power', 'dBm', 'dBW', 'P_tx', 'EIRP'],
+  'eirp':              ['EIRP', 'power', 'dBW'],
+  'energy':            ['energy', 'power', 'W', 'battery', 'solar'],
+  'beam':              ['beam', 'antenna', 'gain'],
+  'handover':          ['handover', 'HO', 'trigger', 'TTT', 'hysteresis'],
+};
+
+for (const e of paramPathEntries) {
+  if (!e.id.startsWith('ASSUME-')) continue;
+  const registryDesc = paperSources.assumptions[e.id];
+  if (!registryDesc) continue; // Rule 2 already handles missing IDs
+
+  // Find which term group applies to this parameterPath
+  const pathLower = e.parameterPath.toLowerCase();
+  let expectedTerms = null;
+  for (const [key, terms] of Object.entries(termMap)) {
+    if (pathLower.includes(key)) {
+      expectedTerms = terms;
+      break;
+    }
+  }
+  if (!expectedTerms) continue; // parameterPath not covered by heuristic — skip
+
+  const descLower = registryDesc.toLowerCase();
+  const matched = expectedTerms.some(t => descLower.includes(t.toLowerCase()));
+  if (!matched) {
+    console.error(`  FAIL [Rule 7]: ASSUME-* ID semantic mismatch:`);
+    console.error(`    id='${e.id}' used on parameterPath='${e.parameterPath}'`);
+    console.error(`    Registry description: "${registryDesc.slice(0, 100)}"`);
+    console.error(`    Expected description to mention one of: ${expectedTerms.join(', ')}`);
     failures++;
   }
 }
