@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.0.7
+**Version:** 4.1.0
 **Date:** 2026-03-29
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete. Phase 1 (Parameter Registry) complete — `parameter-registry.ts` (58 entries), VAL-PLAT-001/002/003 passing. Phase 2 (Model Bundle Interfaces) SDD Group 1 complete (2026-03-29); Group 2 (implementation) not started.
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete. Phase 1 (Parameter Registry) complete — `parameter-registry.ts` (58 entries), VAL-PLAT-001/002/003 passing. Phase 2 (Model Bundle Interfaces) complete (2026-03-29) — SDD + implementation + VAL-PLAT-004/004b/005 passing; `validate:bundle` green.
 
 ---
 
@@ -28,7 +28,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 |---|---|---|---|
 | 0 | Architecture Audit + Target Design | ✅ complete | `sdd/phase0-architecture-spec.md §0C.7` |
 | 1 | Parameter Registry | ✅ complete | `sdd/phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing; `parameter-registry.ts` (58 entries), `validate-parameter-registry.mjs`; done 2026-03-29 |
-| 2 | Model Bundle Interfaces | 🔲 not started — SDD Group 1 complete (2026-03-29); Group 2 (implementation) not started | `sdd/phase2-model-bundle-sdd.md` — VAL-PLAT-004/004b/005 |
+| 2 | Model Bundle Interfaces | ✅ complete (2026-03-29) — `src/core/models/` (9 files), `buildModelBundle` factory, engine dispatch via bundle interfaces, `validate:bundle` (VAL-PLAT-004/004b/005 all PASS) | `sdd/phase2-model-bundle-sdd.md` §10 |
 | 3 | Scenario/Profile/Experiment Split | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-006/007 |
 | 4 | Runtime Contract Freeze | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-008/009/010 |
 | 5 | Cleanup + Modularization | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-011/012 |

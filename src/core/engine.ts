@@ -45,6 +45,11 @@ import type { BhScheduler, BhSlotDecision } from './beam/scheduler';
 import { createEnergyLayer2 } from './energy/layer2';
 import type { EnergyLayer2Manager, SatelliteEnergyLayer2State } from './energy/layer2';
 
+// Phase 2: Model Bundle interfaces
+import { buildModelBundle } from './models/model-bundle.js';
+import type { ModelBundle } from './models/model-bundle.js';
+import type { LargeScaleModel } from './channel/types.js';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -175,6 +180,13 @@ function computeDopplerDegradationDb(
 export function createSimEngine(config: SimEngineConfig): SimEngine {
   const { profile, trajectoryCache, policy = null } = config;
 
+  // DP-2 resolved: internal build; SimEngineConfig signature unchanged.
+  // engine calls buildModelBundle internally; public API is unchanged.
+  // DP-5 resolved: NO_OP_POLICY default; engine overrides bundle.policy when config.policy is provided.
+  // DP-6 resolved: StandardSinrModel static; DAPS inline in engine.
+  let bundle: ModelBundle = buildModelBundle(profile, trajectoryCache);
+  if (policy) bundle = { ...bundle, policy };
+
   // Derived RF parameters (computed once)
   // P1-path: if tx_power_per_beam_dbm (spec P1) is set, derive EIRP from it +
   // peak_gain_dbi - implementation_loss_db. This aligns the signal path with the
@@ -203,7 +215,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   let rng = createRng(profile.seed);
 
   // Handover manager (Phase A shared, or Phase B primary fallback)
-  let hoManager = createBaselineFromConfig(profile.handover);
+  // P2-8: via bundle.handover.createManager (wraps createBaselineFromConfig)
+  let hoManager = bundle.handover.createManager(profile.handover);
 
   // MS2: Phase B independent HO — one HandoverManager per UE
   const independentHandover = profile.ueConfig.independentHandover === true;
@@ -227,9 +240,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   );
 
   // MS2: Populate per-UE HO managers for Phase B
+  // P2-8: via bundle.handover.createManager
   if (independentHandover) {
     for (const ue of uePositions) {
-      hoManagers.set(ue.id, createBaselineFromConfig(profile.handover));
+      hoManagers.set(ue.id, bundle.handover.createManager(profile.handover));
     }
   }
 
@@ -695,6 +709,218 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   }
 
   // ---------------------------------------------------------------------------
+  // P2-2/P2-4/P2-6: Bundle-dispatched SINR helpers (replace raw tier-flag chains)
+  //
+  // These replace the dispatch to computeSatSinrPhase2 / computeSatSinrPhase3.
+  // The old function bodies are retained below as dead code (delete in Phase 5 P5-3).
+  // ---------------------------------------------------------------------------
+
+  const _bundleTiers = () => ({
+    t1_large_scale: profile.channel.tier1_large_scale,
+    t2_clutter: profile.channel.tier2_clutter,
+    t4_atmospheric: profile.channel.tier4_atmospheric,
+    t5_fading: profile.channel.tier5_fading,
+    t6_doppler: profile.channel.tier6_doppler ?? false,
+  });
+
+  const _bundleBandConfig = () => ({
+    largescaleModel: largeScaleModel as LargeScaleModel,
+    subcarrierSpacingKhz: profile.channel.subcarrier_spacing_khz ?? 30,
+  });
+
+  /** P2-2/P2-4/P2-6: Bundle-based single-beam SINR (replaces computeSatSinrPhase2 dispatch). */
+  function computeBundleSinrSingleBeam(
+    servingSample: TrajectorySample,
+    interferingSamples: TrajectorySample[],
+  ): number {
+    const rngFn = profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null;
+    const isLos = (s: TrajectorySample) => s.elevationDeg >= (profile.channel.los_elevation_deg ?? 20);
+    const tiers = _bundleTiers();
+    const bandConfig = _bundleBandConfig();
+
+    // P2-2: bundle.pathLoss.compute with beam gain excluded
+    const servingPL = bundle.pathLoss.compute({
+      distanceKm: servingSample.rangeKm,
+      frequencyGhz: profile.rf.frequency_ghz,
+      elevationDeg: servingSample.elevationDeg,
+      environment: deploymentEnvironment,
+      isLos: isLos(servingSample),
+      txEirpDbm: txEirp,
+      implementationLossDb,
+      rngNext: rngFn,
+      tiers,
+      bandConfig,
+    });
+
+    // P2-4: bundle.beamGain.computeGainDb for serving (UE at beam center → offAxis=0)
+    const servingBeamGainDb = profile.channel.tier3_beam_gain
+      ? bundle.beamGain.computeGainDb({
+          offAxisAngleDeg: 0,
+          peakGainDbi: profile.antenna.peak_gain_dbi,
+          beamDiameterKm: profile.antenna.beam_diameter_km,
+          altitudeKm: servingSample.altKm,
+          slantRangeKm: servingSample.rangeKm,
+        })
+      : 0;
+
+    // C1 fix: per-interferer path loss (preserved via bundle)
+    const interferingRxPowersDbm: number[] = [];
+    for (const iSample of interferingSamples) {
+      const iPL = bundle.pathLoss.compute({
+        distanceKm: iSample.rangeKm,
+        frequencyGhz: profile.rf.frequency_ghz,
+        elevationDeg: iSample.elevationDeg,
+        environment: deploymentEnvironment,
+        isLos: isLos(iSample),
+        txEirpDbm: txEirp,
+        implementationLossDb,
+        rngNext: rngFn,
+        tiers,
+        bandConfig,
+      });
+      const iBeamGainDb = profile.channel.tier3_beam_gain
+        ? bundle.beamGain.computeGainDb({
+            offAxisAngleDeg: computeOffAxisAngle(
+              iSample.latDeg, iSample.lonDeg,
+              profile.observer.latitudeDeg, profile.observer.longitudeDeg,
+              iSample.altKm,
+            ),
+            peakGainDbi: profile.antenna.peak_gain_dbi,
+            beamDiameterKm: profile.antenna.beam_diameter_km,
+            altitudeKm: iSample.altKm,
+            slantRangeKm: iSample.rangeKm,
+          })
+        : 0;
+      interferingRxPowersDbm.push(iPL.rxPowerDbm + iBeamGainDb);
+    }
+
+    // Tier 6 Doppler ICI (computed separately, passed into SinrModel)
+    const dopplerLossDb = computeDopplerDegradationDb(
+      servingSample.elevationDeg, servingSample.altKm,
+      profile.rf.frequency_ghz, profile.channel.tier6_doppler ?? false,
+      profile.channel.subcarrier_spacing_khz ?? 30,
+    );
+
+    // P2-6: bundle.sinr.computeDb
+    return bundle.sinr.computeDb({
+      servingRxPowerDbm: servingPL.rxPowerDbm + servingBeamGainDb,
+      noisePowerDbm: noiseDbm,
+      interferingRxPowersDbm,
+      dopplerIciDegradationDb: dopplerLossDb,
+    });
+  }
+
+  /** P2-2/P2-4/P2-6: Bundle-based multi-beam SINR (replaces computeSatSinrPhase3 dispatch). */
+  function computeBundleSinrMultiBeam(
+    servingSatId: string,
+    servingSample: TrajectorySample,
+    servingSelection: BeamSelectionResult,
+    otherSats: Array<{ satId: string; sample: TrajectorySample; selection: BeamSelectionResult }>,
+  ): number {
+    const rngFn = profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null;
+    const isLos = (s: TrajectorySample) => s.elevationDeg >= (profile.channel.los_elevation_deg ?? 20);
+    const tiers = _bundleTiers();
+    const bandConfig = _bundleBandConfig();
+
+    const servingPL = bundle.pathLoss.compute({
+      distanceKm: servingSample.rangeKm,
+      frequencyGhz: profile.rf.frequency_ghz,
+      elevationDeg: servingSample.elevationDeg,
+      environment: deploymentEnvironment,
+      isLos: isLos(servingSample),
+      txEirpDbm: txEirp,
+      implementationLossDb,
+      rngNext: rngFn,
+      tiers,
+      bandConfig,
+    });
+
+    const servingBeamGainDb = profile.channel.tier3_beam_gain
+      ? bundle.beamGain.computeGainDb({
+          offAxisAngleDeg: servingSelection.offAxisAngleDeg,
+          peakGainDbi: profile.antenna.peak_gain_dbi,
+          beamDiameterKm: profile.antenna.beam_diameter_km,
+          altitudeKm: servingSample.altKm,
+          slantRangeKm: servingSample.rangeKm,
+        })
+      : 0;
+
+    const interferingRxPowersDbm: number[] = [];
+    const servingBeamEntry = servingSelection.allBeams.find((b) => b.beamId === servingSelection.bestBeamId);
+    const servingReuseGroup = servingBeamEntry?.reuseGroup ?? 0;
+
+    if (profile.channel.tier3_beam_gain) {
+      // Intra-satellite: same reuse group beams
+      for (const beam of servingSelection.allBeams) {
+        if (beam.beamId === servingSelection.bestBeamId) continue;
+        if (beam.reuseGroup !== servingReuseGroup) continue;
+        const iPL = bundle.pathLoss.compute({
+          distanceKm: servingSample.rangeKm,
+          frequencyGhz: profile.rf.frequency_ghz,
+          elevationDeg: servingSample.elevationDeg,
+          environment: deploymentEnvironment,
+          isLos: isLos(servingSample),
+          txEirpDbm: txEirp,
+          implementationLossDb,
+          rngNext: rngFn,
+          tiers,
+          bandConfig,
+        });
+        const iBeamGainDb = bundle.beamGain.computeGainDb({
+          offAxisAngleDeg: beam.offAxisAngleDeg,
+          peakGainDbi: profile.antenna.peak_gain_dbi,
+          beamDiameterKm: profile.antenna.beam_diameter_km,
+          altitudeKm: servingSample.altKm,
+          slantRangeKm: servingSample.rangeKm,
+        });
+        interferingRxPowersDbm.push(iPL.rxPowerDbm + iBeamGainDb);
+      }
+
+      // Inter-satellite: other visible satellites (C1 fix: per-interferer path loss)
+      for (const other of otherSats) {
+        const crossOffAxisDeg = computeOffAxisAngle(
+          other.sample.latDeg, other.sample.lonDeg,
+          profile.observer.latitudeDeg, profile.observer.longitudeDeg,
+          other.sample.altKm,
+        );
+        const iPL = bundle.pathLoss.compute({
+          distanceKm: other.sample.rangeKm,
+          frequencyGhz: profile.rf.frequency_ghz,
+          elevationDeg: other.sample.elevationDeg,
+          environment: deploymentEnvironment,
+          isLos: isLos(other.sample),
+          txEirpDbm: txEirp,
+          implementationLossDb,
+          rngNext: rngFn,
+          tiers,
+          bandConfig,
+        });
+        const iBeamGainDb = bundle.beamGain.computeGainDb({
+          offAxisAngleDeg: crossOffAxisDeg,
+          peakGainDbi: profile.antenna.peak_gain_dbi,
+          beamDiameterKm: profile.antenna.beam_diameter_km,
+          altitudeKm: other.sample.altKm,
+          slantRangeKm: other.sample.rangeKm,
+        });
+        interferingRxPowersDbm.push(iPL.rxPowerDbm + iBeamGainDb);
+      }
+    }
+
+    const dopplerLossDb3 = computeDopplerDegradationDb(
+      servingSample.elevationDeg, servingSample.altKm,
+      profile.rf.frequency_ghz, profile.channel.tier6_doppler ?? false,
+      profile.channel.subcarrier_spacing_khz ?? 30,
+    );
+
+    return bundle.sinr.computeDb({
+      servingRxPowerDbm: servingPL.rxPowerDbm + servingBeamGainDb,
+      noisePowerDbm: noiseDbm,
+      interferingRxPowersDbm,
+      dopplerIciDegradationDb: dopplerLossDb3,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Interruption accounting (A9)
   // ---------------------------------------------------------------------------
 
@@ -730,17 +956,25 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     const tickStepSec = lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1;
     mobilityUpdater.update(uePositions, tickStepSec);
 
-    // 1. Get active satellites
-    const activePasses = getActivePassesAt(trajectoryCache, timeSec);
+    // 1. Get active satellites — P2-12: via bundle.geometry.compute
+    // bundle.geometry.compute provides the typed interface dispatch.
+    // The satSamples array is derived from the geometry result for downstream compatibility.
+    const geometryResult = bundle.geometry.compute({
+      epochUtcMs: timeSec * 1000,
+      tickSec: lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1,
+      observerLocation: profile.observer,
+      uePositions: uePositions.map((ue) => ({
+        id: ue.id,
+        latDeg: profile.observer.latitudeDeg + ue.offsetNorthKm / 111.32,
+        lonDeg: profile.observer.longitudeDeg + ue.offsetEastKm / (111.32 * Math.cos(profile.observer.latitudeDeg * Math.PI / 180)),
+      })),
+    });
 
     // 2. Interpolate positions for all active satellites
-    const satSamples: Array<{ satId: string; sample: TrajectorySample }> = [];
-    for (const { satId, pass } of activePasses) {
-      const sample = interpolatePass(pass, timeSec);
-      if (sample && sample.elevationDeg > 0) {
-        satSamples.push({ satId, sample });
-      }
-    }
+    // satSamples is populated from the geometry result's embedded samples.
+    const satSamples: Array<{ satId: string; sample: TrajectorySample }> = geometryResult.satellites.map(
+      (g) => ({ satId: g.satId, sample: g.sample }),
+    );
 
     // 2b. Energy Layer 2: init new satellites, filter blocked ones
     const stepSec = lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1;
@@ -829,14 +1063,15 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     }>;
 
     if (!isMultiBeam) {
-      // --- Phase 2 path: single beam per satellite ---
+      // --- Bundle path: single beam per satellite (P2-2/P2-4/P2-6) ---
+      // computeSatSinrPhase2 body is retained as dead code (delete in Phase 5 P5-3)
       satSinrs = [];
       for (let i = 0; i < satSamples.length; i++) {
         const { satId, sample } = satSamples[i];
         const others = satSamples
           .filter((_, j) => j !== i)
           .map((s) => s.sample);
-        const sinrDb = computeSatSinrPhase2(sample, others);
+        const sinrDb = computeBundleSinrSingleBeam(sample, others);
         satSinrs.push({
           satId,
           sample,
@@ -846,8 +1081,8 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         });
       }
     } else {
-      // --- Phase 3 path: multi-beam ---
-      // First, compute beam selection for all satellites
+      // --- Bundle path: multi-beam (P2-2/P2-4/P2-6) ---
+      // computeSatSinrPhase3 body is retained as dead code (delete in Phase 5 P5-3)
       const selections: Array<{
         satId: string;
         sample: TrajectorySample;
@@ -860,20 +1095,18 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         if (lastBhSlotDecision && (!activeBeams || activeBeams.length === 0)) {
           continue;
         }
-        // Phase 3: primary UE sits at beam center; if BH is active, choose among active beams only.
+        // Primary UE at beam center; if BH is active, choose among active beams only.
         const selection = selectBeamForUe(layout, 0, 0, profile.antenna, activeBeams);
-
         selections.push({ satId, sample, selection });
       }
 
-      // Then compute SINR for each satellite using multi-beam interference model
       satSinrs = [];
       for (let i = 0; i < selections.length; i++) {
         const { satId, sample, selection } = selections[i];
         const otherSats = selections
           .filter((_, j) => j !== i)
           .map((s) => ({ satId: s.satId, sample: s.sample, selection: s.selection }));
-        const sinrDb = computeSatSinrPhase3(satId, sample, selection, otherSats);
+        const sinrDb = computeBundleSinrMultiBeam(satId, sample, selection, otherSats);
         satSinrs.push({
           satId,
           sample,
@@ -1099,7 +1332,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
       // Determine action only when policy or pending external action is present
       if (policy || pendingExternalAction !== null) {
-        const action = pendingExternalAction ?? policy?.selectAction(tickObs);
+        // P2-12 note: bundle.policy.selectAction dispatches to the active policy.
+        // bundle.policy defaults to NO_OP_POLICY; overridden at construction when config.policy is set.
+        const action = pendingExternalAction ?? bundle.policy.selectAction(tickObs);
         pendingExternalAction = null; // consume queued action
 
         if (action) {
@@ -1262,7 +1497,38 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         }
       }
 
-      lastEnergyMetrics = energyManager.computeMetrics(throughputs);
+      // P2-10: compute metrics via bundle.power / bundle.ee (wrapping layer1 arithmetic)
+      // energyManager.updateBeamStates + applyDpc above track per-beam state;
+      // bundle.power/ee compute the final KPI scalars.
+      if (bundle.power && bundle.ee) {
+        const numActiveBeams = representativeServing
+          ? (satSinrs.find((s) => s.satId === representativeServing!.satId) ? 1 : 0)
+          : 0;
+        const totalThroughputBps = Array.from(throughputs.values()).reduce((s, v) => s + v, 0);
+        const powerResult = bundle.power.compute({
+          txPowerPerBeamDbm: profile.rf.tx_power_per_beam_dbm ?? DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm,
+          numActiveBeams,
+          circuitPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.idlePowerW *
+            Math.max(0, (satSamples.reduce((sum, { satId, sample: _s }) => {
+              const layout = beamLayouts.get(satId);
+              return sum + (layout ? layout.beams.length - 1 : 0);
+            }, 0))),
+        });
+        const eeBpj = bundle.ee.computeBitsPerJoule({
+          throughputBps: totalThroughputBps,
+          totalPowerW: powerResult.totalPowerW,
+        });
+        // Fall back to energyManager for activeBeamRatio (state tracked there)
+        const legacyMetrics = energyManager!.computeMetrics(throughputs);
+        lastEnergyMetrics = {
+          systemEeBitsPerJoule: eeBpj,
+          perBeamEe: legacyMetrics.perBeamEe,
+          totalPowerW: powerResult.totalPowerW,
+          activeBeamRatio: legacyMetrics.activeBeamRatio,
+        };
+      } else {
+        lastEnergyMetrics = energyManager!.computeMetrics(throughputs);
+      }
       // Inject EE into KPI accumulator so it appears in KpiBundle
       kpiAcc.recordEnergyMetrics({
         systemEeBitsPerJoule: lastEnergyMetrics.systemEeBitsPerJoule,

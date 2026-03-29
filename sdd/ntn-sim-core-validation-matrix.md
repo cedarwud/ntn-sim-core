@@ -2,7 +2,7 @@
 
 **Version:** 1.7.0
 **Date:** 2026-03-29
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). VAL-PLAT-004 through VAL-PLAT-012 added but not yet enforced — activated per phase.
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. VAL-PLAT-006 through VAL-PLAT-012 added but not yet enforced — activated per phase.
 
 ---
 

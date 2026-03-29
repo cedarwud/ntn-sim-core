@@ -1,6 +1,6 @@
 # Phase 2 — Model Bundle SDD
 
-**Status:** Active — Group 1 (SDD) complete; Group 2 (implementation) not started
+**Status:** Complete — Group 1 (SDD) complete (2026-03-29); Group 2 (implementation) complete (2026-03-29); VAL-PLAT-004/004b/005 PASS
 **Date (v0 — stub):** 2026-03-29
 **Date (v1 — full spec):** 2026-03-29
 **Depends on:** Phase 0 complete (`phase0-architecture-spec.md §0C.7`), Phase 1 complete (`phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing)
