@@ -580,7 +580,7 @@ Both L1 (Parameter Registry) and L6 (Exposure Contract) are currently mapped to 
 |---|---|---|---|
 | Shared Primitives | `src/core/common/types.ts` | none | everything else (no layer imports) |
 | L1 Parameter Registry | `src/core/config/` (excl. `config/exposure/`) | `core/common/types.ts` (shared primitives only) | L2–L7, profiles/, engine.ts, runner/, viz/, app/ |
-| L2 Model Bundle | `src/core/{channel,beam,handover,energy,policy,orbit}/` | L1 (parameter IDs), `core/common/types.ts` | engine.ts, profiles/, viz/, app/, runner/ |
+| L2 Model Bundle | `src/core/models/` (interface contracts — Phase 2 output) + `src/core/{channel,beam,handover,energy,policy,orbit}/` (implementations) | L1 (parameter IDs), `core/common/types.ts` | engine.ts, profiles/, viz/, app/, runner/ |
 | L3 Scenario/Profile/Experiment | `src/core/profiles/` | L1 (parameter IDs), L2 (model family ids by name only) | engine.ts, viz/, app/, runner/ |
 | L4 Runtime Core | `src/core/engine.ts`, `core/kpi/` | L1, L2 (via interfaces), L3 (ProfileConfig), `core/common/`, `core/trace/` (write) | React, Three.js, viz/, app/, runner/ |
 | L5 Audit/Artifact | `src/core/trace/`, `src/runner/` | L4 output (read-only), L1 | viz/, React, Three.js |
@@ -876,7 +876,8 @@ interface EeModel {
 // Alias for the existing Policy interface in src/core/policy/types.ts.
 // Listed here for completeness; the canonical definition stays in policy/types.ts.
 // familyId values: "greedy-sinr" | "no-op" | "invalid-probe" | "modqn" | ...
-type PolicyModel = Policy;  // Policy already has: readonly id, act(), reset()
+type PolicyModel = Policy;  // Policy has: readonly name: string, selectAction(), reset()
+                             // (NOT id or act() — see src/core/policy/types.ts for canonical definition)
 
 // ── ModelBundle ────────────────────────────────────────────────────
 // Declarative composition of all 8 model families.
