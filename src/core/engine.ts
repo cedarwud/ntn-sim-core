@@ -20,7 +20,7 @@ import type { KpiAccumulator } from './kpi/accumulator';
 import { getActivePassesAt, interpolatePass } from './orbit/trajectory-cache';
 import { computeLinkBudget } from './channel/link-budget';
 import { computeSinr } from './channel/sinr';
-import { computeOffAxisAngle, computeBeamGain } from './channel/beam-gain';
+import { computeOffAxisAngle } from './channel/beam-gain';
 import { computeDopplerShiftHz, estimateRadialVelocityKmS, dopplerSinrDegradationDb } from './channel/doppler';
 import type { InterferingSignal } from './channel/types';
 import { createBaselineFromConfig } from './handover/baselines';
@@ -387,253 +387,32 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   let lastTickTimeSec: number | null = null;
 
   // ---------------------------------------------------------------------------
-  // Phase 2 SINR path (single beam, backwards compatible)
+  // P5-3 (deleted): computeSatSinrPhase2 / computeSatSinrPhase3 removed here.
+  // Replaced by computeBundleSinrSingleBeam / computeBundleSinrMultiBeam below.
   // ---------------------------------------------------------------------------
 
-  function computeSatSinrPhase2(
-    servingSample: TrajectorySample,
-    interferingSamples: TrajectorySample[],
-  ): number {
-    // Link budget for serving satellite
-    const servingChannel = computeLinkBudget({
-      distanceKm: servingSample.rangeKm,
-      frequencyGhz: profile.rf.frequency_ghz,
-      txEirpDbm: txEirp,
-      elevationDeg: servingSample.elevationDeg,
-      environment: deploymentEnvironment,
-      largeScaleModel,
-      beamGainInput: profile.channel.tier3_beam_gain
-        ? {
-            offAxisAngleDeg: 0, // UE at beam center for serving
-            model: profile.antenna.model,
-            peakGainDbi: profile.antenna.peak_gain_dbi,
-            beamDiameterKm: profile.antenna.beam_diameter_km,
-            altitudeKm: servingSample.altKm,
-            slantRangeKm: servingSample.rangeKm,
-          }
-        : null,
-      noisePowerDbm: noiseDbm,
-      implementationLossDb,
-      tier1LargeScale: profile.channel.tier1_large_scale,
-      tier2Clutter: profile.channel.tier2_clutter,
-      tier3BeamGain: profile.channel.tier3_beam_gain,
-      tier4Atmospheric: profile.channel.tier4_atmospheric,
-      tier5Fading: profile.channel.tier5_fading,
-      rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-      isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20), // LOS threshold: profile.channel.los_elevation_deg (default 20°, ASSUME-SINR-LOS-THRESHOLD)
-    });
-
-    // C1 fix: each interferer computes its own full link budget
-    const interferingSignals: InterferingSignal[] = [];
-    for (const iSample of interferingSamples) {
-      const iChannel = computeLinkBudget({
-        distanceKm: iSample.rangeKm,
-        frequencyGhz: profile.rf.frequency_ghz,
-        txEirpDbm: txEirp,
-        elevationDeg: iSample.elevationDeg,
-        environment: deploymentEnvironment,
-        largeScaleModel,
-        beamGainInput: profile.channel.tier3_beam_gain
-          ? {
-              offAxisAngleDeg: computeOffAxisAngle(
-                iSample.latDeg, iSample.lonDeg,
-                profile.observer.latitudeDeg, profile.observer.longitudeDeg,
-                iSample.altKm,
-              ),
-              model: profile.antenna.model,
-              peakGainDbi: profile.antenna.peak_gain_dbi,
-              beamDiameterKm: profile.antenna.beam_diameter_km,
-              altitudeKm: iSample.altKm,
-              slantRangeKm: iSample.rangeKm,
-            }
-          : null,
-        noisePowerDbm: noiseDbm,
-        implementationLossDb,
-        tier1LargeScale: profile.channel.tier1_large_scale,
-        tier2Clutter: profile.channel.tier2_clutter,
-        tier3BeamGain: profile.channel.tier3_beam_gain,
-        tier4Atmospheric: profile.channel.tier4_atmospheric,
-        tier5Fading: profile.channel.tier5_fading,
-        rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-        isLos: iSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
-      });
-      interferingSignals.push({
-        rxPowerDbm: iChannel.rxPowerDbm,
-      });
-    }
-
-    // Compute SINR — use rxPowerDbm from full link budget (all enabled tiers)
-    const sinrResult = computeSinr({
-      servingRxPowerDbm: servingChannel.rxPowerDbm,
-      noisePowerDbm: noiseDbm,
-      interferingSignals,
-    });
-
-    // Tier 6 Doppler ICI degradation (P1 fix: wire Doppler into SINR path)
-    const dopplerLossDb = computeDopplerDegradationDb(
-      servingSample.elevationDeg,
-      servingSample.altKm,
-      profile.rf.frequency_ghz,
-      profile.channel.tier6_doppler ?? false,
-      profile.channel.subcarrier_spacing_khz ?? 30,
-    );
-
-    return sinrResult.sinrDb - dopplerLossDb;
-  }
+  // (removed — was computeSatSinrPhase2)
 
   // ---------------------------------------------------------------------------
-  // Phase 3 SINR path (multi-beam with intra- and inter-satellite interference)
+  // P5-3 placeholder: computeSatSinrPhase3 also removed (replaced by
+  // computeBundleSinrMultiBeam below).
   // ---------------------------------------------------------------------------
 
-  /**
-   * Compute SINR for a UE served by the best beam of a given satellite,
-   * accounting for:
-   *   (a) intra-satellite interference from co-channel (same reuse group) beams
-   *   (b) inter-satellite interference from other visible satellites' beams
-   */
-  function computeSatSinrPhase3(
-    servingSatId: string,
-    servingSample: TrajectorySample,
-    servingSelection: BeamSelectionResult,
-    otherSats: Array<{ satId: string; sample: TrajectorySample; selection: BeamSelectionResult }>,
-  ): number {
-    // --- Serving signal ---
-    const servingChannel = computeLinkBudget({
-      distanceKm: servingSample.rangeKm,
-      frequencyGhz: profile.rf.frequency_ghz,
-      txEirpDbm: txEirp,
-      elevationDeg: servingSample.elevationDeg,
-      environment: deploymentEnvironment,
-      largeScaleModel,
-      beamGainInput: profile.channel.tier3_beam_gain
-        ? {
-            offAxisAngleDeg: servingSelection.offAxisAngleDeg,
-            model: profile.antenna.model,
-            peakGainDbi: profile.antenna.peak_gain_dbi,
-            beamDiameterKm: profile.antenna.beam_diameter_km,
-            altitudeKm: servingSample.altKm,
-            slantRangeKm: servingSample.rangeKm,
-          }
-        : null,
-      noisePowerDbm: noiseDbm,
-      implementationLossDb,
-      tier1LargeScale: profile.channel.tier1_large_scale,
-      tier2Clutter: profile.channel.tier2_clutter,
-      tier3BeamGain: profile.channel.tier3_beam_gain,
-      tier4Atmospheric: profile.channel.tier4_atmospheric,
-      tier5Fading: profile.channel.tier5_fading,
-      rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-      isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
-    });
+  // (removed — was computeSatSinrPhase3; replaced by computeBundleSinrMultiBeam)
 
-    // --- C1 fix: collect per-interferer channel data ---
-    const interferingSignals: InterferingSignal[] = [];
-
-    // Find serving beam's reuse group
-    const servingBeamEntry = servingSelection.allBeams.find(
-      (b) => b.beamId === servingSelection.bestBeamId,
-    );
-    const servingReuseGroup = servingBeamEntry?.reuseGroup ?? 0;
-
-    // (a) Intra-satellite: other beams on SAME satellite in same reuse group
-    // These share the same slant range as the serving satellite
-    if (profile.channel.tier3_beam_gain) {
-      for (const beam of servingSelection.allBeams) {
-        if (beam.beamId === servingSelection.bestBeamId) continue;
-        if (beam.reuseGroup !== servingReuseGroup) continue;
-        const iChannel = computeLinkBudget({
-          distanceKm: servingSample.rangeKm,
-          frequencyGhz: profile.rf.frequency_ghz,
-          txEirpDbm: txEirp,
-          elevationDeg: servingSample.elevationDeg,
-          environment: deploymentEnvironment,
-          largeScaleModel,
-          beamGainInput: {
-            offAxisAngleDeg: beam.offAxisAngleDeg,
-            model: profile.antenna.model,
-            peakGainDbi: profile.antenna.peak_gain_dbi,
-            beamDiameterKm: profile.antenna.beam_diameter_km,
-            altitudeKm: servingSample.altKm,
-            slantRangeKm: servingSample.rangeKm,
-          },
-          noisePowerDbm: noiseDbm,
-          implementationLossDb,
-          tier1LargeScale: profile.channel.tier1_large_scale,
-          tier2Clutter: profile.channel.tier2_clutter,
-          tier3BeamGain: true,
-          tier4Atmospheric: profile.channel.tier4_atmospheric,
-          tier5Fading: profile.channel.tier5_fading,
-          rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-          isLos: servingSample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
-        });
-        interferingSignals.push({
-          rxPowerDbm: iChannel.rxPowerDbm,
-        });
-      }
-
-      // (b) Inter-satellite: beams from OTHER visible satellites
-      // C1 fix: each uses its own slant range → its own FSPL
-      for (const other of otherSats) {
-        const crossOffAxisDeg = computeOffAxisAngle(
-          other.sample.latDeg, other.sample.lonDeg,
-          profile.observer.latitudeDeg, profile.observer.longitudeDeg,
-          other.sample.altKm,
-        );
-        const iChannel = computeLinkBudget({
-          distanceKm: other.sample.rangeKm,
-          frequencyGhz: profile.rf.frequency_ghz,
-          txEirpDbm: txEirp,
-          elevationDeg: other.sample.elevationDeg,
-          environment: deploymentEnvironment,
-          largeScaleModel,
-          beamGainInput: {
-            offAxisAngleDeg: crossOffAxisDeg,
-            model: profile.antenna.model,
-            peakGainDbi: profile.antenna.peak_gain_dbi,
-            beamDiameterKm: profile.antenna.beam_diameter_km,
-            altitudeKm: other.sample.altKm,
-            slantRangeKm: other.sample.rangeKm,
-          },
-          noisePowerDbm: noiseDbm,
-          implementationLossDb,
-          tier1LargeScale: profile.channel.tier1_large_scale,
-          tier2Clutter: profile.channel.tier2_clutter,
-          tier3BeamGain: true,
-          tier4Atmospheric: profile.channel.tier4_atmospheric,
-          tier5Fading: profile.channel.tier5_fading,
-          rngNext: profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null,
-          isLos: other.sample.elevationDeg >= (profile.channel.los_elevation_deg ?? 20),
-        });
-        interferingSignals.push({
-          rxPowerDbm: iChannel.rxPowerDbm,
-        });
-      }
-    }
-
-    const sinrResult = computeSinr({
-      servingRxPowerDbm: servingChannel.rxPowerDbm,
-      noisePowerDbm: noiseDbm,
-      interferingSignals,
-    });
-
-    // Tier 6 Doppler ICI degradation (P1 fix: wire Doppler into SINR path)
-    const dopplerLossDb3 = computeDopplerDegradationDb(
-      servingSample.elevationDeg,
-      servingSample.altKm,
-      profile.rf.frequency_ghz,
-      profile.channel.tier6_doppler ?? false,
-      profile.channel.subcarrier_spacing_khz ?? 30,
-    );
-
-    return sinrResult.sinrDb - dopplerLossDb3;
-  }
 
   // ---------------------------------------------------------------------------
   // MS2 helper: per-UE SINR from a pre-computed satellite entry
   //
-  // For Phase B, each UE needs its own SINR from each candidate satellite.
-  // We derive it from the pre-computed beam-center SINR by applying beam gain
-  // roll-off at the UE's actual offset position.
+  // CONTROLLED-APPROXIMATION PATH (Phase 2 ruling):
+  //   This function adjusts a pre-computed beam-center SINR (satEntry.sinrDb) by a beam-gain
+  //   delta for the UE's actual offset, rather than performing a full bundle.pathLoss recomputation
+  //   per UE.  Rationale: path loss, fading, and clutter are spatially smooth at the scale of a
+  //   beam footprint (≤50 km radius); the dominant per-UE variation is beam-gain roll-off.
+  //   If a future PathLossModel or ClutterModel becomes position-sensitive at sub-beam scale,
+  //   this path must be promoted to a full per-UE bundle recomputation. Tracked: Phase 3 scope.
+  //
+  //   Beam-gain delta is routed through bundle.beamGain.computeGainDb() (P2-B fix applied).
   //
   // Multi-beam: selects the UE's closest beam; single-beam: applies radial roll-off.
   // ---------------------------------------------------------------------------
@@ -654,9 +433,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
     }
 
     const slantRangeKm = satEntry.sample.rangeKm;
-    const referenceGainDb = computeBeamGain({
+    // P2-B: beam gain via bundle.beamGain (not direct computeBeamGain)
+    const referenceGainDb = bundle.beamGain.computeGainDb({
       offAxisAngleDeg: satEntry.referenceOffAxisAngleDeg,
-      model: profile.antenna.model,
       peakGainDbi: profile.antenna.peak_gain_dbi,
       beamDiameterKm: profile.antenna.beam_diameter_km,
       altitudeKm: satEntry.sample.altKm,
@@ -667,7 +446,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       return null;
     }
 
-    if (isMultiBeam && profile.channel.tier3_beam_gain) {
+    if (isMultiBeam) {
       // Multi-beam: select closest beam for UE's ground offset
       const layout = getOrCreateBeamLayout(satEntry.satId, satEntry.sample.altKm);
       const ueSelection = selectBeamForUe(
@@ -677,10 +456,9 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
         profile.antenna,
         activeBeamIds,
       );
-      // Gain at UE position relative to the new best beam boresight
-      const gainDb = computeBeamGain({
+      // Gain at UE position relative to the new best beam boresight — via bundle
+      const gainDb = bundle.beamGain.computeGainDb({
         offAxisAngleDeg: ueSelection.offAxisAngleDeg,
-        model: profile.antenna.model,
         peakGainDbi: profile.antenna.peak_gain_dbi,
         beamDiameterKm: profile.antenna.beam_diameter_km,
         altitudeKm: satEntry.sample.altKm,
@@ -692,11 +470,10 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       };
     }
 
-    // Single-beam: radial beam gain roll-off from beam center
+    // Single-beam: radial beam gain roll-off from beam center — via bundle
     const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
-    const gainReductionDb = computeBeamGain({
+    const gainReductionDb = bundle.beamGain.computeGainDb({
       offAxisAngleDeg: ueOffAxisDeg,
-      model: profile.antenna.model,
       peakGainDbi: profile.antenna.peak_gain_dbi,
       beamDiameterKm: profile.antenna.beam_diameter_km,
       altitudeKm: satEntry.sample.altKm,
@@ -712,7 +489,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
   // P2-2/P2-4/P2-6: Bundle-dispatched SINR helpers (replace raw tier-flag chains)
   //
   // These replace the dispatch to computeSatSinrPhase2 / computeSatSinrPhase3.
-  // The old function bodies are retained below as dead code (delete in Phase 5 P5-3).
+  // The old function bodies were removed (P5-3 early cleanup, 2026-03-29).
   // ---------------------------------------------------------------------------
 
   const _bundleTiers = () => ({
@@ -1064,7 +841,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
 
     if (!isMultiBeam) {
       // --- Bundle path: single beam per satellite (P2-2/P2-4/P2-6) ---
-      // computeSatSinrPhase2 body is retained as dead code (delete in Phase 5 P5-3)
+      // Uses computeBundleSinrSingleBeam (replaces computeSatSinrPhase2, removed P5-3 2026-03-29)
       satSinrs = [];
       for (let i = 0; i < satSamples.length; i++) {
         const { satId, sample } = satSamples[i];
@@ -1082,7 +859,7 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       }
     } else {
       // --- Bundle path: multi-beam (P2-2/P2-4/P2-6) ---
-      // computeSatSinrPhase3 body is retained as dead code (delete in Phase 5 P5-3)
+      // Uses computeBundleSinrMultiBeam (replaces computeSatSinrPhase3, removed P5-3 2026-03-29)
       const selections: Array<{
         satId: string;
         sample: TrajectorySample;
@@ -1405,16 +1182,14 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
           } else {
             const slantRangeKm = servingSatEntry.sample.rangeKm;
             const ueOffAxisDeg = Math.atan(ue.distanceFromCenterKm / slantRangeKm) * (180 / Math.PI);
-            const gainReductionDb = profile.channel.tier3_beam_gain
-              ? computeBeamGain({
-                  offAxisAngleDeg: ueOffAxisDeg,
-                  model: profile.antenna.model,
-                  peakGainDbi: profile.antenna.peak_gain_dbi,
-                  beamDiameterKm: profile.antenna.beam_diameter_km,
-                  altitudeKm: servingSatEntry.sample.altKm,
-                  slantRangeKm,
-                })
-              : 0;
+            // P2-B: beam gain via bundle.beamGain (not direct computeBeamGain)
+            const gainReductionDb = bundle.beamGain.computeGainDb({
+              offAxisAngleDeg: ueOffAxisDeg,
+              peakGainDbi: profile.antenna.peak_gain_dbi,
+              beamDiameterKm: profile.antenna.beam_diameter_km,
+              altitudeKm: servingSatEntry.sample.altKm,
+              slantRangeKm,
+            });
             ueSinrDb = primarySinrDb + gainReductionDb;
           }
           kpiAcc.recordSinr(ue.id, ueSinrDb, timeSec);
@@ -1782,14 +1557,14 @@ export function createSimEngine(config: SimEngineConfig): SimEngine {
       uePositions = generateUePositions(
         ueCount, beamRadiusKm, profile.ueConfig.distribution, () => rng.next(),
       );
-      // MS2: reset HO managers
+      // MS2: reset HO managers — P2-8: via bundle.handover.createManager (not direct factory)
       if (independentHandover) {
         hoManagers.clear();
         for (const ue of uePositions) {
-          hoManagers.set(ue.id, createBaselineFromConfig(profile.handover));
+          hoManagers.set(ue.id, bundle.handover.createManager(profile.handover));
         }
       } else {
-        hoManager.reset();
+        hoManager = bundle.handover.createManager(profile.handover);
       }
       // P4: reset mobility
       mobilityUpdater.reset();

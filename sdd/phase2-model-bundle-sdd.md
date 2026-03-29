@@ -1,6 +1,6 @@
 # Phase 2 — Model Bundle SDD
 
-**Status:** Complete — Group 1 (SDD) complete (2026-03-29); Group 2 (implementation) complete (2026-03-29); VAL-PLAT-004/004b/005 PASS
+**Status:** Complete and hardened — Group 1 (SDD) complete (2026-03-29); Group 2 (implementation) complete (2026-03-29); audit rounds 3 complete (2026-03-29): VAL-PLAT-004 Part A regex fix, reset() bundle dispatch, specmode gate fix, real-trace VAL-PLAT-005 coverage, dead-code comments cleaned; validate:stage green; ready for Phase 3 Group 1
 **Date (v0 — stub):** 2026-03-29
 **Date (v1 — full spec):** 2026-03-29
 **Depends on:** Phase 0 complete (`phase0-architecture-spec.md §0C.7`), Phase 1 complete (`phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing)
@@ -194,8 +194,8 @@ src/core/
 
 > **DP-2 ruling (authoritative):** The actual public API is `createSimEngine(config: SimEngineConfig)`
 > where `SimEngineConfig = { profile: ProfileConfig; trajectoryCache: TrajectoryCache; policy?: Policy }`.
-> This signature MUST NOT change. The engine calls `buildModelBundle(profile)` internally:
-> `this.bundle = buildModelBundle(profile)`. This is required because
+> This signature MUST NOT change. The engine calls `buildModelBundle(profile, trajectoryCache)` internally:
+> `this.bundle = buildModelBundle(profile, config.trajectoryCache)`. This is required because
 > `benchmark-runner.ts`, `useSimulation.ts`, and all existing call sites pass a `SimEngineConfig`
 > object; restructuring the signature is Phase 3+ scope.
 > `bundle.policy` is overridden by `config.policy` when provided (preserving the existing
@@ -611,7 +611,7 @@ export type { PolicyObservation, PolicyAction, PolicyReward } from '../policy/ty
 > When `SimEngineConfig.policy` is provided, the engine overrides `bundle.policy` after
 > calling `buildModelBundle`. Concretely:
 > ```typescript
-> this.bundle = buildModelBundle(profile);
+> this.bundle = buildModelBundle(profile, config.trajectoryCache);
 > if (config.policy) this.bundle = { ...this.bundle, policy: config.policy };
 > ```
 > This preserves all existing call sites. Mark with `// DP-5 resolved` in model-bundle.ts.
@@ -672,7 +672,8 @@ interface ModelBundle {
  *         produce non-null bundles).
  */
 function buildModelBundle(
-  profile: ProfileConfig
+  profile: ProfileConfig,
+  trajectoryCache: TrajectoryCache,  // required: GeometryModel construction (WalkerAnalyticGeometry / Sgp4TleGeometry both need it at init time)
 ): ModelBundle;
 // Policy override is handled by the engine AFTER calling buildModelBundle,
 // not as a factory parameter. See DP-5 ruling in §5.7.
@@ -957,6 +958,10 @@ No other conditions apply. In particular, Phase 2 completion does NOT require:
 - contract types frozen (Phase 4)
 - `engine.ts` to be split (Phase 5)
 - any new model variant beyond wrapping existing implementations
+
+**Accepted approximation (Phase 2 ruling):** `computeUeSinrFromSatEntry()` in engine.ts adjusts a pre-computed beam-center SINR by a beam-gain delta rather than performing a full per-UE `bundle.pathLoss` recomputation. This is a controlled approximation: path loss variation at sub-beam scale (≤50 km) is dominated by beam-gain roll-off; other tier effects are spatially smooth. If a future PathLossModel becomes position-sensitive at sub-beam scale, this path must be promoted to full per-UE recomputation (Phase 3 scope). Beam-gain delta is routed through `bundle.beamGain.computeGainDb()`.
+
+**VAL-PLAT-005 real-trace coverage (2026-03-29):** The validator now builds a TLE-fixture-backed cache for profiles with `orbitMode='real-trace'`, verifying that `Sgp4TleGeometry` is constructed and `buildModelBundle` returns a valid bundle from real OMM data.
 
 ---
 

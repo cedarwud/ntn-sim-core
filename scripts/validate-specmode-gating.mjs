@@ -176,8 +176,10 @@ const termMap = {
 
 for (const e of paramPathEntries) {
   if (!e.id.startsWith('ASSUME-')) continue;
-  const registryDesc = paperSources.assumptions[e.id];
-  if (!registryDesc) continue; // Rule 2 already handles missing IDs
+  const registryEntry = paperSources.assumptions[e.id];
+  if (!registryEntry) continue; // Rule 2 already handles missing IDs
+  // assumptions values may be strings or objects with a .description field
+  const registryDesc = typeof registryEntry === 'string' ? registryEntry : (registryEntry.description ?? '');
 
   // Find which term group applies to this parameterPath
   const pathLower = e.parameterPath.toLowerCase();

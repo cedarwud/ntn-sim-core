@@ -77,7 +77,7 @@ export interface ModelBundle {
  * Policy override is handled by the engine AFTER calling buildModelBundle,
  * not as a factory parameter. See DP-5 ruling in §5.7.
  *
- * @throws Error if orbitMode is unknown.
+ * Unknown orbitMode values fall back to WalkerAnalyticGeometry (no throw).
  */
 // DP-5 resolved: NO_OP_POLICY default; engine overrides after buildModelBundle
 export function buildModelBundle(

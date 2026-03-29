@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.7.0
+**Version:** 1.8.0
 **Date:** 2026-03-29
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. VAL-PLAT-006 through VAL-PLAT-012 added but not yet enforced — activated per phase.
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. Platform Refactor Phase 3 SDD (Group 1) complete (2026-03-29) — VAL-PLAT-006/007 check specs fully defined in `phase3-scenario-profile-experiment-split.md §9`; not yet enforced (Group 2 not started). VAL-PLAT-008 through VAL-PLAT-012 added but not yet enforced — activated per phase.
 
 ---
 
@@ -72,8 +72,8 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-PLAT-004` | model bundle | (Part A) `engine.ts` contains no raw tier-flag if/else chains for path loss, beam gain, or SINR; (Part B) all 8 `bundle.*` dispatch call-patterns present in `engine.ts` | P2 | `validate-model-bundle.mjs` — Part A: regex scan for raw tier-flag branches; Part B: positive check for `bundle.geometry.compute(`, `bundle.pathLoss.compute(`, etc.; see `phase2-model-bundle-sdd.md §9` for exact patterns |
 | `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 interface files (`geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`); `ModelBundle` in `src/core/models/model-bundle.ts` (not `config/`) | P2 | `validate-model-bundle.mjs` — `fs.existsSync` for each file; regex check for `export.*ModelBundle` in model-bundle.ts |
 | `VAL-PLAT-005` | model bundle | `ModelBundle` factory (`buildModelBundle`) produces non-null bundle for all 14 current profiles; all 8 required slots populated; `power`/`ee` null iff `layer1_enabled===false` | P2 | `validate-model-bundle.mjs` — runs `buildModelBundle` for each entry in `DEFAULT_PROFILES` under `node --import tsx`; asserts non-null fields and bundle.id prefix |
-| `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, and `ExperimentBundle` types exist and are distinct; no circular imports | P3 | `validate-profiles.mjs` (augmented) |
-| `VAL-PLAT-007` | scenario split | all 14 profiles pass `composeProfile()` round-trip: composed result equals original flat ProfileConfig | P3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, `ProfileBundle` exported from `profiles/types.ts`; `composeProfile`/`decomposeProfile` exported from `profiles/profile-composer.ts`; no import from `engine.ts`, `viz/`, `app/`, `runner/` in Phase 3 new files; `ProfileConfig` still present and exported | P3 | `validate-profiles.mjs` (augmented) — regex export-scan on `types.ts` + `profile-composer.ts`; import-chain assertions on new files; see `phase3-scenario-profile-experiment-split.md §9` for exact pass/fail output format |
+| `VAL-PLAT-007` | scenario split | all 14 profiles in `DEFAULT_PROFILES` pass `decomposeProfile → composeProfile` round-trip: `deepEqual(composeProfile(decomposeProfile(P).bundle, decomposeProfile(P).exp), P)` for every field; no extra fields inserted by compose; `tier3_5_scan_loss` absent from round-trip result after P3-7 | P3 | `validate-profiles.mjs` (augmented) — runs under `node --import tsx`; imports `DEFAULT_PROFILES`, `composeProfile`, `decomposeProfile`; recursive `deepEqual` with diff output on first failing field; see `phase3-scenario-profile-experiment-split.md §9` for exact pass/fail output format |
 | `VAL-PLAT-008` | runtime contract | `src/core/contracts/runtime-v1.ts` exports all frozen snapshot types with `@frozen` annotation | P4 | `validate-contracts.mjs` (new) |
 | `VAL-PLAT-009` | runtime contract | no viz-layer file imports directly from `core/common/types.ts` or `core/profiles/types.ts` | P4 | `validate-contracts.mjs` |
 | `VAL-PLAT-010` | exposure contract | `getProfileList()` returns entries for all 14 profiles with valid `family` and `tier` fields | P4 | `validate-contracts.mjs` |
@@ -240,3 +240,5 @@ Any showcase/demo sequence must additionally prove:
 | `VAL-PLAT-001` | P1 | ✅ PASS | 2026-03-29 | All 58 canonical parameterPaths present in PARAMETER_REGISTRY |
 | `VAL-PLAT-002` | P1 | ✅ PASS | 2026-03-29 | All 35 distinct sourceIds resolve in paper-sources.json (nested-section lookup) |
 | `VAL-PLAT-003` | P1 | ✅ PASS | 2026-03-29 | 58 PARAM-* IDs: unique, prefixed, no collision with source namespace |
+| `VAL-PLAT-006` | P3 | ✅ PASS | 2026-03-29 | `scripts/validate-profiles.mjs` — static export scan: 4 new types in `profiles/types.ts`, `composeProfile`/`decomposeProfile` in `profile-composer.ts`, `ProfileConfig` still present; no circular imports into L4–L7 layers |
+| `VAL-PLAT-007` | P3 | ✅ PASS | 2026-03-29 | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality verified for all 14 profiles in `DEFAULT_PROFILES`; all 14 pass with 0 diffs |

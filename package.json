@@ -13,7 +13,7 @@
     "validate:agent-docs": "node scripts/validate-agent-doc-sync.mjs",
     "validate:specmode": "node scripts/validate-specmode-gating.mjs",
     "validate:assumption-manifest": "node scripts/validate-assumption-manifest.mjs",
-    "validate:profiles": "node scripts/validate-profile-layout.mjs",
+    "validate:profiles": "node --import tsx scripts/validate-profiles.mjs",
     "validate:core-purity": "node scripts/validate-core-purity.mjs",
     "validate:final": "node scripts/validate-final.mjs",
     "validate:runtime": "node scripts/validate-runtime.mjs",

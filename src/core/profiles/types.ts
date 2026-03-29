@@ -16,6 +16,7 @@ import type {
   BeamSemantics,
   ObserverLocation,
   TimeControl,
+  SpecMode,
 } from '@/core/common/types';
 import type { OrbitType, GeoStationaryConfig } from '@/core/orbit/types';
 
@@ -213,15 +214,6 @@ export interface ChannelConfig {
    * Current simulator spec only exposes rural / suburban / dense-urban.
    */
   deployment_environment?: DeploymentEnvironment;
-  /**
-   * Tier 3.5: phased-array scan loss (Ka-band only).
-   * NOT YET WIRED — setting this flag has no effect until the engine
-   * computes per-beam scan angles and passes them to computeLinkBudget().
-   * The underlying formula exists in link-budget.ts (tier35ScanLoss path)
-   * but the engine does not yet supply scanAngleDeg per beam.
-   * @status dead-path — do not use in benchmark claims.
-   */
-  tier3_5_scan_loss?: boolean;
   /**
    * Tier 6: Doppler ICI SINR degradation.
    * Enabled for OFDM systems at high carrier frequency or high satellite speed.
@@ -442,6 +434,352 @@ export interface UeConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3 vocabulary: ScenarioConfig / ModelBundleSelection / ExperimentBundle / ProfileBundle
+// Authority: sdd/phase3-scenario-profile-experiment-split.md §4
+// ---------------------------------------------------------------------------
+
+/**
+ * ScenarioConfig — physical/environmental description.
+ *
+ * Defines: orbit mode, observer, scenario epoch, constellation topology
+ * extensions, and UE spatial distribution.
+ *
+ * Does NOT contain:
+ *   - P-classified numeric parameters (altitude_km, frequency_ghz, ttt_ms …)
+ *   - MB-classified model selections (tier flags, handover.type, antenna.model …)
+ *   - E-classified experiment controls (seed, durationSec, tleMaxSatellites …)
+ *
+ * Storage location: ProfileBundle.scenario
+ * Authority: phase3-scenario-profile-experiment-split.md §4.1
+ */
+export interface ScenarioConfig {
+  /** Orbit computation mode. 'synthetic' = Walker analytic; 'real-trace' = TLE/SGP4. */
+  orbitMode: OrbitMode;
+  /**
+   * Path to OMM JSON file. Required when orbitMode === 'real-trace'.
+   * Must not be set when orbitMode === 'synthetic'.
+   */
+  tleDataPath?: string;
+  /** Observer location (lat/lon/alt) for geometry and sky-projection. */
+  observer: ObserverLocation;
+  /**
+   * Scenario start epoch in UTC milliseconds.
+   * Defines WHEN the simulation begins (orbital position, channel state).
+   * Run duration and step are in ExperimentBundle.timeControl — NOT here.
+   */
+  epochUtcMs: number;
+  /**
+   * Constellation topology extensions (S-classified).
+   * Only topology extensions beyond the primary Walker shell are S-classified:
+   *   - orbitType (regime tag: leo/meo/geo)
+   *   - extra_shells (multi-shell Walker)
+   *   - geoSatellites (GEO relay satellites merged with Walker)
+   * When absent, defaults apply: orbitType='leo', no extra shells, no GEO.
+   */
+  orbitalTopology?: {
+    orbitType?: OrbitType;
+    extra_shells?: Array<{
+      id: string;
+      altitude_km: number;
+      inclination_deg: number;
+      num_planes: number;
+      sats_per_plane: number;
+      phasing_factor?: number;
+      orbitType?: OrbitType;
+    }>;
+    geoSatellites?: GeoStationaryConfig[];
+  };
+  /**
+   * UE spatial distribution.
+   * count and distribution define the scenario topology (S).
+   * speed_kmh is P-classified and lives in ProfileBundle.ueConfig.
+   */
+  ueTopology: {
+    count: number;
+    distribution: UeDistribution;
+  };
+}
+
+/**
+ * ModelBundleSelection — declarative model family choices.
+ *
+ * Contains all MB-classified fields from phase0-architecture-spec.md §0B.6.
+ *
+ * Distinct from ModelBundle (Phase 2 runtime type):
+ *   ModelBundleSelection = "which families are requested" (static config record)
+ *   ModelBundle           = "which interfaces are instantiated" (runtime object)
+ *
+ * Storage location: ProfileBundle.models
+ * Authority: phase3-scenario-profile-experiment-split.md §4.2
+ */
+export interface ModelBundleSelection {
+  /** Beam semantics: earth-moving (scanning) or earth-fixed-bh (beam hopping). */
+  beamSemantics: BeamSemantics;
+  /** Beam gain model family. */
+  antenna: {
+    model: 'rpsat-3gpp' | 'bessel-j1' | 'itu-r' | 'flat-debug';
+  };
+  /** Beam layout and scheduling family selections. */
+  beam: {
+    layout: 'hexagonal' | 'circular' | 'custom';
+    /**
+     * BH scheduler strategy. Only meaningful when beamSemantics === 'earth-fixed-bh'.
+     * Default: 'round-robin' when absent.
+     */
+    bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' |
+      'deterministic-fixed' | 'proportional-fair' | 'sinr-greedy';
+    /** Traffic demand model for demand-aware BH schedulers. Default: 'full-buffer' when absent. */
+    bh_traffic_model?: 'poisson' | 'full-buffer' | 'hotspot' | 'uniform';
+  };
+  /** Channel model tier enable flags and path-loss family variant. */
+  channel: {
+    /** Tier 0: FSPL — always enabled; value must always be literal true. */
+    tier0_fspl: true;
+    tier1_large_scale: boolean;
+    tier2_clutter: boolean;
+    tier3_beam_gain: boolean;
+    tier4_atmospheric: boolean;
+    tier5_fading: boolean;
+    tier6_doppler?: boolean;
+    large_scale_model?: LargeScaleModel;
+  };
+  /** Handover algorithm family. */
+  handover: {
+    /** Which FSM family createHandoverManager() will instantiate. */
+    type: HandoverType;
+  };
+  /** Energy model layer enable flags. */
+  energy: {
+    layer1_enabled: boolean;
+    layer2_enabled: boolean;
+  };
+  /** UE model behavior flags. */
+  ueConfig: {
+    /** Phase B: each UE owns an independent HandoverManager. */
+    independentHandover?: boolean;
+  };
+  /**
+   * Policy preset — declares the default control algorithm for this profile.
+   * When absent: defaults to 'no-op' (DP-5 ruling from phase2-model-bundle-sdd.md §5.7).
+   * This is a declarative default only; SimEngineConfig.policy still overrides it.
+   */
+  policy?: {
+    policyId: 'no-op' | 'greedy-sinr' | 'invalid-probe' | string;
+  };
+}
+
+/**
+ * ExperimentBundle — reproducible run definition.
+ *
+ * The same ProfileBundle + different ExperimentBundle = independent experiment.
+ * Example: same paper baseline, 10 different seeds → 10 ExperimentBundles.
+ *
+ * Storage location: NOT inside ProfileBundle. Stored alongside it in per-family
+ * defaults files as the paper-reported run conditions.
+ * Authority: phase3-scenario-profile-experiment-split.md §4.3
+ */
+export interface ExperimentBundle {
+  /** RNG seed for reproducible stochastic components. */
+  seed: number;
+  /**
+   * Per-run timing controls.
+   * NOTE: epochUtcMs (scenario epoch) is in ScenarioConfig, not here.
+   */
+  timeControl: {
+    durationSec: number;
+    stepSec: number;
+  };
+  /**
+   * Maximum TLE satellites to load from the OMM JSON file.
+   * Only meaningful when ScenarioConfig.orbitMode === 'real-trace'.
+   * Default: 200 when absent. Classified E (performance cap, not physical).
+   */
+  tleMaxSatellites?: number;
+  /** Optional KPI targets for automated reproduction verification. */
+  kpiTargets?: Array<{
+    metric: string;
+    target: number;
+    tolerance: number;
+    toleranceMode: 'absolute' | 'relative';
+  }>;
+  /** Artifact recording policy. Absent = use runner defaults. */
+  artifactPolicy?: {
+    recordReplayManifest: boolean;
+    recordSourceTrace: boolean;
+    maxSnapshotHistory?: number;
+  };
+}
+
+/**
+ * ProfileBundle — named, versioned paper baseline.
+ *
+ * This is the authoring unit for a new paper baseline:
+ *   - write one ProfileBundle (scenario + model selections + P-params)
+ *   - write one default ExperimentBundle (paper-reported run conditions)
+ *   - call composeProfile(bundle, exp) to get the ProfileConfig used at runtime
+ *
+ * Does NOT contain:
+ *   - seed, durationSec, stepSec, tleMaxSatellites (→ ExperimentBundle)
+ *   - kpiTargets, artifactPolicy (→ ExperimentBundle)
+ *
+ * Storage location: per-family files (see phase3-scenario-profile-experiment-split.md §8.3).
+ * Assembled into ProfileConfig via composeProfile(bundle, exp).
+ * Reverse operation: decomposeProfile(config): { bundle, exp }.
+ * Authority: phase3-scenario-profile-experiment-split.md §4.4
+ */
+export interface ProfileBundle {
+  // ── Profile metadata (PM) ────────────────────────────────────────────
+  id: string;
+  family: ProfileFamily;
+  version: string;
+  /**
+   * Exposure preset: where this profile appears in the UI tier hierarchy.
+   * Phase 4 P4-7 will consume this field to drive the profile list.
+   * For Phase 3: populated from ControlPanel.PROFILE_OPTIONS current values.
+   */
+  exposurePreset: {
+    tier: SpecMode;
+    label: string;
+  };
+
+  // ── Physical/environment (S) ─────────────────────────────────────────
+  scenario: ScenarioConfig;
+
+  // ── Model family selections (MB) ─────────────────────────────────────
+  models: ModelBundleSelection;
+
+  // ── Parameter defaults (P — 58 PARAM-* values) ───────────────────────
+
+  /** Primary Walker constellation P-params (6 fields). */
+  orbital: {
+    altitude_km: number;
+    inclination_deg: number;
+    num_planes: number;
+    sats_per_plane: number;
+    raan_spread_deg: number;
+    phase_offset_deg: number;
+    // NOTE: orbitType → scenario.orbitalTopology.orbitType
+    // NOTE: extra_shells → scenario.orbitalTopology.extra_shells
+    // NOTE: geoSatellites → scenario.orbitalTopology.geoSatellites
+  };
+
+  /** RF / link budget P-params (8 fields; all RfConfig fields are P-classified). */
+  rf: {
+    frequency_ghz: number;
+    bandwidth_mhz: number;
+    eirp_density_dbw_per_mhz: number;
+    tx_power_per_beam_dbm?: number;
+    max_tx_power_dbm: number | null;
+    noise_temperature_k: number;
+    noise_figure_db?: number;
+    implementation_loss_db?: number;
+  };
+
+  /**
+   * Antenna P-params (2 fields).
+   * NOTE: antenna.model → models.antenna.model
+   */
+  antenna: {
+    peak_gain_dbi: number;
+    beam_diameter_km: number;
+  };
+
+  /**
+   * Beam P-params (8 fields).
+   * NOTE: beam.layout → models.beam.layout
+   * NOTE: beam.bh_strategy → models.beam.bh_strategy
+   * NOTE: beam.bh_traffic_model → models.beam.bh_traffic_model
+   */
+  beam: {
+    num_beams: number;
+    frf: number;
+    interference_beams: number;
+    bh_max_active_per_slot?: number;
+    bh_frame_duration_sec?: number;
+    bh_slots_per_frame?: number;
+    bh_power_budget_w?: number;
+    bh_traffic_arrival_rate?: number;
+  };
+
+  /**
+   * Channel P-params (3 fields).
+   * NOTE: all tier flags + large_scale_model → models.channel.*
+   * NOTE: tier3_5_scan_loss deleted in P3-7 (DEAD classification)
+   */
+  channel: {
+    deployment_environment?: DeploymentEnvironment;
+    los_elevation_deg?: number;
+    subcarrier_spacing_khz?: number;
+  };
+
+  /**
+   * Handover P-params (21 fields).
+   * NOTE: handover.type → models.handover.type
+   */
+  handover: {
+    trigger_threshold_db: number;
+    a3_offset_db?: number;
+    ttt_ms: number;
+    hysteresis_db: number;
+    min_elevation_deg: number;
+    pingPongWindowSec?: number;
+    cho_offset_db?: number;
+    cho_alpha?: number;
+    cho_filter_k?: number;
+    daps_preparation_time_sec?: number;
+    daps_max_dual_active_sec?: number;
+    mc_max_dual_sec?: number;
+    mc_packet_duplication?: boolean;
+    d2_serving_dist_km?: number;
+    d2_target_dist_km?: number;
+    sinr_ema_alpha?: number;
+    rlf_qout_db?: number;
+    rlf_qin_db?: number;
+    rlf_n310?: number;
+    rlf_n311?: number;
+    rlf_t310_ms?: number;
+  };
+
+  /**
+   * Energy P-params (9 fields).
+   * NOTE: energy.layer1_enabled → models.energy.layer1_enabled
+   * NOTE: energy.layer2_enabled → models.energy.layer2_enabled
+   */
+  energy: {
+    energy_per_handover_j?: number;
+    layer2_overrides?: {
+      batteryCapacityWh?: number;
+      initialSoc?: number;
+      solarPowerW?: number;
+      blockingThresholdSoc?: number;
+      orbitalPeriodSec?: number;
+      shadowFraction?: number;
+      altitudeKm?: number;
+      betaAngleDeg?: number;
+    };
+  };
+
+  /**
+   * UE P-params (1 field: speed_kmh).
+   * NOTE: ueConfig.count → scenario.ueTopology.count
+   * NOTE: ueConfig.distribution → scenario.ueTopology.distribution
+   * NOTE: ueConfig.independentHandover → models.ueConfig.independentHandover
+   */
+  ueConfig: {
+    speed_kmh: number;
+  };
+
+  // ── Provenance (PM — transitional) ──────────────────────────────────
+  /**
+   * Source references for KPI-impacting defaults.
+   * Transitional: Phase 1 registry is now the canonical reference.
+   * @deprecated Use the Phase 1 parameter registry as the canonical reference.
+   *   Removal target: Phase 5 P5-7. Do not remove in Phase 3.
+   */
+  sourceMap: SourceReference[];
+}
+
+// ---------------------------------------------------------------------------
 // Full Profile Config (SDD §6)
 // ---------------------------------------------------------------------------
 
@@ -476,8 +814,18 @@ export interface ProfileConfig {
   /**
    * Source references for all KPI-impacting defaults.
    * dev-constraints §4.3: every KPI-impacting model must have source metadata.
+   * @deprecated Use the Phase 1 parameter registry as the canonical reference.
+   *   Removal target: Phase 5 P5-7. Do not remove in Phase 3.
    */
   sourceMap: SourceReference[];
+
+  /**
+   * Default policy preset identifier. Resolved by buildModelBundle() to a
+   * policy plugin when SimEngineConfig.policy is absent.
+   * Added in Phase 3 P3-1 for DP-5 resolution (phase2-model-bundle-sdd.md §5.7).
+   * @default 'no-op' when absent.
+   */
+  policyId?: string;
 }
 
 // ---------------------------------------------------------------------------

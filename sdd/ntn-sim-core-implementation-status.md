@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.1.0
+**Version:** 4.3.0
 **Date:** 2026-03-29
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete. Phase 1 (Parameter Registry) complete — `parameter-registry.ts` (58 entries), VAL-PLAT-001/002/003 passing. Phase 2 (Model Bundle Interfaces) complete (2026-03-29) — SDD + implementation + VAL-PLAT-004/004b/005 passing; `validate:bundle` green.
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete. Phase 1 (Parameter Registry) complete. Phase 2 (Model Bundle Interfaces) complete and hardened (2026-03-29). Phase 3 (Scenario/Profile/Experiment Split) Group 2 complete (2026-03-29) — `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, `ProfileBundle` types added, `composeProfile`/`decomposeProfile` implemented, all 14 profiles rewritten via `composeProfile()`, VAL-PLAT-006/007 passing, `validate:stage` green.
 
 ---
 
@@ -29,7 +29,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | 0 | Architecture Audit + Target Design | ✅ complete | `sdd/phase0-architecture-spec.md §0C.7` |
 | 1 | Parameter Registry | ✅ complete | `sdd/phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing; `parameter-registry.ts` (58 entries), `validate-parameter-registry.mjs`; done 2026-03-29 |
 | 2 | Model Bundle Interfaces | ✅ complete (2026-03-29) — `src/core/models/` (9 files), `buildModelBundle` factory, engine dispatch via bundle interfaces, `validate:bundle` (VAL-PLAT-004/004b/005 all PASS) | `sdd/phase2-model-bundle-sdd.md` §10 |
-| 3 | Scenario/Profile/Experiment Split | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-006/007 |
+| 3 | Scenario/Profile/Experiment Split | ⚡ in progress — Group 1 (SDD) complete, Group 2 (implementation) complete (2026-03-29); Group 3 (file split) not started | `sdd/phase3-scenario-profile-experiment-split.md §10` — VAL-PLAT-006/007 PASS |
 | 4 | Runtime Contract Freeze | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-008/009/010 |
 | 5 | Cleanup + Modularization | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-011/012 |
 
@@ -183,7 +183,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 ## 5. Validation Gate Status
 
-### Passing (active structural + runtime gates, verified 2026-03-27)
+### Passing (active structural + runtime gates, verified 2026-03-29)
 
 | VAL ID | Phase | Status | Note |
 |---|---|---|---|
@@ -206,6 +206,8 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | VAL-DAPS-001 | 6 | ✅ pass | daps.ts exists |
 | VAL-DAPS-002 | 6 | ✅ pass | DAPS 0ms vs baseline (formula-level) |
 | VAL-VIZ-002 | 3 | ✅ pass | engine snapshot carries beam truth; SceneShell uses `EarthMovingBeamLayer` / `EarthFixedCellLayer` |
+| VAL-PLAT-006 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `ScenarioConfig`/`ModelBundleSelection`/`ExperimentBundle`/`ProfileBundle` exported from `profiles/types.ts`; `composeProfile`/`decomposeProfile` exported from `profile-composer.ts`; no circular imports into L4–L7 |
+| VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality verified for all 14 profiles |
 
 **Note:** Formula-level (`-F`) tests pass. Engine-level (`-E`) golden cases also pass, and `npm run validate:stage` succeeds using `node --import tsx` for the golden-engine step. Browser-level (`-V`) closure evidence is automated for the current explainability/continuity package; screenshot packs remain supplementary evidence.
 

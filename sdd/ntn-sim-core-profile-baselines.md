@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.0.0
-**Date:** 2026-03-25
-**Status:** Active — HOBS/BH profiles corrected after engine validation
+**Version:** 1.1.0
+**Date:** 2026-03-29
+**Status:** Active — Phase 3 Group 2 complete: profiles now authored as `ProfileBundle + ExperimentBundle` pairs, assembled via `composeProfile()`. No parameter values changed; composition is transparent to engine. See `sdd/phase3-scenario-profile-experiment-split.md §8.1` for authoring rules.
 
 ---
 
