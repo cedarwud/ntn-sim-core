@@ -18,7 +18,8 @@
       "topic": "A4 event trigger threshold, hysteresis, TTT parameters",
       "usedIn": [
         "src/core/handover/manager.ts",
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2022-SINR-ELEVATION": {
@@ -26,7 +27,8 @@
       "year": 2022,
       "topic": "min_elevation_deg = 10°, trigger_threshold_db = -3 dB reference",
       "usedIn": [
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2022-SENSORS-BH": {
@@ -34,7 +36,8 @@
       "year": 2022,
       "topic": "Beam geometry and implementation losses (0.5 dB feeder + 2.0 dB pointing)",
       "usedIn": [
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2024-BEAM-MGMT-SPECTRUM": {
@@ -58,7 +61,8 @@
       "year": 2024,
       "topic": "Walker(55°,72,6,F=1), 550km, Ka-band 28GHz, 100MHz BW, 37 beams, FRF=3, Pmax=50dBm, gamma_thr=10dB",
       "usedIn": [
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2024-MADRL-CORE": {
@@ -75,7 +79,8 @@
       "topic": "MC-HO dual-active phase, packet duplication, CHO comparison",
       "usedIn": [
         "src/core/handover/mc-ho.ts",
-        "src/core/handover/cho.ts"
+        "src/core/handover/cho.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2025-DAPS-CORE": {
@@ -83,7 +88,8 @@
       "year": 2025,
       "topic": "DAPS dual-active procedure, path switch timing, zero-interruption HO",
       "usedIn": [
-        "src/core/handover/daps.ts"
+        "src/core/handover/daps.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2025-DIST-BH-HETERO": {
@@ -125,7 +131,8 @@
       "year": 2025,
       "topic": "Joint BH pattern + power allocation, MAAC architecture",
       "usedIn": [
-        "src/core/beam/scheduler.ts"
+        "src/core/beam/scheduler.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2025-MADQN-HO": {
@@ -159,7 +166,8 @@
       "topic": "Timer-CHO α factor, ToS_remain geometry, L3 IIR filter k",
       "usedIn": [
         "src/core/handover/cho.ts",
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2026-BHFREQREUSE": {
@@ -168,7 +176,8 @@
       "topic": "FRF collision detection, BH+FRF co-scheduling",
       "usedIn": [
         "src/core/beam/frequency-reuse.ts",
-        "src/core/beam/scheduler.ts"
+        "src/core/beam/scheduler.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "PAP-2026-DRL-BHOPT": {
@@ -176,7 +185,17 @@
       "year": 2026,
       "topic": "DRL BH optimization, window-based scheduling",
       "usedIn": [
-        "src/core/beam/scheduler.ts"
+        "src/core/beam/scheduler.ts",
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "PAP-2025-JCAP-LEO": {
+      "title": "Joint Channel Allocation and Power Control for Multi-Beam LEO Satellites",
+      "year": 2025,
+      "topic": "FR3 frequency reuse factor, multi-beam interference management",
+      "usedIn": [
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     }
   },
@@ -193,7 +212,8 @@
       "usedIn": [
         "src/core/handover/manager.ts",
         "src/core/handover/cho.ts",
-        "src/core/handover/types.ts"
+        "src/core/handover/types.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "STD-3GPP-38133": {
@@ -203,7 +223,8 @@
         "§7.6 (Qout/Qin SINR thresholds for RLF)"
       ],
       "usedIn": [
-        "src/core/handover/manager.ts"
+        "src/core/handover/manager.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "STD-3GPP-38811": {
@@ -228,7 +249,8 @@
       "note": "The 20° single-threshold approximation replaces the continuous probability function P_LOS(α) with a binary decision: elevation ≥ 20° → LOS; <20° → NLOS. This is a conventional simulator simplification used across multiple corpus papers. The exact value 20° is not normatively mandated but is consistent with §6.7 minimum operational elevation angle guidance.",
       "usedIn": [
         "src/core/engine.ts",
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "STD-3GPP-38821": {
@@ -238,7 +260,8 @@
         "§6.3.4 (T310 extension for NTN propagation delay)"
       ],
       "usedIn": [
-        "src/core/handover/manager.ts"
+        "src/core/handover/manager.ts",
+        "src/core/config/parameter-registry.ts"
       ]
     },
     "STD-ITU-P676": {
@@ -273,7 +296,8 @@
         "Table 4.4-1: handheld UE NF = 9 dB; laptop/VSAT NF = 5 dB"
       ],
       "usedIn": [
-        "src/core/profiles/defaults.ts"
+        "src/core/profiles/defaults.ts",
+        "src/core/config/parameter-registry.ts"
       ],
       "note": "Handheld profiles (S-band case 9) use NF=9 dB; Ka-band VSAT-like profiles use NF=5 dB"
     },
@@ -289,36 +313,131 @@
       "usedIn": [
         "src/core/profiles/defaults.ts",
         "src/core/channel/shadow-fading.ts",
-        "src/core/channel/link-budget.ts"
+        "src/core/channel/link-budget.ts",
+        "src/core/config/parameter-registry.ts"
       ],
       "note": "Used as sourceMap id '3GPP-NTN-ACCESS' in profile sourceMap entries; covers minimum elevation, deployment-environment-dependent SF/CL, and NTN channel tier selection"
     }
   },
   "assumptions": {
-    "ASSUME-ORB-001": "Walker constellation: circular orbit, equal spacing, phasing factor F per 3GPP TR 38.821 §5.2",
-    "ASSUME-ORB-002": "SGP4 propagation uses satellite.js; atmospheric drag model B* from TLE",
-    "ASSUME-ORB-003": "Ground track velocity approximated as v = sqrt(μ/r); used for Doppler and ToS estimates",
+    "ASSUME-ORB-001": {
+      "description": "Walker constellation: circular orbit, equal spacing, phasing factor F per 3GPP TR 38.821 §5.2",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-ORB-002": {
+      "description": "SGP4 propagation uses satellite.js; atmospheric drag model B* from TLE",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-ORB-003": {
+      "description": "Ground track velocity approximated as v = sqrt(μ/r); used for Doppler and ToS estimates",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
     "ASSUME-CHAN-001": "Path loss Tier 1–6 applied sequentially; each tier adds to total loss in dB",
-    "ASSUME-BEAM-001": "Beam footprint radius = slant-range × tan(half-angle); off-axis angle uses spherical law of cosines",
-    "ASSUME-BEAM-002": "FRF group assignment is deterministic (beam index mod FRF); no dynamic frequency planning",
+    "ASSUME-BEAM-001": {
+      "description": "Beam footprint radius = slant-range × tan(half-angle); off-axis angle uses spherical law of cosines",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-BEAM-002": {
+      "description": "FRF group assignment is deterministic (beam index mod FRF); no dynamic frequency planning",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
     "ASSUME-HO-001": "Hard-HO / A3 / A4 / D2 / CHO interruption is approximated by RTT = 2 x one-way propagation delay; DAPS and MC-HO use 0 ms interruption because the dual-active path is maintained during execution",
     "ASSUME-HO-DAPS": "DAPS dual-active phase bounded by max_dual_sec; packet duplication optional",
     "ASSUME-ATM-001": "Tier 4 atmospheric loss uses fixed mid-latitude zenith estimates from ITU-R simplified models: gaseous 0.35 dB (10–25 GHz) / 0.6 dB (25+ GHz) from ITU-R P.676; rain 0.8 dB (10–25 GHz) / 1.5 dB (25+ GHz) from ITU-R P.618 at 99% availability; scintillation 0.4 dB Ka-band from ITU-R P.618 tropospheric. Claim scope: LEO NTN Ka-band baseline only; not for site-specific or availability-sensitive studies. Source: link-budget.ts Tier 4 block.",
     "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed",
-    "ASSUME-HO-ENERGY-001": "Per-handover energy cost E_u,HO has no corpus-backed numeric default in the final simulator spec. If energy_per_handover_j is set, it must be labeled assumption-backed, provenance-tagged at parameterPath=energy.energy_per_handover_j, and reported as a scenario sensitivity parameter rather than a paper-backed baseline constant.",
-    "ASSUME-ENE-001": "Layer 2 energy: solar panel output constant during eclipse = 0; beta angle determines eclipse fraction",
-    "ASSUME-RF-001": "Carrier frequency assumption: Ka-band 20 GHz used as representative value for BH resource-allocation studies where no single corpus paper specifies the exact downlink frequency. Must be swept in frequency-sensitive experiments. NF and noise temperature are covered by STD-3GPP-38811-TABLE-4.4-1 and ASSUME-CUR-002 respectively.",
-    "ASSUME-CUR-002": "Thermal noise T_sys = T_ant + T_0*(NF-1); T_ant = 290 K (clear sky); T_0 = 290 K",
+    "ASSUME-HO-ENERGY-001": {
+      "description": "Per-handover energy cost E_u,HO has no corpus-backed numeric default in the final simulator spec. If energy_per_handover_j is set, it must be labeled assumption-backed, provenance-tagged at parameterPath=energy.energy_per_handover_j, and reported as a scenario sensitivity parameter rather than a paper-backed baseline constant.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-ENE-001": {
+      "description": "Layer 2 energy: solar panel output constant during eclipse = 0; beta angle determines eclipse fraction",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-RF-001": {
+      "description": "Carrier frequency assumption: Ka-band 20 GHz used as representative value for BH resource-allocation studies where no single corpus paper specifies the exact downlink frequency. Must be swept in frequency-sensitive experiments. NF and noise temperature are covered by STD-3GPP-38811-TABLE-4.4-1 and ASSUME-CUR-002 respectively.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-CUR-002": {
+      "description": "Thermal noise T_sys = T_ant + T_0*(NF-1); T_ant = 290 K (clear sky); T_0 = 290 K",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
     "ASSUME-TRAJECTORY-CACHE-PRECOMPUTE": "Satellite positions pre-computed at 0.5 s intervals; interpolated cubically between ticks",
-    "ASSUME-MEO-BASELINE": "MEO cross-orbit comparison baseline: O3b-like circular orbit ~8062 km equatorial, Ka-band, single beam per satellite",
-    "ASSUME-GEO-BASELINE": "GEO cross-orbit comparison baseline: 35786 km geostationary, shadow fraction near-zero except equinox season (β ≈ 0°)",
+    "ASSUME-MEO-BASELINE": {
+      "description": "MEO cross-orbit comparison baseline: O3b-like circular orbit ~8062 km equatorial, Ka-band, single beam per satellite",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-GEO-BASELINE": {
+      "description": "GEO cross-orbit comparison baseline: 35786 km geostationary, shadow fraction near-zero except equinox season (β ≈ 0°)",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
     "ASSUME-ORB-REPRO-RT1": "RT-1 (PAP-2022-SINR-ELEVATION) reproduction: Walker F=1 phasing used; paper does not specify exact epoch or phasing factor",
     "ASSUME-ORB-REPRO-RT2": "RT-2 (PAP-2024-HOBS) reproduction: Walker F=1 phasing used; paper does not specify exact epoch",
     "ASSUME-ORB-REPRO-RT3": "RT-3 (PAP-2025-TIMERCHO-CORE) reproduction: Walker 24×22 used as Starlink-like proxy; paper does not mandate exact constellation layout",
     "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope",
-    "ASSUME-HO-TTT-NTN": "NTN-extended TTT=640 ms: all canonical profiles use ttt_ms=640 as a representative 3GPP NTN value. Rationale: spec H2 lists paper-backed presets of 0/40/256 ms (PAP-2022-A4EVENT-CORE uses 40 ms); the NTN context adds propagation delay compensation overhead (~2×one-way delay ≈ 2×4 ms at 600 km). 640 ms is used as a conservative NTN baseline that was common in early 3GPP NTN study-item discussions, but no specific corpus paper assigns exactly 640 ms as the default. Claim scope: assumption-backed placeholder for NTN TTT; must be swept in sensitivity analysis for handover-timing-sensitive experiments. Spec mode: Advanced (not Realistic per H2). Do not present 640 ms as a paper-backed fixed default in thesis comparison tables.",
-    "ASSUME-HO-THRESHOLD-SINR": "SINR-relative trigger threshold: all profiles use trigger_threshold_db=−6 dB as a SINR-relative handover threshold. This is a design-level simplification vs spec H3, which specifies an A4 absolute power threshold derived as noise_floor_dBm + Q_out. The −6 dB SINR form is an engineering choice that avoids maintaining a noise-floor estimate in the trigger path; no corpus paper explicitly uses −6 dB SINR as the A4 threshold in this relative form. Claim scope: assumption-backed SINR gating value; must be declared in thesis as a simplification of the full H3 derivation. Spec mode: Advanced (manual setting; Realistic requires derivation per H3).",
+    "ASSUME-HO-TTT-NTN": {
+      "description": "NTN-extended TTT=640 ms: all canonical profiles use ttt_ms=640 as a representative 3GPP NTN value. Rationale: spec H2 lists paper-backed presets of 0/40/256 ms (PAP-2022-A4EVENT-CORE uses 40 ms); the NTN context adds propagation delay compensation overhead (~2×one-way delay ≈ 2×4 ms at 600 km). 640 ms is used as a conservative NTN baseline that was common in early 3GPP NTN study-item discussions, but no specific corpus paper assigns exactly 640 ms as the default. Claim scope: assumption-backed placeholder for NTN TTT; must be swept in sensitivity analysis for handover-timing-sensitive experiments. Spec mode: Advanced (not Realistic per H2). Do not present 640 ms as a paper-backed fixed default in thesis comparison tables.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-HO-THRESHOLD-SINR": {
+      "description": "SINR-relative trigger threshold: all profiles use trigger_threshold_db=−6 dB as a SINR-relative handover threshold. This is a design-level simplification vs spec H3, which specifies an A4 absolute power threshold derived as noise_floor_dBm + Q_out. The −6 dB SINR form is an engineering choice that avoids maintaining a noise-floor estimate in the trigger path; no corpus paper explicitly uses −6 dB SINR as the A4 threshold in this relative form. Claim scope: assumption-backed SINR gating value; must be declared in thesis as a simplification of the full H3 derivation. Spec mode: Advanced (manual setting; Realistic requires derivation per H3).",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
     "ASSUME-SINR-LOS-THRESHOLD": "DEPRECATED legacy alias for the LOS-threshold provenance entry. New sourceMap entries must use STD-3GPP-38811-LOS-20DEG instead. This ASSUME-* id predates the later reclassification of the 20° LOS threshold as a standard-backed approximation of 3GPP TR 38.811 §6.7. Keep only for backward audit traceability; do not use in new Realistic profiles or new UI/schema exposure logic.",
-    "ASSUME-BW-001": "500 MHz bandwidth: representative value for BH resource-allocation studies; no single corpus paper mandates this exact value; must be swept as sensitivity parameter in BW-sensitive experiments"
+    "ASSUME-BW-001": {
+      "description": "500 MHz bandwidth: representative value for BH resource-allocation studies; no single corpus paper mandates this exact value; must be swept as sensitivity parameter in BW-sensitive experiments",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-BH-001": {
+      "description": "BH frame structure defaults: bh_max_active_per_slot, bh_frame_duration_sec, bh_slots_per_frame are engineering choices derived from beam count geometry (ceil(num_beams/max_active)); no single corpus paper mandates these exact values; must be documented as assumption-backed in any benchmark that reports slot-level scheduling results",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-HO-002": {
+      "description": "Handover engineering parameters without paper-backed defaults: sinr_ema_alpha (SINR IIR filter coefficient), d2_serving_dist_km / d2_target_dist_km (D2 distance-based HO thresholds), pingPongWindowSec (ping-pong suppression window), cho_offset_db (CHO trigger offset). Values used in profiles are engineering choices; no single corpus paper provides these exact defaults. Must be declared as assumption-backed in any result that depends on these values.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-UE-001": {
+      "description": "UE scenario parameters without universal paper-backed defaults: ueConfig.speed_kmh (static UE assumed as baseline unless mobility study is the topic), ueConfig.count (100 is a common simulation population in corpus papers but not mandated). These are scenario-level engineering choices unless a specific paper explicitly constrains them.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-TRAFFIC-001": {
+      "description": "BH traffic arrival rate: bh_traffic_arrival_rate default (10 arrivals/beam/s Poisson) is an engineering placeholder; no single corpus paper mandates this exact arrival intensity. Must be swept in any traffic-sensitive BH experiment.",
+      "usedIn": [
+        "src/core/config/parameter-registry.ts"
+      ]
+    }
   }
 }

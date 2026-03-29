@@ -27,8 +27,9 @@
     "validate:baseline": "node --import tsx scripts/run-baseline.ts",
     "validate:reproduction": "npx tsx scripts/run-reproduction-comparison.ts",
     "validate:audit-profiles": "node --import tsx scripts/audit-profiles.ts",
+    "validate:registry": "node scripts/validate-parameter-registry.mjs",
     "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:specmode && npm run validate:assumption-manifest && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles"
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:specmode && npm run validate:assumption-manifest && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles && npm run validate:registry"
   },
   "keywords": [
     "3d",

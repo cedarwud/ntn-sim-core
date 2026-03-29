@@ -9,6 +9,7 @@
 **Date (0B rev 2):** 2026-03-29 — two medium findings fixed: M1 phase1-parameter-registry-sdd.md Scope updated to GlobalParameterSpec+ProfileParameterBinding two-layer model; M2 ParameterMetadataResponse redesigned as profile-scoped ParameterView projection (exposureMode resolved per-profile before response); Model Bundle vocabulary hardened: 8 top-level families final, BeamLayoutModel/SchedulerModel/TrafficModel exclusion recorded as non-reopenable
 **Date (0C):** 2026-03-29 — migration plan, high-risk strategies, VAL-PLAT-001–012, phase dependency graph, SDD staleness inventory, MODQN/UI/estnet gating
 **Date (0C rev 1):** 2026-03-29 — two post-0C audit findings fixed: M1 §0B.2 target module map updated to show src/core/models/ as model-interface home (aligns with §0C.1 steps and §0C.3 acceptance criteria); M2 Phase 5 P5-7 and "Phase 5 complete" condition 6 updated to include composeProfile() shim deletion alongside sourceMap removal
+**Date (0B/0C patch — 2026-03-29):** Phase 1 audit sync: §0B.6 energy.layer2_overrides.* expanded to 8 specific keys (verified from types.ts:419), P count corrected 50→58; §0B.4 SourceTier short-form examples corrected to hyphenated forms + operative-schema authority note added; §0C.3 VAL-PLAT-003 namespace wording updated to match nested paper-sources.json structure
 **Depends on:** none
 
 ---
@@ -599,7 +600,9 @@ Both L1 (Parameter Registry) and L6 (Exposure Contract) are currently mapped to 
 
 ### 0B.4 ParameterEntry Schema
 
-This is the **draft schema** for Phase 1 to implement. It is not yet code; it is the design contract.
+This is the **draft schema** origin for Phase 1. It is not yet code; it was the initial design contract.
+
+**AUTHORITY NOTE:** The operative schema for Phase 1 implementation is `phase1-parameter-registry-sdd.md §3`, not this section. Where §0B.4 and phase1 §3 conflict (e.g. SourceTier vocabulary, sourceId resolution rules, coverage count), `phase1-parameter-registry-sdd.md §3` takes precedence. This section is retained for design rationale only.
 
 **Schema design rationale:** A single flat `ParameterEntry` cannot represent per-profile diversity. For example, `rf.frequency_ghz` has three distinct (defaultValue, sourceTier, sourceId, exposureMode) bindings across the three synthetic families (S-band / Ka-band HOBS / Ka-band BH). The schema is therefore split into two structures:
 
@@ -670,12 +673,14 @@ interface GlobalParameterSpec {
  * There is one binding per profile that sets a non-universal default for this parameter.
  *
  * Example for PARAM-RF-FREQ-GHZ:
- *   { profileId: 'family-access-synth',  defaultValue: 2.0,  sourceTier: 'paper',
+ *   { profileId: 'family-access-synth',  defaultValue: 2.0,  sourceTier: 'paper-backed',
  *     sourceId: 'PAP-2022-SINR-ELEVATION', exposureMode: 'Realistic' }
- *   { profileId: 'family-mb-hobs-synth', defaultValue: 28.0, sourceTier: 'paper',
+ *   { profileId: 'family-mb-hobs-synth', defaultValue: 28.0, sourceTier: 'paper-backed',
  *     sourceId: 'PAP-2024-HOBS',          exposureMode: 'Realistic' }
- *   { profileId: 'family-bh-synth',      defaultValue: 20.0, sourceTier: 'assumption',
+ *   { profileId: 'family-bh-synth',      defaultValue: 20.0, sourceTier: 'assumption-backed',
  *     sourceId: 'ASSUME-RF-001',          exposureMode: 'Advanced' }
+ * NOTE: short forms 'paper' / 'assumption' do NOT exist in the live SourceTier union
+ * (src/core/common/types.ts:21). Always use the hyphenated forms above.
  */
 interface ProfileParameterBinding {
   /** References GlobalParameterSpec.id */
@@ -993,14 +998,21 @@ This is the field-level mapping required by §0A.7 before Phase 1 can start.
 | `energy.layer1_enabled` | MB | energy model family selection |
 | `energy.layer2_enabled` | MB | |
 | `energy.energy_per_handover_j` | P | assumption-backed |
-| `energy.layer2_overrides.*` | P | L2 scenario/experiment overrides |
+| `energy.layer2_overrides.batteryCapacityWh` | P | verified from profiles/types.ts:419 |
+| `energy.layer2_overrides.initialSoc` | P | |
+| `energy.layer2_overrides.solarPowerW` | P | |
+| `energy.layer2_overrides.blockingThresholdSoc` | P | |
+| `energy.layer2_overrides.orbitalPeriodSec` | P | |
+| `energy.layer2_overrides.shadowFraction` | P | |
+| `energy.layer2_overrides.altitudeKm` | P | |
+| `energy.layer2_overrides.betaAngleDeg` | P | |
 | `ueConfig.count` | S | moves to ScenarioConfig.ueDistribution |
 | `ueConfig.distribution` | S | |
 | `ueConfig.speed_kmh` | P | scenario-adjacent; classify as P |
 | `ueConfig.independentHandover` | MB | handover model behavior flag |
 | `sourceMap` | PM (transitional) | replaced by per-ParameterEntry provenance in Phase 1; kept for backwards compat until Phase 3 |
 
-**Count summary:** 9 S fields, 24 MB selection flags, 50 P parameter values, 4 E experiment fields, 3 PM profile metadata fields, 1 DEAD field.
+**Count summary:** 9 S fields, 24 MB selection flags, 58 P parameter values (updated from original 50: `energy.layer2_overrides.*` wildcard expanded to 8 specific keys per Phase 1 §10 OP-2 verification against `profiles/types.ts:419`), 4 E experiment fields, 3 PM profile metadata fields, 1 DEAD field.
 
 ---
 
@@ -1177,7 +1189,7 @@ Each phase entry is structured as: goal → main outputs → ordered code-change
 **Main outputs:**
 - `src/core/config/parameter-registry.ts` — `ParameterEntry[]` using the §0B.4 schema
 - All `P`-classified fields from §0B.6 mapped to PARAM-* IDs
-- `paper-sources.json` augmented where new PARAM-* IDs require new PAP-*/ASSUME-* entries
+- `paper-sources.json` augmented where new bindings require new source-registry entries (PAP-* under `papers`, STD-* or non-STD-prefixed standard IDs under `standards`, ASSUME-* under `assumptions`)
 - `scripts/validate-parameter-registry.mjs` — new validation script
 
 **Ordered code-change steps:**
@@ -1188,7 +1200,7 @@ Each phase entry is structured as: goal → main outputs → ordered code-change
 | P1-2 | `src/core/config/parameter-registry.ts` | Populate P-classified orbit parameters (§0B.6: orbital.*) from `defaults.ts` sourceMap entries | ✅ registry is additive |
 | P1-3 | `src/core/config/parameter-registry.ts` | Populate rf.*, antenna.*, beam.* P-classified parameters | ✅ |
 | P1-4 | `src/core/config/parameter-registry.ts` | Populate channel.*, handover.*, energy.*, ueConfig.* P-classified parameters | ✅ |
-| P1-5 | `paper-sources.json` | Add missing PAP-*/ASSUME-* entries required by new ProfileParameterBindings | ✅ additive |
+| P1-5 | `paper-sources.json` | Add missing source-registry entries required by new ProfileParameterBindings; add to the correct nested section (`papers`/`standards`/`assumptions`) | ✅ additive |
 | P1-6 | `scripts/validate-parameter-registry.mjs` (new) | Script: assert registry non-empty; all bindings have sourceId in paper-sources.json; no PARAM-* ID collision | ✅ new script |
 | P1-7 | `package.json` | Add `validate:registry` to `validate:stage` chain | ✅ |
 
@@ -1429,7 +1441,7 @@ These IDs are defined here and must be added to `ntn-sim-core-validation-matrix.
 |---|---|---|---|---|
 | `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` is non-empty and all `P`-classified fields from §0B.6 have at least one binding | 1 | `validate-parameter-registry.mjs` |
 | `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | 1 | `validate-parameter-registry.mjs` |
-| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with PAP-*/STD-*/ASSUME-* namespaces | 1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with source-registry namespaces (checked against combined keys from `papers`+`standards`+`assumptions` sections of paper-sources.json, not top-level JSON keys) | 1 | `validate-parameter-registry.mjs` |
 | `VAL-PLAT-004` | model bundle | engine.ts contains no raw tier-flag if/else chains for path loss, beam gain, or SINR after model-family extraction | 2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 required interface files: `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`; `ModelBundle` type is in `src/core/models/model-bundle.ts` (not `src/core/config/`) | 2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-005` | model bundle | `ModelBundle` factory produces a non-null bundle for all 14 current profiles | 2 | `validate-model-bundle.mjs` |

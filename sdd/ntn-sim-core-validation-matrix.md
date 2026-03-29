@@ -2,7 +2,7 @@
 
 **Version:** 1.7.0
 **Date:** 2026-03-29
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor gates VAL-PLAT-001 through VAL-PLAT-012 added (not yet enforced — activated per phase)
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). VAL-PLAT-004 through VAL-PLAT-012 added but not yet enforced — activated per phase.
 
 ---
 
@@ -66,9 +66,9 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 
 | ID | Category | Check | Phase | Script |
 |---|---|---|---|---|
-| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` (two-layer: `GlobalParameterSpec` + `ProfileParameterBinding[]`) non-empty; all `P`-classified fields from phase0-architecture-spec.md §0B.6 have at least one binding | P1 | `validate-parameter-registry.mjs` (new) |
-| `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | P1 | `validate-parameter-registry.mjs` |
-| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with PAP-*/STD-*/ASSUME-* namespaces | P1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` (two-layer: `GlobalParameterSpec` + `ProfileParameterBinding[]`) non-empty; all `P`-classified fields from phase0-architecture-spec.md §0B.6 have at least one binding | P1 | `validate-parameter-registry.mjs` — loads PARAMETER_REGISTRY, diffs parameterPath set against canonical §0B.6 P-field list; exits non-zero if any path missing or registry empty |
+| `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | P1 | `validate-parameter-registry.mjs` — builds Set from all keys in `papers`+`standards`+`assumptions` sections (NOT top-level JSON keys); checks each binding.sourceId; exits non-zero on any miss. Non-STD-prefixed IDs (e.g. `3GPP-NTN-ACCESS`) are valid. |
+| `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with source-registry namespaces | P1 | `validate-parameter-registry.mjs` — checks id prefix = "PARAM-", id uniqueness, no id matching any key in the combined `papers`+`standards`+`assumptions` set from paper-sources.json |
 | `VAL-PLAT-004` | model bundle | `engine.ts` contains no raw tier-flag if/else chains for path loss, beam gain, or SINR after model-family extraction | P2 | `validate-model-bundle.mjs` (new) |
 | `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 interface files (`geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`); `ModelBundle` in `src/core/models/model-bundle.ts` (not `config/`) | P2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-005` | model bundle | `ModelBundle` factory produces non-null bundle for all 14 current profiles | P2 | `validate-model-bundle.mjs` |
@@ -230,3 +230,13 @@ Any showcase/demo sequence must additionally prove:
 2. visual controls did not alter physical outcomes
 3. the event sequence can be regenerated from replay metadata
 4. any beam-facing showcase satisfies `ntn-sim-core-frontend-beam-visual-sdd.md`
+
+---
+
+## 6. Platform Refactor — Passing Gate Record
+
+| ID | Phase | Result | Date | Notes |
+|---|---|---|---|---|
+| `VAL-PLAT-001` | P1 | ✅ PASS | 2026-03-29 | All 58 canonical parameterPaths present in PARAMETER_REGISTRY |
+| `VAL-PLAT-002` | P1 | ✅ PASS | 2026-03-29 | All 35 distinct sourceIds resolve in paper-sources.json (nested-section lookup) |
+| `VAL-PLAT-003` | P1 | ✅ PASS | 2026-03-29 | 58 PARAM-* IDs: unique, prefixed, no collision with source namespace |
