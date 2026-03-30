@@ -572,20 +572,20 @@ src/
 
 **Resolution:** `core/common/types.ts` is designated a **shared-primitives module**, not a layer. Any layer may import from it. It must not import from any named layer (L1–L7). The "leaf" constraint on L1 means L1 may not import from L2–L7 or `profiles/`, `engine.ts`, `runner/`, `viz/`, or `app/` — importing `SourceTier`/`SpecMode` from `core/common/types.ts` is permitted.
 
-**L1 / L6 directory co-location:**
+**L1 / L6 directory resolution (updated 2026-03-30 per Phase 4 Group 1 decision):**
 
-Both L1 (Parameter Registry) and L6 (Exposure Contract) are currently mapped to `src/core/config/`. This is deliberate: L6 does not yet exist as live code; it will be a Phase 4 output. When Phase 4 creates L6 types, they will live in `src/core/config/exposure/` (subdirectory) to distinguish them from L1 which stays in `src/core/config/` (registry and `paper-sources.json`). The co-location is a naming ambiguity today, not a runtime coupling.
+The original Phase 0B plan placed L6 (Exposure Contract) at `src/core/config/exposure/`. Phase 4 Group 1 has resolved this ambiguity: L6 lives at `src/core/contracts/` (a new top-level directory alongside `src/core/config/`). This eliminates the co-location ambiguity. L1 remains at `src/core/config/`. Authority: `phase4-runtime-contract-sdd.md §3.1` and `§4`.
 
 | Layer | Directory | Allowed imports | Forbidden imports |
 |---|---|---|---|
 | Shared Primitives | `src/core/common/types.ts` | none | everything else (no layer imports) |
-| L1 Parameter Registry | `src/core/config/` (excl. `config/exposure/`) | `core/common/types.ts` (shared primitives only) | L2–L7, profiles/, engine.ts, runner/, viz/, app/ |
+| L1 Parameter Registry | `src/core/config/` | `core/common/types.ts` (shared primitives only) | L2–L7, profiles/, engine.ts, runner/, viz/, app/ |
 | L2 Model Bundle | `src/core/models/` (interface contracts — Phase 2 output) + `src/core/{channel,beam,handover,energy,policy,orbit}/` (implementations) | L1 (parameter IDs), `core/common/types.ts` | engine.ts, profiles/, viz/, app/, runner/ |
 | L3 Scenario/Profile/Experiment | `src/core/profiles/` | L1 (parameter IDs), L2 (model family ids by name only) | engine.ts, viz/, app/, runner/ |
 | L4 Runtime Core | `src/core/engine.ts`, `core/kpi/` | L1, L2 (via interfaces), L3 (ProfileConfig), `core/common/`, `core/trace/` (write) | React, Three.js, viz/, app/, runner/ |
 | L5 Audit/Artifact | `src/core/trace/`, `src/runner/` | L4 output (read-only), L1 | viz/, React, Three.js |
-| L6 Exposure Contract | `src/core/config/exposure/` (Phase 4 — does not exist yet) | L1, L3 (id/label/tier only), `core/common/types.ts` | L4 internals, L2 implementations |
-| L7 Viz/UI | `src/viz/`, `src/app/` | L4 runtime contract (SimulationSnapshot etc.), L6 (exposure contract) | L2 implementations, L3 internals (ProfileConfig fields), L4 engine.ts internals |
+| L6 Exposure Contract | `src/core/contracts/` (Phase 4 output — `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`) | L1, L3 (id/label/tier only, via `profiles/defaults.ts` and `profile-composer.ts`), `core/common/types.ts`, `core/kpi/types.ts`, `core/policy/types.ts` | L4 internals (engine.ts), L2 implementations |
+| L7 Viz/UI | `src/viz/`, `src/app/` | L6 (contracts — `runtime-v1`, `kpi-v1`, `policy-v1`, `exposure-v1`), `runner/runner-exposure-api.ts` (hooks only) | L2 implementations, L3 internals (ProfileConfig fields), L4 engine.ts internals, `runner/headless/benchmark-runner` |
 
 **Critical forbidden dependencies (currently violated — Phase 4 / 5 fix targets):**
 

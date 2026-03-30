@@ -28,7 +28,7 @@ import { createSimEngine } from '@/core/engine';
 import { createReplayArtifact } from '@/core/trace/factory';
 import { recordWindow, createReplayControllerFromArtifact } from '@/runner/replay/controller';
 import { createReplaySelectionPlan } from '@/runner/curation';
-import type { SimulationSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import type { ReplayManifest } from '@/core/trace/types';
 import type { ReplayState } from '@/runner/replay/types';
 

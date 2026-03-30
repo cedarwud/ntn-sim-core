@@ -1,6 +1,6 @@
 import React from 'react';
 
-import type { BeamRole, ContinuityState } from '@/core/common/types';
+import type { BeamRole, ContinuityState } from '@/core/contracts/runtime-v1';
 
 export interface ValidationRuntimeSummary {
   mode: 'live' | 'replay';

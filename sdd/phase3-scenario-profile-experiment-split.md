@@ -742,7 +742,7 @@ use the spread operator only when the source value is defined.
 
 **Rule for Phase 3:** `loader.ts` is **unchanged**. Its external API still accepts and returns `ProfileConfig`. Internally it reads from `DEFAULT_PROFILES` dict which, after P3-3, produces the same `ProfileConfig` values via `composeProfile()`.
 
-**Rule for Phase 4:** The Phase 4 exposure API will add a `loadProfileBundle(id): ProfileBundle` function alongside the existing `loadProfile(id): ProfileConfig`. The existing path is not touched. This is explicitly NOT Phase 3 scope.
+**Rule for Phase 4 (revised 2026-03-30):** Phase 4's exposure contract (`exposure-v1.ts`) adds `getProfileList()` (backed by `ProfileBundle.exposurePreset`) and re-exports `HandoverType`. It does **NOT** add a `loadProfileBundle(id): ProfileBundle` function in Phase 4. The `loadProfileBundle()` function described in the original Phase 4 stub has been **explicitly deferred** — Phase 4 freezes the profile-listing and type-exposure contracts only. The `loader.ts` public API (`loadProfile(id): ProfileConfig`) is unchanged. If a future consumer needs to load a `ProfileBundle` by ID, that surface is deferred to Phase 5 or a downstream program. Authority: `phase4-runtime-contract-sdd.md §9.4 Not in Scope for Group 2`.
 
 ---
 
@@ -910,7 +910,7 @@ A reviewer can declare Phase 3 complete by verifying all six conditions:
 
 No other conditions apply. In particular, Phase 3 completion does NOT require:
 - `engine.ts` to accept `(ScenarioConfig, ModelBundleSelection)` separately (Phase 4)
-- `loader.ts` to expose `loadProfileBundle()` (Phase 4)
+- `loader.ts` to expose `loadProfileBundle()` (deferred — not in Phase 4; see §7 revised note)
 - `sourceMap[]` to be removed (Phase 5)
 - `composeProfile()` shim to be deleted (Phase 5)
 - ControlPanel updated to use `getProfileList()` (Phase 4)
@@ -937,7 +937,7 @@ Only in Group 3, after Group 2 is complete and VAL-PLAT-007 passes.
 Do not split before `composeProfile()` is in place and verified. Splitting first would make it harder to verify the round-trip.
 
 ### When does `loader.ts` accept composed types?
-Not in Phase 3. `loader.ts` continues accepting flat `ProfileConfig`. A new `loadProfileBundle(id): ProfileBundle` path is Phase 4 scope.
+Not in Phase 3. `loader.ts` continues accepting flat `ProfileConfig`. The originally-planned `loadProfileBundle(id): ProfileBundle` path has been **explicitly deferred beyond Phase 4** — see §7 revised note (2026-03-30). Phase 4 delivers `getProfileList()` only; `loadProfileBundle()` is deferred to Phase 5 or downstream.
 
 ### What is not Phase 3's job at all?
 - Freezing runtime contract types → Phase 4

@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { SimulationSnapshot, HoLogEntry } from '@/core/common/types';
+import type { SimulationSnapshot, HoLogEntry } from '@/core/contracts/runtime-v1';
 
 // ---------------------------------------------------------------------------
 // Props

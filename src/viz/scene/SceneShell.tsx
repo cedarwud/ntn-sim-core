@@ -26,7 +26,7 @@ import SinrCdfOverlay from '@/viz/overlays/SinrCdfOverlay';
 import SinrElevationScatter from '@/viz/overlays/SinrElevationScatter';
 import { BatchKpiPanel } from '@/viz/overlays/BatchKpiPanel';
 import { usePublishValidationSection } from '@/viz/validation/store';
-import type { SimulationSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 
 // Default profile: Realistic first-screen preset (spec §10). Matches useSceneQueryState default.
 const DEFAULT_PROFILE_ID = 'realistic-first-screen';

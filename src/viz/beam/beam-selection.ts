@@ -7,7 +7,7 @@
  * VISUAL-ONLY: Does NOT affect physics, SINR, or KPI.
  */
 
-import type { SimulationSnapshot, SatelliteState } from '@/core/common/types';
+import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 
 const MIN_BEAM_ELEVATION_DEG = 10;
 

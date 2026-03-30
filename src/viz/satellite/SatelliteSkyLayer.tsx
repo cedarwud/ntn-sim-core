@@ -8,7 +8,7 @@
 
 import React, { useMemo } from 'react';
 import { useGLTF, Text } from '@react-three/drei';
-import type { SimulationSnapshot, SatelliteState } from '@/core/common/types';
+import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 import { SATELLITE_MODEL_ASSET } from '@/assets/models';
 import {
   projectToSkyDome,

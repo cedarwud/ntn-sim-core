@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.5.0
+**Version:** 4.7.0
 **Date:** 2026-03-30
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0 complete. Phase 1 (Parameter Registry) complete. Phase 2 (Model Bundle Interfaces) complete and hardened (2026-03-29). Phase 3 (Scenario/Profile/Experiment Split) complete (2026-03-30) — Group 2: `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, `ProfileBundle` types in `profiles/types.ts`; `composeProfile`/`decomposeProfile`/`PROFILE_EXPOSURE_PRESETS` in `profile-composer.ts`; all 14 profiles authored as ProfileBundle+ExperimentBundle; VAL-PLAT-006/007 pass. Group 3: `defaults.ts` split into `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, `defaults-misc.ts`, `observers.ts`; `defaults.ts` rewritten as thin re-export index; `validate:specmode`/`validate:trace` updated for split; `validate:stage` green (exit 0).
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0–3 complete. Phase 4 (Runtime Contract Freeze) complete (2026-03-30) — Group 1: contract family definitions, consumer boundaries, import restriction patterns, versioning rules, decision points, and VAL-PLAT-008/009/010 concrete pass conditions frozen in `phase4-runtime-contract-sdd.md`. Group 2: `src/core/contracts/` landed (`runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts`); `src/runner/runner-exposure-api.ts` implemented; `useBatchKpi.ts` migrated to `RunnerExposureApi`; `ControlPanel.tsx` migrated to `getProfileList()` (no more hardcoded `PROFILE_OPTIONS`); 16 viz/hooks files redirected from `@/core/common/types` → `@/core/contracts/runtime-v1`; `scripts/validate-contracts.mjs` (VAL-PLAT-008/009/010) added to `validate:stage`; all three contract gates pass.
 
 ---
 
@@ -30,7 +30,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | 1 | Parameter Registry | ✅ complete | `sdd/phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing; `parameter-registry.ts` (58 entries), `validate-parameter-registry.mjs`; done 2026-03-29 |
 | 2 | Model Bundle Interfaces | ✅ complete (2026-03-29) — `src/core/models/` (9 files), `buildModelBundle` factory, engine dispatch via bundle interfaces, `validate:bundle` (VAL-PLAT-004/004b/005 all PASS) | `sdd/phase2-model-bundle-sdd.md` §10 |
 | 3 | Scenario/Profile/Experiment Split | ✅ complete (2026-03-30) — Group 1 (SDD), Group 2 (types + compose/decompose), Group 3 (file split + thin re-export defaults.ts + observers.ts) all done | `sdd/phase3-scenario-profile-experiment-split.md §10` — VAL-PLAT-005/006/007 PASS after Group 3 file split; `validate:stage` green (exit 0) |
-| 4 | Runtime Contract Freeze | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-008/009/010 |
+| 4 | Runtime Contract Freeze | ✅ complete (2026-03-30) — Group 1 (SDD spec frozen) + Group 2 (contracts landed, consumers migrated, VAL-PLAT-008/009/010 PASS) | `sdd/phase4-runtime-contract-sdd.md §10` — VAL-PLAT-008/009/010 all PASS |
 | 5 | Cleanup + Modularization | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-011/012 |
 
 ---

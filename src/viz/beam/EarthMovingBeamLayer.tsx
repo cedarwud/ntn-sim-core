@@ -12,7 +12,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/contracts/runtime-v1';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import { selectBeamSatellites } from './beam-selection';
 import {

@@ -17,7 +17,7 @@ import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-lo
 import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import { createSimEngine } from '@/core/engine';
 import type { SimEngine } from '@/core/engine';
-import type { SimulationSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 
 // ---------------------------------------------------------------------------
 // Public interface

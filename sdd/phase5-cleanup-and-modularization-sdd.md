@@ -1,6 +1,6 @@
 # Phase 5 — Cleanup and Modularization
 
-**Status:** Active — stub only; must be promoted to full cleanup plan before implementation  
+**Status:** Active — implementation-ready draft; finalize split/retirement plan against current repo state before Phase 5 code changes  
 **Date (stub):** 2026-03-29  
 **Depends on:** Phase 0 complete, Phase 1 complete, Phase 2 complete, Phase 3 complete, Phase 4 complete
 

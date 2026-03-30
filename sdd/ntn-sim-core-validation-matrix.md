@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.9.0
+**Version:** 2.1.0
 **Date:** 2026-03-30
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. Platform Refactor Phase 3 complete (2026-03-30) — VAL-PLAT-006/007 enforced and passing (`scripts/validate-profiles.mjs`); Group 3 file split complete (`defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, `defaults-misc.ts`, `observers.ts`; `defaults.ts` → thin re-export); `validate:trace`/`validate:specmode` updated for split; `validate:stage` green (exit 0). VAL-PLAT-008 through VAL-PLAT-012 added but not yet enforced — activated per phase.
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1–4 complete. Phase 4 Group 2 complete (2026-03-30): VAL-PLAT-008/009/010 all PASS — `scripts/validate-contracts.mjs` added to `validate:stage`; `src/core/contracts/` landed; `RunnerExposureApi` in `src/runner/runner-exposure-api.ts`; `ControlPanel.tsx` uses `getProfileList()` (no hardcoded list); 16 viz/hooks files migrated to contracts import boundary. VAL-PLAT-011/012 not yet enforced — Phase 5.
 
 ---
 
@@ -74,9 +74,9 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-PLAT-005` | model bundle | `ModelBundle` factory (`buildModelBundle`) produces non-null bundle for all 14 current profiles; all 8 required slots populated; `power`/`ee` null iff `layer1_enabled===false` | P2 | `validate-model-bundle.mjs` — runs `buildModelBundle` for each entry in `DEFAULT_PROFILES` under `node --import tsx`; asserts non-null fields and bundle.id prefix |
 | `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, `ProfileBundle` exported from `profiles/types.ts`; `composeProfile`/`decomposeProfile` exported from `profiles/profile-composer.ts`; no import from `engine.ts`, `viz/`, `app/`, `runner/` in Phase 3 new files; `ProfileConfig` still present and exported | P3 | `validate-profiles.mjs` (augmented) — regex export-scan on `types.ts` + `profile-composer.ts`; import-chain assertions on new files; see `phase3-scenario-profile-experiment-split.md §9` for exact pass/fail output format |
 | `VAL-PLAT-007` | scenario split | all 14 profiles in `DEFAULT_PROFILES` pass `decomposeProfile → composeProfile` round-trip: `deepEqual(composeProfile(decomposeProfile(P).bundle, decomposeProfile(P).exp), P)` for every field; no extra fields inserted by compose; `tier3_5_scan_loss` absent from round-trip result after P3-7 | P3 | `validate-profiles.mjs` (augmented) — runs under `node --import tsx`; imports `DEFAULT_PROFILES`, `composeProfile`, `decomposeProfile`; recursive `deepEqual` with diff output on first failing field; see `phase3-scenario-profile-experiment-split.md §9` for exact pass/fail output format |
-| `VAL-PLAT-008` | runtime contract | `src/core/contracts/runtime-v1.ts` exports all frozen snapshot types with `@frozen` annotation | P4 | `validate-contracts.mjs` (new) |
-| `VAL-PLAT-009` | runtime contract | no viz-layer file imports directly from `core/common/types.ts` or `core/profiles/types.ts` | P4 | `validate-contracts.mjs` |
-| `VAL-PLAT-010` | exposure contract | `getProfileList()` returns entries for all 14 profiles with valid `family` and `tier` fields | P4 | `validate-contracts.mjs` |
+| `VAL-PLAT-008` | runtime contract | (1) `src/core/contracts/runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts` all exist; (2) `runtime-v1.ts` exports 9 required snapshot types (`SimulationSnapshot`, `SatelliteState`, `UeState`, `BhSlotSnapshot`, `DapsSnapshot`, `HoLogEntry`, `SatelliteBeamSnapshot`, `BeamRole`, `ContinuityState`); (3) `runtime-v1.ts` includes `@version v1` and `@frozen` text; (4) `kpi-v1.ts` exports `KpiBundle` and `BatchKpiEntry`; (5) `policy-v1.ts` exports `PolicyObservation`, `PolicyAction`, `Policy`; (6) `exposure-v1.ts` exports `ProfileListEntry`, `HandoverType`, `getProfileList` | P4 | `scripts/validate-contracts.mjs` (new) — `npm run validate:contracts`. Exact check patterns in `phase4-runtime-contract-sdd.md §8.1` |
+| `VAL-PLAT-009` | runtime contract | Zero files in `src/viz/**` match: (F1) import from `@/core/common/types`; (F2) import from `@/core/profiles/types`; (F4) reference `PROFILE_OPTIONS`; (F5) import from `@/core/policy/types`. Zero files in `src/app/hooks/**` match: (F3) import from `@/runner/headless/benchmark-runner`; (F5) import from `@/core/policy/types`. Exception: `src/core/contracts/**` may import from `common/types`, `profiles/types`, `kpi/types`, `policy/types` (bridge layer). `src/viz/**` must NOT import `@/runner/runner-exposure-api` directly. | P4 | `scripts/validate-contracts.mjs` — glob + regex scan; fails with violating file list. Exact grep patterns in `phase4-runtime-contract-sdd.md §8.2` |
+| `VAL-PLAT-010` | exposure contract | `getProfileList()` importable from `@/core/contracts/exposure-v1`; returns Array of length 14; all 14 profile IDs present (see `phase4-runtime-contract-sdd.md §8.3` for exact ID list); every entry has `tier ∈ ['Realistic','Advanced','Sensitivity']`; every entry has non-empty `id`, `label`, `family`; data NOT sourced from hardcoded `PROFILE_OPTIONS` | P4 | `scripts/validate-contracts.mjs` (runtime execution under `node --import tsx`). Exact check in `phase4-runtime-contract-sdd.md §8.3` |
 | `VAL-PLAT-011` | cleanup | no file in `src/core/` exceeds 650 lines | P5 | `validate-structure.mjs` (augmented) |
 | `VAL-PLAT-012` | cleanup | `engine.ts` is thin orchestrator (≤200 lines); sub-modules in `engine/` directory; no direct physics formula calls in orchestrator | P5 | `validate-structure.mjs` (augmented) |
 
@@ -176,8 +176,19 @@ Each validation check operates at one of three levels:
 | VAL-FV-009 | V | `validate-visual-browser.ts` — live + replay DAPS probes verify dual-active continuity truth without invented states |
 | VAL-ARCH-001 | structural | validate-core-purity.mjs |
 | VAL-ARCH-002 | structural | validate-structure.mjs |
+| VAL-PLAT-001 | structural | validate-parameter-registry.mjs |
+| VAL-PLAT-002 | structural | validate-parameter-registry.mjs |
+| VAL-PLAT-003 | structural | validate-parameter-registry.mjs |
+| VAL-PLAT-004 | structural | validate-model-bundle.ts |
+| VAL-PLAT-004b | structural | validate-model-bundle.ts |
+| VAL-PLAT-005 | structural | validate-model-bundle.ts |
+| VAL-PLAT-006 | structural | validate-profiles.mjs |
+| VAL-PLAT-007 | structural | validate-profiles.mjs |
+| VAL-PLAT-008 | structural | validate-contracts.mjs — contract files exist with @frozen annotation + required exports **PASS** (2026-03-30) |
+| VAL-PLAT-009 | structural | validate-contracts.mjs — zero F1–F6 forbidden import patterns in viz/hooks **PASS** (2026-03-30) |
+| VAL-PLAT-010 | structural | validate-contracts.mjs — getProfileList() returns 14 profiles, no hardcoded data **PASS** (2026-03-30) |
 
-**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass and are part of `npm run validate:stage` via `node --import tsx`. Engine coverage now extends through E-11, including `VAL-POLICY-001` and `VAL-DOPPLER-001` in addition to the earlier E-5 through E-9 expansion. `npm run validate:integration` runs all engine + reproduction checks. Browser-level visual checks (`VAL-BEAM-001`, `VAL-FV-004` through `VAL-FV-009`, and `VAL-EXP-001`) are automated via `validate-visual-browser.ts`, and `VAL-ORB-001` is now browser/headless-hybrid validated by `validate-orbit-parity.ts`.
+**Note:** Formula-level (`-F`) checks are automated and pass. Engine-level (`-E`) checks pass and are part of `npm run validate:stage` via `node --import tsx`. Engine coverage now extends through E-11, including `VAL-POLICY-001` and `VAL-DOPPLER-001` in addition to the earlier E-5 through E-9 expansion. `npm run validate:integration` runs all engine + reproduction checks. Browser-level visual checks (`VAL-BEAM-001`, `VAL-FV-004` through `VAL-FV-009`, and `VAL-EXP-001`) are automated via `validate-visual-browser.ts`, and `VAL-ORB-001` is now browser/headless-hybrid validated by `validate-orbit-parity.ts`. Platform Refactor contract gates VAL-PLAT-008/009/010 are enforced via `validate-contracts.mjs` and included in `validate:stage` — all three pass (2026-03-30).
 
 **Deferred hardening IDs:** none remain in the current enforced closure set.
 

@@ -6,7 +6,8 @@
  */
 
 import React, { useCallback } from 'react';
-import type { HandoverType } from '@/core/profiles/types';
+import type { HandoverType } from '@/core/contracts/exposure-v1';
+import { getProfileList } from '@/core/contracts/exposure-v1';
 
 export interface ControlPanelProps {
   speed: number;
@@ -38,33 +39,21 @@ export interface ControlPanelProps {
 }
 
 // ---------------------------------------------------------------------------
-// Profile tier groups (simulator-parameter-spec.md §0 Mode Classification)
+// Profile tier groups — derived from exposure contract (Phase 4 Group 2)
 // ---------------------------------------------------------------------------
 //
-// Realistic: paper/standard-backed defaults; safe for thesis comparison tables.
-// Advanced:  valid secondary settings from papers; requires explicit justification.
-// Sensitivity: reproduction targets & parameter sweeps for analysis.
-// Internal-only: not listed here — kept in runtime only, never exposed in UI.
+// Data source: getProfileList() from @/core/contracts/exposure-v1
+//   - Backed by PROFILE_EXPOSURE_PRESETS (profile-composer.ts)
+//   - Replaces the former hardcoded PROFILE_OPTIONS constant
+//   - Internal-only profiles are excluded by getProfileList()
+//
+// Phase 4 Group 2: phase4-runtime-contract-sdd.md §4.4 / P4-7
 
-const PROFILE_OPTIONS: Array<{ value: string; label: string; tier: 'Realistic' | 'Advanced' | 'Sensitivity' }> = [
-  // --- Realistic ---
-  { value: 'realistic-first-screen', label: 'Realistic — Ka 20 GHz, A3 HO (spec §10)', tier: 'Realistic' },
-  // --- Advanced ---
-  { value: 'case9-access-baseline',     label: 'Advanced — Case-9 Access (S-band A4)',     tier: 'Advanced' },
-  { value: 'hobs-multibeam-baseline',   label: 'Advanced — HOBS Multi-Beam (Ka 28 GHz)',   tier: 'Advanced' },
-  { value: 'bh-resource-baseline',      label: 'Advanced — BH Resource (Ka 20 GHz)',       tier: 'Advanced' },
-  { value: 'case9-daps-baseline',       label: 'Advanced — DAPS Dual-Active',              tier: 'Advanced' },
-  { value: 'real-trace-validation',     label: 'Advanced — Real-Trace (TLE/SGP4)',         tier: 'Advanced' },
-  { value: 'meo-constellation-baseline',label: 'Advanced — MEO Constellation',            tier: 'Advanced' },
-  { value: 'geo-relay-baseline',        label: 'Advanced — GEO Relay',                    tier: 'Advanced' },
-  // --- Sensitivity / Reproduction ---
-  { value: 'sinr-elevation-reproduction', label: 'Sensitivity — SINR-Elevation Repro',   tier: 'Sensitivity' },
-  { value: 'hobs-reproduction',           label: 'Sensitivity — HOBS Repro',              tier: 'Sensitivity' },
-  { value: 'timer-cho-reproduction',      label: 'Sensitivity — Timer-CHO Repro',         tier: 'Sensitivity' },
-  { value: 'bh-pf-baseline',             label: 'Sensitivity — BH Proportional-Fair',    tier: 'Sensitivity' },
-  { value: 'bh-sinr-greedy-baseline',    label: 'Sensitivity — BH SINR-Greedy',          tier: 'Sensitivity' },
-  { value: 'bh-resource-energy-proof',   label: 'Sensitivity — BH Energy Proof',         tier: 'Sensitivity' },
-];
+const PROFILE_OPTIONS = getProfileList().map((e) => ({
+  value: e.id,
+  label: e.label,
+  tier: e.tier,
+}));
 
 const SPEEDS = [1, 5, 10, 20] as const;
 

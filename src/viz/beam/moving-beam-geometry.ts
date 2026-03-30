@@ -1,4 +1,4 @@
-import type { SatelliteBeamSnapshot, SatelliteState } from '@/core/common/types';
+import type { SatelliteBeamSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 import {
   DEFAULT_SKY_PROJECTION,
   projectToSkyDome,

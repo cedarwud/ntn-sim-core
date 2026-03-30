@@ -18,7 +18,7 @@
 
 import React, { useMemo } from 'react';
 import { Text } from '@react-three/drei';
-import type { SimulationSnapshot, SatelliteState } from '@/core/common/types';
+import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import {
   projectToSkyDome,

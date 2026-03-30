@@ -11,7 +11,7 @@
  */
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import type { SimulationSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 
 // ---------------------------------------------------------------------------
 // Props

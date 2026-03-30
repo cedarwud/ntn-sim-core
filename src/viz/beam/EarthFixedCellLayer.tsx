@@ -17,7 +17,7 @@
 import React, { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import type { SimulationSnapshot } from '@/core/common/types';
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import type { BhCellState, HexCell } from './bh-cell-analysis';
 import {

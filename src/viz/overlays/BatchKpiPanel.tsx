@@ -10,7 +10,7 @@
 import React, { useCallback } from 'react';
 import { useBatchKpi } from '@/app/hooks/useBatchKpi';
 import type { BatchKpiEntry } from '@/app/hooks/useBatchKpi';
-import type { KpiBundle } from '@/core/kpi/types';
+import type { KpiBundle } from '@/core/contracts/kpi-v1';
 
 // ---------------------------------------------------------------------------
 // Profiles to compare (the 3 synthetic families)

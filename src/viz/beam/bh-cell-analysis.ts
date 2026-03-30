@@ -10,7 +10,7 @@
  *   - Validation: VAL-FV-004, VAL-EXP-001
  */
 
-import type { SimulationSnapshot, SatelliteState } from '@/core/common/types';
+import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 import {
   projectToSkyDome,
   DEFAULT_SKY_PROJECTION,

@@ -1,25 +1,22 @@
 /**
  * useBatchKpi — runs multiple profiles headlessly and aggregates KPI results.
  *
- * Runs each profile sequentially in the browser using executeBenchmarkRun.
+ * Runs each profile sequentially in the browser using RunnerExposureApi.
  * Returns progress status, results array, and download helpers.
  *
  * This file must not import Three.js or R3F code.
+ *
+ * Contract imports (Phase 4 Group 2 — phase4-runtime-contract-sdd.md §4.2, §4.5):
+ *   BatchKpiEntry is the authoritative type from kpi-v1 contract.
+ *   executeBenchmark is accessed via RunnerExposureApi (not benchmark-runner directly).
  */
 
 import { useState, useCallback, useRef } from 'react';
-import type { KpiBundle } from '@/core/kpi/types';
-import { executeBenchmarkRun } from '@/runner/headless/benchmark-runner';
+import type { BatchKpiEntry } from '@/core/contracts/kpi-v1';
+import { defaultRunnerExposureApi } from '@/runner/runner-exposure-api';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface BatchKpiEntry {
-  profileId: string;
-  kpi: KpiBundle;
-  wallClockMs: number;
-}
+// Re-export BatchKpiEntry so existing callers that imported it from here continue to work.
+export type { BatchKpiEntry } from '@/core/contracts/kpi-v1';
 
 export type BatchStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -60,7 +57,7 @@ export function useBatchKpi(): UseBatchKpiResult {
         // Yield to allow React to render the progress update
         await new Promise((r) => setTimeout(r, 0));
         try {
-          const result = executeBenchmarkRun({ profileId: id });
+          const result = defaultRunnerExposureApi.executeBenchmark({ profileId: id });
           collected.push({ profileId: id, kpi: result.kpiBundle, wallClockMs: result.wallClockMs });
           setResults([...collected]);
         } catch (e) {
