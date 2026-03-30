@@ -549,10 +549,12 @@ async function validateDapsReplay(page: Page) {
     showLabels: '1',
   });
 
-  // Timeout increased to 240s (from 150s): in full validate:stage runs the browser
-  // competes with other long-running scripts for CPU/memory, causing DAPS replay
-  // pre-computation to take longer than in standalone runs. 240s provides a
-  // sufficient margin without masking genuine hangs.
+  // Timeout 360s: DAPS replay pre-computation is the most CPU-intensive browser
+  // gate. In full validate:stage runs, all prior scripts have already consumed
+  // memory/CPU, and the replay engine must run ~80 simulation ticks before seeking
+  // to the dual-active window. 240s was insufficient under WSL2 resource pressure
+  // (observed intermittent failures at ~240s). 360s provides margin without masking
+  // genuine hangs (a real hang would loop indefinitely, not time out at 240s+ε).
   const state = await waitForState(
     page,
     (current) =>
@@ -562,7 +564,7 @@ async function validateDapsReplay(page: Page) {
       current.runtime.dapsPhase === 'dual-active' &&
       current.handoverLinkOverlay.styleKeys.includes('dapsSource') &&
       current.handoverLinkOverlay.styleKeys.includes('dapsTarget'),
-    240000,
+    360000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-replay-dual-active.png') });

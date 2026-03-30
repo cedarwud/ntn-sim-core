@@ -63,6 +63,8 @@ export const PROFILE_EXPOSURE_PRESETS: Record<string, { tier: SpecMode; label: s
  *   3. tier0_fspl is always true in the returned channel config.
  *   4. timeControl assembles epochUtcMs from bundle.scenario, durationSec/stepSec from exp.
  *   5. Undefined optional fields are omitted from the result (not set to undefined).
+ *   6. The returned object shares NO mutable references with the inputs.
+ *      All nested objects and arrays are shallow-copied. This is a pure transformation.
  *
  * Authority: phase3-scenario-profile-experiment-split.md §6.1 and §6.3
  */
@@ -78,7 +80,7 @@ export function composeProfile(bundle: ProfileBundle, exp: ExperimentBundle): Pr
     // ── Scenario (S) top-level fields ─────────────────────────────────
     orbitMode: bundle.scenario.orbitMode,
     beamSemantics: bundle.models.beamSemantics,
-    observer: bundle.scenario.observer,
+    observer: { ...bundle.scenario.observer },
 
     // ── Experiment (E) top-level fields ───────────────────────────────
     seed: exp.seed,
@@ -99,8 +101,8 @@ export function composeProfile(bundle: ProfileBundle, exp: ExperimentBundle): Pr
       raan_spread_deg: bundle.orbital.raan_spread_deg,
       phase_offset_deg: bundle.orbital.phase_offset_deg,
       ...(orbitalTopology?.orbitType !== undefined && { orbitType: orbitalTopology.orbitType }),
-      ...(orbitalTopology?.extra_shells !== undefined && { extra_shells: orbitalTopology.extra_shells }),
-      ...(orbitalTopology?.geoSatellites !== undefined && { geoSatellites: orbitalTopology.geoSatellites }),
+      ...(orbitalTopology?.extra_shells !== undefined && { extra_shells: orbitalTopology.extra_shells.map(s => ({ ...s })) }),
+      ...(orbitalTopology?.geoSatellites !== undefined && { geoSatellites: orbitalTopology.geoSatellites.map(g => ({ ...g })) }),
     },
 
     // ── rf: all RfConfig fields are P-classified ───────────────────────
@@ -183,7 +185,7 @@ export function composeProfile(bundle: ProfileBundle, exp: ExperimentBundle): Pr
       layer1_enabled: bundle.models.energy.layer1_enabled,
       layer2_enabled: bundle.models.energy.layer2_enabled,
       ...(bundle.energy.energy_per_handover_j !== undefined && { energy_per_handover_j: bundle.energy.energy_per_handover_j }),
-      ...(bundle.energy.layer2_overrides !== undefined && { layer2_overrides: bundle.energy.layer2_overrides }),
+      ...(bundle.energy.layer2_overrides !== undefined && { layer2_overrides: { ...bundle.energy.layer2_overrides } }),
     },
 
     // ── ueConfig: count/distribution from S, speed from P, independentHO from MB ──
@@ -194,8 +196,8 @@ export function composeProfile(bundle: ProfileBundle, exp: ExperimentBundle): Pr
       ...(bundle.models.ueConfig.independentHandover !== undefined && { independentHandover: bundle.models.ueConfig.independentHandover }),
     },
 
-    // ── sourceMap: PM transitional ────────────────────────────────────
-    sourceMap: bundle.sourceMap,
+    // ── sourceMap: PM transitional (shallow-copy each entry to avoid aliasing) ──
+    sourceMap: bundle.sourceMap.map(ref => ({ ...ref })),
   };
 
   // ── optional top-level E and S fields ─────────────────────────────────
@@ -230,13 +232,18 @@ export function composeProfile(bundle: ProfileBundle, exp: ExperimentBundle): Pr
  *   3. Absent optional fields become absent in bundle/exp (not set to undefined).
  *   4. bundle.exposurePreset is derived from the static PROFILE_EXPOSURE_PRESETS lookup;
  *      defaults to { tier: 'Advanced', label: config.id } for unknown profile IDs.
+ *   5. The returned objects share NO mutable references with the input config.
+ *      All nested objects and arrays are shallow-copied. This is a pure transformation.
  *
  * Authority: phase3-scenario-profile-experiment-split.md §6.2
  */
 export function decomposeProfile(config: ProfileConfig): { bundle: ProfileBundle; exp: ExperimentBundle } {
-  // Derive exposurePreset from static lookup (not in ProfileConfig)
-  const exposurePreset = PROFILE_EXPOSURE_PRESETS[config.id] ??
-    { tier: 'Advanced' as SpecMode, label: config.id };
+  // Derive exposurePreset from static lookup (not in ProfileConfig).
+  // Shallow-copy to avoid aliasing the global PROFILE_EXPOSURE_PRESETS entry.
+  const presetRef = PROFILE_EXPOSURE_PRESETS[config.id];
+  const exposurePreset = presetRef
+    ? { ...presetRef }
+    : { tier: 'Advanced' as SpecMode, label: config.id };
 
   // Reconstruct orbital topology from the optional S-fields in OrbitalConfig
   const hasTopology = (
@@ -247,8 +254,8 @@ export function decomposeProfile(config: ProfileConfig): { bundle: ProfileBundle
   const orbitalTopology: ScenarioConfig['orbitalTopology'] = hasTopology
     ? {
         ...(config.orbital.orbitType !== undefined && { orbitType: config.orbital.orbitType }),
-        ...(config.orbital.extra_shells !== undefined && { extra_shells: config.orbital.extra_shells }),
-        ...(config.orbital.geoSatellites !== undefined && { geoSatellites: config.orbital.geoSatellites }),
+        ...(config.orbital.extra_shells !== undefined && { extra_shells: config.orbital.extra_shells.map(s => ({ ...s })) }),
+        ...(config.orbital.geoSatellites !== undefined && { geoSatellites: config.orbital.geoSatellites.map(g => ({ ...g })) }),
       }
     : undefined;
 
@@ -263,7 +270,7 @@ export function decomposeProfile(config: ProfileConfig): { bundle: ProfileBundle
     scenario: {
       orbitMode: config.orbitMode,
       ...(config.tleDataPath !== undefined && { tleDataPath: config.tleDataPath }),
-      observer: config.observer,
+      observer: { ...config.observer },
       epochUtcMs: config.timeControl.epochUtcMs,
       ...(orbitalTopology !== undefined && { orbitalTopology }),
       ueTopology: {
@@ -371,14 +378,14 @@ export function decomposeProfile(config: ProfileConfig): { bundle: ProfileBundle
 
     energy: {
       ...(config.energy.energy_per_handover_j !== undefined && { energy_per_handover_j: config.energy.energy_per_handover_j }),
-      ...(config.energy.layer2_overrides !== undefined && { layer2_overrides: config.energy.layer2_overrides }),
+      ...(config.energy.layer2_overrides !== undefined && { layer2_overrides: { ...config.energy.layer2_overrides } }),
     },
 
     ueConfig: {
       speed_kmh: config.ueConfig.speed_kmh,
     },
 
-    sourceMap: config.sourceMap,
+    sourceMap: config.sourceMap.map(ref => ({ ...ref })),
   };
 
   const exp: ExperimentBundle = {

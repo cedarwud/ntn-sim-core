@@ -60,20 +60,27 @@ if (registryErrors.length) {
 
 // ─────────────────────────────────────────────────────────────────────
 // Phase 3: parameter-level provenance coverage check.
-// Reads defaults.ts as text and verifies that the two primary baselines carry
-// both a healthy count of parameterPath entries and a few anchor parameters
-// that must never lose provenance coverage.
+// Reads the per-family defaults files and verifies that the primary baselines
+// carry both a healthy count of parameterPath entries and a few anchor
+// parameters that must never lose provenance coverage.
+// (Phase 3 Group 3: defaults.ts is now a thin re-export; profile content
+// lives in defaults-access.ts, defaults-hobs.ts, defaults-misc.ts.)
 // ─────────────────────────────────────────────────────────────────────
-const defaultsPath = path.join(rootDir, 'src/core/profiles/defaults.ts');
-const defaultsSrc = readFileSync(defaultsPath, 'utf8');
+const accessSrc = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-access.ts'), 'utf8');
+const hobsSrc   = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-hobs.ts'), 'utf8');
+const miscSrc   = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-misc.ts'), 'utf8');
 
 // Count parameterPath occurrences in each baseline block.
 // We split by baseline export to scope the count.
 const baselineBlocks = {
-  'case9-access-baseline': defaultsSrc.match(/CASE9_ACCESS_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
-  'hobs-multibeam-baseline': defaultsSrc.match(/HOBS_MULTIBEAM_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
-  'realistic-first-screen': defaultsSrc.match(/REALISTIC_FIRST_SCREEN[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
+  'case9-access-baseline': accessSrc.match(/CASE9_ACCESS_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
+  'hobs-multibeam-baseline': hobsSrc.match(/HOBS_MULTIBEAM_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
+  'realistic-first-screen': miscSrc.match(/REALISTIC_FIRST_SCREEN[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
 };
+
+// For the energy_per_handover_j future-proofing check, scan all family files.
+const allProfilesSrc = accessSrc + hobsSrc + miscSrc +
+  readFileSync(path.join(rootDir, 'src/core/profiles/defaults-bh.ts'), 'utf8');
 
 const requiredParameterPaths = {
   'case9-access-baseline': [
@@ -112,8 +119,8 @@ for (const [name, block] of Object.entries(baselineBlocks)) {
 
 // Future-proofing: if any profile starts using energy_per_handover_j, that
 // field must also appear in parameter-level provenance.
-if (/energy_per_handover_j\s*:/.test(defaultsSrc) &&
-    !/parameterPath:\s*'energy\.energy_per_handover_j'/.test(defaultsSrc)) {
+if (/energy_per_handover_j\s*:/.test(allProfilesSrc) &&
+    !/parameterPath:\s*'energy\.energy_per_handover_j'/.test(allProfilesSrc)) {
   provErrors.push('defaults.ts uses energy_per_handover_j but sourceMap lacks parameterPath="energy.energy_per_handover_j"');
 }
 

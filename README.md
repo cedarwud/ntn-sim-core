@@ -151,7 +151,7 @@ npm run preview
 | `npm run lint` | 執行 TypeScript 型別檢查（不輸出檔案） |
 | `npm run validate:structure` | 驗證 preflight 目錄骨架與舊結構是否已清除 |
 | `npm run validate:trace` | 驗證 SDD / traceability placeholder 文件與目錄是否存在 |
-| `npm run validate:profiles` | 驗證 asset registry 與 observer / visual config 是否已分離 |
+| `npm run validate:profiles` | 驗證 profile layout（asset/observer/visual 分離）+ Phase 3 VAL-PLAT-006/007（型別 export、compose round-trip） |
 | `npm run validate:stage` | 執行 lint + build + preflight validation scripts |
 
 ## 專案結構
@@ -433,7 +433,7 @@ Moved to:
 | `npm run lint` | Run TypeScript type checking (no file output) |
 | `npm run validate:structure` | Validate the preflight directory skeleton and ensure legacy paths are gone |
 | `npm run validate:trace` | Validate SDD / traceability placeholder docs and directories |
-| `npm run validate:profiles` | Validate the separation between asset registry, observer presets, and visual scene config |
+| `npm run validate:profiles` | Validate profile layout (asset/observer/visual separation) + Phase 3 VAL-PLAT-006/007 (type exports, compose round-trip) |
 | `npm run validate:stage` | Run lint + build + the preflight validation scripts |
 
 ## Project Structure

@@ -57,6 +57,22 @@ When instructions conflict, use this order:
    - only then promotion of downstream outline work
 4. If a downstream outline needs to become active, rewrite it first after re-checking current repo state.
 
+### 3.1 Local Skill Rule
+
+When a matching local skill exists under `/home/u24/papers/ntn-sim-core/agent-skills/`, use it as a workflow aid after reading the authority set above. These skills complement the SDDs; they do not replace them.
+
+Current implemented skills:
+1. `ntn-phase-preflight`
+   - use before starting a new phase/group
+2. `ntn-sdd-sync`
+   - use after meaningful phase/group completion or contract/status changes
+3. `ntn-validation-gate-runner`
+   - use when choosing or reviewing validation evidence for a change or completion claim
+4. `ntn-todo-prompt-maintainer`
+   - use when `todo/` prompt sequencing, completion state, or archive/completed placement needs updating
+5. `paper-to-parameter-provenance`
+   - use when mapping literature/standard evidence into parameter registry or provenance surfaces
+
 ## 4. Verification Rules
 
 Before writing any factual statement about repo state:

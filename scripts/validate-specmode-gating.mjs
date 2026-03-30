@@ -41,8 +41,17 @@ const assumptionIds = new Set(Object.keys(paperSources.assumptions ?? {}));
 const standardIds = new Set(Object.keys(paperSources.standards ?? {}));
 const paperIds = new Set(Object.keys(paperSources.papers ?? {}));
 
-const defaultsPath = join(root, 'src/core/profiles/defaults.ts');
-const defaultsText = readFileSync(defaultsPath, 'utf8');
+// Phase 3 Group 3: defaults.ts is a thin re-export; profile content lives in
+// per-family files. Concatenate all family files for analysis.
+const familyFiles = [
+  'src/core/profiles/defaults-access.ts',
+  'src/core/profiles/defaults-hobs.ts',
+  'src/core/profiles/defaults-bh.ts',
+  'src/core/profiles/defaults-misc.ts',
+];
+const defaultsText = familyFiles
+  .map(f => readFileSync(join(root, f), 'utf8'))
+  .join('\n');
 
 // Extract sourceMap entries using regex
 const entryPattern = /\{\s*tier:\s*'([^']+)',\s*id:\s*'([^']+)'([^}]*)\}/g;

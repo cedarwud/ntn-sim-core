@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.1.0
-**Date:** 2026-03-29
-**Status:** Active — Phase 3 Group 2 complete: profiles now authored as `ProfileBundle + ExperimentBundle` pairs, assembled via `composeProfile()`. No parameter values changed; composition is transparent to engine. See `sdd/phase3-scenario-profile-experiment-split.md §8.1` for authoring rules.
+**Version:** 1.2.0
+**Date:** 2026-03-30
+**Status:** Active — Phase 3 complete (Group 2 + Group 3): profiles authored as `ProfileBundle + ExperimentBundle` pairs, assembled via `composeProfile()`. Group 3 file split: profile constants now live in `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, `defaults-misc.ts`; shared observer constants in `observers.ts`; `defaults.ts` is a thin re-export index assembling `DEFAULT_PROFILES`. No parameter values changed; composition and split are transparent to the engine. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for authoring rules and §8.3 for the file-to-family mapping.
 
 ---
 

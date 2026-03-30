@@ -17,6 +17,11 @@ export type {
   UeDistribution,
   UeConfig,
   ValidationResult,
+  // Phase 3 vocabulary (phase3-scenario-profile-experiment-split.md §4)
+  ScenarioConfig,
+  ModelBundleSelection,
+  ExperimentBundle,
+  ProfileBundle,
 } from './types';
 
 // Re-exported common types
@@ -39,3 +44,10 @@ export {
   validateProfile,
   buildWalkerConfig,
 } from './loader';
+
+// Phase 3 composer (phase3-scenario-profile-experiment-split.md §6)
+export {
+  composeProfile,
+  decomposeProfile,
+  PROFILE_EXPOSURE_PRESETS,
+} from './profile-composer';

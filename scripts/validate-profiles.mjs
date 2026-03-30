@@ -122,9 +122,13 @@ for (const fnName of requiredFunctionExports) {
   }
 }
 
-// Check 4: No circular imports — profiles/types.ts must not import from L4–L7 layers
-// L4: src/sim, L5: src/services, L6: src/app, L7: src/viz
-const forbiddenLayerPatterns = [
+// Check 4: No circular imports
+// SDD §9 VAL-PLAT-006 check 3:
+//   - profiles/types.ts: no new imports from L4–L7 (sim, services, app, viz)
+//   - profile-composer.ts: no import from engine.ts, src/viz/, src/app/, src/runner/
+
+// L4–L7 patterns for types.ts
+const typesLayerPatterns = [
   { pattern: /from\s+['"].*\/sim\//, label: 'src/sim (L4)' },
   { pattern: /from\s+['"].*\/services\//, label: 'src/services (L5)' },
   { pattern: /from\s+['"].*\/app\//, label: 'src/app (L6)' },
@@ -132,7 +136,7 @@ const forbiddenLayerPatterns = [
 ];
 
 let typesCircular = false;
-for (const { pattern, label } of forbiddenLayerPatterns) {
+for (const { pattern, label } of typesLayerPatterns) {
   if (pattern.test(typesTs)) {
     fail('VAL-PLAT-006', `circular import detected: profiles/types.ts imports from ${label}`);
     typesCircular = true;
@@ -142,8 +146,19 @@ if (!typesCircular) {
   pass('VAL-PLAT-006 — no circular imports in profiles/types.ts');
 }
 
+// Forbidden imports for profile-composer.ts (SDD §9 check 3 line 823)
+const composerForbiddenPatterns = [
+  { pattern: /from\s+['"].*\/engine['"]/, label: 'engine.ts' },
+  { pattern: /from\s+['"].*\/engine\./, label: 'engine.ts' },
+  { pattern: /from\s+['"].*\/sim\//, label: 'src/sim' },
+  { pattern: /from\s+['"].*\/services\//, label: 'src/services' },
+  { pattern: /from\s+['"].*\/app\//, label: 'src/app' },
+  { pattern: /from\s+['"].*\/viz\//, label: 'src/viz' },
+  { pattern: /from\s+['"].*\/runner\//, label: 'src/runner' },
+];
+
 let composerCircular = false;
-for (const { pattern, label } of forbiddenLayerPatterns) {
+for (const { pattern, label } of composerForbiddenPatterns) {
   if (pattern.test(composerTs)) {
     fail('VAL-PLAT-006', `circular import detected: profile-composer.ts imports from ${label}`);
     composerCircular = true;
@@ -164,34 +179,60 @@ const { composeProfile, decomposeProfile } = await import('../src/core/profiles/
 
 /**
  * Recursive deep-equality comparison that returns a list of paths that differ.
+ *
+ * SDD §9 deep-equality definition:
+ *   - Primitives (number, string, boolean, null): ===
+ *   - Date objects: compared by getTime()
+ *   - Arrays: element-by-element in order
+ *   - absent key and key set to undefined: treated as equivalent (both = absent)
  */
 function deepDiff(expected, actual, path = '') {
   const diffs = [];
 
-  if (expected === actual) return diffs;
+  // Normalize: treat undefined as "absent"
+  const eNorm = expected === undefined ? undefined : expected;
+  const aNorm = actual === undefined ? undefined : actual;
 
-  if (
-    expected === null || actual === null ||
-    typeof expected !== 'object' || typeof actual !== 'object'
-  ) {
-    diffs.push({ path: path || '<root>', expected, actual });
+  if (eNorm === aNorm) return diffs;
+  if (eNorm === undefined && aNorm === undefined) return diffs;
+
+  // Date comparison (SDD §9: Date objects compared by getTime())
+  if (eNorm instanceof Date && aNorm instanceof Date) {
+    if (eNorm.getTime() !== aNorm.getTime()) {
+      diffs.push({ path: path || '<root>', expected: eNorm, actual: aNorm });
+    }
     return diffs;
   }
 
-  const allKeys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+  // Primitive or type mismatch
+  if (
+    eNorm === null || aNorm === null ||
+    eNorm === undefined || aNorm === undefined ||
+    typeof eNorm !== 'object' || typeof aNorm !== 'object'
+  ) {
+    diffs.push({ path: path || '<root>', expected: eNorm, actual: aNorm });
+    return diffs;
+  }
+
+  // Array comparison
+  if (Array.isArray(eNorm) || Array.isArray(aNorm)) {
+    if (!Array.isArray(eNorm) || !Array.isArray(aNorm)) {
+      diffs.push({ path: path || '<root>', expected: eNorm, actual: aNorm });
+      return diffs;
+    }
+    const maxLen = Math.max(eNorm.length, aNorm.length);
+    for (let i = 0; i < maxLen; i++) {
+      diffs.push(...deepDiff(eNorm[i], aNorm[i], `${path}[${i}]`));
+    }
+    return diffs;
+  }
+
+  // Object comparison — absent key ≡ key set to undefined (SDD §9)
+  const allKeys = new Set([...Object.keys(eNorm), ...Object.keys(aNorm)]);
   for (const key of allKeys) {
     const childPath = path ? `${path}.${key}` : key;
-    const eVal = expected[key];
-    const aVal = actual[key];
-
-    if (eVal === undefined && aVal !== undefined) {
-      diffs.push({ path: childPath, expected: undefined, actual: aVal });
-    } else if (eVal !== undefined && aVal === undefined) {
-      diffs.push({ path: childPath, expected: eVal, actual: undefined });
-    } else {
-      const childDiffs = deepDiff(eVal, aVal, childPath);
-      diffs.push(...childDiffs);
-    }
+    // Accessing a missing key yields undefined — which is equivalent to absent per SDD §9
+    diffs.push(...deepDiff(eNorm[key], aNorm[key], childPath));
   }
 
   return diffs;

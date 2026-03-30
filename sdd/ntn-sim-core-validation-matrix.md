@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 1.8.0
-**Date:** 2026-03-29
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. Platform Refactor Phase 3 SDD (Group 1) complete (2026-03-29) — VAL-PLAT-006/007 check specs fully defined in `phase3-scenario-profile-experiment-split.md §9`; not yet enforced (Group 2 not started). VAL-PLAT-008 through VAL-PLAT-012 added but not yet enforced — activated per phase.
+**Version:** 1.9.0
+**Date:** 2026-03-30
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1 gates VAL-PLAT-001/002/003 active and passing (2026-03-29). Platform Refactor Phase 2 gates VAL-PLAT-004/004b/005 active and passing (2026-03-29) — `validate:bundle` green. Platform Refactor Phase 3 complete (2026-03-30) — VAL-PLAT-006/007 enforced and passing (`scripts/validate-profiles.mjs`); Group 3 file split complete (`defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, `defaults-misc.ts`, `observers.ts`; `defaults.ts` → thin re-export); `validate:trace`/`validate:specmode` updated for split; `validate:stage` green (exit 0). VAL-PLAT-008 through VAL-PLAT-012 added but not yet enforced — activated per phase.
 
 ---
 
@@ -240,5 +240,8 @@ Any showcase/demo sequence must additionally prove:
 | `VAL-PLAT-001` | P1 | ✅ PASS | 2026-03-29 | All 58 canonical parameterPaths present in PARAMETER_REGISTRY |
 | `VAL-PLAT-002` | P1 | ✅ PASS | 2026-03-29 | All 35 distinct sourceIds resolve in paper-sources.json (nested-section lookup) |
 | `VAL-PLAT-003` | P1 | ✅ PASS | 2026-03-29 | 58 PARAM-* IDs: unique, prefixed, no collision with source namespace |
-| `VAL-PLAT-006` | P3 | ✅ PASS | 2026-03-29 | `scripts/validate-profiles.mjs` — static export scan: 4 new types in `profiles/types.ts`, `composeProfile`/`decomposeProfile` in `profile-composer.ts`, `ProfileConfig` still present; no circular imports into L4–L7 layers |
-| `VAL-PLAT-007` | P3 | ✅ PASS | 2026-03-29 | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality verified for all 14 profiles in `DEFAULT_PROFILES`; all 14 pass with 0 diffs |
+| `VAL-PLAT-004` | P2 | ✅ PASS | 2026-03-30 | engine.ts contains no raw tier-flag dispatch chains; all 8 bundle families dispatched. Re-verified after Phase 3 Group 3 file split |
+| `VAL-PLAT-004b` | P2 | ✅ PASS | 2026-03-30 | `src/core/models/` contains all 8 required interface files; `ModelBundle` in `model-bundle.ts`. Re-verified after Phase 3 Group 3 file split |
+| `VAL-PLAT-005` | P2 | ✅ PASS | 2026-03-30 | `buildModelBundle` produced valid non-null bundles for all 14 profiles (per SDD §8.2 validation requirement). Re-verified after Phase 3 Group 3 file split |
+| `VAL-PLAT-006` | P3 | ✅ PASS | 2026-03-30 | `scripts/validate-profiles.mjs` — 4 new types in `profiles/types.ts`; `composeProfile`/`decomposeProfile` in `profile-composer.ts`; `ProfileConfig` still present; no circular imports (types.ts: L4–L7; composer.ts: engine.ts/viz/app/runner per SDD §9 check 3). Group 3 confirmed: file split preserves all exports; thin re-export `defaults.ts` still satisfies circular-import gate (no profile logic in defaults.ts) |
+| `VAL-PLAT-007` | P3 | ✅ PASS | 2026-03-30 | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality (SDD §9: Date#getTime, absent≡undefined) verified for all 14 profiles; compose/decompose are pure (no shared mutable references). Group 3 confirmed: round-trip re-verified after file split — all 14 profiles PASS |

@@ -1,8 +1,10 @@
 # Phase 3 — Scenario / Profile / Experiment Split
 
-**Status:** Active — Group 1 (SDD) complete (2026-03-29); Group 2 (implementation) complete (2026-03-29); Group 3 (file split) not started
+**Status:** Complete — Group 1 (SDD) complete (2026-03-29); Group 2 (implementation) complete (2026-03-30); Group 3 (file split) complete (2026-03-30)
 **Date (stub):** 2026-03-29
 **Date (v1 — full spec):** 2026-03-29
+**Date (v2 — Group 2 verified):** 2026-03-30
+**Date (v3 — Group 3 complete):** 2026-03-30
 **Depends on:** Phase 0 complete, Phase 1 complete (VAL-PLAT-001/002/003), Phase 2 complete (VAL-PLAT-004/004b/005 — `src/core/models/` directory with 9 files, `buildModelBundle` factory)
 
 ---

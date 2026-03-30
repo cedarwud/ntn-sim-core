@@ -161,8 +161,8 @@ Use dedicated profile `timer-cho-reproduction`.
 ### Step 1: Profile Alignment
 
 Verify the dedicated reproduction profiles and their metadata:
-``` 
-node scripts/validate-profile-layout.mjs
+```
+node --import tsx scripts/validate-profiles.mjs
 node --import tsx scripts/audit-profiles.ts
 ```
 

@@ -1,0 +1,344 @@
+/**
+ * Access / A4 / DAPS / reproduction profile defaults.
+ *
+ * Profiles: case9-access-baseline, case9-daps-baseline,
+ *           sinr-elevation-reproduction, timer-cho-reproduction
+ *
+ * Authority: sdd/phase3-scenario-profile-experiment-split.md §8.3
+ * Phase 3 Group 3 (P3-4a): extracted from defaults.ts.
+ * This file must not import React, Three.js, or scene code.
+ */
+
+import type { ProfileConfig, ProfileBundle, ExperimentBundle } from './types';
+import { composeProfile } from './profile-composer';
+import {
+  BEIJING_OBSERVER,
+  DEFAULT_IMPLEMENTATION_LOSS_DB,
+  SUBURBAN,
+  RURAL,
+  BASELINE_LARGE_SCALE,
+} from './observers';
+
+// ---------------------------------------------------------------------------
+// 1. case9-access-baseline (profile-baselines §4)
+// ---------------------------------------------------------------------------
+
+const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
+  id: 'case9-access-baseline',
+  family: 'case9-access-baseline',
+  version: '0.1.0',
+  exposurePreset: { tier: 'Advanced', label: 'Advanced — Case-9 Access (S-band A4)' },
+
+  scenario: {
+    orbitMode: 'synthetic',
+    observer: BEIJING_OBSERVER,
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    ueTopology: { count: 100, distribution: 'uniform' },
+  },
+  models: {
+    beamSemantics: 'earth-moving',
+    antenna: { model: 'rpsat-3gpp' },
+    beam: { layout: 'hexagonal' },
+    channel: {
+      tier0_fspl: true,
+      tier1_large_scale: true,
+      tier2_clutter: true,
+      tier3_beam_gain: true,
+      tier4_atmospheric: false,
+      tier5_fading: false,
+      large_scale_model: BASELINE_LARGE_SCALE,
+    },
+    handover: { type: 'a4-event' },
+    energy: { layer1_enabled: false, layer2_enabled: false },
+    ueConfig: {},
+  },
+  orbital: {
+    altitude_km: 600,
+    inclination_deg: 53,
+    num_planes: 24,
+    sats_per_plane: 22,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 20,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+    noise_figure_db: 9,
+    implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
+  },
+  antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
+  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  channel: { deployment_environment: SUBURBAN },
+  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10 },
+  energy: {},
+  ueConfig: { speed_kmh: 0 },
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'orbital.altitude_km', note: 'orbit altitude 600km, A4 event trigger' },
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'rf.frequency_ghz', note: 'S-band 2GHz — carrier frequency' },
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'rf.eirp_density_dbw_per_mhz', note: 'EIRP 34dBW/MHz' },
+    { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'handover.trigger_threshold_db', note: 'trigger threshold −3 dB reference' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'handover.min_elevation_deg', note: 'min elevation 10°' },
+    { tier: 'paper-backed', id: 'PAP-2025-TIMERCHO-CORE', parameterPath: 'beam.num_beams', note: '19 beams, earth-moving, 600km' },
+    { tier: 'paper-backed', id: 'PAP-2024-MCCHO-CORE', note: 'access handover baseline' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: 'channel tiers 0-2, NTN channel model' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=9 dB (handheld UE, S-band case 9)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 24x22=528 Starlink-like constellation at 600km/53°; paper does not mandate exact constellation' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed engineering constant; must NOT be exposed as UI slider' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption (not in spec H2 paper-backed presets of 0/40/256ms); conservative NTN value accounting for propagation delay; spec mode Advanced, not Realistic' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB: SINR-relative simplification vs spec H3 absolute derivation (N_floor + Q_out); assumption-backed; spec mode Advanced' },
+  ],
+};
+
+const CASE9_ACCESS_DEFAULT_EXP: ExperimentBundle = {
+  seed: 42,
+  timeControl: { durationSec: 3600, stepSec: 1 },
+};
+
+export const CASE9_ACCESS_BASELINE: ProfileConfig =
+  composeProfile(CASE9_ACCESS_BASELINE_BUNDLE, CASE9_ACCESS_DEFAULT_EXP);
+
+// ---------------------------------------------------------------------------
+// 2. case9-daps-baseline — DAPS dual-active handover showcase
+// ---------------------------------------------------------------------------
+
+const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
+  id: 'case9-daps-baseline',
+  family: 'case9-daps-baseline',
+  version: '0.1.0',
+  exposurePreset: { tier: 'Advanced', label: 'Advanced — DAPS Dual-Active' },
+
+  scenario: {
+    orbitMode: 'synthetic',
+    observer: BEIJING_OBSERVER,
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 8, 0),
+    ueTopology: { count: 10, distribution: 'uniform' },
+  },
+  models: {
+    beamSemantics: 'earth-moving',
+    antenna: { model: 'rpsat-3gpp' },
+    beam: { layout: 'hexagonal' },
+    channel: {
+      tier0_fspl: true,
+      tier1_large_scale: true,
+      tier2_clutter: true,
+      tier3_beam_gain: true,
+      tier4_atmospheric: false,
+      tier5_fading: false,
+      large_scale_model: BASELINE_LARGE_SCALE,
+    },
+    handover: { type: 'daps' },
+    energy: { layer1_enabled: false, layer2_enabled: false },
+    ueConfig: {},
+  },
+  orbital: {
+    altitude_km: 600,
+    inclination_deg: 53,
+    num_planes: 24,
+    sats_per_plane: 22,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 20,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+    noise_figure_db: 9,
+    implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
+  },
+  antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
+  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  channel: { deployment_environment: SUBURBAN },
+  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10 },
+  energy: {},
+  ueConfig: { speed_kmh: 0 },
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2025-DAPS-CORE', note: 'DAPS dual-active handover, 600km, S-band' },
+    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', note: 'orbit altitude 600km, A4 event trigger baseline' },
+    { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted to expose dual-active inside the deterministic replay window' },
+  ],
+};
+
+const CASE9_DAPS_DEFAULT_EXP: ExperimentBundle = {
+  seed: 42,
+  timeControl: { durationSec: 3600, stepSec: 1 },
+};
+
+export const CASE9_DAPS_BASELINE: ProfileConfig =
+  composeProfile(CASE9_DAPS_BASELINE_BUNDLE, CASE9_DAPS_DEFAULT_EXP);
+
+// ---------------------------------------------------------------------------
+// 3. sinr-elevation-reproduction (RT-1: PAP-2022-SINR-ELEVATION)
+// ---------------------------------------------------------------------------
+
+const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {
+  id: 'sinr-elevation-reproduction',
+  family: 'case9-access-baseline',
+  version: '0.1.0',
+  exposurePreset: { tier: 'Sensitivity', label: 'Sensitivity — SINR-Elevation Repro' },
+
+  scenario: {
+    orbitMode: 'synthetic',
+    observer: BEIJING_OBSERVER,
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    ueTopology: { count: 1, distribution: 'uniform' },
+  },
+  models: {
+    beamSemantics: 'earth-moving',
+    antenna: { model: 'rpsat-3gpp' },
+    beam: { layout: 'hexagonal' },
+    channel: {
+      tier0_fspl: true,
+      tier1_large_scale: true,
+      tier2_clutter: true,
+      tier3_beam_gain: true,
+      tier4_atmospheric: false,
+      tier5_fading: false,
+      large_scale_model: BASELINE_LARGE_SCALE,
+    },
+    handover: { type: 'a4-event' },
+    energy: { layer1_enabled: false, layer2_enabled: false },
+    ueConfig: {},
+  },
+  // Walker(53°, 66 sats, 6 planes, F=1) — Paper Table I
+  orbital: {
+    altitude_km: 600,
+    inclination_deg: 53,
+    num_planes: 6,
+    sats_per_plane: 11,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  // Paper Table II: S-band 2GHz, 30MHz BW, 34 dBW/MHz EIRP, 290K noise
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 30,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+    noise_figure_db: 9,
+    implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
+  },
+  // Paper §III: 3GPP TR 38.821 RPsat beam model, 50km footprint
+  antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
+  // Paper Table II: 19 beams, FRF=1
+  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  channel: { deployment_environment: SUBURBAN },
+  // Paper §IV: A4-event, TTT=640ms, threshold=-6dB, hysteresis=1dB
+  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10 },
+  energy: {},
+  ueConfig: { speed_kmh: 0 },
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', note: 'RT-1 reproduction: Walker(53°,66,6,F=1), 600km, S-band 2GHz, EIRP 34dBW/MHz, 19 beams FRF=1, RPsat gain, 290K noise' },
+    { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', note: '10deg min elevation, shadow fading suburban S-band' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band case 9)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-REPRO-RT1', specMode: 'Advanced', note: 'Walker F=1 used; paper does not specify exact epoch or phasing' },
+  ],
+};
+
+const SINR_ELEVATION_DEFAULT_EXP: ExperimentBundle = {
+  seed: 42,
+  timeControl: { durationSec: 600, stepSec: 1 },
+};
+
+export const SINR_ELEVATION_REPRODUCTION: ProfileConfig =
+  composeProfile(SINR_ELEVATION_REPRODUCTION_BUNDLE, SINR_ELEVATION_DEFAULT_EXP);
+
+// ---------------------------------------------------------------------------
+// 4. timer-cho-reproduction (RT-3: PAP-2025-TIMERCHO-CORE)
+// ---------------------------------------------------------------------------
+
+const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
+  id: 'timer-cho-reproduction',
+  family: 'case9-access-baseline',
+  version: '0.1.0',
+  exposurePreset: { tier: 'Sensitivity', label: 'Sensitivity — Timer-CHO Repro' },
+
+  scenario: {
+    orbitMode: 'synthetic',
+    observer: BEIJING_OBSERVER,
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 0, 0),
+    ueTopology: { count: 1, distribution: 'uniform' },
+  },
+  models: {
+    beamSemantics: 'earth-moving',
+    antenna: { model: 'rpsat-3gpp' },
+    beam: { layout: 'hexagonal' },
+    channel: {
+      tier0_fspl: true,
+      tier1_large_scale: true,
+      tier2_clutter: true,
+      tier3_beam_gain: true,
+      tier4_atmospheric: false,
+      tier5_fading: false,
+      large_scale_model: BASELINE_LARGE_SCALE,
+    },
+    // Paper Table I: Timer-CHO
+    handover: { type: 'timer-cho' },
+    energy: { layer1_enabled: false, layer2_enabled: false },
+    ueConfig: {},
+  },
+  // Paper §IV: Starlink-like, 550km, 72 planes
+  orbital: {
+    altitude_km: 550,
+    inclination_deg: 53,
+    num_planes: 24,
+    sats_per_plane: 22,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  // Paper §IV: S-band 2GHz
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 20,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+    noise_figure_db: 9,
+    implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
+  },
+  antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
+  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  channel: { deployment_environment: RURAL },
+  // Paper Table I: Timer-CHO, α=0.85, L3 filter k=4, TTT=640ms, offset=0dB
+  handover: {
+    trigger_threshold_db: -6,
+    ttt_ms: 640,
+    hysteresis_db: 0,
+    min_elevation_deg: 10,
+    cho_alpha: 0.85,
+    cho_filter_k: 4,
+    cho_offset_db: 0,
+  },
+  energy: {},
+  ueConfig: { speed_kmh: 0 },
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2025-TIMERCHO-CORE', note: 'RT-3 reproduction: Starlink-like 550km, S-band 2GHz, Timer-CHO α=0.85, L3 filter k=4, TTT=640ms' },
+    { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'rural SF/CL lookup environment' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', note: '10deg min elevation' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-REPRO-RT3', specMode: 'Advanced', note: 'Walker 24x22 used as Starlink-like proxy; paper does not mandate exact constellation' },
+    { tier: 'assumption-backed', id: 'ASSUME-TIMERCHO-GEOM', specMode: 'Advanced', note: 'Timer-CHO geometry timer simplified to α×TTT; full ToS_remain model requires beam radius and satellite velocity beyond HO manager scope' },
+  ],
+};
+
+const TIMER_CHO_DEFAULT_EXP: ExperimentBundle = {
+  seed: 42,
+  timeControl: { durationSec: 600, stepSec: 1 },
+};
+
+export const TIMER_CHO_REPRODUCTION: ProfileConfig =
+  composeProfile(TIMER_CHO_REPRODUCTION_BUNDLE, TIMER_CHO_DEFAULT_EXP);
