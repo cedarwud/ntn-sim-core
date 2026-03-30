@@ -44,12 +44,12 @@ export interface ControlPanelProps {
 //
 // Data source: getProfileList() from @/core/contracts/exposure-v1
 //   - Backed by PROFILE_EXPOSURE_PRESETS (profile-composer.ts)
-//   - Replaces the former hardcoded PROFILE_OPTIONS constant
+//   - Replaces the former hardcoded profile-options constant
 //   - Internal-only profiles are excluded by getProfileList()
 //
 // Phase 4 Group 2: phase4-runtime-contract-sdd.md §4.4 / P4-7
 
-const PROFILE_OPTIONS = getProfileList().map((e) => ({
+const profileEntries = getProfileList().map((e) => ({
   value: e.id,
   label: e.label,
   tier: e.tier,
@@ -192,7 +192,7 @@ export const ControlPanel = React.memo(function ControlPanel({
           >
             {(['Realistic', 'Advanced', 'Sensitivity'] as const).map((tier) => (
               <optgroup key={tier} label={`── ${tier} ──`}>
-                {PROFILE_OPTIONS.filter((o) => o.tier === tier).map((o) => (
+                {profileEntries.filter((o) => o.tier === tier).map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </optgroup>

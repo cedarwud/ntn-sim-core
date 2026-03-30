@@ -733,8 +733,8 @@ When Phase 4 Group 2 completes, update:
 2. `sdd/ntn-sim-core-implementation-status.md` (Phase 4 row → complete)
 3. `sdd/ntn-sim-core-validation-matrix.md` (VAL-PLAT-008/009/010 → pass)
 4. `sdd/ntn-sim-core-ui-exposure-spec.md` §3.1 (replace `PROFILE_OPTIONS` reference with exposure-v1 contract reference)
-5. `todo/README.md` (Phase 4 complete)
-6. `todo/platform-refactor/README.md` (Phase 4 complete, Phase 5 next)
+5. `todo/README.md` (Phase 4 complete) — workspace-root path: `/home/u24/papers/todo/README.md`
+6. `todo/platform-refactor/README.md` (Phase 4 complete, Phase 5 next) — workspace-root path: `/home/u24/papers/todo/platform-refactor/README.md`
 
 ---
 

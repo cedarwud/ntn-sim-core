@@ -11,7 +11,8 @@ import { useFrame } from '@react-three/fiber';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
 import { loadProfile, resolveProfile } from '@/core/profiles';
-import type { HandoverType } from '@/core/profiles/types';
+import type { HandoverType } from '@/core/contracts/exposure-v1';
+import type { KpiBundle } from '@/core/contracts/kpi-v1';
 import { buildInteractiveTrajectoryCache, buildSyntheticOrbitElements } from '@/core/orbit';
 import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
 import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
@@ -43,7 +44,7 @@ export interface UseSimulationResult {
   handoverCount: number;
   profileId: string;
   /** Finalize and return current KPI bundle. Returns null if engine not ready. */
-  exportKpi: () => import('@/core/kpi/types').KpiBundle | null;
+  exportKpi: () => KpiBundle | null;
 }
 
 // ---------------------------------------------------------------------------

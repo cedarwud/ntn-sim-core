@@ -1,8 +1,8 @@
 # NTN Sim Core — Validation Matrix
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Date:** 2026-03-30
-**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1–4 complete. Phase 4 Group 2 complete (2026-03-30): VAL-PLAT-008/009/010 all PASS — `scripts/validate-contracts.mjs` added to `validate:stage`; `src/core/contracts/` landed; `RunnerExposureApi` in `src/runner/runner-exposure-api.ts`; `ControlPanel.tsx` uses `getProfileList()` (no hardcoded list); 16 viz/hooks files migrated to contracts import boundary. VAL-PLAT-011/012 not yet enforced — Phase 5.
+**Status:** Active — enforced Formula/Engine/Browser gates passing; engine coverage through E-11; no hardening IDs deferred. Platform Refactor Phase 1–4 complete. Phase 4 Group 2 hardened (2026-03-30 rev 2): VAL-PLAT-008/009/010 all PASS — `validate-contracts.mjs` runs under `node --import tsx` (runtime check for VAL-PLAT-010); F1–F6 pattern scan covers both static `import` and inline `import()` type references; `SceneShell.tsx` and `useSimulation.ts` inline import() leaks fixed; `ControlPanel.tsx` `PROFILE_OPTIONS` identifier removed (renamed `profileEntries`); `exposure-v1.ts` data source corrected to `DEFAULT_PROFILES → decomposeProfile → bundle.exposurePreset`; `ParameterView`/`ParameterMetadataResponse` stubs aligned to SDD §4.4.4 shape; `ui-exposure-spec.md` §3.1 synced. VAL-PLAT-011/012 not yet enforced — Phase 5.
 
 ---
 

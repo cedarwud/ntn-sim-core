@@ -43,7 +43,7 @@ The following quantities are **never free controls** in any mode:
 
 The profile selector is the primary user-facing parameter control. It exposes complete parameter bundles rather than individual sliders, preventing users from setting physically inconsistent combinations.
 
-**Implementation:** `src/viz/overlays/ControlPanel.tsx` `PROFILE_OPTIONS` constant.
+**Implementation:** `getProfileList()` from `src/core/contracts/exposure-v1.ts` (Phase 4 contract). `ControlPanel.tsx` calls `getProfileList()` to derive the selector entries; no hardcoded profile list remains in viz.
 
 **Tier groups (ordered):**
 

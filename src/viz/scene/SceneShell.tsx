@@ -27,6 +27,8 @@ import SinrElevationScatter from '@/viz/overlays/SinrElevationScatter';
 import { BatchKpiPanel } from '@/viz/overlays/BatchKpiPanel';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
+import type { HandoverType } from '@/core/contracts/exposure-v1';
+import type { KpiBundle } from '@/core/contracts/kpi-v1';
 
 // Default profile: Realistic first-screen preset (spec §10). Matches useSceneQueryState default.
 const DEFAULT_PROFILE_ID = 'realistic-first-screen';
@@ -135,13 +137,13 @@ function BeamLayers({ snapshot, showBeams }: { snapshot: SimulationSnapshot | nu
 interface DataLayerProps {
   onStatsUpdate: (data: SimHudProps) => void;
   onSnapshotUpdate: (snapshot: SimulationSnapshot | null) => void;
-  onExportKpiReady: (fn: (() => import('@/core/kpi/types').KpiBundle | null) | null) => void;
+  onExportKpiReady: (fn: (() => KpiBundle | null) | null) => void;
   speed: number;
   paused: boolean;
   showBeams: boolean;
   showLabels: boolean;
   profileId: string;
-  handoverTypeOverride?: import('@/core/profiles/types').HandoverType | null;
+  handoverTypeOverride?: HandoverType | null;
 }
 
 function LiveLayer({ onStatsUpdate, onSnapshotUpdate, onExportKpiReady, speed, paused, showBeams, showLabels, profileId, handoverTypeOverride }: DataLayerProps) {
@@ -247,9 +249,9 @@ export function SceneShell() {
   const [showSinrCdf, setShowSinrCdf] = useState(false);
   const [showElevScatter, setShowElevScatter] = useState(false);
   const [showBatchKpi, setShowBatchKpi] = useState(false);
-  const [hoTypeOverride, setHoTypeOverride] = useState<import('@/core/profiles/types').HandoverType | null>(null);
-  const exportKpiFnRef = useRef<(() => import('@/core/kpi/types').KpiBundle | null) | null>(null);
-  const setExportKpiFn = useCallback((fn: (() => import('@/core/kpi/types').KpiBundle | null) | null) => {
+  const [hoTypeOverride, setHoTypeOverride] = useState<HandoverType | null>(null);
+  const exportKpiFnRef = useRef<(() => KpiBundle | null) | null>(null);
+  const setExportKpiFn = useCallback((fn: (() => KpiBundle | null) | null) => {
     exportKpiFnRef.current = fn;
   }, []);
 

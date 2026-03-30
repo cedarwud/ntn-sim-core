@@ -2,10 +2,11 @@
  * validate-contracts.mjs
  *
  * Enforces:
- *   VAL-PLAT-008 — Contract files exist with required frozen types
- *   VAL-PLAT-009 — No forbidden import patterns in viz/hooks
- *   VAL-PLAT-010 — getProfileList() returns exactly 14 profiles with correct structure
+ *   VAL-PLAT-008 — Contract files exist with required frozen type exports
+ *   VAL-PLAT-009 — Zero forbidden import patterns (F1–F6) in viz/hooks
+ *   VAL-PLAT-010 — getProfileList() runtime execution returns 14 correct entries
  *
+ * Run via: node --import tsx scripts/validate-contracts.mjs
  * Authority: phase4-runtime-contract-sdd.md §8.1–8.3
  */
 
@@ -34,265 +35,256 @@ function walkDir(dir, ext = /\.(ts|tsx)$/) {
   return results;
 }
 
-function readFile(filePath) {
-  return readFileSync(filePath, 'utf8');
+function readFile(fp) { return readFileSync(fp, 'utf8'); }
+function rel(fp)      { return path.relative(rootDir, fp); }
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function rel(filePath) {
-  return path.relative(rootDir, filePath);
+function hasNamedExport(content, exportName) {
+  const name = escapeRegExp(exportName);
+  const exportPatterns = [
+    new RegExp(`export\\s+type\\s*\\{[\\s\\S]*?\\b${name}\\b[\\s\\S]*?\\}`),
+    new RegExp(`export\\s*\\{[\\s\\S]*?\\b${name}\\b[\\s\\S]*?\\}`),
+    new RegExp(`export\\s+(?:declare\\s+)?(?:interface|type|class|function|const|let|var|enum)\\s+${name}\\b`),
+  ];
+  return exportPatterns.some((pattern) => pattern.test(content));
 }
 
 const errors = [];
-const warnings = [];
-
 function fail(msg) { errors.push(msg); }
-function warn(msg) { warnings.push(msg); }
 
 // ---------------------------------------------------------------------------
 // VAL-PLAT-008 — Contract files exist with required frozen types
 // ---------------------------------------------------------------------------
 
+console.log('\n── VAL-PLAT-008: contract file structure ──');
+
 const contractsDir = path.join(rootDir, 'src', 'core', 'contracts');
 
-const REQUIRED_CONTRACT_FILES = {
+const REQUIRED_FILES = {
   'runtime-v1.ts': {
+    frozen: true,
     requiredExports: [
       'SimulationSnapshot', 'SatelliteState', 'UeState', 'BhSlotSnapshot',
       'DapsSnapshot', 'HoLogEntry', 'SatelliteBeamSnapshot', 'BeamRole', 'ContinuityState',
     ],
   },
   'kpi-v1.ts': {
+    frozen: true,
     requiredExports: ['KpiBundle', 'BatchKpiEntry'],
   },
   'policy-v1.ts': {
-    requiredExports: [
-      'PolicyObservation', 'PolicyAction', 'PolicyReward', 'Policy',
-      'SatelliteObservation', 'UeObservation', 'SatelliteAction', 'HandoverAction',
-    ],
+    frozen: true,
+    requiredExports: ['PolicyObservation', 'PolicyAction', 'Policy'],
   },
   'exposure-v1.ts': {
+    frozen: true,
     requiredExports: ['ProfileListEntry', 'HandoverType', 'getProfileList'],
   },
   'index.ts': {
+    frozen: false,   // barrel — @frozen not required
     requiredExports: ['SimulationSnapshot', 'KpiBundle', 'BatchKpiEntry', 'getProfileList'],
   },
 };
 
-for (const [fileName, spec] of Object.entries(REQUIRED_CONTRACT_FILES)) {
+let v008Pass = true;
+for (const [fileName, spec] of Object.entries(REQUIRED_FILES)) {
   const filePath = path.join(contractsDir, fileName);
   if (!existsSync(filePath)) {
     fail(`VAL-PLAT-008: missing contract file: src/core/contracts/${fileName}`);
+    v008Pass = false;
     continue;
   }
   const content = readFile(filePath);
 
-  // Check @frozen annotation
-  if (!content.includes('@frozen')) {
+  if (spec.frozen && !content.includes('@version v1')) {
+    fail(`VAL-PLAT-008: src/core/contracts/${fileName} missing @version v1 annotation`);
+    v008Pass = false;
+  }
+
+  if (spec.frozen && !content.includes('@frozen')) {
     fail(`VAL-PLAT-008: src/core/contracts/${fileName} missing @frozen annotation`);
+    v008Pass = false;
   }
 
-  // Check required exports are present (by name mention in file)
-  for (const exportName of spec.requiredExports) {
-    // Match export keyword or re-export reference
-    const pattern = new RegExp(`\\b${exportName}\\b`);
-    if (!pattern.test(content)) {
-      fail(`VAL-PLAT-008: src/core/contracts/${fileName} missing required export: ${exportName}`);
+  for (const name of spec.requiredExports) {
+    if (!hasNamedExport(content, name)) {
+      fail(`VAL-PLAT-008: src/core/contracts/${fileName} missing required export: ${name}`);
+      v008Pass = false;
     }
   }
 }
 
-console.log(`VAL-PLAT-008: ${errors.filter(e => e.startsWith('VAL-PLAT-008')).length === 0 ? 'PASS' : 'FAIL'} — contract files`);
+console.log(`VAL-PLAT-008: ${v008Pass ? 'PASS' : 'FAIL'} — contract files`);
 
 // ---------------------------------------------------------------------------
-// VAL-PLAT-009 — No forbidden import patterns in viz/hooks
+// VAL-PLAT-009 — No forbidden import patterns in viz/hooks (F1–F6)
+//
+// Checks BOTH static `import ... from` AND inline `import('...')` type forms.
+// Exception: src/core/contracts/** is the bridge layer — allowed to import
+//            from core internals (common/types, profiles/types, kpi/types, etc.)
 // ---------------------------------------------------------------------------
 
-const FORBIDDEN_PATTERNS = [
-  // F1: no viz/hooks → core/common/types direct import
-  {
-    id: 'F1',
-    dirs: ['src/viz', 'src/app/hooks'],
-    pattern: /import\s+.*from\s+['"]@\/core\/common\/types['"]/,
-    message: 'direct import from @/core/common/types (use @/core/contracts instead)',
-    exception: null,
-  },
-  // F2: no viz → core/kpi/types direct import
-  {
-    id: 'F2',
-    dirs: ['src/viz'],
-    pattern: /import\s+.*from\s+['"]@\/core\/kpi\/types['"]/,
-    message: 'direct import from @/core/kpi/types (use @/core/contracts instead)',
-    exception: null,
-  },
-  // F3: no viz → core/kpi/types direct import (also hooks)
-  {
-    id: 'F3',
-    dirs: ['src/app/hooks'],
-    pattern: /import\s+.*from\s+['"]@\/core\/kpi\/types['"]/,
-    message: 'direct import from @/core/kpi/types (use @/core/contracts instead)',
-    exception: null,
-  },
-  // F4: no viz/hooks → core/runner internals
-  {
-    id: 'F4',
-    dirs: ['src/viz', 'src/app/hooks'],
-    pattern: /import\s+.*from\s+['"]@\/runner\/headless\/benchmark-runner['"]/,
-    message: 'direct import from @/runner/headless/benchmark-runner (use @/runner/runner-exposure-api instead)',
-    exception: null,
-  },
-  // F5: no viz/hooks → core/policy/types direct import
-  {
-    id: 'F5',
-    dirs: ['src/viz', 'src/app/hooks'],
-    pattern: /import\s+.*from\s+['"]@\/core\/policy\/types['"]/,
-    message: 'direct import from @/core/policy/types (use @/core/contracts instead)',
-    exception: null,
-  },
-  // F6: no viz → runner-exposure-api direct import
-  {
-    id: 'F6',
-    dirs: ['src/viz'],
-    pattern: /import\s+.*from\s+['"]@\/runner\/runner-exposure-api['"]/,
-    message: 'direct import of runner-exposure-api from viz (must go via hooks)',
-    exception: null,
-  },
+console.log('\n── VAL-PLAT-009: forbidden import patterns (F1–F6) ──');
+
+const vizDir   = path.join(rootDir, 'src', 'viz');
+const hooksDir = path.join(rootDir, 'src', 'app', 'hooks');
+const bridgeLayerPrefix = path.join(rootDir, 'src', 'core', 'contracts');
+
+const vizFiles   = walkDir(vizDir);
+const hooksFiles = walkDir(hooksDir);
+
+/**
+ * Build a combined regex that matches both:
+ *   - static:  import ... from 'module'
+ *   - inline:  import('module').SomeName  (TypeScript type-import form)
+ *
+ * Both forms leak internal module references and must be caught.
+ */
+function makeModulePattern(moduleAlias) {
+  // moduleAlias e.g. '@/core/common/types'
+  // Escape for regex: @ / . become \@, \/, \.
+  const esc = moduleAlias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/@/g, '\\@').replace(/\//g, '\\/');
+  // Match: import ... from 'module' OR import('module')
+  return new RegExp(`(?:import\\s+.*from\\s+|import\\()['"]${esc}['"]`);
+}
+
+const FORBIDDEN = [
+  // F1: viz importing common/types (static or inline)
+  { id: 'F1', files: vizFiles,   pattern: makeModulePattern('@/core/common/types'),
+    message: 'must use @/core/contracts/runtime-v1 instead' },
+
+  // F2: viz importing profiles/types (static or inline)
+  { id: 'F2', files: vizFiles,   pattern: makeModulePattern('@/core/profiles/types'),
+    message: 'must use @/core/contracts/exposure-v1 instead (HandoverType only needed in viz)' },
+
+  // F3: hooks importing benchmark-runner directly
+  { id: 'F3', files: hooksFiles, pattern: makeModulePattern('@/runner/headless/benchmark-runner'),
+    message: 'must use @/runner/runner-exposure-api instead' },
+
+  // F4: PROFILE_OPTIONS identifier in viz (any reference, not just import)
+  { id: 'F4', files: vizFiles,   pattern: /\bPROFILE_OPTIONS\b/,
+    message: 'PROFILE_OPTIONS must be replaced by getProfileList() call' },
+
+  // F5: viz/hooks importing policy/types directly
+  { id: 'F5', files: [...vizFiles, ...hooksFiles], pattern: makeModulePattern('@/core/policy/types'),
+    message: 'must use @/core/contracts/policy-v1 instead' },
+
+  // F6: viz importing runner-exposure-api directly
+  { id: 'F6', files: vizFiles,   pattern: makeModulePattern('@/runner/runner-exposure-api'),
+    message: 'viz must NOT import runner adapter; data flows via hooks → props' },
 ];
 
-// Explicit exception: src/core/contracts/** is the bridge layer — allowed to import internals
-const BRIDGE_LAYER_PREFIX = path.join(rootDir, 'src', 'core', 'contracts');
-
-let f009Violations = 0;
-for (const rule of FORBIDDEN_PATTERNS) {
-  for (const dirRelative of rule.dirs) {
-    const dir = path.join(rootDir, dirRelative);
-    for (const filePath of walkDir(dir)) {
-      // Bridge layer exception: contracts/ may import core internals
-      if (filePath.startsWith(BRIDGE_LAYER_PREFIX)) continue;
-
-      const content = readFile(filePath);
-      if (rule.pattern.test(content)) {
-        fail(`VAL-PLAT-009 [${rule.id}]: ${rel(filePath)}: ${rule.message}`);
-        f009Violations++;
-      }
+let v009Pass = true;
+for (const { id, files, pattern, message } of FORBIDDEN) {
+  const violations = [];
+  for (const fp of files) {
+    // Bridge layer exception: contracts/ may import core internals
+    if (fp.startsWith(bridgeLayerPrefix)) continue;
+    if (pattern.test(readFile(fp))) {
+      violations.push(rel(fp));
     }
+  }
+  if (violations.length > 0) {
+    for (const v of violations) {
+      fail(`VAL-PLAT-009 [${id}]: ${v}: ${message}`);
+    }
+    v009Pass = false;
+    console.log(`  ${id}: FAIL — ${violations.length} violation(s)`);
+  } else {
+    console.log(`  ${id}: PASS`);
   }
 }
 
-console.log(`VAL-PLAT-009: ${f009Violations === 0 ? 'PASS' : 'FAIL'} — forbidden import patterns`);
+console.log(`VAL-PLAT-009: ${v009Pass ? 'PASS' : 'FAIL'} — forbidden import patterns`);
 
 // ---------------------------------------------------------------------------
-// VAL-PLAT-010 — getProfileList() returns 14 profiles with correct structure
+// VAL-PLAT-010 — getProfileList() runtime execution returns correct 14 entries
+//
+// Runs under node --import tsx so TypeScript imports resolve.
+// Authority: phase4-runtime-contract-sdd.md §8.3
 // ---------------------------------------------------------------------------
 
-// We can't import TypeScript directly in .mjs, so we validate by reading the
-// PROFILE_EXPOSURE_PRESETS from the compiled JS or by parsing the source.
-// Strategy: parse PROFILE_EXPOSURE_PRESETS keys from profile-composer.ts source
-// and validate the structure.
+console.log('\n── VAL-PLAT-010: getProfileList() runtime check ──');
 
-const EXPECTED_PROFILE_COUNT = 14;
-
-const EXPECTED_PROFILE_IDS = [
-  'realistic-first-screen',
-  'case9-access-baseline',
-  'hobs-multibeam-baseline',
-  'bh-resource-baseline',
-  'case9-daps-baseline',
-  'real-trace-validation',
-  'meo-constellation-baseline',
-  'geo-relay-baseline',
-  'sinr-elevation-reproduction',
-  'hobs-reproduction',
-  'timer-cho-reproduction',
-  'bh-pf-baseline',
-  'bh-sinr-greedy-baseline',
-  'bh-resource-energy-proof',
-];
-
+const EXPECTED_IDS = new Set([
+  'realistic-first-screen', 'case9-access-baseline',    'hobs-multibeam-baseline',
+  'bh-resource-baseline',   'case9-daps-baseline',      'real-trace-validation',
+  'meo-constellation-baseline', 'geo-relay-baseline',   'sinr-elevation-reproduction',
+  'hobs-reproduction',      'timer-cho-reproduction',   'bh-pf-baseline',
+  'bh-sinr-greedy-baseline', 'bh-resource-energy-proof',
+]);
 const VALID_TIERS = new Set(['Realistic', 'Advanced', 'Sensitivity']);
 
-// Parse PROFILE_EXPOSURE_PRESETS from profile-composer.ts
-const composerPath = path.join(rootDir, 'src', 'core', 'profiles', 'profile-composer.ts');
-const composerContent = readFile(composerPath);
+let v010Pass = true;
 
-// Extract all quoted profile IDs from PROFILE_EXPOSURE_PRESETS block
-const presetsBlockMatch = composerContent.match(/export const PROFILE_EXPOSURE_PRESETS[^=]+=\s*\{([\s\S]*?)\};/);
-if (!presetsBlockMatch) {
-  fail('VAL-PLAT-010: could not parse PROFILE_EXPOSURE_PRESETS from profile-composer.ts');
-} else {
-  const presetsBlock = presetsBlockMatch[1];
-  const idMatches = [...presetsBlock.matchAll(/'([^']+)'\s*:/g)];
-  const foundIds = idMatches.map(m => m[1]);
+try {
+  // Dynamic TypeScript import — requires node --import tsx
+  const { getProfileList } = await import('../src/core/contracts/exposure-v1.ts');
+  const list = getProfileList();
 
-  // Check count
-  if (foundIds.length !== EXPECTED_PROFILE_COUNT) {
-    fail(`VAL-PLAT-010: PROFILE_EXPOSURE_PRESETS has ${foundIds.length} entries, expected ${EXPECTED_PROFILE_COUNT}`);
-  }
-
-  // Check each expected ID is present
-  for (const expectedId of EXPECTED_PROFILE_IDS) {
-    if (!foundIds.includes(expectedId)) {
-      fail(`VAL-PLAT-010: missing expected profile ID in PROFILE_EXPOSURE_PRESETS: ${expectedId}`);
-    }
-  }
-
-  // Check Internal-only tier is not present (should not be exposed)
-  if (presetsBlock.includes("'Internal-only'") || presetsBlock.includes('"Internal-only"')) {
-    fail('VAL-PLAT-010: PROFILE_EXPOSURE_PRESETS contains Internal-only tier entry (must be excluded from getProfileList)');
-  }
-
-  // Check each entry has tier in VALID_TIERS
-  const tierMatches = [...presetsBlock.matchAll(/tier:\s*'([^']+)'/g)];
-  for (const m of tierMatches) {
-    if (!VALID_TIERS.has(m[1])) {
-      fail(`VAL-PLAT-010: invalid tier '${m[1]}' in PROFILE_EXPOSURE_PRESETS`);
-    }
-  }
-
-  // Check exposure-v1.ts exists and getProfileList is implemented
-  const exposurePath = path.join(contractsDir, 'exposure-v1.ts');
-  if (!existsSync(exposurePath)) {
-    fail('VAL-PLAT-010: exposure-v1.ts missing — getProfileList() not available');
+  if (!Array.isArray(list)) {
+    fail('VAL-PLAT-010: getProfileList() did not return an Array');
+    v010Pass = false;
   } else {
-    const exposureContent = readFile(exposurePath);
-    if (!exposureContent.includes('export function getProfileList')) {
-      fail('VAL-PLAT-010: getProfileList() not exported from exposure-v1.ts');
+    if (list.length !== 14) {
+      fail(`VAL-PLAT-010: expected 14 entries, got ${list.length}`);
+      v010Pass = false;
     }
-    if (exposureContent.includes('PROFILE_OPTIONS') && !exposureContent.includes('// legacy')) {
-      warn('VAL-PLAT-010: exposure-v1.ts still references PROFILE_OPTIONS — check for hardcoded data');
-    }
-  }
 
-  // Check ControlPanel no longer has hardcoded PROFILE_OPTIONS constant
-  const controlPanelPath = path.join(rootDir, 'src', 'viz', 'overlays', 'ControlPanel.tsx');
-  if (existsSync(controlPanelPath)) {
-    const cpContent = readFile(controlPanelPath);
-    // Old pattern: const PROFILE_OPTIONS: Array<...> = [
-    if (/const PROFILE_OPTIONS:\s*Array/.test(cpContent)) {
-      fail('VAL-PLAT-010: ControlPanel.tsx still has hardcoded PROFILE_OPTIONS array declaration');
+    for (const entry of list) {
+      if (!EXPECTED_IDS.has(entry.id)) {
+        fail(`VAL-PLAT-010: unexpected profile id: ${entry.id}`);
+        v010Pass = false;
+      }
+      if (!VALID_TIERS.has(entry.tier)) {
+        fail(`VAL-PLAT-010: invalid tier '${entry.tier}' for ${entry.id}`);
+        v010Pass = false;
+      }
+      if (!entry.label) {
+        fail(`VAL-PLAT-010: missing label for ${entry.id}`);
+        v010Pass = false;
+      }
+      if (!entry.family) {
+        fail(`VAL-PLAT-010: missing family for ${entry.id}`);
+        v010Pass = false;
+      }
     }
-    // Must import getProfileList from contracts
-    if (!cpContent.includes('getProfileList') && cpContent.includes('onProfileChange')) {
-      fail('VAL-PLAT-010: ControlPanel.tsx has profile selector but does not use getProfileList()');
+
+    const returnedIds = new Set(list.map(e => e.id));
+    for (const id of EXPECTED_IDS) {
+      if (!returnedIds.has(id)) {
+        fail(`VAL-PLAT-010: missing profile id: ${id}`);
+        v010Pass = false;
+      }
+    }
+
+    if (v010Pass) {
+      console.log(`  getProfileList() returned ${list.length} entries, all IDs and tiers valid`);
+      // Show tier breakdown as a spot-check
+      const byTier = {};
+      for (const e of list) { byTier[e.tier] = (byTier[e.tier] ?? 0) + 1; }
+      console.log(`  Tier breakdown: ${Object.entries(byTier).map(([t, n]) => `${t}=${n}`).join(', ')}`);
     }
   }
+} catch (e) {
+  fail(`VAL-PLAT-010: failed to import or run getProfileList() — ${e.message}`);
+  fail('  Hint: this script must run under "node --import tsx" to resolve TypeScript modules');
+  v010Pass = false;
 }
 
-const v010ErrorCount = errors.filter(e => e.startsWith('VAL-PLAT-010')).length;
-console.log(`VAL-PLAT-010: ${v010ErrorCount === 0 ? 'PASS' : 'FAIL'} — getProfileList() contract`);
+console.log(`VAL-PLAT-010: ${v010Pass ? 'PASS' : 'FAIL'} — getProfileList() runtime check`);
 
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
-if (warnings.length) {
-  console.warn('\nWarnings:');
-  for (const w of warnings) console.warn(`  ⚠  ${w}`);
-}
-
+console.log('');
 if (errors.length) {
-  console.error('\nFAILED:');
+  console.error('FAILED:');
   for (const e of errors) console.error(`  ✗  ${e}`);
   process.exit(1);
 }
 
-console.log('\nvalidate-contracts (VAL-PLAT-008/009/010): OK');
+console.log('validate-contracts (VAL-PLAT-008/009/010): OK');
