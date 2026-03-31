@@ -322,6 +322,7 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
   const primaryUe = snapshot?.ues[0] ?? null;
   const observedStyleKeysRef = React.useRef(new Set<string>());
   const observedDapsPhasesRef = React.useRef(new Set<string>());
+  const observedDualActiveTruthRef = React.useRef(false);
 
   // Crossfade: animate serving link fade-out when a prepared target appears.
   // progress 0→1 over CROSSFADE_DURATION seconds; resets when target disappears.
@@ -351,6 +352,13 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
     if (snapshot?.daps?.phase) {
       observedDapsPhasesRef.current.add(snapshot.daps.phase);
     }
+    if (
+      snapshot?.daps?.phase === 'dual-active'
+      && renderedStyles.includes('dapsSource')
+      && renderedStyles.includes('dapsTarget')
+    ) {
+      observedDualActiveTruthRef.current = true;
+    }
 
     return {
       present: renderedStyles.length > 0,
@@ -359,6 +367,7 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
       continuityState: primaryUe?.continuityState ?? null,
       dapsPhase: snapshot?.daps?.phase ?? null,
       observedDapsPhases: [...observedDapsPhasesRef.current],
+      observedDualActiveTruth: observedDualActiveTruthRef.current,
     };
   }, [primaryUe?.continuityState, renderedStyles, snapshot?.daps?.phase]);
 

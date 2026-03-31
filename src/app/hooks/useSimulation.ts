@@ -50,6 +50,12 @@ export interface UseSimulationResult {
 // ---------------------------------------------------------------------------
 
 const SNAPSHOT_INTERVAL_MS = 16;
+const TRANSIENT_VISUAL_HOLD_MS = 120;
+
+function isPriorityTransientSnapshot(snapshot: SimulationSnapshot | null): boolean {
+  const phase = snapshot?.daps?.phase ?? null;
+  return typeof phase === 'string' && phase.includes('dual-active');
+}
 
 interface EngineRuntime {
   engine: SimEngine;
@@ -113,6 +119,7 @@ export function useSimulation(
 
   const simTimeRef = useRef(0);
   const lastSnapshotTimeRef = useRef(0);
+  const lastProcessedTickRef = useRef<number | null>(null);
 
   // ── 3. Snapshot state (updated at throttled rate) ──
 
@@ -120,14 +127,19 @@ export function useSimulation(
   const handoverCountRef = useRef(0);
   const prevServingSatIdRef = useRef<string | null>(null);
   const lastKnownServingRef = useRef<string | null>(null);
+  const stickySnapshotRef = useRef<SimulationSnapshot | null>(null);
+  const stickySnapshotHoldUntilRef = useRef(0);
 
   // Reset sim time and counters when engine rebuilds (profile or strategy change)
   useEffect(() => {
     simTimeRef.current = 0;
     lastSnapshotTimeRef.current = 0;
+    lastProcessedTickRef.current = null;
     handoverCountRef.current = 0;
     prevServingSatIdRef.current = null;
     lastKnownServingRef.current = null;
+    stickySnapshotRef.current = null;
+    stickySnapshotHoldUntilRef.current = 0;
     setSnapshot(null);
   }, [runtime]);
 
@@ -143,9 +155,12 @@ export function useSimulation(
     if (simTimeRef.current >= durationSec) {
       simTimeRef.current %= durationSec;
       engine.reset();
+      lastProcessedTickRef.current = null;
       handoverCountRef.current = 0;
       prevServingSatIdRef.current = null;
       lastKnownServingRef.current = null;
+      stickySnapshotRef.current = null;
+      stickySnapshotHoldUntilRef.current = 0;
     }
     if (simTimeRef.current < 0) {
       simTimeRef.current = 0;
@@ -157,13 +172,41 @@ export function useSimulation(
     lastSnapshotTimeRef.current = now;
 
     const timeSec = simTimeRef.current;
-    const tickNumber = Math.floor(timeSec / profile.timeControl.stepSec);
+    const stepSec = profile.timeControl.stepSec;
+    const tickNumber = Math.floor(timeSec / stepSec);
+    const lastProcessedTick = lastProcessedTickRef.current;
 
-    const snap = engine.tick(timeSec, tickNumber);
+    // Browser rendering can skip over integer simulation ticks under load.
+    // Catch up through every missed tick so short-lived truth states such as
+    // DAPS dual-active are still realized in live mode.
+    let publishedSnap: SimulationSnapshot | null = null;
+
+    if (lastProcessedTick !== null && tickNumber > lastProcessedTick + 1) {
+      for (let missedTick = lastProcessedTick + 1; missedTick < tickNumber; missedTick += 1) {
+        const missedSnap = engine.tick(missedTick * stepSec, missedTick);
+        if (publishedSnap === null && isPriorityTransientSnapshot(missedSnap)) {
+          publishedSnap = missedSnap;
+        }
+      }
+    }
+
+    const finalSnap = engine.tick(timeSec, tickNumber);
+    const candidateSnap = publishedSnap ?? finalSnap;
+    if (isPriorityTransientSnapshot(candidateSnap)) {
+      stickySnapshotRef.current = candidateSnap;
+      stickySnapshotHoldUntilRef.current = now + TRANSIENT_VISUAL_HOLD_MS;
+    } else if (stickySnapshotHoldUntilRef.current <= now) {
+      stickySnapshotRef.current = null;
+    }
+
+    const snap = stickySnapshotRef.current && stickySnapshotHoldUntilRef.current > now
+      ? stickySnapshotRef.current
+      : candidateSnap;
+    lastProcessedTickRef.current = tickNumber;
 
     // Track handover count: any satellite change, including null-gap transitions.
     // lastKnownServingRef tracks the last non-null satellite to catch A→null→B paths.
-    const currentServing = snap.ues[0]?.servingSatId ?? null;
+    const currentServing = finalSnap.ues[0]?.servingSatId ?? null;
     if (currentServing !== null) {
       if (
         lastKnownServingRef.current !== null &&

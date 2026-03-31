@@ -1,11 +1,13 @@
 # estnet-ui-kickoff Contract (Outline)
 
-**Status:** Outline only  
+**Status:** Paused outline  
 **Blocked by:** Phase 4 Runtime Contract completion
 
 ## Purpose
 
 Define how `project/estnet-ui-kickoff` should consume `ntn-sim-core` without importing internal implementation details.
+
+This topic is currently paused and should not be promoted into active work until the user explicitly reopens estnet integration.
 
 ## Future Contract Areas
 

@@ -37,6 +37,7 @@ export function executeTick(
   lastTickTimeSec: number | null
 ): SimulationSnapshot {
   const stepSec = lastTickTimeSec !== null ? timeSec - lastTickTimeSec : 1;
+  const isNewDiscreteTick = state.lastDiscreteTickNumber !== tickNumber;
 
   // 1. UE Mobility Step (Final logic: update offsets AND coordinates)
   const KM_PER_DEG = 111.32;
@@ -132,17 +133,26 @@ export function executeTick(
     satSinrs = satSinrs.filter((s) => !state.energyL2Manager!.isBlocked(s.satId));
   }
 
-  // 5. Handover Step
-  const { tickHoLog, representativeServing } = runHandoverStep(state, timeSec, tickNumber, satSinrs);
+  // 5-8. Discrete engine steps must run once per simulation tick. Orbit/channel
+  // may update every rendered frame, but handover/KPI/energy/policy cannot be
+  // re-applied multiple times within the same integer tick or short-lived truth
+  // states such as DAPS dual-active get skipped in live mode.
+  let tickHoLog = state.lastTickHoLog;
+  let representativeServing = state.lastRepresentativeServing;
 
-  // 6. KPI Step
-  runKpiStep(state, timeSec, satSinrs, tickHoLog, representativeServing);
+  if (isNewDiscreteTick) {
+    const handoverStep = runHandoverStep(state, timeSec, tickNumber, satSinrs);
+    tickHoLog = handoverStep.tickHoLog;
+    representativeServing = handoverStep.representativeServing;
 
-  // 7. Energy Step
-  runEnergyStep(state, timeSec, stepSec, activeSatSamples, satSinrs, representativeServing);
+    runKpiStep(state, timeSec, satSinrs, tickHoLog, representativeServing);
+    runEnergyStep(state, timeSec, stepSec, activeSatSamples, satSinrs, representativeServing);
+    runPolicyStep(state, timeSec, tickNumber, satSinrs, representativeServing);
 
-  // 8. Policy Step
-  runPolicyStep(state, timeSec, tickNumber, satSinrs, representativeServing);
+    state.lastDiscreteTickNumber = tickNumber;
+    state.lastTickHoLog = tickHoLog;
+    state.lastRepresentativeServing = representativeServing;
+  }
 
   // 9. Snapshot Step
   const visibleSamples = activeSatSamples.filter(s => visibleSatSet.has(s.satId));

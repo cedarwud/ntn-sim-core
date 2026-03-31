@@ -6,11 +6,12 @@
 ## To Be Defined Later
 
 1. baseline paper set
-2. reproduced MODQN objective set
-3. comparison baselines
-4. state/action/reward boundary
-5. KPI and artifact set
+2. faithful reproduction target for the original MODQN objective set
+3. state/action/reward boundary for the original baseline
+4. KPI and artifact set needed for baseline reproduction
+5. which later variants remain explicitly out of scope for now
 
 ## Note
 
 This file must be rewritten after the platform refactor because the future MODQN baseline should target the post-refactor contracts, not the legacy profile/runtime shape.
+The first rewrite should target baseline reproduction only.

@@ -5,12 +5,12 @@
 
 ## Future Scope
 
-1. reproducible training profiles
-2. baseline comparison matrix
-3. KPI export rules
-4. thesis artifact bundle
-5. ablation and sensitivity plan
+1. reproducible baseline training profiles
+2. baseline KPI export rules
+3. baseline figures/artifact bundle for UI presentation
+4. later variant/comparison expansion plan (deferred)
 
 ## Note
 
 Experiment design depends on final runtime contracts and on the post-refactor parameter registry.
+For now, the expected output is a stable baseline result bundle, not a full thesis-wide comparison matrix.

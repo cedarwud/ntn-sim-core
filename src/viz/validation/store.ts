@@ -103,6 +103,7 @@ export interface HandoverLinkOverlaySummary {
   continuityState: ContinuityState | null;
   dapsPhase: string | null;
   observedDapsPhases: string[];
+  observedDualActiveTruth: boolean;
 }
 
 export interface VisualValidationState {

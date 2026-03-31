@@ -144,6 +144,7 @@ export const ValidationProbe = React.memo(function ValidationProbe({
         data-continuity-state={handover?.continuityState ?? ''}
         data-daps-phase={handover?.dapsPhase ?? ''}
         data-observed-daps-phases={stringify(handover?.observedDapsPhases ?? [])}
+        data-observed-dual-active-truth={String(Boolean(handover?.observedDualActiveTruth))}
       >
         links={stringify(handover ?? null)}
       </div>
