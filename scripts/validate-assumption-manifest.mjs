@@ -2,11 +2,12 @@
  * validate-assumption-manifest.mjs
  *
  * Checks that:
- * 1. benchmark-runner.ts collects and passes assumptionSet to createRunArtifactBundle.
+ * 1. benchmark-runner.ts collects and passes provenance-backed assumptionSet to createRunArtifactBundle.
  * 2. createRunArtifactBundle signature in factory.ts accepts assumptionSet parameter.
  * 3. RunArtifactBundle type in trace/types.ts declares assumptionSet field.
  * 4. RunManifest type declares specModeIndex field.
  * 5. CreateRunManifestOpts declares specModeIndex field.
+ * 6. profile-provenance-view.ts exposes specModeIndex and assumptionSet.
  *
  * Exits 0 on pass, 1 on failure.
  */
@@ -62,17 +63,26 @@ check(
 // 3. benchmark-runner.ts: collects specModeIndex and assumptionSet
 const runner = readFile('src/runner/headless/benchmark-runner.ts');
 check(
-  'benchmark-runner collects specModeIndex from sourceMap',
-  runner.includes('specModeIndex'),
+  'benchmark-runner imports profile provenance view',
+  runner.includes('getProfileProvenanceView'),
 );
 check(
-  'benchmark-runner collects assumptionSet from sourceMap',
-  runner.includes('assumptionSet'),
+  'benchmark-runner forwards provenance-backed specModeIndex',
+  runner.includes('provenance.specModeIndex'),
 );
 check(
   'benchmark-runner passes assumptionSet to createRunArtifactBundle',
-  runner.includes('assumptionSet.length > 0 ? assumptionSet : undefined') ||
-    runner.includes('assumptionSet'),
+  runner.includes('provenance.assumptionSet'),
+);
+
+const provenanceView = readFile('src/core/config/profile-provenance-view.ts');
+check(
+  'profile-provenance-view exposes specModeIndex',
+  provenanceView.includes('specModeIndex'),
+);
+check(
+  'profile-provenance-view exposes assumptionSet',
+  provenanceView.includes('assumptionSet'),
 );
 
 if (failures > 0) {

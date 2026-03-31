@@ -27,7 +27,7 @@
     "validate:baseline": "node --import tsx scripts/run-baseline.ts",
     "validate:reproduction": "npx tsx scripts/run-reproduction-comparison.ts",
     "validate:audit-profiles": "node --import tsx scripts/audit-profiles.ts",
-    "validate:registry": "node scripts/validate-parameter-registry.mjs",
+    "validate:registry": "node --import tsx scripts/validate-parameter-registry.mjs",
     "validate:bundle": "node --import tsx scripts/validate-model-bundle.ts",
     "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
     "validate:contracts": "node --import tsx scripts/validate-contracts.mjs",

@@ -12,13 +12,10 @@ import type { PresentationMode } from '@/core/common/types';
 import type { ProfileConfig, HandoverType } from '@/core/profiles/types';
 import type { KpiBundle } from '@/core/kpi/types';
 import type { RunArtifactBundle } from '@/core/trace/types';
-import { loadProfile, resolveProfile, buildWalkerConfig } from '@/core/profiles/loader';
-import { generateWalkerConstellation } from '@/core/orbit/walker';
-import { geoConfigToOrbitElements } from '@/core/orbit/geo-stationary';
-import { buildTrajectoryCache } from '@/core/orbit/trajectory-cache';
+import { loadProfile, resolveProfile } from '@/core/profiles/loader';
+import { resolveProfileOrbitElements, buildProfileTrajectoryCache } from '@/core/orbit/profile-runtime';
+import { getProfileProvenanceView } from '@/core/config/profile-provenance-view';
 import { createSimEngine } from '@/core/engine';
-import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
-import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
 import {
   createRunManifest,
   createResolvedConfig,
@@ -86,60 +83,6 @@ function now(): number {
   return Date.now();
 }
 
-/**
- * Build constellation elements from profile (Walker synthetic or TLE real-trace).
- */
-function buildElements(
-  profile: ProfileConfig,
-  tleOmmData?: import('@/core/orbit/tle-loader').OmmRecord[],
-): { elements: import('@/core/orbit/types').OrbitElement[]; epochUtcMs: number } {
-  if (profile.orbitMode === 'real-trace' && tleOmmData) {
-    // Real-trace: use provided TLE/OMM data
-    let records = loadOmmRecords(tleOmmData);
-    const maxSats = profile.tleMaxSatellites ?? 200;
-    if (records.length > maxSats) {
-      records = sampleRecords(records, maxSats, profile.seed);
-    }
-    const satrecs = ommToSatrecs(records);
-    const elements = satrecsToOrbitElements(satrecs);
-    return { elements, epochUtcMs: profile.timeControl.epochUtcMs };
-  }
-
-  // Synthetic: Walker constellation (A4: multi-shell via buildWalkerConfig)
-  const walkerElements = generateWalkerConstellation(
-    buildWalkerConfig(profile, profile.timeControl.epochUtcMs),
-  );
-
-  // GEO fixed-position satellites (if defined)
-  const geoElements = profile.orbital.geoSatellites
-    ? geoConfigToOrbitElements(profile.orbital.geoSatellites, profile.timeControl.epochUtcMs)
-    : [];
-
-  return { elements: [...walkerElements, ...geoElements], epochUtcMs: profile.timeControl.epochUtcMs };
-}
-
-/**
- * Build trajectory cache from profile elements.
- */
-function buildConstellation(
-  profile: ProfileConfig,
-  tleOmmData?: import('@/core/orbit/tle-loader').OmmRecord[],
-) {
-  const { elements } = buildElements(profile, tleOmmData);
-
-  const cache = buildTrajectoryCache({
-    elements,
-    observerLatDeg: profile.observer.latitudeDeg,
-    observerLonDeg: profile.observer.longitudeDeg,
-    observerAltKm: profile.observer.altitudeM / 1000,
-    durationSec: profile.timeControl.durationSec,
-    stepSec: profile.timeControl.stepSec,
-    epochUtcMs: profile.timeControl.epochUtcMs,
-  });
-
-  return cache;
-}
-
 // ---------------------------------------------------------------------------
 // executeBenchmarkRun
 // ---------------------------------------------------------------------------
@@ -170,8 +113,9 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
 
   const presentationMode = config.presentationMode ?? 'benchmark';
 
-  // 3. Build constellation + trajectory cache
-  const trajectoryCache = buildConstellation(profile, config.tleOmmData);
+  // 3. Build constellation + trajectory cache (P5-4: migrated to orbit/profile-runtime)
+  const elements = resolveProfileOrbitElements(profile, config.tleOmmData);
+  const trajectoryCache = buildProfileTrajectoryCache(profile, elements);
 
   // 4. Create engine
   const engine = createSimEngine({ profile, trajectoryCache });
@@ -193,23 +137,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
   const kpiBundle = engine.getKpiAccumulator().finalize(wallClockMs);
 
   // 7. Create trace artifacts
-
-  // Collect SpecMode index from sourceMap for manifest
-  const specModeIndex: NonNullable<ReturnType<typeof createRunManifest>['specModeIndex']> = {
-    internalOnly: [],
-    advanced: [],
-    sensitivity: [],
-  };
-  for (const s of profile.sourceMap) {
-    const key = s.parameterPath ?? s.id;
-    if (s.specMode === 'Internal-only') specModeIndex.internalOnly.push(key);
-    else if (s.specMode === 'Advanced') specModeIndex.advanced.push(key);
-    else if (s.specMode === 'Sensitivity') specModeIndex.sensitivity.push(key);
-  }
-  const hasSpecModeEntries =
-    specModeIndex.internalOnly.length > 0 ||
-    specModeIndex.advanced.length > 0 ||
-    specModeIndex.sensitivity.length > 0;
+  const provenance = getProfileProvenanceView(profile.id);
 
   const manifest = createRunManifest({
     profileId: profile.id,
@@ -220,7 +148,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     durationSec,
     stepSec,
     engineVersion: '0.1.0',
-    specModeIndex: hasSpecModeEntries ? specModeIndex : undefined,
+    specModeIndex: provenance.specModeIndex,
   });
 
   const resolvedConfig = createResolvedConfig(
@@ -229,26 +157,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     overrides as unknown as Record<string, unknown>,
   );
 
-  const sourceTrace = createSourceTrace(
-    profile.sourceMap.map((s) => ({
-      modelFamily: profile.family,
-      source: s,
-      claimScope: s.note ?? '',
-    })),
-  );
-
-  // Collect assumption records from assumption-backed / Internal-only entries
-  const assumptionSet = profile.sourceMap
-    .filter((s) => s.tier === 'assumption-backed' || s.specMode === 'Internal-only')
-    .map((s) => ({
-      id: s.id,
-      category: 'parameter' as const,
-      affectedModule: s.parameterPath ?? profile.family,
-      chosenValue: s.note ?? '',
-      rationale: s.note ?? '',
-      impactScope: s.specMode === 'Internal-only' ? 'internal-only: must not appear in thesis tables' : 'assumption-backed: requires sensitivity sweep',
-      claimScope: s.note ?? '',
-    }));
+  const sourceTrace = createSourceTrace(provenance.sourceTraceEntries);
 
   const { replayManifest } = createReplaySelectionPlan(
     profile,
@@ -281,7 +190,7 @@ export function executeBenchmarkRun(config: BenchmarkRunConfig): BenchmarkRunRes
     replayArtifact,
     eventLog,
     kpiBundleShell,
-    assumptionSet.length > 0 ? assumptionSet : undefined,
+    provenance.assumptionSet,
   );
 
   // 8. Return result

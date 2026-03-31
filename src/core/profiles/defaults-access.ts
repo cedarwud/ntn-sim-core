@@ -10,7 +10,7 @@
  */
 
 import type { ProfileConfig, ProfileBundle, ExperimentBundle } from './types';
-import { composeProfile } from './profile-composer';
+import { materializeRuntimeProfile } from './runtime-materialization';
 import {
   BEIJING_OBSERVER,
   DEFAULT_IMPLEMENTATION_LOSS_DB,
@@ -23,7 +23,7 @@ import {
 // 1. case9-access-baseline (profile-baselines §4)
 // ---------------------------------------------------------------------------
 
-const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
+export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   id: 'case9-access-baseline',
   family: 'case9-access-baseline',
   version: '0.1.0',
@@ -78,6 +78,7 @@ const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   sourceMap: [
     { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'orbital.altitude_km', note: 'orbit altitude 600km, A4 event trigger' },
     { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'rf.frequency_ghz', note: 'S-band 2GHz — carrier frequency' },
+    { tier: 'paper-backed', id: 'PAP-2025-TIMERCHO-CORE', parameterPath: 'rf.bandwidth_mhz', note: '20MHz bandwidth access-family baseline (accepted envelope 20-30 MHz)' },
     { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'rf.eirp_density_dbw_per_mhz', note: 'EIRP 34dBW/MHz' },
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
     { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'handover.trigger_threshold_db', note: 'trigger threshold −3 dB reference' },
@@ -94,19 +95,19 @@ const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const CASE9_ACCESS_DEFAULT_EXP: ExperimentBundle = {
+export const CASE9_ACCESS_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const CASE9_ACCESS_BASELINE: ProfileConfig =
-  composeProfile(CASE9_ACCESS_BASELINE_BUNDLE, CASE9_ACCESS_DEFAULT_EXP);
+  materializeRuntimeProfile(CASE9_ACCESS_BASELINE_BUNDLE, CASE9_ACCESS_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 2. case9-daps-baseline — DAPS dual-active handover showcase
 // ---------------------------------------------------------------------------
 
-const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
+export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   id: 'case9-daps-baseline',
   family: 'case9-daps-baseline',
   version: '0.1.0',
@@ -169,19 +170,19 @@ const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const CASE9_DAPS_DEFAULT_EXP: ExperimentBundle = {
+export const CASE9_DAPS_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const CASE9_DAPS_BASELINE: ProfileConfig =
-  composeProfile(CASE9_DAPS_BASELINE_BUNDLE, CASE9_DAPS_DEFAULT_EXP);
+  materializeRuntimeProfile(CASE9_DAPS_BASELINE_BUNDLE, CASE9_DAPS_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 3. sinr-elevation-reproduction (RT-1: PAP-2022-SINR-ELEVATION)
 // ---------------------------------------------------------------------------
 
-const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {
+export const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {
   id: 'sinr-elevation-reproduction',
   family: 'case9-access-baseline',
   version: '0.1.0',
@@ -248,19 +249,19 @@ const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {
   ],
 };
 
-const SINR_ELEVATION_DEFAULT_EXP: ExperimentBundle = {
+export const SINR_ELEVATION_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const SINR_ELEVATION_REPRODUCTION: ProfileConfig =
-  composeProfile(SINR_ELEVATION_REPRODUCTION_BUNDLE, SINR_ELEVATION_DEFAULT_EXP);
+  materializeRuntimeProfile(SINR_ELEVATION_REPRODUCTION_BUNDLE, SINR_ELEVATION_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 4. timer-cho-reproduction (RT-3: PAP-2025-TIMERCHO-CORE)
 // ---------------------------------------------------------------------------
 
-const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
+export const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
   id: 'timer-cho-reproduction',
   family: 'case9-access-baseline',
   version: '0.1.0',
@@ -335,10 +336,10 @@ const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
   ],
 };
 
-const TIMER_CHO_DEFAULT_EXP: ExperimentBundle = {
+export const TIMER_CHO_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const TIMER_CHO_REPRODUCTION: ProfileConfig =
-  composeProfile(TIMER_CHO_REPRODUCTION_BUNDLE, TIMER_CHO_DEFAULT_EXP);
+  materializeRuntimeProfile(TIMER_CHO_REPRODUCTION_BUNDLE, TIMER_CHO_DEFAULT_EXP);

@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.2.0
-**Date:** 2026-03-30
-**Status:** Active — Phase 3 complete (Group 2 + Group 3): profiles authored as `ProfileBundle + ExperimentBundle` pairs, assembled via `composeProfile()`. Group 3 file split: profile constants now live in `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, `defaults-misc.ts`; shared observer constants in `observers.ts`; `defaults.ts` is a thin re-export index assembling `DEFAULT_PROFILES`. No parameter values changed; composition and split are transparent to the engine. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for authoring rules and §8.3 for the file-to-family mapping.
+**Version:** 1.2.2
+**Date:** 2026-03-31
+**Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults and makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for the authoring vocabulary split and `sdd/phase5-cleanup-and-modularization-sdd.md §6` for the retirement/materialization closure.
 
 ---
 

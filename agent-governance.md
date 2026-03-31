@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-03-29-b`
+**Governance-Version:** `2026-03-31-c`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -8,6 +8,7 @@ Both:
 
 - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
 - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)
+- [GEMINI.md](/home/u24/papers/ntn-sim-core/GEMINI.md)
 
 must remain thin wrappers around this document rather than independent full rule sets.
 
@@ -72,6 +73,30 @@ Current implemented skills:
    - use when `todo/` prompt sequencing, completion state, or archive/completed placement needs updating
 5. `paper-to-parameter-provenance`
    - use when mapping literature/standard evidence into parameter registry or provenance surfaces
+
+### 3.2 UI / UX Skill Rule
+
+When a task materially involves UI, UX, visual design, interaction design, parameter-panel design, KPI presentation, or external UI consumer behavior:
+
+1. keep the active SDD set and frozen contracts as the primary authority;
+2. then use the installed assistant-local UI skills as supplementary aids:
+   - `ui-ux-pro-max`
+   - `frontend-design`
+3. when browser-visible interaction or UI regression testing matters, also use the installed assistant-local `webapp-testing` skill as a supplementary test workflow;
+4. do not let external UI/testing skills override simulator semantics, parameter provenance, exposure-mode rules, or frozen contracts;
+5. if multiple UI skills apply, prefer project-local rules first and use external skills only to strengthen implementation quality or review depth;
+6. prefer project-local rules first when they conflict:
+   - `sdd/ntn-sim-core-ui-exposure-spec.md`
+   - active phase SDDs
+   - frozen runtime / exposure contracts
+
+### 3.3 Skill Authoring Rule
+
+When the task is to create, revise, install, or normalize local skills under `agent-skills/` or assistant-local `.codex/.claude/.gemini/skills/`:
+
+1. keep this governance file and the active SDD set as the primary authority;
+2. use the installed assistant-local `skill-creator` skill as a supplementary authoring aid;
+3. do not let external skill-authoring guidance replace repo-local wrapper rules, validation rules, or thin-wrapper requirements.
 
 ## 4. Verification Rules
 

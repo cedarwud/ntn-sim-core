@@ -10,7 +10,7 @@
  */
 
 import type { ProfileConfig, ProfileBundle, ExperimentBundle } from './types';
-import { composeProfile } from './profile-composer';
+import { materializeRuntimeProfile } from './runtime-materialization';
 import {
   BEIJING_OBSERVER,
   DEFAULT_IMPLEMENTATION_LOSS_DB,
@@ -42,7 +42,7 @@ const BH_RF = {
 // 1. bh-resource-baseline (profile-baselines §6, subprofile bh-sfr-780)
 // ---------------------------------------------------------------------------
 
-const BH_RESOURCE_BASELINE_BUNDLE: ProfileBundle = {
+export const BH_RESOURCE_BASELINE_BUNDLE: ProfileBundle = {
   id: 'bh-resource-baseline',
   family: 'bh-resource-baseline',
   version: '0.1.0',
@@ -104,19 +104,19 @@ const BH_RESOURCE_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const BH_RESOURCE_DEFAULT_EXP: ExperimentBundle = {
+export const BH_RESOURCE_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const BH_RESOURCE_BASELINE: ProfileConfig =
-  composeProfile(BH_RESOURCE_BASELINE_BUNDLE, BH_RESOURCE_DEFAULT_EXP);
+  materializeRuntimeProfile(BH_RESOURCE_BASELINE_BUNDLE, BH_RESOURCE_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 2. bh-resource-energy-proof — deterministic Phase 5 proof path
 // ---------------------------------------------------------------------------
 
-const BH_RESOURCE_ENERGY_PROOF_BUNDLE: ProfileBundle = {
+export const BH_RESOURCE_ENERGY_PROOF_BUNDLE: ProfileBundle = {
   id: 'bh-resource-energy-proof',
   family: 'bh-resource-baseline',
   version: '0.1.0',
@@ -198,19 +198,19 @@ const BH_RESOURCE_ENERGY_PROOF_BUNDLE: ProfileBundle = {
   ],
 };
 
-const BH_RESOURCE_ENERGY_PROOF_EXP: ExperimentBundle = {
+export const BH_RESOURCE_ENERGY_PROOF_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 240, stepSec: 1 },
 };
 
 export const BH_RESOURCE_ENERGY_PROOF: ProfileConfig =
-  composeProfile(BH_RESOURCE_ENERGY_PROOF_BUNDLE, BH_RESOURCE_ENERGY_PROOF_EXP);
+  materializeRuntimeProfile(BH_RESOURCE_ENERGY_PROOF_BUNDLE, BH_RESOURCE_ENERGY_PROOF_EXP);
 
 // ---------------------------------------------------------------------------
 // 3. bh-pf-baseline — Proportional Fair BH scheduler
 // ---------------------------------------------------------------------------
 
-const BH_PF_BASELINE_BUNDLE: ProfileBundle = {
+export const BH_PF_BASELINE_BUNDLE: ProfileBundle = {
   id: 'bh-pf-baseline',
   family: 'bh-resource-baseline',
   version: '0.1.0',
@@ -283,19 +283,19 @@ const BH_PF_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const BH_PF_DEFAULT_EXP: ExperimentBundle = {
+export const BH_PF_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const BH_PF_BASELINE: ProfileConfig =
-  composeProfile(BH_PF_BASELINE_BUNDLE, BH_PF_DEFAULT_EXP);
+  materializeRuntimeProfile(BH_PF_BASELINE_BUNDLE, BH_PF_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 4. bh-sinr-greedy-baseline — SINR-Greedy BH scheduler
 // ---------------------------------------------------------------------------
 
-const BH_SINR_GREEDY_BASELINE_BUNDLE: ProfileBundle = {
+export const BH_SINR_GREEDY_BASELINE_BUNDLE: ProfileBundle = {
   id: 'bh-sinr-greedy-baseline',
   family: 'bh-resource-baseline',
   version: '0.1.0',
@@ -362,10 +362,10 @@ const BH_SINR_GREEDY_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const BH_SINR_GREEDY_DEFAULT_EXP: ExperimentBundle = {
+export const BH_SINR_GREEDY_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const BH_SINR_GREEDY_BASELINE: ProfileConfig =
-  composeProfile(BH_SINR_GREEDY_BASELINE_BUNDLE, BH_SINR_GREEDY_DEFAULT_EXP);
+  materializeRuntimeProfile(BH_SINR_GREEDY_BASELINE_BUNDLE, BH_SINR_GREEDY_DEFAULT_EXP);

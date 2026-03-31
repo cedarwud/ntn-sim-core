@@ -1,37 +1,79 @@
 import type { ProfileConfig } from '@/core/profiles/types';
-
 import type { OrbitElement, TrajectoryCache } from './types';
 import { buildWalkerConfig } from '@/core/profiles/loader';
 import { generateWalkerConstellation } from './walker';
 import { geoConfigToOrbitElements } from './geo-stationary';
 import { buildTrajectoryCache } from './trajectory-cache';
+import { loadOmmRecords, ommToSatrecs, sampleRecords } from './tle-loader';
+import { satrecsToOrbitElements } from './sgp4-adapter';
 
 /**
- * Interactive orbit cache step shared by browser-facing live/replay paths.
- * This keeps the frontend orbit path deterministic across its own entry points
- * without forcing benchmark-grade cache density into the browser.
+ * Phase 5 Core Structural Split: Orbit Profile Runtime.
+ * Ownership: Single owner of ProfileConfig -> OrbitElement[] -> TrajectoryCache construction.
  */
+
 export const INTERACTIVE_TRAJECTORY_CACHE_STEP_SEC = 10;
 
-export function buildSyntheticOrbitElements(profile: ProfileConfig): OrbitElement[] {
-  const elements = generateWalkerConstellation(
+/**
+ * Resolve constellation elements from profile (Walker synthetic or TLE real-trace).
+ * Ownership: P5-4 migration from benchmark-runner.ts.
+ */
+export function resolveProfileOrbitElements(
+  profile: ProfileConfig,
+  tleOmmData?: import('./tle-loader').OmmRecord[],
+): OrbitElement[] {
+  if (profile.orbitMode === 'real-trace' && tleOmmData) {
+    let records = loadOmmRecords(tleOmmData);
+    const maxSats = profile.tleMaxSatellites ?? 200;
+    if (records.length > maxSats) {
+      records = sampleRecords(records, maxSats, profile.seed);
+    }
+    const satrecs = ommToSatrecs(records);
+    return satrecsToOrbitElements(satrecs);
+  }
+
+  // Synthetic: Walker constellation (A4: multi-shell via buildWalkerConfig)
+  const walkerElements = generateWalkerConstellation(
     buildWalkerConfig(profile, profile.timeControl.epochUtcMs),
   );
 
-  if (!profile.orbital.geoSatellites) {
-    return elements;
-  }
+  // GEO fixed-position satellites
+  const geoElements = profile.orbital.geoSatellites
+    ? geoConfigToOrbitElements(profile.orbital.geoSatellites, profile.timeControl.epochUtcMs)
+    : [];
 
-  return [
-    ...elements,
-    ...geoConfigToOrbitElements(profile.orbital.geoSatellites, profile.timeControl.epochUtcMs),
-  ];
+  return [...walkerElements, ...geoElements];
 }
 
-export function buildTrajectoryCacheForProfile(
+export async function resolveProfileOrbitElementsAsync(
+  profile: ProfileConfig,
+): Promise<OrbitElement[]> {
+  if (profile.orbitMode === 'real-trace' && profile.tleDataPath) {
+    const response = await fetch(profile.tleDataPath);
+    if (!response.ok) {
+      throw new Error(`[resolveProfileOrbitElementsAsync] Failed to load TLE fixture: ${profile.tleDataPath}`);
+    }
+    const ommJson = await response.json();
+    if (!Array.isArray(ommJson)) {
+      throw new Error(`[resolveProfileOrbitElementsAsync] Expected array fixture: ${profile.tleDataPath}`);
+    }
+    return resolveProfileOrbitElements(
+      profile,
+      ommJson as import('./tle-loader').OmmRecord[],
+    );
+  }
+
+  return resolveProfileOrbitElements(profile);
+}
+
+/**
+ * Build trajectory cache from profile and its resolved elements.
+ * Ownership: P5-4 migration from benchmark-runner.ts.
+ */
+export function buildProfileTrajectoryCache(
   profile: ProfileConfig,
   elements: OrbitElement[],
-  stepSec: number = profile.timeControl.stepSec,
+  densityOverride?: number,
 ): TrajectoryCache {
   return buildTrajectoryCache({
     elements,
@@ -39,18 +81,38 @@ export function buildTrajectoryCacheForProfile(
     observerLonDeg: profile.observer.longitudeDeg,
     observerAltKm: profile.observer.altitudeM / 1000,
     durationSec: profile.timeControl.durationSec,
-    stepSec,
+    stepSec: densityOverride ?? profile.timeControl.stepSec,
     epochUtcMs: profile.timeControl.epochUtcMs,
   });
+}
+
+// --- Legacy / Transitional helpers (Phase 3 compatibility) ---
+
+export function buildSyntheticOrbitElements(profile: ProfileConfig): OrbitElement[] {
+  return resolveProfileOrbitElements(profile);
+}
+
+export function buildTrajectoryCacheForProfile(
+  profile: ProfileConfig,
+  elements: OrbitElement[],
+  stepSec: number = profile.timeControl.stepSec,
+): TrajectoryCache {
+  return buildProfileTrajectoryCache(profile, elements, stepSec);
 }
 
 export function buildInteractiveTrajectoryCache(
   profile: ProfileConfig,
   elements: OrbitElement[],
 ): TrajectoryCache {
-  return buildTrajectoryCacheForProfile(
-    profile,
+  return buildProfileTrajectoryCache(profile, elements, INTERACTIVE_TRAJECTORY_CACHE_STEP_SEC);
+}
+
+export async function buildInteractiveProfileRuntime(
+  profile: ProfileConfig,
+): Promise<{ elements: OrbitElement[]; trajectoryCache: TrajectoryCache }> {
+  const elements = await resolveProfileOrbitElementsAsync(profile);
+  return {
     elements,
-    INTERACTIVE_TRAJECTORY_CACHE_STEP_SEC,
-  );
+    trajectoryCache: buildInteractiveTrajectoryCache(profile, elements),
+  };
 }

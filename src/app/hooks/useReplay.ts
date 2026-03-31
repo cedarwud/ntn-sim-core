@@ -18,19 +18,17 @@
  */
 
 import { useFrame } from '@react-three/fiber';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { loadProfile } from '@/core/profiles';
-import { buildInteractiveTrajectoryCache, buildSyntheticOrbitElements } from '@/core/orbit';
-import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
-import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
+import { buildInteractiveProfileRuntime } from '@/core/orbit/profile-runtime';
 import { createSimEngine } from '@/core/engine';
 import { createReplayArtifact } from '@/core/trace/factory';
 import { recordWindow, createReplayControllerFromArtifact } from '@/runner/replay/controller';
 import { createReplaySelectionPlan } from '@/runner/curation';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import type { ReplayManifest } from '@/core/trace/types';
-import type { ReplayState } from '@/runner/replay/types';
+import type { ReplayState, ReplayController } from '@/runner/replay/types';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -61,6 +59,17 @@ export interface UseReplayResult {
 
 const SNAPSHOT_INTERVAL_MS = 50;
 
+type ReplayArtifactController = ReplayController & {
+  advance(deltaMs: number): void;
+};
+
+interface ReplayRuntime {
+  controller: ReplayArtifactController;
+  satelliteCount: number;
+  replayManifest: ReplayManifest;
+  selectionReason: string;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -75,70 +84,63 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
 
   // ── 1. Build + headless record (once per profileId) ──
 
-  const { controller, satelliteCount, replayManifest, selectionReason } = useMemo(() => {
+  const [runtime, setRuntime] = useState<ReplayRuntime | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    setRuntime(null);
+    setSnapshot(null);
+    setReplayState(null);
+    lastSnapshotTimeRef.current = 0;
+
     const prof = loadProfile(profileId);
 
-    let elements;
-
-    if (prof.orbitMode === 'real-trace' && prof.tleDataPath) {
-      let ommJson: unknown[] = [];
+    void (async () => {
       try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', prof.tleDataPath, false);
-        xhr.send(null);
-        if (xhr.status === 200) ommJson = JSON.parse(xhr.responseText) as unknown[];
-      } catch {
-        console.warn('[useReplay] Failed to load TLE fixture:', prof.tleDataPath);
+        const { elements, trajectoryCache } = await buildInteractiveProfileRuntime(prof);
+        if (disposed) return;
+
+        const engine = createSimEngine({ profile: prof, trajectoryCache });
+        const replayPlan = createReplaySelectionPlan(
+          prof,
+          trajectoryCache,
+          `replay-${prof.id}-${prof.seed}`,
+          'showcase',
+        );
+        const { selectedWindow, replayManifest } = replayPlan;
+        const totalTicks = Math.floor(prof.timeControl.durationSec / prof.timeControl.stepSec);
+        const snapshots = recordWindow(
+          engine,
+          totalTicks,
+          prof.timeControl.stepSec,
+          selectedWindow.startTimeSec,
+          selectedWindow.endTimeSec,
+        );
+        const replayArtifact = createReplayArtifact(replayManifest, snapshots);
+        const ctrl = createReplayControllerFromArtifact({
+          replayArtifact,
+          stepSec: prof.timeControl.stepSec,
+          playbackSpeed: speed,
+        });
+        if (initialSeekSec !== null && Number.isFinite(initialSeekSec)) {
+          ctrl.seek(initialSeekSec);
+        }
+        ctrl.play();
+
+        if (disposed) return;
+        setRuntime({
+          controller: ctrl,
+          satelliteCount: elements.length,
+          replayManifest,
+          selectionReason: selectedWindow.reason,
+        });
+      } catch (error) {
+        console.warn('[useReplay] Failed to bootstrap replay runtime:', prof.id, error);
       }
-      const maxSats = prof.tleMaxSatellites ?? 200;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const records = loadOmmRecords(ommJson as any[]);
-      const sampled = sampleRecords(records, maxSats, prof.seed);
-      const satrecs = ommToSatrecs(sampled);
-      elements = satrecsToOrbitElements(satrecs);
-    } else {
-      elements = buildSyntheticOrbitElements(prof);
-    }
+    })();
 
-    const cache = buildInteractiveTrajectoryCache(prof, elements);
-
-    const engine = createSimEngine({ profile: prof, trajectoryCache: cache });
-
-    const replayPlan = createReplaySelectionPlan(
-      prof,
-      cache,
-      `replay-${prof.id}-${prof.seed}`,
-      'showcase',
-    );
-    const { selectedWindow, replayManifest } = replayPlan;
-
-    // Headless record — runs from tick 0 for state accuracy, but retains only
-    // the deterministic curated replay window.
-    const totalTicks = Math.floor(prof.timeControl.durationSec / prof.timeControl.stepSec);
-    const snapshots = recordWindow(
-      engine,
-      totalTicks,
-      prof.timeControl.stepSec,
-      selectedWindow.startTimeSec,
-      selectedWindow.endTimeSec,
-    );
-
-    const replayArtifact = createReplayArtifact(replayManifest, snapshots);
-    const ctrl = createReplayControllerFromArtifact({
-      replayArtifact,
-      stepSec: prof.timeControl.stepSec,
-      playbackSpeed: speed,
-    });
-    if (initialSeekSec !== null && Number.isFinite(initialSeekSec)) {
-      ctrl.seek(initialSeekSec);
-    }
-    ctrl.play();
-
-    return {
-      controller: ctrl,
-      satelliteCount: elements.length,
-      replayManifest,
-      selectionReason: selectedWindow.reason,
+    return () => {
+      disposed = true;
     };
   }, [initialSeekSec, profileId, speed]);
 
@@ -151,6 +153,9 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
   // ── 3. Frame loop ──
 
   useFrame((_, delta) => {
+    if (!runtime) return;
+    const { controller } = runtime;
+
     if (!paused) {
       controller.advance(delta * 1000); // advance expects ms
     }
@@ -170,13 +175,13 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
 
   return {
     snapshot,
-    isReady: true,
+    isReady: runtime != null,
     replayState,
-    satelliteCount,
+    satelliteCount: runtime?.satelliteCount ?? 0,
     visibleCount,
     servingSatId,
-    replayManifest,
-    selectionReason,
+    replayManifest: runtime?.replayManifest ?? null,
+    selectionReason: runtime?.selectionReason ?? null,
     profileId,
   };
 }

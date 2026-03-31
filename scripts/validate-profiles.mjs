@@ -2,8 +2,8 @@
  * validate-profiles.mjs — canonical profile validation gate
  *
  * Absorbs the Phase 1 layout checks from validate-profile-layout.mjs and adds:
- *   VAL-PLAT-006: static export + no-circular-import checks on Phase 3 new files
- *   VAL-PLAT-007: decomposeProfile → composeProfile round-trip for all 14 profiles
+ *   VAL-PLAT-006: static export + no-circular-import checks on runtime materialization files
+ *   VAL-PLAT-007: authoring bundle/exp -> runtime profile parity for all 14 profiles
  *
  * Run: node --import tsx scripts/validate-profiles.mjs
  *
@@ -82,8 +82,8 @@ const typesTs = readFileSync(
   path.join(rootDir, 'src/core/profiles/types.ts'),
   'utf8'
 );
-const composerTs = readFileSync(
-  path.join(rootDir, 'src/core/profiles/profile-composer.ts'),
+const materializationTs = readFileSync(
+  path.join(rootDir, 'src/core/profiles/runtime-materialization.ts'),
   'utf8'
 );
 
@@ -111,21 +111,17 @@ if (/export\s+(interface|type)\s+ProfileConfig\b/.test(typesTs)) {
   fail('VAL-PLAT-006', 'ProfileConfig no longer exported from profiles/types.ts');
 }
 
-// Check 3: composeProfile and decomposeProfile exported from profile-composer.ts
-const requiredFunctionExports = ['composeProfile', 'decomposeProfile'];
-for (const fnName of requiredFunctionExports) {
-  const pattern = new RegExp(`export\\s+function\\s+${fnName}\\b`);
-  if (pattern.test(composerTs)) {
-    pass(`VAL-PLAT-006 — ${fnName} exported from profile-composer.ts`);
-  } else {
-    fail('VAL-PLAT-006', `missing function export: ${fnName} not found in profile-composer.ts`);
-  }
+// Check 3: materializeRuntimeProfile exported from runtime-materialization.ts
+if (/export\s+function\s+materializeRuntimeProfile\b/.test(materializationTs)) {
+  pass('VAL-PLAT-006 — materializeRuntimeProfile exported from runtime-materialization.ts');
+} else {
+  fail('VAL-PLAT-006', 'missing function export: materializeRuntimeProfile not found in runtime-materialization.ts');
 }
 
 // Check 4: No circular imports
 // SDD §9 VAL-PLAT-006 check 3:
 //   - profiles/types.ts: no new imports from L4–L7 (sim, services, app, viz)
-//   - profile-composer.ts: no import from engine.ts, src/viz/, src/app/, src/runner/
+//   - runtime-materialization.ts: no import from engine.ts, src/viz/, src/app/, src/runner/
 
 // L4–L7 patterns for types.ts
 const typesLayerPatterns = [
@@ -146,8 +142,8 @@ if (!typesCircular) {
   pass('VAL-PLAT-006 — no circular imports in profiles/types.ts');
 }
 
-// Forbidden imports for profile-composer.ts (SDD §9 check 3 line 823)
-const composerForbiddenPatterns = [
+// Forbidden imports for runtime-materialization.ts
+const materializationForbiddenPatterns = [
   { pattern: /from\s+['"].*\/engine['"]/, label: 'engine.ts' },
   { pattern: /from\s+['"].*\/engine\./, label: 'engine.ts' },
   { pattern: /from\s+['"].*\/sim\//, label: 'src/sim' },
@@ -157,25 +153,26 @@ const composerForbiddenPatterns = [
   { pattern: /from\s+['"].*\/runner\//, label: 'src/runner' },
 ];
 
-let composerCircular = false;
-for (const { pattern, label } of composerForbiddenPatterns) {
-  if (pattern.test(composerTs)) {
-    fail('VAL-PLAT-006', `circular import detected: profile-composer.ts imports from ${label}`);
-    composerCircular = true;
+let materializationCircular = false;
+for (const { pattern, label } of materializationForbiddenPatterns) {
+  if (pattern.test(materializationTs)) {
+    fail('VAL-PLAT-006', `circular import detected: runtime-materialization.ts imports from ${label}`);
+    materializationCircular = true;
   }
 }
-if (!composerCircular) {
-  pass('VAL-PLAT-006 — no circular imports in profile-composer.ts');
+if (!materializationCircular) {
+  pass('VAL-PLAT-006 — no circular imports in runtime-materialization.ts');
 }
 
 // ---------------------------------------------------------------------------
-// VAL-PLAT-007: composeProfile round-trip for all 14 profiles
-// Authority: sdd/phase3-scenario-profile-experiment-split.md §9 VAL-PLAT-007
+// VAL-PLAT-007: authoring parity for all 14 profiles
+// Authority: sdd/phase3-scenario-profile-experiment-split.md §9 (rewired in Phase 5)
 // ---------------------------------------------------------------------------
 
 // Dynamic import requires node --import tsx
 const { DEFAULT_PROFILES } = await import('../src/core/profiles/defaults.ts');
-const { composeProfile, decomposeProfile } = await import('../src/core/profiles/profile-composer.ts');
+const { PROFILE_AUTHORING_ENTRIES } = await import('../src/core/profiles/profile-authoring-registry.ts');
+const { materializeRuntimeProfile } = await import('../src/core/profiles/runtime-materialization.ts');
 
 /**
  * Recursive deep-equality comparison that returns a list of paths that differ.
@@ -245,23 +242,27 @@ if (profileIds.length !== 14) {
   pass(`VAL-PLAT-007 — DEFAULT_PROFILES contains ${profileIds.length} profiles`);
 }
 
-let roundTripAllPass = true;
+if (PROFILE_AUTHORING_ENTRIES.length !== 14) {
+  fail('VAL-PLAT-007', `expected 14 authoring entries, found ${PROFILE_AUTHORING_ENTRIES.length}`);
+} else {
+  pass(`VAL-PLAT-007 — PROFILE_AUTHORING_ENTRIES contains ${PROFILE_AUTHORING_ENTRIES.length} entries`);
+}
 
-for (const id of profileIds) {
-  const original = DEFAULT_PROFILES[id];
-  const { bundle, exp } = decomposeProfile(original);
-  const recomposed = composeProfile(bundle, exp);
+let parityAllPass = true;
 
-  const diffs = deepDiff(original, recomposed);
+for (const entry of PROFILE_AUTHORING_ENTRIES) {
+  const original = DEFAULT_PROFILES[entry.id];
+  const materialized = materializeRuntimeProfile(entry.bundle, entry.exp);
+  const diffs = deepDiff(original, materialized);
 
   if (diffs.length === 0) {
-    pass(`VAL-PLAT-007 — round-trip OK: ${id}`);
+    pass(`VAL-PLAT-007 — authoring parity OK: ${entry.id}`);
   } else {
-    roundTripAllPass = false;
+    parityAllPass = false;
     for (const d of diffs) {
       fail(
         'VAL-PLAT-007',
-        `round-trip mismatch for profile "${id}":\n` +
+        `authoring parity mismatch for profile "${entry.id}":\n` +
         `  path:     ${d.path}\n` +
         `  expected: ${JSON.stringify(d.expected)}\n` +
         `  got:      ${JSON.stringify(d.actual)}`
@@ -270,8 +271,8 @@ for (const id of profileIds) {
   }
 }
 
-if (roundTripAllPass && profileIds.length === 14) {
-  console.log('VAL-PLAT-007: PASS — composeProfile round-trip verified for all 14 profiles');
+if (parityAllPass && profileIds.length === 14 && PROFILE_AUTHORING_ENTRIES.length === 14) {
+  console.log('VAL-PLAT-007: PASS — runtime materialization parity verified for all 14 profiles');
 }
 
 // ---------------------------------------------------------------------------

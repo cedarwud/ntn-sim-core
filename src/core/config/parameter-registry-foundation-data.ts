@@ -1,0 +1,247 @@
+import type { ParameterEntry } from './parameter-registry-schema';
+
+/**
+ * Phase 5 Core Structural Split: Foundation registry data.
+ * Ownership: Orbital, RF, and antenna parameter literals.
+ */
+
+export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
+  {
+    spec: {
+      id: 'PARAM-ORB-ALTITUDE-KM',
+      parameterPath: 'orbital.altitude_km',
+      semanticName: 'Orbit Altitude',
+      unit: 'km',
+      allowedRange: { min: 200, max: 40000 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'case9-access-baseline', defaultValue: 600, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'orbit altitude 600 km', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'hobs-multibeam-baseline', defaultValue: 550, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: '550 km orbit altitude', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'bh-resource-baseline', defaultValue: 780, sourceTier: 'paper-backed', sourceId: 'PAP-2026-BHFREQREUSE', sourceNote: '780 km, 66-sat constellation', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'real-trace-validation', defaultValue: 550, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-003', sourceNote: 'Starlink shell-1 nominal 550 km; actual propagation uses TLE', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'meo-constellation-baseline', defaultValue: 8062, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MEO-BASELINE', sourceNote: 'O3b-like MEO ~8062 km', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-ALTITUDE-KM', profileId: 'geo-relay-baseline', defaultValue: 35786, sourceTier: 'assumption-backed', sourceId: 'ASSUME-GEO-BASELINE', sourceNote: 'GEO 35786 km geostationary', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ORB-INCLINATION-DEG',
+      parameterPath: 'orbital.inclination_deg',
+      semanticName: 'Orbital Inclination',
+      unit: 'deg',
+      allowedRange: { min: 0, max: 180 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-INCLINATION-DEG', profileId: '__universal__', defaultValue: 53, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker constellation inclination; value varies per family', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ORB-NUM-PLANES',
+      parameterPath: 'orbital.num_planes',
+      semanticName: 'Number of Orbital Planes',
+      unit: null,
+      allowedRange: { min: 1, max: 200 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'case9-access-baseline', defaultValue: 24, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker 24x22=528 Starlink-like at 600 km/53°', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-multibeam-baseline', defaultValue: 24, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-002', sourceNote: 'Walker 24x22=528 sats; HOBS paper constellation scale', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ORB-SATS-PER-PLANE',
+      parameterPath: 'orbital.sats_per_plane',
+      semanticName: 'Satellites per Orbital Plane',
+      unit: null,
+      allowedRange: { min: 1, max: 200 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-SATS-PER-PLANE', profileId: '__universal__', defaultValue: 22, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker sats per plane; value varies per family', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ORB-RAAN-SPREAD-DEG',
+      parameterPath: 'orbital.raan_spread_deg',
+      semanticName: 'RAAN Spread',
+      unit: 'deg',
+      presetList: [{ value: 360, label: 'Global Walker (360°)' }],
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-RAAN-SPREAD-DEG', profileId: '__universal__', defaultValue: 360, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Global Walker coverage assumes full 360° RAAN spread', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ORB-PHASE-OFFSET-DEG',
+      parameterPath: 'orbital.phase_offset_deg',
+      semanticName: 'Inter-Plane Phase Offset',
+      unit: 'deg',
+      allowedRange: { min: 0, max: 360 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ORB-PHASE-OFFSET-DEG', profileId: '__universal__', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'phasing offset between adjacent planes; default 0 (aligned)', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-FREQUENCY-GHZ',
+      parameterPath: 'rf.frequency_ghz',
+      semanticName: 'Carrier Frequency',
+      unit: 'GHz',
+      allowedRange: { min: 0.1, max: 100 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-FREQUENCY-GHZ', profileId: 'case9-access-baseline', defaultValue: 2.0, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SINR-ELEVATION', sourceNote: 'S-band 2 GHz access-family baseline', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-FREQUENCY-GHZ', profileId: 'hobs-multibeam-baseline', defaultValue: 28, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'Ka-band 28 GHz carrier (Table I)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-RF-FREQUENCY-GHZ', profileId: 'bh-resource-baseline', defaultValue: 20, sourceTier: 'assumption-backed', sourceId: 'ASSUME-RF-001', sourceNote: 'Ka-band 20 GHz representative BH baseline; no single paper locator', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-BANDWIDTH-MHZ',
+      parameterPath: 'rf.bandwidth_mhz',
+      semanticName: 'Channel Bandwidth',
+      unit: 'MHz',
+      allowedRange: { min: 1, max: 2000 },
+      isDerived: false,
+      vocabularyLayer: 'scenario',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-BANDWIDTH-MHZ', profileId: 'case9-access-baseline', defaultValue: 20, sourceTier: 'paper-backed', sourceId: 'PAP-2025-TIMERCHO-CORE', sourceNote: '20 MHz access-family baseline within the accepted 20-30 MHz envelope', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-BANDWIDTH-MHZ', profileId: 'hobs-multibeam-baseline', defaultValue: 100, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: '100 MHz (Table I)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-RF-BANDWIDTH-MHZ', profileId: 'bh-resource-baseline', defaultValue: 500, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BW-001', sourceNote: '500 MHz representative BH bandwidth; no single paper locator', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ',
+      parameterPath: 'rf.eirp_density_dbw_per_mhz',
+      semanticName: 'EIRP Spectral Density',
+      unit: 'dBW/MHz',
+      allowedRange: { min: -50, max: 50 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ', profileId: 'case9-access-baseline', defaultValue: 34, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SINR-ELEVATION', sourceNote: '34 dBW/MHz EIRP density', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-TX-POWER-BEAM-DBM',
+      parameterPath: 'rf.tx_power_per_beam_dbm',
+      semanticName: 'Per-Beam Max TX Power (P1)',
+      unit: 'dBm',
+      allowedRange: { min: 0, max: 60 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-TX-POWER-BEAM-DBM', profileId: 'realistic-first-screen', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2025-MAAC-BHPOWER', sourceNote: 'P1 = 10 dBW = 40 dBm ([S10])', exposureMode: 'Realistic' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-MAX-TX-POWER-DBM',
+      parameterPath: 'rf.max_tx_power_dbm',
+      semanticName: 'Aggregate Max TX Power (P2)',
+      unit: 'dBm',
+      allowedRange: { min: 0, max: 70 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-MAX-TX-POWER-DBM', profileId: 'realistic-first-screen', defaultValue: 43, sourceTier: 'paper-backed', sourceId: 'PAP-2025-MAAC-BHPOWER', sourceNote: 'P2 = 13 dBW ≈ 43 dBm ([S10])', exposureMode: 'Realistic' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-NOISE-TEMP-K',
+      parameterPath: 'rf.noise_temperature_k',
+      semanticName: 'Receiver Noise Temperature',
+      unit: 'K',
+      presetList: [{ value: 290, label: '290 K (IEEE Standard)' }],
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-NOISE-TEMP-K', profileId: '__universal__', defaultValue: 290, sourceTier: 'standard-backed', sourceId: 'STD-IEEE-T0', sourceNote: 'standard reference temperature 290 K', exposureMode: 'Internal-only' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-NOISE-FIGURE-DB',
+      parameterPath: 'rf.noise_figure_db',
+      semanticName: 'UE Noise Figure',
+      unit: 'dB',
+      allowedRange: { min: 0, max: 20 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-NOISE-FIGURE-DB', profileId: '__universal__', defaultValue: 7, sourceTier: 'standard-backed', sourceId: 'STD-3GPP-38821', sourceNote: '7 dB NR typical UE (TR 38.821)', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-RF-IMPL-LOSS-DB',
+      parameterPath: 'rf.implementation_loss_db',
+      semanticName: 'Implementation Loss',
+      unit: 'dB',
+      allowedRange: { min: 0, max: 10 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-IMPL-LOSS-DB', profileId: '__universal__', defaultValue: 2.5, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SENSORS-BH', sourceNote: '0.5 dB feeder + 2.0 dB pointing (Table 3)', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ANT-PEAK-GAIN-DBI',
+      parameterPath: 'antenna.peak_gain_dbi',
+      semanticName: 'Peak Antenna Gain',
+      unit: 'dBi',
+      allowedRange: { min: 0, max: 60 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'case9-access-baseline', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '30 dBi peak gain RPsat S-band; representative value', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'hobs-multibeam-baseline', defaultValue: 38, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '38 dBi representative Ka-band multi-beam', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'bh-resource-baseline', defaultValue: 35, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-002', sourceNote: '35 dBi representative Ka/Ku-band BH', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
+      id: 'PARAM-ANT-BEAM-DIAM-KM',
+      parameterPath: 'antenna.beam_diameter_km',
+      semanticName: 'Beam Ground Diameter',
+      unit: 'km',
+      allowedRange: { min: 5, max: 2000 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'realistic-first-screen', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SENSORS-BH', sourceNote: 'θ_3dB=arctan(25/600)=2.386° → 50 km diameter', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'hobs-multibeam-baseline', defaultValue: 25, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '25 km beam diameter representative Ka-band', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'bh-resource-baseline', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-002', sourceNote: '30 km representative Ka/Ku-band BH', exposureMode: 'Advanced' },
+    ],
+  },
+];

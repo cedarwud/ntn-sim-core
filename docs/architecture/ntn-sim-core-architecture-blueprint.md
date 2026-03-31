@@ -1,8 +1,8 @@
 # NTN Sim Core — Architecture Blueprint
 
-**Version:** 0.2.0
-**Date:** 2026-03-29
-**Status:** Updated — Phase 0B target architecture supersedes the §6 layer diagram; see `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the normative target module map and dependency rules.
+**Version:** 0.2.2
+**Date:** 2026-03-31
+**Status:** Updated — Platform Refactor is complete through Phase 5 Group 3. The planned `src/core/engine/`, `src/core/profiles/`, `src/core/config/`, and runner ownership split surfaces are landed; browser sync bootstrap debt and Phase 3 compatibility shims are retired; downstream MODQN / UI / estnet work may now start from their own preflight-reviewed programs rather than from platform-cleanup prompts. See `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the normative target module map and dependency rules.
 
 ---
 
@@ -100,10 +100,11 @@ The new project therefore uses existing repos as references and donors, but not 
                 │                  │ (family selections)
 ┌───────────────▼──────────┐  ┌────▼──────────────────────────┐
 │ L3: Scenario / Profile / │  │ L4: Runtime Core              │
-│ Experiment               │  │ engine.ts (orchestration)     │
-│ ScenarioConfig           │  │ kpi/ trace/ common/           │
-│ ProfileConfig (refactored)│  │ — calls L2 via interfaces     │
-│ ExperimentBundle          │  │ — produces SimulationSnapshot │
+│ Experiment               │  │ engine.ts + engine/           │
+│ ScenarioConfig           │  │ (thin orchestrator + steps)   │
+│ ProfileConfig (refactored)│  │ kpi/ trace/ common/           │
+│ ExperimentBundle          │  │ — calls L2 via interfaces     │
+│                          │  │ — produces SimulationSnapshot │
 └───────────────────────────┘  └───────────────┬───────────────┘
                                                │
 ┌──────────────────────────────────────────────▼───────────────┐
@@ -142,11 +143,15 @@ ntn-sim-core/
 │   ├── app/                 # app shell and route/provider composition
 │   ├── core/                # pure simulation core
 │   │   ├── orbit/
+│   │   ├── models/
 │   │   ├── channel/
 │   │   ├── beam/
 │   │   ├── handover/
 │   │   ├── energy/
 │   │   ├── kpi/
+│   │   ├── engine/
+│   │   ├── contracts/
+│   │   ├── config/
 │   │   ├── trace/
 │   │   ├── profiles/
 │   │   └── common/

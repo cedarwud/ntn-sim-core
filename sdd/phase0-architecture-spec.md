@@ -584,7 +584,7 @@ The original Phase 0B plan placed L6 (Exposure Contract) at `src/core/config/exp
 | L3 Scenario/Profile/Experiment | `src/core/profiles/` | L1 (parameter IDs), L2 (model family ids by name only) | engine.ts, viz/, app/, runner/ |
 | L4 Runtime Core | `src/core/engine.ts`, `core/kpi/` | L1, L2 (via interfaces), L3 (ProfileConfig), `core/common/`, `core/trace/` (write) | React, Three.js, viz/, app/, runner/ |
 | L5 Audit/Artifact | `src/core/trace/`, `src/runner/` | L4 output (read-only), L1 | viz/, React, Three.js |
-| L6 Exposure Contract | `src/core/contracts/` (Phase 4 output — `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`) | L1, L3 (id/label/tier only, via `profiles/defaults.ts` and `profile-composer.ts`), `core/common/types.ts`, `core/kpi/types.ts`, `core/policy/types.ts` | L4 internals (engine.ts), L2 implementations |
+| L6 Exposure Contract | `src/core/contracts/` (Phase 4 output — `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`) | L1, L3 (id/label/tier only, via `profiles/profile-exposure-catalog.ts`), `core/common/types.ts`, `core/kpi/types.ts`, `core/policy/types.ts` | L4 internals (engine.ts), L2 implementations |
 | L7 Viz/UI | `src/viz/`, `src/app/` | L6 (contracts — `runtime-v1`, `kpi-v1`, `policy-v1`, `exposure-v1`), `runner/runner-exposure-api.ts` (hooks only) | L2 implementations, L3 internals (ProfileConfig fields), L4 engine.ts internals, `runner/headless/benchmark-runner` |
 
 **Critical forbidden dependencies (currently violated — Phase 4 / 5 fix targets):**
@@ -1330,7 +1330,7 @@ Each phase entry is structured as: goal → main outputs → ordered code-change
 - `defaults.ts` fully replaced by per-family files (completing Phase 3 split)
 - `benchmark-runner.ts` orbit bootstrap migrated to `orbit/profile-runtime.ts` (DL-1)
 - Dead code removed: `tier3_5_scan_loss`, any stale `Phase2`/`Phase3` SINR path labels
-- Naming collision resolved: `viz/beam/beam-selection.ts` → `viz/beam/beam-ui-selection.ts`
+- Naming collision resolved: `viz/beam/beam-selection.ts` → `viz/beam/beam-visibility-selection.ts`
 - Sync XHR in `useSimulation.ts` replaced with async (UI-4)
 
 **Ordered code-change steps:**
@@ -1342,7 +1342,7 @@ Each phase entry is structured as: goal → main outputs → ordered code-change
 | P5-3 | `src/core/profiles/` | Delete `tier3_5_scan_loss` field (ST-1); remove Phase2/Phase3 label dead branches if any remain |
 | P5-4 | `src/runner/headless/benchmark-runner.ts` | Replace lines 130–175 (own Walker/TLE orbit build) with calls to `orbit/profile-runtime.ts` |
 | P5-5 | `src/app/hooks/useSimulation.ts` | Replace sync XHR (line 87) with async fetch |
-| P5-6 | `src/viz/beam/beam-selection.ts` | Rename to `beam-ui-selection.ts` to resolve naming collision with `core/beam/selection.ts` |
+| P5-6 | `src/viz/beam/beam-selection.ts` | Rename to `beam-visibility-selection.ts` to resolve naming collision with `core/beam/selection.ts` while keeping the file's display-only responsibility explicit |
 | P5-7 | `src/core/profiles/` | Remove `sourceMap` field from `ProfileConfig` (now redundant with Phase 1 registry); delete `composeProfile()` shim from `profile-composer.ts` (shim was introduced in Phase 3 P3-2, kept through Phase 4 as compatibility layer — now safe to remove since contracts are frozen and engine accepts composed types) |
 | P5-8 | `scripts/validate-structure.mjs` | Add check: no file in `src/core/` exceeds 650 lines |
 
@@ -1440,14 +1440,14 @@ These IDs are defined here and must be added to `ntn-sim-core-validation-matrix.
 
 | ID | Category | Check | Phase | Script |
 |---|---|---|---|---|
-| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` is non-empty and all `P`-classified fields from §0B.6 have at least one binding | 1 | `validate-parameter-registry.mjs` |
+| `VAL-PLAT-001` | parameter registry | `ParameterEntry[]` is non-empty, all `P`-classified fields from §0B.6 have at least one binding, and every profile-specific binding matches the runtime value at its `parameterPath` | 1 | `validate-parameter-registry.mjs` |
 | `VAL-PLAT-002` | parameter registry | every `ProfileParameterBinding.sourceId` resolves in `paper-sources.json` | 1 | `validate-parameter-registry.mjs` |
 | `VAL-PLAT-003` | parameter registry | no PARAM-* ID duplicates; no overlap with source-registry namespaces (checked against combined keys from `papers`+`standards`+`assumptions` sections of paper-sources.json, not top-level JSON keys) | 1 | `validate-parameter-registry.mjs` |
 | `VAL-PLAT-004` | model bundle | engine.ts contains no raw tier-flag if/else chains for path loss, beam gain, or SINR after model-family extraction | 2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-004b` | model bundle | `src/core/models/` contains all 8 required interface files: `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`; `ModelBundle` type is in `src/core/models/model-bundle.ts` (not `src/core/config/`) | 2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-005` | model bundle | `ModelBundle` factory produces a non-null bundle for all 14 current profiles | 2 | `validate-model-bundle.mjs` |
 | `VAL-PLAT-006` | scenario split | `ScenarioConfig`, `ModelBundleSelection`, and `ExperimentBundle` types exist and are distinct; no circular type imports between them | 3 | `validate-profiles.mjs` (augmented) |
-| `VAL-PLAT-007` | scenario split | all 14 profiles pass `composeProfile()` round-trip: composed back to flat `ProfileConfig` equals original | 3 | `validate-profiles.mjs` (augmented) |
+| `VAL-PLAT-007` | scenario split | all 14 profiles pass authoring parity: `materializeRuntimeProfile(entry.bundle, entry.exp)` equals the flat runtime `ProfileConfig` | 3 | `validate-profiles.mjs` (augmented) |
 | `VAL-PLAT-008` | runtime contract | `src/core/contracts/runtime-v1.ts` exports `SimulationSnapshot`, `SatelliteState`, `UeState`, `BhSlotSnapshot`, `DapsSnapshot`, `HoLogEntry`; annotated `@frozen` | 4 | `validate-contracts.mjs` |
 | `VAL-PLAT-009` | runtime contract | no viz-layer file imports directly from `core/common/types.ts` or `core/profiles/types.ts` (must go through `core/contracts/`) | 4 | `validate-contracts.mjs` |
 | `VAL-PLAT-010` | exposure contract | `getProfileList()` returns entries for all 14 profiles with valid `family` and `tier` fields | 4 | `validate-contracts.mjs` |
@@ -1494,7 +1494,7 @@ These IDs are defined here and must be added to `ntn-sim-core-validation-matrix.
 2. No file in `src/core/` exceeds 650 lines
 3. `benchmark-runner.ts` orbit bootstrap calls `orbit/profile-runtime.ts` (lines 130–175 eliminated)
 4. Sync XHR in `useSimulation.ts` eliminated
-5. `viz/beam/beam-selection.ts` renamed to `viz/beam/beam-ui-selection.ts`
+5. `viz/beam/beam-selection.ts` renamed to `viz/beam/beam-visibility-selection.ts`
 6. `ProfileConfig.sourceMap[]` field removed; `composeProfile()` shim deleted from `profile-composer.ts`
 7. VAL-PLAT-011, VAL-PLAT-012 pass
 8. All pre-existing VAL-* checks still pass

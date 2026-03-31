@@ -14,7 +14,7 @@ import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/contracts/runtime-v1';
 import { usePublishValidationSection } from '@/viz/validation/store';
-import { selectBeamSatellites } from './beam-selection';
+import { selectBeamSatellites } from './beam-visibility-selection';
 import {
   computeMovingBeamGroundTarget,
   isUeAnchoredMovingBeam,

@@ -68,14 +68,26 @@ function validatePlat004b(): boolean {
 // ---------------------------------------------------------------------------
 
 function validatePlat004(): boolean {
-  const enginePath = path.join(root, 'src/core/engine.ts');
-  if (!fs.existsSync(enginePath)) {
+  const engineRootPath = path.join(root, 'src/core/engine.ts');
+  const engineDirPath = path.join(root, 'src/core/engine');
+  if (!fs.existsSync(engineRootPath)) {
     console.log('VAL-PLAT-004: FAIL — src/core/engine.ts does not exist');
     return false;
   }
 
-  const text = fs.readFileSync(enginePath, 'utf8');
-  const lines = text.split('\n');
+  const engineFiles = [
+    engineRootPath,
+    ...(fs.existsSync(engineDirPath)
+      ? fs.readdirSync(engineDirPath)
+          .filter((name) => name.endsWith('.ts'))
+          .map((name) => path.join(engineDirPath, name))
+      : []),
+  ].map((filePath) => ({
+    filePath,
+    label: path.relative(root, filePath),
+    text: fs.readFileSync(filePath, 'utf8'),
+  }));
+  const combinedText = engineFiles.map((file) => file.text).join('\n');
 
   let pass = true;
 
@@ -98,29 +110,26 @@ function validatePlat004(): boolean {
     'computeBundleSinr',
   ];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Skip lines in excluded contexts
-    if (excludedContexts.some((ctx) => line.includes(ctx))) continue;
-    // Skip lines inside computeSatSinrPhase2/3 (dead code, not dispatch)
-    // The dead function bodies are within these function declarations; accept them.
-    // We check for DIRECT physics calls (computeBeamGainDb, computeLinkBudget, computeFspl, computeSinr)
-    // in combination with the tier patterns.
-    for (const pat of patterns) {
-      if (pat.test(line)) {
-        // Is this inside a direct physics call? Check nearby context.
-        const surroundingLines = lines.slice(Math.max(0, i - 2), Math.min(lines.length, i + 5)).join(' ');
-        const physicsCallPattern = /computeBeamGain\b|computeLinkBudget\b|computeFspl\b|computeSinr\b/;
-        if (physicsCallPattern.test(surroundingLines)) {
-          violations.push(`  Line ${i + 1}: ${line.trim()}`);
+  for (const engineFile of engineFiles) {
+    const lines = engineFile.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (excludedContexts.some((ctx) => line.includes(ctx))) continue;
+      for (const pat of patterns) {
+        if (pat.test(line)) {
+          const surroundingLines = lines.slice(Math.max(0, i - 2), Math.min(lines.length, i + 5)).join(' ');
+          const physicsCallPattern = /computeBeamGain\b|computeLinkBudget\b|computeFspl\b|computeSinr\b/;
+          if (physicsCallPattern.test(surroundingLines)) {
+            violations.push(`  ${engineFile.label}:${i + 1}: ${line.trim()}`);
+          }
+          break;
         }
-        break;
       }
     }
   }
 
   if (violations.length > 0) {
-    console.log('VAL-PLAT-004: FAIL (Part A) — engine.ts contains raw tier-flag dispatch chains:');
+    console.log('VAL-PLAT-004: FAIL (Part A) — engine implementation contains raw tier-flag dispatch chains:');
     violations.forEach((v) => console.log(v));
     console.log('  Replace with bundle.pathLoss.compute() / bundle.beamGain.computeGainDb() calls.');
     pass = false;
@@ -135,25 +144,25 @@ function validatePlat004(): boolean {
     'bundle.handover.createManager(',
     'bundle.policy.selectAction(',
   ];
-  const missing = required.filter((pat) => !text.includes(pat));
+  const missing = required.filter((pat) => !combinedText.includes(pat));
   if (missing.length > 0) {
-    console.log('VAL-PLAT-004: FAIL (Part B) — engine.ts missing bundle dispatch patterns:');
+    console.log('VAL-PLAT-004: FAIL (Part B) — engine implementation missing bundle dispatch patterns:');
     missing.forEach((m) => console.log(`  ${m}`));
     pass = false;
   }
 
   // Part B: bundle.power and bundle.ee referenced (even if null-guarded)
-  if (!text.includes('bundle.power')) {
-    console.log('VAL-PLAT-004: FAIL (Part B) — engine.ts missing bundle.power reference');
+  if (!combinedText.includes('bundle.power')) {
+    console.log('VAL-PLAT-004: FAIL (Part B) — engine implementation missing bundle.power reference');
     pass = false;
   }
-  if (!text.includes('bundle.ee')) {
-    console.log('VAL-PLAT-004: FAIL (Part B) — engine.ts missing bundle.ee reference');
+  if (!combinedText.includes('bundle.ee')) {
+    console.log('VAL-PLAT-004: FAIL (Part B) — engine implementation missing bundle.ee reference');
     pass = false;
   }
 
   if (pass) {
-    console.log('VAL-PLAT-004: PASS — engine.ts contains no raw tier-flag dispatch chains; all 8 bundle families dispatched');
+    console.log('VAL-PLAT-004: PASS — engine implementation contains no raw tier-flag dispatch chains; all 8 bundle families dispatched');
   }
   return pass;
 }

@@ -8,14 +8,12 @@
  */
 
 import { useFrame } from '@react-three/fiber';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { loadProfile, resolveProfile } from '@/core/profiles';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
-import { buildInteractiveTrajectoryCache, buildSyntheticOrbitElements } from '@/core/orbit';
-import { loadOmmRecords, ommToSatrecs, sampleRecords } from '@/core/orbit/tle-loader';
-import { satrecsToOrbitElements } from '@/core/orbit/sgp4-adapter';
+import { buildInteractiveProfileRuntime } from '@/core/orbit/profile-runtime';
 import { createSimEngine } from '@/core/engine';
 import type { SimEngine } from '@/core/engine';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
@@ -53,6 +51,13 @@ export interface UseSimulationResult {
 
 const SNAPSHOT_INTERVAL_MS = 16;
 
+interface EngineRuntime {
+  engine: SimEngine;
+  profile: ReturnType<typeof loadProfile>;
+  durationSec: number;
+  satelliteCount: number;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -69,54 +74,38 @@ export function useSimulation(
 
   // ── 1. Build constellation + cache + engine (once per profileId + handoverTypeOverride) ──
 
-  const { engine, profile, durationSec, satelliteCount } = useMemo(() => {
+  const [runtime, setRuntime] = useState<EngineRuntime | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    setRuntime(null);
+
     let prof = loadProfile(profileId);
     if (handoverTypeOverride) {
       prof = resolveProfile(prof, { handover: { ...prof.handover, type: handoverTypeOverride } });
     }
 
-    let elements;
-
-    if (prof.orbitMode === 'real-trace' && prof.tleDataPath) {
-      // 4V-1/4V-2: TLE/SGP4 path — load OMM fixture and build real-trace elements
-      // Dynamic import is async, so we use a synchronous fetch for the fixture.
-      // The fixture file is served as a static asset from the public or fixtures dir.
-      let ommJson: unknown[] = [];
+    void (async () => {
       try {
-        // Use synchronous XHR to load fixture at hook init time (inside useMemo).
-        // This is acceptable here: it runs once on mount, not in the frame loop.
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', prof.tleDataPath, false /* synchronous */);
-        xhr.send(null);
-        if (xhr.status === 200) {
-          ommJson = JSON.parse(xhr.responseText) as unknown[];
-        }
-      } catch {
-        console.warn('[useSimulation] Failed to load TLE fixture:', prof.tleDataPath);
+        const { elements, trajectoryCache } = await buildInteractiveProfileRuntime(prof);
+        if (disposed) return;
+
+        setRuntime({
+          engine: createSimEngine({
+            profile: prof,
+            trajectoryCache,
+          }),
+          profile: prof,
+          durationSec: prof.timeControl.durationSec,
+          satelliteCount: elements.length,
+        });
+      } catch (error) {
+        console.warn('[useSimulation] Failed to bootstrap profile runtime:', prof.id, error);
       }
+    })();
 
-      const maxSats = prof.tleMaxSatellites ?? 200;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const records = loadOmmRecords(ommJson as any[]);
-      const sampled = sampleRecords(records, maxSats, prof.seed);
-      const satrecs = ommToSatrecs(sampled);
-      elements = satrecsToOrbitElements(satrecs);
-    } else {
-      elements = buildSyntheticOrbitElements(prof);
-    }
-
-    const cache = buildInteractiveTrajectoryCache(prof, elements);
-
-    const eng = createSimEngine({
-      profile: prof,
-      trajectoryCache: cache,
-    });
-
-    return {
-      engine: eng,
-      profile: prof,
-      durationSec: prof.timeControl.durationSec,
-      satelliteCount: elements.length,
+    return () => {
+      disposed = true;
     };
   }, [profileId, handoverTypeOverride]);
 
@@ -140,12 +129,14 @@ export function useSimulation(
     prevServingSatIdRef.current = null;
     lastKnownServingRef.current = null;
     setSnapshot(null);
-  }, [engine]);
+  }, [runtime]);
 
   // ── 4. Frame loop ──
 
   useFrame((_, delta) => {
-    if (paused) return;
+    if (paused || !runtime) return;
+
+    const { engine, profile, durationSec } = runtime;
 
     // Advance time, wrap at end
     simTimeRef.current += delta * speed;
@@ -194,17 +185,17 @@ export function useSimulation(
   const servingBeamId = snapshot?.ues[0]?.servingBeamId ?? null;
 
   const exportKpi = useCallback(() => {
-    if (!engine) return null;
+    if (!runtime) return null;
     const wallMs = performance.now();
-    return engine.getKpiAccumulator().finalize(wallMs);
-  }, [engine]);
+    return runtime.engine.getKpiAccumulator().finalize(wallMs);
+  }, [runtime]);
 
   return {
     snapshot,
-    isReady: engine != null,
+    isReady: runtime != null,
     simTimeSec: simTimeRef.current,
-    totalDurationSec: durationSec,
-    satelliteCount,
+    totalDurationSec: runtime?.durationSec ?? 0,
+    satelliteCount: runtime?.satelliteCount ?? 0,
     visibleCount,
     servingSatId,
     servingBeamId,

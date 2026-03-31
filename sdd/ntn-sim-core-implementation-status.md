@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.7.1
+**Version:** 4.8.1
 **Date:** 2026-03-31
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0–3 complete. Phase 4 (Runtime Contract Freeze) complete (2026-03-30) — Group 1: contract family definitions, consumer boundaries, import restriction patterns, versioning rules, decision points, and VAL-PLAT-008/009/010 concrete pass conditions frozen in `phase4-runtime-contract-sdd.md`. Group 2: `src/core/contracts/` landed (`runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts`); `src/runner/runner-exposure-api.ts` implemented; `useBatchKpi.ts` migrated to `RunnerExposureApi`; `ControlPanel.tsx` migrated to `getProfileList()` (no more hardcoded `PROFILE_OPTIONS`); 16 viz/hooks files redirected from `@/core/common/types` → `@/core/contracts/runtime-v1`; `scripts/validate-contracts.mjs` (VAL-PLAT-008/009/010) added to `validate:stage`; all three contract gates pass. Phase 5 Group 1 is now complete (2026-03-31): `phase5-cleanup-and-modularization-sdd.md` freezes the `engine.ts -> engine/` split map, `profiles/defaults.ts` / `profiles/types.ts` structural plan, runner orbit-bootstrap ownership migration, `P5-7` retirement preconditions, and reviewer-grade `VAL-PLAT-011/012` checks. Group 2 may begin; Phase 5 closure has not yet landed.
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Simulator Platform Refactor is now complete through Phase 5 Group 3 (2026-03-31). Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. The required Phase 5 validation set (`lint`, `validate:trace`, `validate:profiles`, `validate:runtime`, `validate:contracts`, `validate:structure`, `validate:stage`) is green.
 
 ---
 
@@ -27,11 +27,11 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | Phase | Name | Status | Completion Criteria Location |
 |---|---|---|---|
 | 0 | Architecture Audit + Target Design | ✅ complete | `sdd/phase0-architecture-spec.md §0C.7` |
-| 1 | Parameter Registry | ✅ complete | `sdd/phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing; `parameter-registry.ts` (58 entries), `validate-parameter-registry.mjs`; done 2026-03-29 |
+| 1 | Parameter Registry | ✅ complete | `sdd/phase1-parameter-registry-sdd.md` — VAL-PLAT-001/002/003 passing with profile-specific binding/runtime parity; `parameter-registry.ts` (58 entries), `validate-parameter-registry.mjs`; hardened 2026-03-31 |
 | 2 | Model Bundle Interfaces | ✅ complete (2026-03-29) — `src/core/models/` (9 files), `buildModelBundle` factory, engine dispatch via bundle interfaces, `validate:bundle` (VAL-PLAT-004/004b/005 all PASS) | `sdd/phase2-model-bundle-sdd.md` §10 |
 | 3 | Scenario/Profile/Experiment Split | ✅ complete (2026-03-30) — Group 1 (SDD), Group 2 (types + compose/decompose), Group 3 (file split + thin re-export defaults.ts + observers.ts) all done | `sdd/phase3-scenario-profile-experiment-split.md §10` — VAL-PLAT-005/006/007 PASS after Group 3 file split; `validate:stage` green (exit 0) |
 | 4 | Runtime Contract Freeze | ✅ complete (2026-03-30) — Group 1 (SDD spec frozen) + Group 2 (contracts landed, consumers migrated, VAL-PLAT-008/009/010 PASS) | `sdd/phase4-runtime-contract-sdd.md §10` — VAL-PLAT-008/009/010 all PASS |
-| 5 | Cleanup + Modularization | 🟡 in progress (2026-03-31) — Group 1 complete: split/retirement/gate plan frozen; Group 2 structural split is the next valid step | `sdd/phase5-cleanup-and-modularization-sdd.md §9` — VAL-PLAT-011/012 not yet passing |
+| 5 | Cleanup + Modularization | ✅ complete (2026-03-31) — Group 1 plan freeze, Group 2 structural split, and Group 3 legacy retirement / gate closure all landed; `validate:structure` now enforces `VAL-PLAT-011/012` and Phase 5 exit criteria are satisfied | `sdd/phase5-cleanup-and-modularization-sdd.md §9` — Phase 5 complete |
 
 ---
 
@@ -92,7 +92,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `docs/architecture/ntn-sim-core-architecture-blueprint.md` | architecture blueprint | active |
 | `sdd/ntn-sim-core-sdd.md` | normative SDD | active (v1.1.0) — §9.2 Tier 6 Doppler wired; §9.7 RL pull-model engine integration updated |
 | `sdd/ntn-sim-core-profile-baselines.md` | detailed baseline companion | active, case9 altitude aligned at 600km |
-| `sdd/ntn-sim-core-platform-refactor-roadmap.md` | current active implementation plan | active |
+| `sdd/ntn-sim-core-platform-refactor-roadmap.md` | simulator platform refactor program record | active; exit condition satisfied 2026-03-31 |
 | `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-roadmap.md` | prior closure-program implementation plan | historical |
 | `sdd/ntn-sim-core-validation-matrix.md` | gate definition | active, F/E/Browser passing for current SDD set |
 | `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-preflight-refactor-closure.md` | preflight closure note | historical |
@@ -122,19 +122,23 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
-| `common` | 3 | `types.ts`, `constants.ts`, `index.ts` |
-| `profiles` | 4 | `types.ts`, `defaults.ts`, `loader.ts`, `index.ts` |
-| `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
-| `orbit` | 9 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `index.ts` |
+| `beam` | 7 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `frequency-reuse.ts`, `types.ts`, `index.ts` |
 | `channel` | 9 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `small-scale-fading.ts`, `doppler.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
+| `common` | 3 | `types.ts`, `constants.ts`, `index.ts` |
+| `config` | 9 | `parameter-registry.ts`, `parameter-registry-schema.ts`, `parameter-registry-data.ts`, `parameter-registry-foundation-data.ts`, `parameter-registry-beam-channel-data.ts`, `parameter-registry-handover-data.ts`, `parameter-registry-energy-ue-data.ts`, `profile-provenance-view.ts`, `paper-sources.json` |
+| `contracts` | 5 | `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts` |
+| `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
+| `engine` | 12 | `bootstrap.ts`, `tick.ts`, `orbit-step.ts`, `channel-step.ts`, `handover-step.ts`, `kpi-step.ts`, `scheduler-step.ts`, `energy-step.ts`, `snapshot-step.ts`, `policy-step.ts`, `state.ts`, `public-types.ts` |
 | `handover` | 9 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `ranking.ts`, `d2-distance.ts`, `types.ts`, `index.ts` |
 | `kpi` | 4 | `accumulator.ts`, `recompute.ts`, `types.ts`, `index.ts` |
-| `beam` | 7 | `layout.ts`, `selection.ts`, `active-beam-manager.ts`, `scheduler.ts`, `frequency-reuse.ts`, `types.ts`, `index.ts` |
-| `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
-| `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
-| `traffic` | 2 | `generator.ts`, `index.ts` |
+| `models` | 9 | `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`, `index.ts` |
+| `orbit` | 11 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `profile-runtime.ts`, `geo-stationary.ts`, `index.ts` |
 | `policy` | 2 | `types.ts`, `index.ts` |
-| root | 1 | `engine.ts` |
+| `profiles` | 14 | `types.ts`, `runtime-schema.ts`, `bundle-vocabulary.ts`, `defaults.ts`, `defaults-access.ts`, `defaults-bh.ts`, `defaults-hobs.ts`, `defaults-misc.ts`, `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, `runtime-materialization.ts`, `loader.ts`, `observers.ts`, `index.ts` |
+| `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
+| `traffic` | 2 | `generator.ts`, `index.ts` |
+| `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
+| root | 2 | `engine.ts`, `README.md` |
 
 ### `src/runner/` — current inventory
 
@@ -142,15 +146,16 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 |---|---|---|
 | `headless` | 4 | `dry-run.ts`, `benchmark-runner.ts`, `types.ts`, `index.ts` |
 | `replay` | 3 | `controller.ts` (snapshot replay + legacy artifact path), `types.ts`, `index.ts` |
-| `curation` | 3 | `pass-ranker.ts`, `window-selector.ts`, `index.ts` |
+| `curation` | 4 | `pass-ranker.ts`, `window-selector.ts`, `selection-plan.ts`, `index.ts` |
+| root | 2 | `runner-exposure-api.ts`, `README.md` |
 
 ### `src/viz/` — current inventory
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
-| `beam` | 4 | `moving-beam-geometry.ts`, `beam-selection.ts` (display-side), `bh-cell-analysis.ts`, `index.ts` |
+| `beam` | 4 | `moving-beam-geometry.ts`, `beam-visibility-selection.ts` (display-side), `bh-cell-analysis.ts`, `index.ts` |
 | `satellite` | 2 | `observer-sky-projection.ts`, `index.ts` |
-| `overlays` | 11 | `ControlPanel.tsx`, `SimHud.tsx`, `BeamInfoOverlay.tsx`, `HandoverLinkOverlay.tsx`, `BhExplainabilityPanel.tsx`, `BatchKpiPanel.tsx`, `HoEventLogOverlay.tsx`, `SinrCdfOverlay.tsx`, `SinrElevationScatter.tsx`, `SinrTimeSeriesOverlay.tsx`, `Starfield.tsx`, `ValidationProbe.tsx` |
+| `overlays` | 12 | `ControlPanel.tsx`, `SimHud.tsx`, `BeamInfoOverlay.tsx`, `HandoverLinkOverlay.tsx`, `BhExplainabilityPanel.tsx`, `BatchKpiPanel.tsx`, `HoEventLogOverlay.tsx`, `SinrCdfOverlay.tsx`, `SinrElevationScatter.tsx`, `SinrTimeSeriesOverlay.tsx`, `Starfield.tsx`, `ValidationProbe.tsx` |
 | `scene` | 3 | `SceneShell.tsx`, `NTPUScene.tsx`, `CameraRig.tsx` |
 | `validation` | 1 | `store.ts` (browser-side validation probe store) |
 
@@ -164,27 +169,27 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 | Script | Role |
 |---|---|
-| `validate-specmode-gating.mjs` | Checks sourceMap tier/specMode rules (Rules 1–6) + heuristic semantic consistency between ASSUME-* IDs and their `parameterPath` (Rule 7); part of authority chain |
+| `validate-specmode-gating.mjs` | Checks authored bundle `sourceMap` tier/specMode rules (Rules 1–6) + heuristic semantic consistency between ASSUME-* IDs and their `parameterPath` (Rule 7); part of authority chain |
 | `validate-traceability-placeholders.mjs` | Checks ASSUME-/PAP-/STD- ID presence |
-| `validate-assumption-manifest.mjs` | Checks AssumptionRecord completeness |
+| `validate-assumption-manifest.mjs` | Checks AssumptionRecord completeness using `profile-provenance-view.ts` for per-profile assumption sets |
 | `validate-core-purity.mjs` | Checks no React/Three.js imports in `src/core/` |
-| `validate-structure.mjs` | Checks directory/file structure; Phase 5 Group 3 must augment it to enforce `VAL-PLAT-011/012` |
+| `validate-structure.mjs` | Checks directory/file structure, forbidden legacy paths, recursive `src/core/` line caps (`VAL-PLAT-011`), and thin-orchestrator rules for `engine.ts` (`VAL-PLAT-012`) |
 | `validate-runtime.mjs` | Runtime smoke checks |
 | `validate-profile-layout.mjs` | Legacy profile layout checks (retained for `validate-structure.mjs` existence check; functionality absorbed into `validate-profiles.mjs`) |
-| `validate-profiles.mjs` | Canonical profile gate: Phase 1 layout checks + VAL-PLAT-006 (export scan, circular import check incl. engine.ts/runner/) + VAL-PLAT-007 (compose round-trip, SDD §9 deep-equality) |
+| `validate-profiles.mjs` | Canonical profile gate: Phase 1 layout checks + VAL-PLAT-006 (types/runtime-materialization export and circular-import checks) + VAL-PLAT-007 (authoring bundle+experiment -> runtime parity, SDD §9 deep-equality) |
 | `validate-multibeam-gating.ts` | Multi-beam gate |
 | `validate-orbit-parity.ts`, `validate-replay-manifest.ts`, `validate-final.mjs`, `validate-visual-browser.ts` | Orbit / replay / final / browser gates |
 | `golden-case-channel.mjs`, `golden-case-engine.ts`, `golden-case-orbit.mjs` | Golden case reference checks |
 | `run-baseline.ts`, `run-reproduction-comparison.ts` | Baseline and reproduction runners |
 | `audit-profiles.ts`, `check-*.ts` | Debug / inspection utilities |
 
-**Note:** `validate:specmode` verifies ID presence, specMode rule compliance, and (Rule 7) a heuristic semantic consistency check between `paper-sources.json` definitions and `defaults.ts` sourceMap `parameterPath` usage. Rule 7 is term-matching only — it is not full semantic equivalence — but it catches the coarsest category of provenance drift. `validate:trace` verifies ASSUME-/PAP-/STD- ID presence only.
+**Note:** `validate:specmode` verifies ID presence, specMode rule compliance, and (Rule 7) a heuristic semantic consistency check between `paper-sources.json` definitions and the authored `defaults-*.ts` bundle `sourceMap` `parameterPath` usage. Rule 7 is term-matching only — it is not full semantic equivalence — but it catches the coarsest category of provenance drift. `validate:trace` verifies ASSUME-/PAP-/STD- ID presence only.
 
 ---
 
 ## 5. Validation Gate Status
 
-### Passing (active structural + runtime gates, verified 2026-03-29)
+### Passing (active structural + runtime gates, verified 2026-03-31)
 
 | VAL ID | Phase | Status | Note |
 |---|---|---|---|
@@ -207,12 +212,14 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | VAL-DAPS-001 | 6 | ✅ pass | daps.ts exists |
 | VAL-DAPS-002 | 6 | ✅ pass | DAPS 0ms vs baseline (formula-level) |
 | VAL-VIZ-002 | 3 | ✅ pass | engine snapshot carries beam truth; SceneShell uses `EarthMovingBeamLayer` / `EarthFixedCellLayer` |
-| VAL-PLAT-006 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — 4 new types in `profiles/types.ts`; `composeProfile`/`decomposeProfile` in `profile-composer.ts`; `ProfileConfig` still present; no circular imports (types.ts: L4–L7; composer.ts: engine.ts, viz/, app/, runner/). Group 3: re-verified after file split — thin re-export `defaults.ts` passes circular-import gate |
-| VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality (SDD §9 definition: Date#getTime, absent≡undefined) verified for all 14 profiles. Group 3: re-verified after file split — all 14 profiles PASS |
+| VAL-PLAT-006 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, and `ProfileBundle` still export from `profiles/types.ts`; `ProfileConfig` still exports; `runtime-materialization.ts` exports `materializeRuntimeProfile()`; `types.ts` and `runtime-materialization.ts` pass the no-circular-import checks against `engine.ts`, `viz/`, `app/`, and `runner/` |
+| VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — all 14 authored registry entries satisfy `deepEqual(materializeRuntimeProfile(entry.bundle, entry.exp), DEFAULT_PROFILES[entry.id])` under the SDD §9 deep-equality rules (`Date#getTime`, absent≡undefined) |
+| VAL-PLAT-011 | P5 | ✅ pass | `scripts/validate-structure.mjs` — recursive scan confirms every `src/core/**/*.ts|tsx` file is `<= 650` lines; historical blockers now read `engine.ts` = 106 lines, `parameter-registry.ts` = 7 lines plus data shards (largest shard: `parameter-registry-handover-data.ts` = 316), and `profiles/types.ts` = 40 lines |
+| VAL-PLAT-012 | P5 | ✅ pass | `scripts/validate-structure.mjs` — `engine.ts` is 106 lines, `src/core/engine/` contains the required phase modules, root `engine.ts` imports only orchestrator-facing modules, and it defines only `createSimEngine()` |
 
 **Note:** Formula-level (`-F`) tests pass. Engine-level (`-E`) golden cases also pass, and `npm run validate:stage` succeeds using `node --import tsx` for the golden-engine step. Browser-level (`-V`) closure evidence is automated for the current explainability/continuity package; screenshot packs remain supplementary evidence.
 
-**Phase 5 note (2026-03-31):** `VAL-PLAT-011/012` are now concretized at the SDD / validation-matrix level, but they are not yet passing. Current known `VAL-PLAT-011` blockers are `src/core/engine.ts`, `src/core/config/parameter-registry.ts`, and `src/core/profiles/types.ts`.
+**Phase 5 note (2026-03-31):** Phase 5 is complete. Group 3 closure retired the browser sync-loader path, resolved the beam visibility naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved parameter-level provenance onto Phase 1 registry bindings via `profile-provenance-view.ts`, retained authored `ProfileBundle.sourceMap` only as non-registry fallback metadata, and made `VAL-PLAT-011/012` machine-enforced.
 
 ### Remediation-dependent gates now passing
 
@@ -270,6 +277,7 @@ None remain. `VAL-ORB-001`, `VAL-KPI-001`, `VAL-MB-001`, and `VAL-BEAM-001` are 
 10. ~~**Tooling portability issue:**~~ Fixed 2026-03-25. `validate:stage` now launches `validate:golden-engine` via `node --import tsx` and passes in this sandbox.
 11. **Profile parameter aligned:** case9-access-baseline defaults.ts altitude corrected to 600km (matches profile-baselines.md and source papers).
 12. **Frontend explainability package is landed and browser-validated:** `BeamInfoOverlay`, `HandoverLinkOverlay`, and `BhExplainabilityPanel` now exist, are wired into live/replay, and are covered by `validate-visual-browser.ts`.
+13. **Profile provenance is now split cleanly by responsibility:** runtime `ProfileConfig.sourceMap` is retired; `profile-provenance-view.ts` projects parameter-level provenance from Phase 1 registry bindings and falls back to authored `ProfileBundle.sourceMap` only for non-registry profile metadata. This is a documented Phase 5 split-authority design, not leftover runtime compatibility debt.
 
 ---
 
@@ -284,9 +292,9 @@ No project-level closure items remain open for the current SDD set.
 
 ## 8. Frontend Beam Architecture (Post-Simplification)
 
-The leo-parity experiment (formerly tracked in `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-leo-parity-mode.md`) has been closed. Useful satellite selection logic was extracted into `src/viz/beam/beam-selection.ts` and the dual view-mode system was removed. The current frontend beam architecture is:
+The leo-parity experiment (formerly tracked in `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-frontend-leo-parity-mode.md`) has been closed. Useful satellite selection logic now lives in `src/viz/beam/beam-visibility-selection.ts`, and the dual view-mode system was removed. The current frontend beam architecture is:
 
-1. **`beam-selection.ts`** — decides which satellites show beams (`selectBeamSatellites()`) and which are cell candidates (`selectCellCandidateSatIds()`)
+1. **`beam-visibility-selection.ts`** — decides which satellites show beams (`selectBeamSatellites()`) and which are cell candidates (`selectCellCandidateSatIds()`)
 2. **`EarthMovingBeamLayer`** — renders 3D beam cones for selected satellites
 3. **`EarthFixedCellLayer`** — renders hex grid colored by BH slot state for candidate satellites at elevation >= 10 deg
 4. **`BeamInfoOverlay`** — satellite role tags + SINR display

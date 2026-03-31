@@ -35,7 +35,7 @@ export interface CreateRunManifestOpts {
   durationSec: number;
   stepSec: number;
   engineVersion: string;
-  /** Optional SpecMode index collected from the profile's sourceMap. */
+  /** Optional SpecMode index collected from the profile provenance view. */
   specModeIndex?: RunManifest['specModeIndex'];
 }
 

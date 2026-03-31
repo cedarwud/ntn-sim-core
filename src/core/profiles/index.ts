@@ -45,9 +45,10 @@ export {
   buildWalkerConfig,
 } from './loader';
 
-// Phase 3 composer (phase3-scenario-profile-experiment-split.md §6)
+// Runtime materialization / authoring support
 export {
-  composeProfile,
-  decomposeProfile,
-  PROFILE_EXPOSURE_PRESETS,
-} from './profile-composer';
+  materializeRuntimeProfile,
+} from './runtime-materialization';
+export {
+  getProfileExposureCatalog,
+} from './profile-exposure-catalog';

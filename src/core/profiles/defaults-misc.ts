@@ -10,7 +10,7 @@
  */
 
 import type { ProfileConfig, ProfileBundle, ExperimentBundle } from './types';
-import { composeProfile } from './profile-composer';
+import { materializeRuntimeProfile } from './runtime-materialization';
 import {
   BEIJING_OBSERVER,
   DEFAULT_IMPLEMENTATION_LOSS_DB,
@@ -24,7 +24,7 @@ import {
 // 1. real-trace-validation (profile-baselines §7)
 // ---------------------------------------------------------------------------
 
-const REAL_TRACE_VALIDATION_BUNDLE: ProfileBundle = {
+export const REAL_TRACE_VALIDATION_BUNDLE: ProfileBundle = {
   id: 'real-trace-validation',
   family: 'real-trace-validation',
   version: '0.1.0',
@@ -89,20 +89,20 @@ const REAL_TRACE_VALIDATION_BUNDLE: ProfileBundle = {
   ],
 };
 
-const REAL_TRACE_DEFAULT_EXP: ExperimentBundle = {
+export const REAL_TRACE_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
   tleMaxSatellites: 50,
 };
 
 export const REAL_TRACE_VALIDATION: ProfileConfig =
-  composeProfile(REAL_TRACE_VALIDATION_BUNDLE, REAL_TRACE_DEFAULT_EXP);
+  materializeRuntimeProfile(REAL_TRACE_VALIDATION_BUNDLE, REAL_TRACE_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 2. meo-constellation-baseline (O3b-like, Ka-band 20 GHz)
 // ---------------------------------------------------------------------------
 
-const MEO_CONSTELLATION_BASELINE_BUNDLE: ProfileBundle = {
+export const MEO_CONSTELLATION_BASELINE_BUNDLE: ProfileBundle = {
   id: 'meo-constellation-baseline',
   family: 'meo-constellation-baseline',
   version: '1.0.0',
@@ -172,19 +172,19 @@ const MEO_CONSTELLATION_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const MEO_CONSTELLATION_DEFAULT_EXP: ExperimentBundle = {
+export const MEO_CONSTELLATION_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const MEO_CONSTELLATION_BASELINE: ProfileConfig =
-  composeProfile(MEO_CONSTELLATION_BASELINE_BUNDLE, MEO_CONSTELLATION_DEFAULT_EXP);
+  materializeRuntimeProfile(MEO_CONSTELLATION_BASELINE_BUNDLE, MEO_CONSTELLATION_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 3. geo-relay-baseline (3-sat classic GEO, Ku-band 12 GHz)
 // ---------------------------------------------------------------------------
 
-const GEO_RELAY_BASELINE_BUNDLE: ProfileBundle = {
+export const GEO_RELAY_BASELINE_BUNDLE: ProfileBundle = {
   id: 'geo-relay-baseline',
   family: 'geo-relay-baseline',
   version: '1.0.0',
@@ -265,13 +265,13 @@ const GEO_RELAY_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const GEO_RELAY_DEFAULT_EXP: ExperimentBundle = {
+export const GEO_RELAY_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const GEO_RELAY_BASELINE: ProfileConfig =
-  composeProfile(GEO_RELAY_BASELINE_BUNDLE, GEO_RELAY_DEFAULT_EXP);
+  materializeRuntimeProfile(GEO_RELAY_BASELINE_BUNDLE, GEO_RELAY_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 4. realistic-first-screen (simulator-parameter-spec.md §10)
@@ -303,7 +303,7 @@ export const GEO_RELAY_BASELINE: ProfileConfig =
 // Walker 24×22 is an engineering proxy (no paper mandates this exact shape);
 // noted here in comment only, not as a sourceMap provenance entry.
 
-const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
+export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   id: 'realistic-first-screen',
   family: 'realistic-first-screen',
   version: '0.1.0',
@@ -350,7 +350,7 @@ const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
     // = 40 + 38 - 2.5 = 75.5 dBm → eirp_density = (75.5-30) - 20 = 25.5 ≈ 26 dBW/MHz
     tx_power_per_beam_dbm: 40,
     eirp_density_dbw_per_mhz: 26,
-    max_tx_power_dbm: null,
+    max_tx_power_dbm: 43,
     noise_temperature_k: 290,
     noise_figure_db: 9,
     implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
@@ -378,6 +378,7 @@ const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2026-DRL-BHOPT', parameterPath: 'rf.frequency_ghz', note: 'Ka-band 20GHz (PAP-2026-DRL-BHOPT, PAP-2024-MORL-MULTIBEAM; NOTE: PAP-2024-HOBS is 28GHz)', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2024-HOBS', parameterPath: 'rf.bandwidth_mhz', note: '100MHz bandwidth (PAP-2024-HOBS, PAP-2025-EEBH-UPLINK)', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2025-MAAC-BHPOWER', parameterPath: 'rf.tx_power_per_beam_dbm', note: 'P1=40dBm=10W per beam (spec P1, [S10])', specMode: 'Realistic' },
+    { tier: 'paper-backed', id: 'PAP-2025-MAAC-BHPOWER', parameterPath: 'rf.max_tx_power_dbm', note: 'P2=43dBm≈20W aggregate satellite TX budget (spec P2, [S10])', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (feeder 0.5+pointing 2.0)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'NF=9dB handheld UE (TR 38.811 Table 4.4-1)', specMode: 'Realistic' },
     // noise_temperature_k: Internal-only fixed constant per spec R7; required for audit but not a user-facing slider
@@ -399,10 +400,10 @@ const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   ],
 };
 
-const REALISTIC_FIRST_SCREEN_DEFAULT_EXP: ExperimentBundle = {
+export const REALISTIC_FIRST_SCREEN_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const REALISTIC_FIRST_SCREEN: ProfileConfig =
-  composeProfile(REALISTIC_FIRST_SCREEN_BUNDLE, REALISTIC_FIRST_SCREEN_DEFAULT_EXP);
+  materializeRuntimeProfile(REALISTIC_FIRST_SCREEN_BUNDLE, REALISTIC_FIRST_SCREEN_DEFAULT_EXP);

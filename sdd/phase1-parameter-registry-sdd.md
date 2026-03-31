@@ -1,6 +1,6 @@
 # Phase 1 — Parameter Registry SDD
 
-**Status:** Complete — Group 1 (SDD) and Group 2 (implementation) both done; VAL-PLAT-001/002/003 passing
+**Status:** Complete — Group 1 (SDD) and Group 2 (implementation) both done; VAL-PLAT-001/002/003 passing, including profile-specific binding/runtime parity
 **Date (v1 — full spec):** 2026-03-29
 **Date (v1.1 — critical schema fixes):** 2026-03-29 — SourceTier vocabulary corrected; paper-sources.json nested-structure resolution; exposureMode fallback rule; energy.layer2_overrides.* expanded to 8 keys; coverage count 50→58; phase0 §0B.4/§0B.6/§0C.3 authority-synced
 **Date (v1.2 — count fix + authority sync):** 2026-03-29 — 57→58 corrected everywhere; phase0 operative-schema note added; OP-3 sourceTier short-form removed; Data Flow / §11 count references updated
@@ -14,7 +14,7 @@ Replace scattered TSDoc provenance annotations in `ProfileConfig` with a single,
 
 After Phase 1 is complete:
 - Every KPI-impacting parameter has a `PARAM-*` registry ID, a `GlobalParameterSpec`, and at least one `ProfileParameterBinding`.
-- A validation script can mechanically verify that every `P`-classified field from `§0B.6` is registered and that every binding's `sourceId` resolves in `paper-sources.json`.
+- A validation script can mechanically verify that every `P`-classified field from `§0B.6` is registered, that every binding's `sourceId` resolves in `paper-sources.json`, and that every profile-specific binding's `defaultValue` matches the runtime default at the bound `parameterPath`.
 - The existing `defaults.ts` `sourceMap[]` annotations are still the runtime authority (they are **not** deleted in Phase 1), but the registry is now the canonical reference layer that supersedes them.
 
 ---
@@ -183,9 +183,10 @@ interface ProfileParameterBinding {
   /**
    * Default value for this parameter in this profile.
    * Must match the value in defaults.ts for the corresponding parameterPath.
-   * Phase 1 does NOT enforce this programmatically (that is Phase 3 work).
-   * The audit script validate-parameter-registry.mjs checks sourceId resolution,
-   * not value parity.
+   * Current closure enforces this programmatically for profile-specific bindings
+   * via validate-parameter-registry.mjs.
+   * "__universal__" bindings remain registry metadata and are not compared
+   * against every runtime profile instance.
    */
   defaultValue: number | string | boolean | null;
 
@@ -367,7 +368,7 @@ These steps map directly to `phase0-architecture-spec.md §0C.1 Phase 1`. Each s
 | P1-4 | `src/core/config/parameter-registry.ts` | Populate channel.*, handover.*, energy.*, ueConfig.* entries (~28 parameters). | Additive |
 | P1-5 | `src/core/config/paper-sources.json` | Add missing PAP-*/ASSUME-*/STD-* entries required by any new `ProfileParameterBinding.sourceId` that is not yet in the file. | Additive |
 | P1-6 | `scripts/validate-parameter-registry.mjs` (new) | Implement three checks corresponding to VAL-PLAT-001/002/003 (see §6). | New file |
-| P1-7 | `package.json` | Add `"validate:registry": "node scripts/validate-parameter-registry.mjs"` and wire into `validate:stage`. | Additive |
+| P1-7 | `package.json` | Add `"validate:registry": "node --import tsx scripts/validate-parameter-registry.mjs"` and wire into `validate:stage`. | Additive |
 
 **Permitted deviations for Group 2 implementors:** Steps P1-2 through P1-4 may be batched into fewer commits if each commit leaves `validate:stage` green. The step order within P1-2/3/4 is advisory.
 
@@ -390,22 +391,21 @@ These steps map directly to `phase0-architecture-spec.md §0C.1 Phase 1`. Each s
 1. `PARAMETER_REGISTRY.length > 0`
 2. Every `P`-classified `parameterPath` from `phase0-architecture-spec.md §0B.6` is represented by at least one `ParameterEntry.spec.parameterPath` in the registry.
 3. Every `ParameterEntry.bindings.length >= 1` (no spec without at least one binding).
+4. Every profile-specific `ProfileParameterBinding.defaultValue` equals the runtime value at `DEFAULT_PROFILES[profileId]` → `ParameterEntry.spec.parameterPath`.
 
-**Known scope limitation (not a Phase 1 blocker):**
-VAL-PLAT-001 verifies that every parameter has at least one binding, but does NOT
-mechanically verify that every profile that has an explicit non-default value AND a
-sourceMap entry for this parameter has its own binding. A registry with only `__universal__`
-bindings would pass this gate even if profile-specific provenance is absent.
-This is an accepted Phase 1 limitation. A stricter `(profileId, parameterPath)` completeness
-check is deferred to a future gate (not yet assigned a VAL-PLAT-* ID). Reviewers performing
-manual spot-checks should verify that parameters known to vary across profiles (e.g.
-`rf.frequency_ghz`, `orbital.altitude_km`) carry per-profile bindings, not only
-`__universal__` entries.
+**Known scope limitation (still accepted):**
+`VAL-PLAT-001` now enforces value parity for every profile-specific binding, but
+`__universal__` bindings are still treated as registry metadata rather than as
+assertions about every runtime profile. Reviewers should therefore continue to
+spot-check parameters known to vary across families (for example
+`rf.frequency_ghz`, `orbital.altitude_km`) to ensure they use profile-specific
+bindings rather than relying on `__universal__` metadata.
 
 **Expected output (pass):**
 ```
 VAL-PLAT-001: PASS — 58 parameter entries found; all P-classified paths covered
 VAL-PLAT-001: PASS — All 58 entries have at least one binding
+VAL-PLAT-001: PASS — All profile-specific binding.defaultValue entries match DEFAULT_PROFILES
 ```
 
 **Expected output (fail):**
@@ -598,7 +598,8 @@ Phase 1 output (new):
 
 Phase 1 validation output (new):
   scripts/validate-parameter-registry.mjs
-    checks: VAL-PLAT-001 (coverage) + VAL-PLAT-002 (sourceId resolution) +
+    checks: VAL-PLAT-001 (coverage + profile-specific runtime parity) +
+            VAL-PLAT-002 (sourceId resolution) +
             VAL-PLAT-003 (namespace integrity)
 
 Downstream consumers (Phase 2 and later):

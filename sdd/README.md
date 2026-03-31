@@ -38,9 +38,9 @@ These files remain the long-lived authority set:
 12. `ntn-sim-core-frontend-beam-visual-sdd.md`
    - frontend visual/rendering contract that still governs truth-driven beam rendering
 
-## 2. Active Program: Simulator Platform Refactor
+## 2. Completed Program: Simulator Platform Refactor
 
-These files define the current active development program. This program must complete before MODQN runtime work or new UI integration work is treated as active implementation.
+These files define the now-complete platform-refactor program that unlocked downstream work. MODQN runtime work and new UI integration work must still be promoted from outline to active SDDs through their own preflight/review flow; they should no longer be framed as blocked on unfinished Phase 5 cleanup.
 
 1. `ntn-sim-core-platform-refactor-roadmap.md`
    - master roadmap for the platform refactor program

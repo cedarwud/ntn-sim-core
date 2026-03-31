@@ -200,6 +200,17 @@
     }
   },
   "standards": {
+    "STD-IEEE-T0": {
+      "id": "IEEE reference temperature T0",
+      "title": "Standard reference temperature for thermal noise calculations",
+      "relevantSections": [
+        "T0 = 290 K engineering reference"
+      ],
+      "usedIn": [
+        "src/core/config/parameter-registry.ts",
+        "src/core/config/parameter-registry-data.ts"
+      ]
+    },
     "STD-3GPP-38331": {
       "id": "3GPP TS 38.331",
       "title": "NR; Radio Resource Control (RRC) protocol specification",

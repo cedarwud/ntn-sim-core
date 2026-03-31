@@ -1,8 +1,10 @@
 # Phase 5 — Cleanup and Modularization
 
-**Status:** Active — Group 1 complete (2026-03-31): split/retirement/gate strategy frozen; Group 2 structural split may begin
+**Status:** Complete — Group 3 closure landed (2026-03-31): browser real-trace sync XHR retired, runtime `sourceMap` / composer compatibility removed, naming collision resolved, and `VAL-PLAT-011/012` are now machine-enforced and passing
 **Date (stub):** 2026-03-29
 **Date (Group 1 plan freeze):** 2026-03-31
+**Date (Group 2 structural split):** 2026-03-31
+**Date (Group 3 closure):** 2026-03-31
 **Depends on:** Phase 0 complete, Phase 1 complete, Phase 2 complete, Phase 3 complete, Phase 4 complete
 
 ---
@@ -63,7 +65,7 @@ Phase 5 may reconnect internal implementations behind these surfaces, but it mus
 
 ## 3. Current Repo-State Constraints
 
-Group 1 verified the current repo state against the actual files, not only the older Phase 0 inventory.
+Group 1 verified the pre-split repo state against the actual files, not only the older Phase 0 inventory. The table below records the blockers that Group 2 was required to absorb.
 
 | File / surface | Current state | Phase 5 implication |
 |---|---|---|
@@ -77,6 +79,16 @@ Group 1 verified the current repo state against the actual files, not only the o
 | `src/core/profiles/profile-composer.ts` | 401 lines; still the compatibility shim between authored bundles and flat `ProfileConfig` | Group 3 retirement decision point; cannot be deleted in Group 2 |
 | `src/core/config/parameter-registry.ts` | 1047 lines | not a primary P5 hotspot, but it blocks `VAL-PLAT-011`; only scoped split work is allowed |
 | `scripts/validate-structure.mjs` | path-existence checker only; does not enforce size/orchestrator rules yet | Group 3 gate-closure target (P5-8) |
+
+Closure checkpoint (2026-03-31):
+
+1. `src/core/engine.ts` is now a 106-line public orchestrator that delegates into `src/core/engine/`.
+2. `src/core/profiles/types.ts` is now a 40-line barrel over `runtime-schema.ts` and `bundle-vocabulary.ts`; runtime `ProfileConfig.sourceMap` is retired.
+3. `src/core/config/parameter-registry.ts` is now a thin export surface over `parameter-registry-schema.ts` plus sharded data files (`parameter-registry-data.ts`, `parameter-registry-foundation-data.ts`, `parameter-registry-beam-channel-data.ts`, `parameter-registry-handover-data.ts`, `parameter-registry-energy-ue-data.ts`).
+4. `src/runner/headless/benchmark-runner.ts` now delegates profile orbit resolution/cache construction to `src/core/orbit/profile-runtime.ts` and reads provenance through `src/core/config/profile-provenance-view.ts`.
+5. `src/app/hooks/useSimulation.ts` and `src/app/hooks/useReplay.ts` both use async real-trace bootstrap; no synchronous browser XHR path remains.
+6. `profile-composer.ts` is deleted; `runtime-materialization.ts`, `profile-authoring-registry.ts`, and `profile-exposure-catalog.ts` are now the authored replacement surfaces.
+7. `scripts/validate-structure.mjs` now machine-enforces `VAL-PLAT-011/012`, and the full required validation set (`lint`, `validate:trace`, `validate:profiles`, `validate:runtime`, `validate:contracts`, `validate:structure`, `validate:stage`) passes.
 
 ---
 
@@ -112,6 +124,14 @@ Group 2 is expected to leave these items for Group 3:
 3. `sourceMap` / `composeProfile()` retirement;
 4. final `validate-structure.mjs` augmentation and Phase 5 closure sync.
 
+Implementation checkpoint (2026-03-31):
+
+1. `src/core/engine/` landed with `bootstrap`, `tick`, `orbit-step`, `channel-step`, `handover-step`, `kpi-step`, `scheduler-step`, `energy-step`, `snapshot-step`, `policy-step`, and `state` modules.
+2. `profiles/types.ts` was split into `runtime-schema.ts` and `bundle-vocabulary.ts` while preserving the barrel surface.
+3. runner orbit bootstrap ownership moved behind `src/core/orbit/profile-runtime.ts`.
+4. the scoped `parameter-registry.ts` support split landed because the size gate still applies across all of `src/core/`.
+5. Group 2 did not consume Group 3 retirements: browser sync-loader cleanup, naming-collision rename, `P5-7` retirement, and final structural gate enforcement were left to Group 3 and landed there without reopening frozen consumer surfaces.
+
 ### 4.3 Group 3 — Legacy Retirement / Browser Cleanup / Gate Closure
 
 Group 3 owns the final removals and closure work:
@@ -120,8 +140,16 @@ Group 3 owns the final removals and closure work:
 |---|---|---|
 | P5-5 | remove synchronous browser fixture loading; keep hook/exposure semantics stable | if `useReplay.ts` still shares the same legacy path, close both together or record the gap explicitly |
 | P5-6 | rename `viz/beam/beam-selection.ts` and update imports | pure naming/ownership cleanup only |
-| P5-7 | retire `ProfileConfig.sourceMap`, `ProfileBundle.sourceMap`, `composeProfile()`, and any now-obsolete exposure shim only if all preconditions in §6 hold | if preconditions are not met, do not force closure |
+| P5-7 | retire runtime `ProfileConfig.sourceMap`, `composeProfile()`, `decomposeProfile()`, and any now-obsolete exposure shim only if all preconditions in §6 hold | `ProfileBundle.sourceMap` may remain only under the explicit authoring-only rationale documented in §6.2 |
 | P5-8 | land final `validate-structure.mjs` enforcement and closure sync | Phase 5 cannot complete without machine-enforced structural gates |
+
+Closure checkpoint (2026-03-31):
+
+1. `useSimulation.ts` and `useReplay.ts` now share async real-trace bootstrap helpers from `src/core/orbit/profile-runtime.ts`; no `XMLHttpRequest` path remains in the repo.
+2. `viz/beam/beam-selection.ts` was retired in favor of `viz/beam/beam-visibility-selection.ts`.
+3. `ProfileConfig.sourceMap`, `composeProfile()`, `decomposeProfile()`, `PROFILE_EXPOSURE_PRESETS`, and `profile-composer.ts` were retired after §6 preconditions were satisfied.
+4. `ProfileBundle.sourceMap` remains only as authored provenance input to `profile-authoring-registry.ts` and `profile-provenance-view.ts`; it is no longer part of runtime `ProfileConfig` or frozen consumer contracts.
+5. `validate-structure.mjs` now enforces `VAL-PLAT-011/012` and the required validation set is green.
 
 ### 4.4 Group 2 vs Group 3 Boundary Table
 
@@ -171,7 +199,7 @@ Rules:
 | `src/core/profiles/defaults.ts` | already a thin registry index | keep as the stable import barrel; no new profile logic here | keep as the public facade even if P5-7 retires `composeProfile()` behind it |
 | `src/core/profiles/defaults-*.ts` | authoring truth for per-family profiles | stay authoritative; only minimal import/path adjustments allowed | if P5-7 lands, migrate them from `composeProfile()` usage to the new authored runtime-materialization surface |
 | `src/core/profiles/types.ts` | 839-line mixed type surface | split into sub-files by responsibility while preserving `types.ts` as barrel | remove only the documented transitional provenance fields after §6 preconditions hold |
-| `src/core/profiles/profile-composer.ts` | compatibility shim + decompose helper + static exposure preset fallback | no deletion in Group 2 | retire only if provenance, loader, validation, and exposure consumers no longer require it |
+| `src/core/profiles/profile-composer.ts` | compatibility shim + decompose helper + static exposure preset fallback | no deletion in Group 2 | retired in Group 3 after provenance, loader, validation, and exposure consumers were migrated to the §6 replacement surfaces |
 
 `types.ts` split map:
 
@@ -182,11 +210,11 @@ Rules:
 
 ### 5.3 `benchmark-runner.ts` Orbit Bootstrap Ownership Migration
 
-Current state:
+Closure state:
 
-1. `benchmark-runner.ts` still defines `buildElements()` and `buildConstellation()`.
-2. `orbit/profile-runtime.ts` owns only the synthetic element build and generic cache helpers.
-3. browser hooks still inline the real-trace TLE fixture load/parse path.
+1. `benchmark-runner.ts` no longer owns orbit bootstrap helpers; it delegates orbit-element resolution and trajectory-cache construction to `src/core/orbit/profile-runtime.ts`.
+2. `orbit/profile-runtime.ts` owns synthetic and real-trace orbit-element resolution plus the interactive runtime bootstrap helpers used by browser hooks.
+3. browser hooks no longer inline the real-trace fixture load/parse path; they reuse the shared async bootstrap helpers.
 
 Migration contract:
 
@@ -208,7 +236,7 @@ Group 3 follow-on:
 
 ### 5.4 `useSimulation.ts` Sync XHR Removal Timing
 
-`useSimulation.ts` currently does synchronous fixture loading inside `useMemo()`. This is a runtime-lifecycle change, not a pure file split.
+Group 1 captured `useSimulation.ts` as a synchronous fixture-loading site. This was a runtime-lifecycle change, not a pure file split.
 
 Decision:
 
@@ -220,25 +248,34 @@ Decision:
 
 This timing keeps Group 2 focused on structural core cleanup and keeps browser-lifecycle churn out of the core split review.
 
+Closure result:
+
+1. Group 3 migrated both hooks to async bootstrap backed by `resolveProfileOrbitElementsAsync()` and `buildInteractiveProfileRuntime()` in `src/core/orbit/profile-runtime.ts`.
+2. The outward hook contract stayed stable: `snapshot`, `isReady`, `profileId`, replay identity, and KPI export behavior were preserved.
+3. `useReplay.ts` no longer needs an exception note because the legacy sync path is gone there as well.
+
 ### 5.5 `parameter-registry.ts` Scoped Support Split Rule
 
-Current state:
+Closure state:
 
-1. `src/core/config/parameter-registry.ts` is 1047 lines and currently mixes schema declarations with the entire literal `PARAMETER_REGISTRY` dataset.
-2. It is already a known `VAL-PLAT-011` blocker, but it is not a primary architectural hotspot on the same level as `engine.ts` or `profiles/types.ts`.
+1. `src/core/config/parameter-registry.ts` is now a 7-line export barrel over `parameter-registry-schema.ts` and `parameter-registry-data.ts`.
+2. literal registry data is sharded into `parameter-registry-foundation-data.ts` (247 lines), `parameter-registry-beam-channel-data.ts` (180), `parameter-registry-handover-data.ts` (316), and `parameter-registry-energy-ue-data.ts` (161).
+3. this was a scoped `VAL-PLAT-011` support split, not a Phase 1 registry redesign.
 
-If Group 2 still needs a support split after the primary hotspots land, the provisional owner/cut line is frozen as follows:
+The actual scoped split that landed for closure is frozen as follows:
 
 | Target file | Ownership after scoped split | Group |
 |---|---|---|
-| `src/core/config/parameter-registry.ts` | schema types (`GlobalParameterSpec`, `ProfileParameterBinding`, `ParameterEntry`), stable export surface, and any read-only lookup/projection helpers that do **not** redesign the registry model | Group 2 only if needed |
-| `src/core/config/parameter-registry.entries.ts` | the literal `PARAMETER_REGISTRY` data array, grouped exactly by existing parameter domains | Group 2 only if needed |
+| `src/core/config/parameter-registry.ts` | stable export surface only | Group 2 |
+| `src/core/config/parameter-registry-schema.ts` | schema types (`GlobalParameterSpec`, `ProfileParameterBinding`, `ParameterEntry`) | Group 2 |
+| `src/core/config/parameter-registry-data.ts` | domain-data aggregator; no semantic logic | Group 2 |
+| `src/core/config/parameter-registry-*-data.ts` | literal `PARAMETER_REGISTRY` domain shards grouped by the existing parameter families (foundation, beam/channel, handover, energy/UE) | Group 2 |
 
 Rules:
 
 1. This support split is optional until the primary Group 2 work (`engine.ts`, `profiles/types.ts`, runner bootstrap ownership) lands; do not use it to re-open Phase 1 design.
 2. If the split is needed, Group 2 owns it. Group 3 verifies closure; it must not discover the size blocker from scratch.
-3. The acceptable cut line is schema/helpers vs literal registry data only.
+3. The acceptable cut line is stable export surface + schema vs literal registry data only; the landed shard split does not introduce a new registry API family.
 4. Do **not** use this split to change `GlobalParameterSpec` / `ProfileParameterBinding` semantics, rename PARAM-* IDs, or introduce a new registry API family.
 
 ---
@@ -249,7 +286,7 @@ Rules:
 
 Group 3 may retire `P5-7` only after ALL of the following are true:
 
-1. `benchmark-runner.ts` no longer reads `profile.sourceMap` for `specModeIndex`, `sourceTrace`, or `assumptionSet`; provenance must come from a Phase 1 registry-backed surface instead, specifically the selectors defined in `src/core/config/profile-provenance-view.ts`.
+1. `benchmark-runner.ts` no longer reads `profile.sourceMap` for `specModeIndex`, `sourceTrace`, or `assumptionSet`; provenance must come from a Phase 1 parameter-level registry-backed surface, with authored fallback only for non-parameter profile metadata, specifically via `src/core/config/profile-provenance-view.ts`.
 2. `loader.ts` no longer treats `sourceMap` as a required top-level field and no longer validates benchmark safety by scanning `config.sourceMap`; the replacement provenance/benchmark-safety lookup must also come from `src/core/config/profile-provenance-view.ts`.
 3. the validation/tooling chain no longer depends on profile-embedded `sourceMap`:
    - `validate-specmode-gating.mjs`
@@ -260,12 +297,21 @@ Group 3 may retire `P5-7` only after ALL of the following are true:
 5. a new internal authoring/runtime materialization surface exists so `defaults-*.ts` do not need `composeProfile()` to emit the runtime profile registry; that one-way materializer is `src/core/profiles/runtime-materialization.ts`.
 6. the Phase 3 validation contract has been replaced or rewritten so the project is not still requiring `VAL-PLAT-007`'s `decomposeProfile -> composeProfile` round-trip at the moment the shim is deleted.
 
+Closure verification (2026-03-31):
+
+1. `benchmark-runner.ts` now gets `specModeIndex`, `sourceTraceEntries`, and `assumptionSet` from `getProfileProvenanceView(profile.id)`, which projects parameter-level provenance from Phase 1 registry bindings and falls back to authored `sourceMap` only for non-registry profile metadata.
+2. `loader.ts` no longer requires runtime `sourceMap` and no longer performs benchmark-safety decisions by scanning `ProfileConfig.sourceMap`.
+3. Tooling no longer depends on runtime `sourceMap`: `audit-profiles.ts` and `validate-assumption-manifest.mjs` use `profile-provenance-view.ts`, while `validate-specmode-gating.mjs` and `validate-traceability-placeholders.mjs` intentionally inspect authored bundle provenance in `defaults-*.ts`.
+4. `getProfileList()` now reads `src/core/profiles/profile-exposure-catalog.ts`.
+5. `defaults-*.ts` now materialize runtime profiles through `src/core/profiles/runtime-materialization.ts`.
+6. `scripts/validate-profiles.mjs` now verifies authoring parity via `materializeRuntimeProfile(entry.bundle, entry.exp)` instead of the removed compose/decompose round-trip.
+
 ### 6.1 Named Replacement Surfaces Required for `P5-7`
 
 Group 1 freezes the names and responsibilities of the post-shim replacement surfaces so Group 3 does not have to invent them ad hoc during retirement:
 
 1. `src/core/config/profile-provenance-view.ts`
-   - registry-backed selectors that project per-profile provenance into the shapes currently assembled from `sourceMap`
+   - registry-backed selectors for parameter-level provenance, with authored fallback for non-parameter profile metadata
    - owns the replacement for runner/tooling needs such as `specModeIndex`, `sourceTrace`, `assumptionSet`, and benchmark-safety lookups
 2. `src/core/profiles/profile-exposure-catalog.ts`
    - authored metadata catalog for `id`, `family`, `version`, and `exposurePreset`
@@ -278,10 +324,10 @@ These are replacement surfaces, not new frozen consumer contracts. Phase 5 may a
 
 Additional rule:
 
-1. `ProfileConfig.sourceMap` and `ProfileBundle.sourceMap` retire together unless Group 3 writes an explicit split-authority rationale into this SDD.
-2. `PROFILE_EXPOSURE_PRESETS` in `profile-composer.ts` is a compatibility layer; it retires only when exposure metadata has a direct authored source.
-3. `profile-exposure-catalog.ts` and `runtime-materialization.ts` must be the authoritative authored surfaces before `PROFILE_EXPOSURE_PRESETS` or `decomposeProfile()` lose their compatibility role.
-4. If any precondition remains unmet, Phase 5 keeps `P5-7` open. Do not force a false closure.
+1. `ProfileConfig.sourceMap` retired at Group 3 closure.
+2. `ProfileBundle.sourceMap` is intentionally retained as an authored provenance field only. This is the explicit split-authority rationale required by Group 1: authored bundles still need traceable source declarations, but runtime `ProfileConfig` and frozen consumer surfaces no longer carry that field. `profile-authoring-registry.ts` and `profile-provenance-view.ts` are the only intended bridges.
+3. `PROFILE_EXPOSURE_PRESETS`, `composeProfile()`, and `decomposeProfile()` were compatibility layers in `profile-composer.ts`; they retired only after `profile-exposure-catalog.ts` and `runtime-materialization.ts` became the authoritative authored surfaces.
+4. If any future cleanup wants to retire authored bundle provenance too, it must open a new decision point; Phase 5 closure does not silently consume that change.
 
 ---
 
@@ -294,10 +340,15 @@ Reviewer-facing definition:
 1. `validate-structure.mjs` must recursively inspect all `*.ts` / `*.tsx` files under `src/core/`.
 2. The script must fail if any file exceeds 650 lines and print every offending path with its measured line count.
 3. There is no permanent allowlist. Data-heavy files such as `parameter-registry.ts` are **not** exempt.
-4. Group 1 blocker inventory is currently:
+4. Group 1 historical blocker inventory was:
    - `src/core/engine.ts`
    - `src/core/config/parameter-registry.ts`
    - `src/core/profiles/types.ts`
+5. Reviewer-run closure check:
+   - run `npm run validate:structure`
+   - expect `VAL-PLAT-011: PASS — all src/core .ts/.tsx files are <= 650 lines`
+   - expect no offender list
+   - historical blockers should now read as `engine.ts` = 106 lines, `parameter-registry.ts` = 7 lines plus data shards (largest shard: `parameter-registry-handover-data.ts` = 316), and `profiles/types.ts` = 40 lines
 
 Group boundary:
 
@@ -315,6 +366,11 @@ Reviewer-facing definition:
 4. Root `engine.ts` must no longer define the current helper/formula/tick bodies (`noisePowerDbm`, `eirpDbm`, `computeDopplerDegradationDb`, `computeBundleSinr*`, `computeUeSinrFromSatEntry`, `doTick`).
 5. Root `engine.ts` must not directly import subsystem implementation modules from `channel/`, `beam/`, `handover/`, `energy/`, `ue/`, or `traffic/`; those imports move behind `engine/` submodules.
 6. Existing runtime and contract validations still pass after the split.
+7. Reviewer-run closure check:
+   - run `npm run validate:structure`
+   - expect `VAL-PLAT-012: PASS — src/core/engine.ts is 106 lines`
+   - expect `VAL-PLAT-012: PASS — src/core/engine.ts imports only orchestrator-facing modules`
+   - expect `VAL-PLAT-012: PASS — src/core/engine.ts defines only createSimEngine()`
 
 ### 7.3 Required Validation Set Before Any Phase 5 Completion Claim
 
@@ -334,7 +390,7 @@ At minimum:
 
 These document and cleanup items truly belong to Phase 5:
 
-1. this SDD, `ntn-sim-core-implementation-status.md`, `ntn-sim-core-validation-matrix.md`, and `ntn-sim-core-acceptance-gates.md` when Group boundaries or structural gates change;
+1. this SDD, `ntn-sim-core-implementation-status.md`, `ntn-sim-core-validation-matrix.md`, `ntn-sim-core-acceptance-gates.md`, and `ntn-sim-core-platform-refactor-roadmap.md` when Group boundaries, closure status, or structural gates change;
 2. `docs/architecture/ntn-sim-core-architecture-blueprint.md` when the `engine/` / `profiles/` / runner layout actually changes;
 3. `README.md` only if entry-point guidance changes because the runtime layout changed;
 4. `todo/README.md` and `todo/platform-refactor/README.md` when the next valid Group changes.
@@ -357,13 +413,13 @@ Phase 5 is complete only when ALL of the following hold:
 3. `benchmark-runner.ts` no longer owns duplicated orbit bootstrap logic.
 4. synchronous fixture loading is eliminated from the browser real-trace path.
 5. `viz/beam/beam-selection.ts` naming collision is resolved.
-6. `ProfileConfig.sourceMap` and the Phase 3 compatibility shim are retired **only if** §6 preconditions are satisfied.
+6. runtime `ProfileConfig.sourceMap` and the Phase 3 compatibility shim are retired **only after** §6 preconditions are satisfied; the only allowed retained provenance surface is the authored `ProfileBundle.sourceMap` exception documented in §6.2.
 7. `VAL-PLAT-011` and `VAL-PLAT-012` pass.
 8. all pre-existing validation gates still pass.
 9. this SDD status is updated to complete.
 10. `ntn-sim-core-implementation-status.md`, `ntn-sim-core-validation-matrix.md`, and relevant blueprint / README / todo sequencing docs are synchronized.
 
-If §6 preconditions are not satisfied, Phase 5 remains in progress. Do not claim completion by silently keeping `P5-7` open.
+Closure record (2026-03-31): all ten criteria above are satisfied. §6 preconditions are satisfied, `P5-7` is closed, and the retained authored `ProfileBundle.sourceMap` exception is explicitly documented rather than silently carried.
 
 ---
 
@@ -390,3 +446,5 @@ Only after Phase 5 completes should the repo be treated as ready for:
 3. estnet consumer integration against finalized contracts.
 
 Until then, downstream programs must not force premature cleanup shortcuts or claim that the platform refactor is finished.
+
+As of 2026-03-31, this condition is met.

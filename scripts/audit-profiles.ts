@@ -2,13 +2,13 @@
  * Profile Audit Tool — automated checks across all registered profiles.
  *
  * Checks:
- *   1. Required fields present (id, family, version, sourceMap)
+ *   1. Required fields present (id, family, version, provenance)
  *   2. Profile id matches registry key
  *   3. Physical parameter plausibility (altitude, EIRP, BW, beam diameter)
- *   4. sourceMap has at least one paper-backed or assumption-backed entry
+ *   4. provenance has at least one paper-backed or assumption-backed entry
  *   5. beamSemantics is valid
  *   6. BH profiles have bh_strategy set
- *   7. Reproduction profiles have ≥1 assumption-backed sourceMap entry
+ *   7. Reproduction profiles have ≥1 assumption-backed provenance entry
  *   8. No duplicate profile ids
  *   9. ueConfig.count ≥ 1
  *  10. timeControl.durationSec > timeControl.stepSec
@@ -18,6 +18,7 @@
 
 import { DEFAULT_PROFILES } from '../src/core/profiles/defaults';
 import type { ProfileConfig } from '../src/core/profiles/types';
+import { getProfileProvenanceView } from '../src/core/config/profile-provenance-view';
 
 let failures = 0;
 let warnings = 0;
@@ -66,16 +67,16 @@ for (const [registryKey, profile] of Object.entries(DEFAULT_PROFILES)) {
   if (!profile.version) fail(pid, 'missing version');
   else if (!/^\d+\.\d+\.\d+$/.test(profile.version)) warn(pid, `version "${profile.version}" is not semver`);
 
-  // 4. sourceMap
-  const sources = (profile as any).sourceMap as Array<{ tier: string; id: string; note?: string; parameterPath?: string }> | undefined;
+  // 4. provenance
+  const sources = getProfileProvenanceView(pid).sourceMap;
   if (!sources || sources.length === 0) {
-    fail(pid, 'missing sourceMap (must have at least one entry)');
+    fail(pid, 'missing provenance entries (must have at least one source)');
   } else {
     const hasPaperOrAssumption = sources.some(
       (s) => s.tier === 'paper-backed' || s.tier === 'assumption-backed',
     );
     if (!hasPaperOrAssumption) {
-      fail(pid, 'sourceMap has no paper-backed or assumption-backed entries');
+      fail(pid, 'provenance has no paper-backed or assumption-backed entries');
     }
   }
 
@@ -145,7 +146,7 @@ for (const [registryKey, profile] of Object.entries(DEFAULT_PROFILES)) {
   // be parameter-level sourced so it cannot silently drift into a stale value.
   if (profile.rf?.max_tx_power_dbm !== null && profile.rf?.max_tx_power_dbm !== undefined) {
     if (!hasParameterSource('rf.max_tx_power_dbm')) {
-      fail(pid, 'rf.max_tx_power_dbm is set but sourceMap lacks parameterPath="rf.max_tx_power_dbm"');
+      fail(pid, 'rf.max_tx_power_dbm is set but provenance lacks parameterPath="rf.max_tx_power_dbm"');
     }
   }
 
@@ -153,7 +154,7 @@ for (const [registryKey, profile] of Object.entries(DEFAULT_PROFILES)) {
   // baseline constant. When enabled, require an assumption-backed parameterPath.
   if (profile.energy?.energy_per_handover_j !== undefined) {
     if (!hasParameterSource('energy.energy_per_handover_j', 'assumption-backed')) {
-      fail(pid, 'energy.energy_per_handover_j is set but sourceMap lacks assumption-backed parameterPath="energy.energy_per_handover_j"');
+      fail(pid, 'energy.energy_per_handover_j is set but provenance lacks assumption-backed parameterPath="energy.energy_per_handover_j"');
     }
   }
 
@@ -178,7 +179,7 @@ for (const [registryKey, profile] of Object.entries(DEFAULT_PROFILES)) {
   if (pid.includes('reproduction')) {
     const hasAssumption = sources?.some((s) => s.tier === 'assumption-backed') ?? false;
     if (!hasAssumption) {
-      warn(pid, 'reproduction profile should have assumption-backed sourceMap entries documenting gaps');
+      warn(pid, 'reproduction profile should have assumption-backed provenance entries documenting gaps');
     }
   }
 

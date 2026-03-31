@@ -12,6 +12,25 @@
 
 其餘項目仍先保留為規劃清單，避免後續由不同 agent 接手時又回到零散 prompt 驅動。
 
+另外，`ntn-sim-core` 也已安裝幾個 assistant-local 外部 skills，位置在：
+
+- `.codex/skills/`
+- `.claude/skills/`
+- `.gemini/skills/`
+
+目前已安裝：
+
+1. `ui-ux-pro-max`
+2. `frontend-design`
+3. `webapp-testing`
+4. `skill-creator`
+
+這些外部 skills 是補充工具，不是 authority。使用時仍要先讀：
+
+1. `agent-governance.md`
+2. active SDD
+3. frozen contracts / provenance surfaces
+
 ## 1. 目標
 
 `ntn-sim-core` 正在從單篇 paper 導向的模擬器，重構成：
@@ -153,3 +172,10 @@
 1. `ntn-ui-exposure-workflow`
 2. `ntn-ui-parameter-panel-builder`
 3. `ntn-ui-kpi-visualization-workflow`
+
+目前已安裝、可直接被 assistant-local wrapper 引用的外部 skills 是：
+
+1. `ui-ux-pro-max`
+2. `frontend-design`
+3. `webapp-testing`
+4. `skill-creator`

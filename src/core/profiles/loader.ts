@@ -101,7 +101,7 @@ function deepMerge<T extends Record<string, unknown>>(
 
 /**
  * Resolve a profile by deep-merging overrides onto a base profile.
- * Arrays (e.g. sourceMap) are replaced wholesale, not merged element-wise.
+ * Arrays are replaced wholesale, not merged element-wise.
  */
 export function resolveProfile(
   base: ProfileConfig,
@@ -145,7 +145,6 @@ const REQUIRED_TOP_LEVEL: Array<keyof ProfileConfig> = [
   'handover',
   'energy',
   'ueConfig',
-  'sourceMap',
 ];
 
 /**
@@ -162,11 +161,6 @@ export function validateProfile(config: ProfileConfig): ValidationResult {
     }
   }
 
-  // sourceMap must be non-empty
-  if (!config.sourceMap || config.sourceMap.length === 0) {
-    errors.push('sourceMap must contain at least one SourceReference');
-  }
-
   // tier0_fspl must always be true
   if (config.channel && config.channel.tier0_fspl !== true) {
     errors.push('channel.tier0_fspl must be true (FSPL is mandatory for all profiles)');
@@ -180,14 +174,6 @@ export function validateProfile(config: ProfileConfig): ValidationResult {
   // Ka-band profiles should have tier4_atmospheric
   if (config.rf && config.rf.frequency_ghz >= 26 && config.channel && !config.channel.tier4_atmospheric) {
     warnings.push('Ka-band frequency detected but tier4_atmospheric is disabled');
-  }
-
-  // debug-only sources must not appear in benchmark-grade profiles
-  if (config.sourceMap) {
-    const hasDebugOnly = config.sourceMap.some((s) => s.tier === 'debug-only');
-    if (hasDebugOnly) {
-      warnings.push('sourceMap contains debug-only references — not valid for benchmark mode');
-    }
   }
 
   // Seed must be a finite integer

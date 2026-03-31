@@ -27,7 +27,7 @@ import {
   createHexFillGeometry,
   generateHexGrid,
 } from './bh-cell-analysis';
-import { selectCellCandidateSatIds } from './beam-selection';
+import { selectCellCandidateSatIds } from './beam-visibility-selection';
 
 const CELL_COLORS = {
   served:        { fill: '#44aaff', border: '#66ccff', fillOpacity: 0.35, borderOpacity: 0.8 },

@@ -43,7 +43,7 @@ export interface ControlPanelProps {
 // ---------------------------------------------------------------------------
 //
 // Data source: getProfileList() from @/core/contracts/exposure-v1
-//   - Backed by PROFILE_EXPOSURE_PRESETS (profile-composer.ts)
+//   - Backed by profile-exposure-catalog.ts authoring metadata
 //   - Replaces the former hardcoded profile-options constant
 //   - Internal-only profiles are excluded by getProfileList()
 //

@@ -36,10 +36,10 @@ export interface RunManifest {
   engineVersion: string;
   /**
    * Index of SpecMode-classified source entries in this run.
-   * Populated by the benchmark runner from the profile's sourceMap.
+   * Populated by the benchmark runner from the profile provenance view.
    * Used to gate thesis claim review: Internal-only entries must never
    * be presented as paper-backed; Advanced entries require explicit justification.
-   * Omitted when sourceMap is empty or runner does not classify entries.
+   * Omitted when the provenance view has no classified entries.
    */
   specModeIndex?: {
     /** parameterPaths or source IDs with specMode='Internal-only' */
@@ -142,7 +142,7 @@ export interface RunArtifactBundle {
   replayManifest?: ReplayManifest;
   replayArtifact?: ReplayArtifact;
   /**
-   * Assumption records collected from this run's profile sourceMap.
+   * Assumption records collected from this run's profile provenance view.
    * Populated for any source entry with tier='assumption-backed' or
    * specMode='Internal-only'. Required for thesis audit compliance:
    * every assumption affecting KPI-impacting paths must appear here.

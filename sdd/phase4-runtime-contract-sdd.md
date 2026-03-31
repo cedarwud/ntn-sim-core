@@ -211,7 +211,7 @@ export interface BatchKpiEntry {
 
 **File:** `src/core/contracts/exposure-v1.ts`
 **Operation:** define new types + `getProfileList()` function; re-export `HandoverType`
-**Sources:** `src/core/profiles/defaults.ts` (DEFAULT_PROFILES), `src/core/profiles/profile-composer.ts` (decomposeProfile), `src/core/profiles/types.ts` (HandoverType only)
+**Sources:** `src/core/profiles/profile-exposure-catalog.ts` (profile list metadata), `src/core/profiles/types.ts` (HandoverType only)
 **Consumers:** `src/viz/overlays/ControlPanel.tsx`, future estnet-ui-kickoff, any profile-listing consumer
 **Forbidden imports in this file:** `engine.ts`, `runner/`, React, hardcoded profile arrays
 
@@ -225,7 +225,7 @@ export interface BatchKpiEntry {
  * @version v1
  * @frozen — breaking changes require a new file: exposure-v2.ts
  *
- * Sources: profiles/defaults.ts + profile-composer.ts (for getProfileList); profiles/types.ts (HandoverType)
+ * Sources: profiles/profile-exposure-catalog.ts (for getProfileList); profiles/types.ts (HandoverType)
  * Consumers: src/viz/overlays/ControlPanel.tsx, future estnet-ui-kickoff
  * Forbidden imports in this file: engine.ts, runner/, React, hardcoded profile arrays
  */
@@ -261,7 +261,7 @@ export interface ProfileListEntry {
 /**
  * Returns the ordered list of all active profiles for UI display.
  *
- * Data source: DEFAULT_PROFILES → decomposeProfile → bundle.exposurePreset
+ * Data source: profile-exposure-catalog.ts authoring metadata
  * NOT backed by the hardcoded PROFILE_OPTIONS constant in ControlPanel.tsx.
  *
  * Ordering contract (stable across versions):
@@ -279,13 +279,12 @@ export function getProfileList(): ProfileListEntry[]
 ```
 
 **Implementation contract for Group 2:**
-1. Import `DEFAULT_PROFILES` from `profiles/defaults.ts`
-2. Import `decomposeProfile` from `profiles/profile-composer.ts`
-3. For each profile in DEFAULT_PROFILES: call `decomposeProfile(profile)`, extract `bundle.id`, `bundle.family`, `bundle.exposurePreset.tier`, `bundle.exposurePreset.label`
-4. Map to `ProfileListEntry[]`; sort by tier order (Realistic < Advanced < Sensitivity), then by insertion order within each tier
-5. Return the sorted list
+1. Import `getProfileExposureCatalog` from `profiles/profile-exposure-catalog.ts`
+2. Read `id`, `family`, `tier`, and `label` from the authoring exposure catalog
+3. Map to `ProfileListEntry[]`; sort by tier order (Realistic < Advanced < Sensitivity), then by insertion order within each tier
+4. Return the sorted list
 
-**DECISION-POINT-DP2:** If Group 2 finds that importing `profiles/defaults.ts` from within `contracts/` creates problematic circular imports, `getProfileList()` may be implemented in `runner-exposure-api.ts` instead and re-exported from `exposure-v1.ts` as a forwarding stub. The contract interface (input: none, output: `ProfileListEntry[]`) is frozen either way.
+**DECISION-POINT-DP2:** If Group 2 finds that importing `profiles/profile-exposure-catalog.ts` from within `contracts/` creates problematic circular imports, `getProfileList()` may be implemented in `runner-exposure-api.ts` instead and re-exported from `exposure-v1.ts` as a forwarding stub. The contract interface (input: none, output: `ProfileListEntry[]`) is frozen either way.
 
 #### 4.4.3 `HandoverType` re-export
 
@@ -444,7 +443,7 @@ The following import patterns must be **absent** after Phase 4. These are the en
 | `src/core/contracts/runtime-v1.ts` | `src/core/common/types.ts` only |
 | `src/core/contracts/kpi-v1.ts` | `src/core/kpi/types.ts` only |
 | `src/core/contracts/policy-v1.ts` | `src/core/policy/types.ts` only |
-| `src/core/contracts/exposure-v1.ts` | `src/core/profiles/defaults.ts`, `src/core/profiles/profile-composer.ts`, `src/core/profiles/types.ts` (HandoverType only) |
+| `src/core/contracts/exposure-v1.ts` | `src/core/profiles/profile-exposure-catalog.ts`, `src/core/profiles/types.ts` (HandoverType only) |
 | `src/core/engine.ts` | `src/core/**` internals freely (engine is not restricted) |
 
 **Rule X3 compliance note:** `src/core/contracts/` is not a leaf layer. It is a thin re-export/bridge layer and is explicitly allowed to import from `src/core/*/types.ts`. The restriction applies only to consumers of the contracts layer (viz, hooks).
@@ -497,7 +496,7 @@ Types marked `@version v1-draft` (currently `ParameterView`, `ParameterMetadataR
 
 Phase 4 does **not** change how the engine receives input. `ProfileConfig` remains the flat runtime input type passed to `createSimEngine()`. The engine signature is unchanged.
 
-After Phase 4: external consumers should build inputs via `ProfileBundle` + `ExperimentBundle` → `composeProfile()` → `ProfileConfig`. They must NOT construct `ProfileConfig` directly.
+After Phase 4: external consumers should build inputs via `ProfileBundle` + `ExperimentBundle` → `materializeRuntimeProfile()` → `ProfileConfig`. They must NOT construct `ProfileConfig` directly.
 
 ### 7.2 Simulation Snapshot Contract
 

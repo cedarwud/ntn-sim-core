@@ -176,6 +176,7 @@ For Phase 5 specifically:
 1. **Group 2 commits are structural-split commits, not retirement commits:** they may create `engine/`, split `profiles/types.ts`, and move runner bootstrap ownership, but they must not silently consume Group 3 retirements.
 2. **Group 3 retirements require documented preconditions:** `sourceMap[]`, `composeProfile()`, and related compatibility layers may be removed only when the active Phase 5 SDD says their retirement preconditions are satisfied.
 3. **Frozen consumer semantics stay fixed through cleanup:** Phase 5 may rewire internals behind `src/core/contracts/*`, `RunnerExposureApi`, and `getProfileList()`, but it may not change their external meaning without versioned contract work.
+4. **Authored provenance may outlive runtime provenance only when the SDD says so explicitly:** retaining `ProfileBundle.sourceMap` is acceptable only as authored fallback input to `profile-provenance-view.ts` for non-registry profile metadata; parameter-level provenance for frozen consumers must come from Phase 1 registry bindings, and runtime `ProfileConfig` must not regain a `sourceMap[]` dependency.
 
 ### Rejection Conditions Specific to Platform Refactor
 
@@ -184,6 +185,7 @@ A platform refactor PR is immediately rejected if:
 1. `engine.ts` is structurally split (sub-modules) before Phase 4 is complete (contract freeze is a prerequisite).
 2. `ProfileConfig` monolith is deleted before `composeProfile()` shim exists and all callers have been updated.
 3. A new model variant is added in Phase 2 instead of only wrapping existing implementations.
-4. The `sourceMap[]` field is removed from `ProfileConfig` before Phase 1 registry is the authoritative provenance source.
-5. A Phase 5 Group 2 change deletes compatibility surfaces (`sourceMap[]`, `composeProfile()`, browser sync-loader paths, or other Group 3 retirements) without the Phase 5 SDD assigning that deletion to Group 2.
+4. The `sourceMap[]` field is removed from `ProfileConfig` before the Phase 1 registry plus `profile-provenance-view.ts` are the authoritative provenance source.
+5. A Phase 5 Group 2 change deletes compatibility surfaces (`sourceMap[]`, `composeProfile()`, `decomposeProfile()`, browser sync-loader paths, or other Group 3 retirements) without the Phase 5 SDD assigning that deletion to Group 2.
 6. A Phase 5 cleanup change alters `src/core/contracts/*`, `RunnerExposureApi`, or `getProfileList()` semantics instead of only reconnecting internal implementations behind them.
+7. A Phase 5 closure claim keeps an authored-only provenance exception such as `ProfileBundle.sourceMap` without documenting and implementing the registry-backed parameter-level / authored-fallback split in the active Phase 5 SDD.

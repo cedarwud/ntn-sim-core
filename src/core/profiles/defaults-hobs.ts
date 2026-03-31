@@ -9,7 +9,7 @@
  */
 
 import type { ProfileConfig, ProfileBundle, ExperimentBundle } from './types';
-import { composeProfile } from './profile-composer';
+import { materializeRuntimeProfile } from './runtime-materialization';
 import {
   BEIJING_OBSERVER,
   MONTREAL_OBSERVER,
@@ -22,7 +22,7 @@ import {
 // 1. hobs-multibeam-baseline (profile-baselines §5)
 // ---------------------------------------------------------------------------
 
-const HOBS_MULTIBEAM_BASELINE_BUNDLE: ProfileBundle = {
+export const HOBS_MULTIBEAM_BASELINE_BUNDLE: ProfileBundle = {
   id: 'hobs-multibeam-baseline',
   family: 'hobs-multibeam-baseline',
   version: '0.1.0',
@@ -108,19 +108,19 @@ const HOBS_MULTIBEAM_BASELINE_BUNDLE: ProfileBundle = {
   ],
 };
 
-const HOBS_MULTIBEAM_DEFAULT_EXP: ExperimentBundle = {
+export const HOBS_MULTIBEAM_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 3600, stepSec: 1 },
 };
 
 export const HOBS_MULTIBEAM_BASELINE: ProfileConfig =
-  composeProfile(HOBS_MULTIBEAM_BASELINE_BUNDLE, HOBS_MULTIBEAM_DEFAULT_EXP);
+  materializeRuntimeProfile(HOBS_MULTIBEAM_BASELINE_BUNDLE, HOBS_MULTIBEAM_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
 // 2. hobs-reproduction (RT-2: PAP-2024-HOBS)
 // ---------------------------------------------------------------------------
 
-const HOBS_REPRODUCTION_BUNDLE: ProfileBundle = {
+export const HOBS_REPRODUCTION_BUNDLE: ProfileBundle = {
   id: 'hobs-reproduction',
   family: 'hobs-multibeam-baseline',
   version: '0.1.0',
@@ -188,10 +188,10 @@ const HOBS_REPRODUCTION_BUNDLE: ProfileBundle = {
   ],
 };
 
-const HOBS_REPRODUCTION_DEFAULT_EXP: ExperimentBundle = {
+export const HOBS_REPRODUCTION_DEFAULT_EXP: ExperimentBundle = {
   seed: 42,
   timeControl: { durationSec: 600, stepSec: 1 },
 };
 
 export const HOBS_REPRODUCTION: ProfileConfig =
-  composeProfile(HOBS_REPRODUCTION_BUNDLE, HOBS_REPRODUCTION_DEFAULT_EXP);
+  materializeRuntimeProfile(HOBS_REPRODUCTION_BUNDLE, HOBS_REPRODUCTION_DEFAULT_EXP);
