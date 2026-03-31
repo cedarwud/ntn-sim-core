@@ -31,6 +31,7 @@ const files = [
 const forbiddenCanonicalSections = [
   '## 2. Authority Order',
   '## 3. Active Program Rule',
+  '## 3. Downstream Promotion Rule',
   '## 4. Verification Rules',
   '## 5. Working Rules',
   '## 6. Architecture Expectations',

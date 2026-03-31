@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-03-31-c`
+**Governance-Version:** `2026-03-31-d`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -16,7 +16,7 @@ must remain thin wrappers around this document rather than independent full rule
 
 1. `ntn-sim-core` is the current primary development target in the `papers` workspace.
 2. The active long-term direction is a **parameter-driven, model-pluggable simulator platform**, not a one-paper reproduction codebase.
-3. MODQN work, new UI work, and `estnet-ui-kickoff` integration are downstream programs and must not bypass the active platform-refactor SDD set.
+3. Platform Refactor is complete; MODQN work, new UI work, and any future `estnet-ui-kickoff` integration must enter through preflight-first downstream promotion against the frozen platform closure, not by reopening closed Phase 1–5 work.
 
 ## 2. Authority Order
 
@@ -48,15 +48,17 @@ When instructions conflict, use this order:
 6. [README.md](/home/u24/papers/ntn-sim-core/README.md) and [docs/README.md](/home/u24/papers/ntn-sim-core/docs/README.md)
 7. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
 
-## 3. Active Program Rule
+## 3. Downstream Promotion Rule
 
 1. Do not start MODQN implementation from outline docs alone.
 2. Do not start new UI integration or `estnet-ui-kickoff` integration from outline docs alone.
-3. The active work order is:
-   - current phase SDD
+3. Platform Refactor is already complete. The current work order is:
+   - re-check platform closure / current repo state against frozen contracts and validation
+   - rewrite or promote the relevant downstream outline into the smallest active SDD surface
    - validation and status sync
-   - only then promotion of downstream outline work
+   - only then downstream implementation
 4. If a downstream outline needs to become active, rewrite it first after re-checking current repo state.
+5. `project/estnet-ui-kickoff` remains paused unless the user explicitly reopens estnet integration.
 
 ### 3.1 Local Skill Rule
 

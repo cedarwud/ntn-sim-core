@@ -1,6 +1,6 @@
 # Gemini CLI Instructions — ntn-sim-core
 
-**Governance-Version:** `2026-03-31-c`
+**Governance-Version:** `2026-03-31-d`
 
 This file is the Gemini-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 

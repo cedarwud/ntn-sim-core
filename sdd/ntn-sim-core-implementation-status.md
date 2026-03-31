@@ -2,7 +2,7 @@
 
 **Version:** 4.8.2
 **Date:** 2026-03-31
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Simulator Platform Refactor is now complete through Phase 5 Group 3 (2026-03-31). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. The required Phase 5 validation set (`lint`, `validate:trace`, `validate:profiles`, `validate:runtime`, `validate:contracts`, `validate:structure`, `validate:stage`) is green.
+**Status:** Prior hardening/closure program complete; latest audited reruns of `validate:visual-browser` and `validate:stage` pass, but the browser gate remains under transient watch after one same-day re-audit timeout. Simulator Platform Refactor is now complete through Phase 5 Group 3 (2026-03-31). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. The required Phase 5 validation set is currently passing in the latest audited reruns, with browser-visible checks still treated as transient-sensitive rather than permanently de-flaked.
 
 ---
 
@@ -18,7 +18,7 @@
 | 5 | Beam Hopping + Energy L2 | ✅ complete | BH scheduler (6 strategies: round-robin, max-demand, power-aware, deterministic-fixed, proportional-fair, sinr-greedy), battery/solar model with beta angle (M7 fixed), HUD overlay, control panel, `EarthFixedCellLayer`, deterministic `bh-resource-energy-proof`, `BhExplainabilityPanel`, automated `VAL-FV-004` and `VAL-EXP-001` browser gates | — |
 | 6 | DAPS/DC-Like | ✅ complete | DAPS dual-active FSM, engine dual-link path, benchmark comparison runner, `DapsSnapshot` in engine, dual-active beam viz, `case9-daps-baseline` profile, screenshot proof, truth-driven continuity link overlay, automated `VAL-FV-009` browser gate for both live and replay | — |
 
-Closure note: this table tracks the now-complete hardening/closure program. As of 2026-03-27, the previously deferred hardening IDs had either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure became aligned. As of 2026-03-29, this is no longer the active roadmap; the active program is `sdd/ntn-sim-core-platform-refactor-roadmap.md`.
+Closure note: this table tracks the now-complete hardening/closure program. As of 2026-03-27, the previously deferred hardening IDs had either landed or been promoted into active browser/runtime coverage, so phase closure and gate closure became aligned. As of 2026-03-31, both this closure table and `sdd/ntn-sim-core-platform-refactor-roadmap.md` are completed-program records; current downstream work starts from preflight-first promotion (`MODQN M1`, `UI U1`), not from a new platform-refactor phase.
 
 ---
 
@@ -92,7 +92,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `docs/architecture/ntn-sim-core-architecture-blueprint.md` | architecture blueprint | active |
 | `sdd/ntn-sim-core-sdd.md` | normative SDD | active (v1.1.0) — §9.2 Tier 6 Doppler wired; §9.7 RL pull-model engine integration updated |
 | `sdd/ntn-sim-core-profile-baselines.md` | detailed baseline companion | active, case9 altitude aligned at 600km |
-| `sdd/ntn-sim-core-platform-refactor-roadmap.md` | simulator platform refactor program record | active; exit condition satisfied 2026-03-31 |
+| `sdd/ntn-sim-core-platform-refactor-roadmap.md` | simulator platform refactor program record | completed program record; exit condition satisfied 2026-03-31 |
 | `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-roadmap.md` | prior closure-program implementation plan | historical |
 | `sdd/ntn-sim-core-validation-matrix.md` | gate definition | active, F/E/Browser passing for current SDD set |
 | `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-preflight-refactor-closure.md` | preflight closure note | historical |
@@ -117,6 +117,14 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 ---
 
 ## 4. File Inventory
+
+### top-level `src/` auxiliary directories
+
+| Directory | Files | Key Modules |
+|---|---|---|
+| `src/config/` | 2 | `observer-presets.ts`, `visual-scene.config.ts` |
+| `src/assets/` | 2 | `models.ts`, `scenes.ts` |
+| `src/styles/` | 1 | `main.scss` |
 
 ### `src/core/` — current inventory
 

@@ -5,8 +5,8 @@ This folder contains the active design authority for `ntn-sim-core`.
 As of 2026-03-29, the project is being re-positioned from "paper-specific simulator hardening" to a longer-lived **parameter-driven, model-pluggable simulator platform**. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
-2. **Active program files** that define the next development track
-3. **Outline files** for downstream work that depends on the active program
+2. **Completed platform-program files** that define the frozen closure baseline
+3. **Outline files** for downstream work that must be promoted after preflight / repo re-review
 4. **Historical / closure files** moved to `archive/`
 
 ## 1. Core Authority
@@ -56,10 +56,12 @@ These files define the now-complete platform-refactor program that unlocked down
    - runtime APIs and external integration contracts
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
+8. `downstream-runtime-architecture-sdd.md`
+   - shared downstream-prep boundary for algorithms / experiments / view-models / adapters before baseline MODQN and baseline UI start
 
 ## 3. Deferred Program Outlines
 
-These are intentionally outline-level documents only. They must not be treated as implementation-ready SDDs until their dependency phases are complete and the repository is re-reviewed.
+These are intentionally outline-level documents only. The upstream platform dependency is already satisfied, but they must not be treated as implementation-ready SDDs until the repository is re-reviewed and the relevant outline is rewritten/promoted into the smallest active SDD surface.
 
 1. `modqn-roadmap.md`
 2. `modqn-baseline-spec-outline.md`
@@ -68,7 +70,7 @@ These are intentionally outline-level documents only. They must not be treated a
 5. `ui-integration-roadmap.md`
 6. `estnet-ui-contract-outline.md`
 
-Each outline must explicitly state which preceding phase(s) must finish before the outline can be promoted into an active SDD.
+Each outline must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become an active SDD.
 
 ## 4. Archived Historical Documents
 
@@ -82,7 +84,7 @@ Historical documents may be cited for forensic context, but they must not overri
 
 1. No KPI-impacting implementation should land without a corresponding place in:
    - the core authority set
-   - the active program SDDs
+   - the current active SDD surface (including any promoted downstream SDDs)
    - the validation matrix
 2. Do not start MODQN implementation or new UI integration from outline files alone.
 3. Any outline promoted into active work must first be rewritten after re-checking current repo state.

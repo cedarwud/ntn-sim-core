@@ -1,6 +1,7 @@
 # Documentation Index
 
 This folder holds the architecture and SDD documents for `ntn-sim-core`.
+The simulator-platform refactor is already complete; downstream MODQN / UI work now enters through preflight-first outline promotion rather than a new platform phase.
 
 ## Primary Entry Points
 
@@ -13,7 +14,7 @@ This folder holds the architecture and SDD documents for `ntn-sim-core`.
 3. `../sdd/ntn-sim-core-profile-baselines.md`
    - detailed baseline envelopes, channel tiers, beam-gain mappings, and source families
 4. `../sdd/ntn-sim-core-platform-refactor-roadmap.md`
-   - current active program roadmap
+   - completed platform-program roadmap / closure record
    - simulator-platform refactor order, phase boundaries, and exit criteria
 5. `../sdd/ntn-sim-core-validation-matrix.md`
    - validation and gate definitions
@@ -32,12 +33,16 @@ This folder holds the architecture and SDD documents for `ntn-sim-core`.
    - current parameter exposure contract
 12. `../archive/ntn-sim-core-sdd-history-2026-03-29/`
    - historical closure, donor, and one-shot acceptance documents
+13. `../todo/README.md`
+   - downstream prompt/program entry after platform closure
+   - use with `agent-governance.md` when promoting MODQN / UI outlines into active work
 
 ## Working Rule
 
 1. `architecture blueprint` defines the intended shape of the system.
 2. `SDD` defines the normative engineering contract.
-3. `platform-refactor roadmap` defines the current execution order.
-4. `validation matrix` defines what must be true before a phase can be considered done.
-5. companion governance docs constrain what may be merged, claimed, or assumed during implementation.
-6. historical closure documents may explain how earlier work landed, but they do not override the active SDD set.
+3. `platform-refactor roadmap` records the completed execution order that produced the frozen platform closure.
+4. downstream work starts only after re-checking current repo state and promoting outline docs into the smallest active SDD surface; use `agent-governance.md` plus `../todo/README.md` for that sequencing.
+5. `validation matrix` defines what must be true before a phase or promoted downstream surface can be considered done.
+6. companion governance docs constrain what may be merged, claimed, or assumed during implementation.
+7. historical closure documents may explain how earlier work landed, but they do not override the active SDD set.
