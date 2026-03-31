@@ -1,8 +1,8 @@
 # NTN Sim Core — Acceptance Gates
 
-**Version:** 0.4.0
-**Date:** 2026-03-29
-**Status:** Active — §10 Platform Refactor Phase Gate added
+**Version:** 0.4.1
+**Date:** 2026-03-31
+**Status:** Active — §10 Platform Refactor Phase Gate includes Phase 5 Group boundary rules
 
 ---
 
@@ -171,6 +171,12 @@ A platform refactor commit is accepted only when ALL of the following hold:
 5. **Completion criteria satisfied:** the "Phase N complete" definition in `phase0-architecture-spec.md §0C.3` is verifiably met.
 6. **No downstream programs started early:** no MODQN training loop or estnet-ui integration code has been added unless the gating conditions in `phase0-architecture-spec.md §0C.6` are satisfied.
 
+For Phase 5 specifically:
+
+1. **Group 2 commits are structural-split commits, not retirement commits:** they may create `engine/`, split `profiles/types.ts`, and move runner bootstrap ownership, but they must not silently consume Group 3 retirements.
+2. **Group 3 retirements require documented preconditions:** `sourceMap[]`, `composeProfile()`, and related compatibility layers may be removed only when the active Phase 5 SDD says their retirement preconditions are satisfied.
+3. **Frozen consumer semantics stay fixed through cleanup:** Phase 5 may rewire internals behind `src/core/contracts/*`, `RunnerExposureApi`, and `getProfileList()`, but it may not change their external meaning without versioned contract work.
+
 ### Rejection Conditions Specific to Platform Refactor
 
 A platform refactor PR is immediately rejected if:
@@ -179,3 +185,5 @@ A platform refactor PR is immediately rejected if:
 2. `ProfileConfig` monolith is deleted before `composeProfile()` shim exists and all callers have been updated.
 3. A new model variant is added in Phase 2 instead of only wrapping existing implementations.
 4. The `sourceMap[]` field is removed from `ProfileConfig` before Phase 1 registry is the authoritative provenance source.
+5. A Phase 5 Group 2 change deletes compatibility surfaces (`sourceMap[]`, `composeProfile()`, browser sync-loader paths, or other Group 3 retirements) without the Phase 5 SDD assigning that deletion to Group 2.
+6. A Phase 5 cleanup change alters `src/core/contracts/*`, `RunnerExposureApi`, or `getProfileList()` semantics instead of only reconnecting internal implementations behind them.

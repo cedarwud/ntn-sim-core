@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.7.0
-**Date:** 2026-03-30
-**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0–3 complete. Phase 4 (Runtime Contract Freeze) complete (2026-03-30) — Group 1: contract family definitions, consumer boundaries, import restriction patterns, versioning rules, decision points, and VAL-PLAT-008/009/010 concrete pass conditions frozen in `phase4-runtime-contract-sdd.md`. Group 2: `src/core/contracts/` landed (`runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts`); `src/runner/runner-exposure-api.ts` implemented; `useBatchKpi.ts` migrated to `RunnerExposureApi`; `ControlPanel.tsx` migrated to `getProfileList()` (no more hardcoded `PROFILE_OPTIONS`); 16 viz/hooks files redirected from `@/core/common/types` → `@/core/contracts/runtime-v1`; `scripts/validate-contracts.mjs` (VAL-PLAT-008/009/010) added to `validate:stage`; all three contract gates pass.
+**Version:** 4.7.1
+**Date:** 2026-03-31
+**Status:** Prior hardening/closure program complete; `validate:stage` passing. Active program: Simulator Platform Refactor. Phase 0–3 complete. Phase 4 (Runtime Contract Freeze) complete (2026-03-30) — Group 1: contract family definitions, consumer boundaries, import restriction patterns, versioning rules, decision points, and VAL-PLAT-008/009/010 concrete pass conditions frozen in `phase4-runtime-contract-sdd.md`. Group 2: `src/core/contracts/` landed (`runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts`); `src/runner/runner-exposure-api.ts` implemented; `useBatchKpi.ts` migrated to `RunnerExposureApi`; `ControlPanel.tsx` migrated to `getProfileList()` (no more hardcoded `PROFILE_OPTIONS`); 16 viz/hooks files redirected from `@/core/common/types` → `@/core/contracts/runtime-v1`; `scripts/validate-contracts.mjs` (VAL-PLAT-008/009/010) added to `validate:stage`; all three contract gates pass. Phase 5 Group 1 is now complete (2026-03-31): `phase5-cleanup-and-modularization-sdd.md` freezes the `engine.ts -> engine/` split map, `profiles/defaults.ts` / `profiles/types.ts` structural plan, runner orbit-bootstrap ownership migration, `P5-7` retirement preconditions, and reviewer-grade `VAL-PLAT-011/012` checks. Group 2 may begin; Phase 5 closure has not yet landed.
 
 ---
 
@@ -31,7 +31,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | 2 | Model Bundle Interfaces | ✅ complete (2026-03-29) — `src/core/models/` (9 files), `buildModelBundle` factory, engine dispatch via bundle interfaces, `validate:bundle` (VAL-PLAT-004/004b/005 all PASS) | `sdd/phase2-model-bundle-sdd.md` §10 |
 | 3 | Scenario/Profile/Experiment Split | ✅ complete (2026-03-30) — Group 1 (SDD), Group 2 (types + compose/decompose), Group 3 (file split + thin re-export defaults.ts + observers.ts) all done | `sdd/phase3-scenario-profile-experiment-split.md §10` — VAL-PLAT-005/006/007 PASS after Group 3 file split; `validate:stage` green (exit 0) |
 | 4 | Runtime Contract Freeze | ✅ complete (2026-03-30) — Group 1 (SDD spec frozen) + Group 2 (contracts landed, consumers migrated, VAL-PLAT-008/009/010 PASS) | `sdd/phase4-runtime-contract-sdd.md §10` — VAL-PLAT-008/009/010 all PASS |
-| 5 | Cleanup + Modularization | 🔲 not started | `sdd/phase0-architecture-spec.md §0C.3` — VAL-PLAT-011/012 |
+| 5 | Cleanup + Modularization | 🟡 in progress (2026-03-31) — Group 1 complete: split/retirement/gate plan frozen; Group 2 structural split is the next valid step | `sdd/phase5-cleanup-and-modularization-sdd.md §9` — VAL-PLAT-011/012 not yet passing |
 
 ---
 
@@ -158,7 +158,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
-| `hooks` | 5 | `useSimulation.ts`, `useReplay.ts`, `useBatchKpi.ts` (imports benchmark-runner directly), `useSceneQueryState.ts`, `index.ts` |
+| `hooks` | 5 | `useSimulation.ts`, `useReplay.ts`, `useBatchKpi.ts` (now uses `RunnerExposureApi`), `useSceneQueryState.ts`, `index.ts` |
 
 ### `scripts/` — current validation + utility scripts
 
@@ -168,7 +168,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `validate-traceability-placeholders.mjs` | Checks ASSUME-/PAP-/STD- ID presence |
 | `validate-assumption-manifest.mjs` | Checks AssumptionRecord completeness |
 | `validate-core-purity.mjs` | Checks no React/Three.js imports in `src/core/` |
-| `validate-structure.mjs` | Checks directory/file structure |
+| `validate-structure.mjs` | Checks directory/file structure; Phase 5 Group 3 must augment it to enforce `VAL-PLAT-011/012` |
 | `validate-runtime.mjs` | Runtime smoke checks |
 | `validate-profile-layout.mjs` | Legacy profile layout checks (retained for `validate-structure.mjs` existence check; functionality absorbed into `validate-profiles.mjs`) |
 | `validate-profiles.mjs` | Canonical profile gate: Phase 1 layout checks + VAL-PLAT-006 (export scan, circular import check incl. engine.ts/runner/) + VAL-PLAT-007 (compose round-trip, SDD §9 deep-equality) |
@@ -211,6 +211,8 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `decomposeProfile` → `composeProfile` round-trip deep-equality (SDD §9 definition: Date#getTime, absent≡undefined) verified for all 14 profiles. Group 3: re-verified after file split — all 14 profiles PASS |
 
 **Note:** Formula-level (`-F`) tests pass. Engine-level (`-E`) golden cases also pass, and `npm run validate:stage` succeeds using `node --import tsx` for the golden-engine step. Browser-level (`-V`) closure evidence is automated for the current explainability/continuity package; screenshot packs remain supplementary evidence.
+
+**Phase 5 note (2026-03-31):** `VAL-PLAT-011/012` are now concretized at the SDD / validation-matrix level, but they are not yet passing. Current known `VAL-PLAT-011` blockers are `src/core/engine.ts`, `src/core/config/parameter-registry.ts`, and `src/core/profiles/types.ts`.
 
 ### Remediation-dependent gates now passing
 
