@@ -74,6 +74,8 @@ These files are now the implementation-ready downstream authority for the curren
    - active reviewer note for aggregate M1-to-M3 baseline acceptance before optional `U1` richer-handoff consumption
 6. `ui-integration-roadmap.md`
    - active baseline UI spec covering the shipped `U1`/`U2` path; still restricted to frozen contracts and stable runner surfaces
+7. `real-trace-truth-path-correction-outline.md`
+   - active narrow orbit/runtime correction surface; closes current real-trace wording/runtime drift without reopening broader scalability work
 
 Any resumed MODQN/UI follow-on work must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
 
@@ -85,6 +87,10 @@ These files are not valid implementation authority for the current baseline entr
    - broader program roadmap; not a direct implementation surface
 2. `estnet-ui-contract-outline.md`
    - paused future-consumer path; not active until explicit reopen
+3. `real-trace-truth-path-preflight-note.md`
+   - completed preflight decision record for the promoted T1 truth-path correction surface; not implementation authority itself
+4. `real-trace-scalability-preflight-note.md`
+   - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused until T1 truth-path correction is closed or explicitly declined
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 

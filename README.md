@@ -17,7 +17,7 @@ Research-Grade NTN/LEO Simulator — 研究型 NTN/LEO 模擬器主專案，含 
 
 NTN Sim Core 是本 repo 目前的 **主 simulator**。它不再只是前端殼層，而是已經包含：
 
-- synthetic Walker 與 real-trace TLE/SGP4 軌道路徑
+- synthetic Walker 與 OMM/TLE-backed real-trace 軌道路徑
 - multi-beam SINR / link budget / Doppler / fading channel family
 - A3 / A4 / D2 / CHO / Timer-CHO / MC-HO / DAPS handover runtime
 - Layer 1 / Layer 2 energy modeling

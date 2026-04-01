@@ -106,7 +106,7 @@ Contains all `S`-classified fields from `phase0-architecture-spec.md §0B.6`.
  * Import rule: may import from core/common/types.ts and core/orbit/types.ts (shared primitives).
  */
 interface ScenarioConfig {
-  /** Orbit computation mode. 'synthetic' = Walker analytic; 'real-trace' = TLE/SGP4. */
+  /** Orbit computation mode. 'synthetic' = Walker analytic; 'real-trace' = OMM/TLE-backed real-trace path. */
   orbitMode: OrbitMode;
   /**
    * Path to OMM JSON file. Required when orbitMode === 'real-trace'.

@@ -63,7 +63,7 @@ This is the **default profile** when no `?profile=` URL param is set. All user-f
 | `hobs-multibeam-baseline` | Advanced — HOBS Multi-Beam (Ka 28 GHz) | Ka 28 GHz, 19 beams FRF=3, energy L1 |
 | `bh-resource-baseline` | Advanced — BH Resource (Ka 20 GHz) | 780 km, earth-fixed BH, 12 cells |
 | `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO |
-| `real-trace-validation` | Advanced — Real-Trace (TLE/SGP4) | Real Starlink TLE, SGP4 propagation |
+| `real-trace-validation` | Advanced — Real-Trace (OMM/TLE) | Real Starlink OMM/TLE ingest, validation-sized real-trace envelope |
 | `meo-constellation-baseline` | Advanced — MEO Constellation | 8062 km MEO, Ka 20 GHz |
 | `geo-relay-baseline` | Advanced — GEO Relay | 35786 km GEO, Ku 12 GHz |
 
