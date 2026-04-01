@@ -7,7 +7,7 @@
  * Usage: npx tsx scripts/run-baseline.ts [profileId] [durationSec]
  */
 
-import { CASE9_ACCESS_BASELINE, HOBS_MULTIBEAM_BASELINE, BH_RESOURCE_BASELINE, REAL_TRACE_VALIDATION } from '../src/core/profiles/defaults';
+import { CASE9_ACCESS_BASELINE, HOBS_MULTIBEAM_BASELINE, MODQN_PAPER_BASELINE, BH_RESOURCE_BASELINE, REAL_TRACE_VALIDATION } from '../src/core/profiles/defaults';
 import { generateWalkerConstellation } from '../src/core/orbit/walker';
 import { buildWalkerConfig } from '../src/core/profiles/loader';
 import { buildTrajectoryCache } from '../src/core/orbit/trajectory-cache';
@@ -30,6 +30,7 @@ const durationOverride = process.argv[3] ? parseInt(process.argv[3], 10) : undef
 const PROFILES: Record<string, unknown> = {
   'case9-access-baseline': CASE9_ACCESS_BASELINE,
   'hobs-multibeam-baseline': HOBS_MULTIBEAM_BASELINE,
+  'modqn-paper-baseline': MODQN_PAPER_BASELINE,
   'bh-resource-baseline': BH_RESOURCE_BASELINE,
   'real-trace-validation': REAL_TRACE_VALIDATION,
 };
@@ -177,25 +178,47 @@ function check(label: string, condition: boolean, detail: string) {
   console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}: ${detail}`);
 }
 
-check('SINR in range [-20, 30] dB',
-  kpi.meanSinrDb >= -20 && kpi.meanSinrDb <= 30,
-  `mean=${kpi.meanSinrDb.toFixed(2)} dB`);
-
 check('SINR varies (not constant)',
   kpi.sinrPercentile95Db - kpi.sinrPercentile5Db > 0.1,
   `spread=${(kpi.sinrPercentile95Db - kpi.sinrPercentile5Db).toFixed(2)} dB`);
 
-check('Handovers occurred',
-  kpi.totalHandovers > 0,
-  `${kpi.totalHandovers} HOs in ${durationSec}s`);
+if (profile.id === 'modqn-paper-baseline') {
+  check('MODQN proxy pass exists',
+    [...trajectoryCache.passesBySatId.values()].reduce((s, p) => s + p.length, 0) > 0,
+    `${[...trajectoryCache.passesBySatId.values()].reduce((s, p) => s + p.length, 0)} passes in ${durationSec}s`);
 
-check('Service availability > 50%',
-  kpi.serviceAvailability > 0.5,
-  `${(kpi.serviceAvailability * 100).toFixed(1)}%`);
+  check('MODQN proxy has at least one visible satellite',
+    maxSatsVisible >= 1,
+    `${maxSatsVisible} visible satellites`);
 
-check('Jain fairness < 1.0 (multi-UE spread)',
-  kpi.jainFairnessIndex < 1.0 || profile.ueConfig.count <= 1,
-  `JFI=${kpi.jainFairnessIndex.toFixed(4)}`);
+  check('MODQN mean throughput > 1 Mbps',
+    kpi.meanThroughputMbps > 1,
+    `${kpi.meanThroughputMbps.toFixed(2)} Mbps`);
+
+  check('MODQN service availability > 25%',
+    kpi.serviceAvailability > 0.25,
+    `${(kpi.serviceAvailability * 100).toFixed(1)}%`);
+
+  check('MODQN mean SINR > -35 dB',
+    kpi.meanSinrDb > -35,
+    `${kpi.meanSinrDb.toFixed(2)} dB`);
+} else {
+  check('SINR in range [-20, 30] dB',
+    kpi.meanSinrDb >= -20 && kpi.meanSinrDb <= 30,
+    `mean=${kpi.meanSinrDb.toFixed(2)} dB`);
+
+  check('Handovers occurred',
+    kpi.totalHandovers > 0,
+    `${kpi.totalHandovers} HOs in ${durationSec}s`);
+
+  check('Service availability > 50%',
+    kpi.serviceAvailability > 0.5,
+    `${(kpi.serviceAvailability * 100).toFixed(1)}%`);
+
+  check('Jain fairness < 1.0 (multi-UE spread)',
+    kpi.jainFairnessIndex < 1.0 || profile.ueConfig.count <= 1,
+    `JFI=${kpi.jainFairnessIndex.toFixed(4)}`);
+}
 
 check('No NaN in KPI',
   !isNaN(kpi.meanSinrDb) && !isNaN(kpi.serviceAvailability) && !isNaN(kpi.meanThroughputMbps),

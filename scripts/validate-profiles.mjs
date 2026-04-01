@@ -3,7 +3,7 @@
  *
  * Absorbs the Phase 1 layout checks from validate-profile-layout.mjs and adds:
  *   VAL-PLAT-006: static export + no-circular-import checks on runtime materialization files
- *   VAL-PLAT-007: authoring bundle/exp -> runtime profile parity for all 14 profiles
+ *   VAL-PLAT-007: authoring bundle/exp -> runtime profile parity for all active profiles
  *
  * Run: node --import tsx scripts/validate-profiles.mjs
  *
@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
+const EXPECTED_PROFILE_COUNT = 15;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -165,7 +166,7 @@ if (!materializationCircular) {
 }
 
 // ---------------------------------------------------------------------------
-// VAL-PLAT-007: authoring parity for all 14 profiles
+// VAL-PLAT-007: authoring parity for all active profiles
 // Authority: sdd/phase3-scenario-profile-experiment-split.md §9 (rewired in Phase 5)
 // ---------------------------------------------------------------------------
 
@@ -236,14 +237,14 @@ function deepDiff(expected, actual, path = '') {
 }
 
 const profileIds = Object.keys(DEFAULT_PROFILES);
-if (profileIds.length !== 14) {
-  fail('VAL-PLAT-007', `expected 14 profiles in DEFAULT_PROFILES, found ${profileIds.length}`);
+if (profileIds.length !== EXPECTED_PROFILE_COUNT) {
+  fail('VAL-PLAT-007', `expected ${EXPECTED_PROFILE_COUNT} profiles in DEFAULT_PROFILES, found ${profileIds.length}`);
 } else {
   pass(`VAL-PLAT-007 — DEFAULT_PROFILES contains ${profileIds.length} profiles`);
 }
 
-if (PROFILE_AUTHORING_ENTRIES.length !== 14) {
-  fail('VAL-PLAT-007', `expected 14 authoring entries, found ${PROFILE_AUTHORING_ENTRIES.length}`);
+if (PROFILE_AUTHORING_ENTRIES.length !== EXPECTED_PROFILE_COUNT) {
+  fail('VAL-PLAT-007', `expected ${EXPECTED_PROFILE_COUNT} authoring entries, found ${PROFILE_AUTHORING_ENTRIES.length}`);
 } else {
   pass(`VAL-PLAT-007 — PROFILE_AUTHORING_ENTRIES contains ${PROFILE_AUTHORING_ENTRIES.length} entries`);
 }
@@ -271,8 +272,8 @@ for (const entry of PROFILE_AUTHORING_ENTRIES) {
   }
 }
 
-if (parityAllPass && profileIds.length === 14 && PROFILE_AUTHORING_ENTRIES.length === 14) {
-  console.log('VAL-PLAT-007: PASS — runtime materialization parity verified for all 14 profiles');
+if (parityAllPass && profileIds.length === EXPECTED_PROFILE_COUNT && PROFILE_AUTHORING_ENTRIES.length === EXPECTED_PROFILE_COUNT) {
+  console.log(`VAL-PLAT-007: PASS — runtime materialization parity verified for all ${EXPECTED_PROFILE_COUNT} profiles`);
 }
 
 // ---------------------------------------------------------------------------

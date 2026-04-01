@@ -1,7 +1,7 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.2.2
-**Date:** 2026-03-31
+**Version:** 1.2.3
+**Date:** 2026-04-01
 **Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults and makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for the authoring vocabulary split and `sdd/phase5-cleanup-and-modularization-sdd.md §6` for the retirement/materialization closure.
 
 ---
@@ -25,9 +25,17 @@ The intent is to be concrete enough for implementation and review, without prete
 | Profile ID | Primary Usage | Orbit Mode | Beam Semantics | Primary Source Anchors |
 |---|---|---|---|---|
 | `case9-access-baseline` | access/handover reproduction and early algorithm benchmarking | synthetic | earth-moving | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2025-TIMERCHO-CORE`, `PAP-2024-MCCHO-CORE` |
+| `modqn-paper-baseline` | downstream MODQN contract/runtime baseline and M2 trainer preflight | synthetic | earth-moving multi-beam | `PAP-2024-MORL-MULTIBEAM`, `ASSUME-MODQN-ORBIT`, `ASSUME-MODQN-BEAM`, `ASSUME-MODQN-RUNTIME` |
 | `hobs-multibeam-baseline` | multi-beam interference, beam switching, and energy layer 1 | synthetic | earth-moving multi-beam | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN`, `PAP-2024-MADRL-CORE` |
 | `bh-resource-baseline` | beam hopping, active-beam scheduling, and resource control | synthetic | earth-fixed / BH-slot | `PAP-2026-BHFREQREUSE`, `PAP-2025-EEBH-UPLINK`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-MAAC-BHPOWER` |
 | `real-trace-validation` | external-validity checks under real constellation motion | real-trace | inherited from validated profile family | `PAP-2025-DAPS-CORE`, `PAP-2025-SMASH-MADQL`, local `tle_data/` |
+
+### 2.1 `modqn-paper-baseline`
+
+1. `modqn-paper-baseline` is the dedicated downstream MODQN baseline, not the first-screen platform baseline.
+2. It fixes the baseline paper envelope at `780 km`, a disclosed `2 x 2` proxy shell, `7` beams per satellite, `20 GHz`, `500 MHz`, `100` uniformly distributed UEs, and weights `[0.5, 0.3, 0.2]`.
+3. The observer remains Beijing, but the `10 s` episode epoch is explicitly assumption-backed and tuned so the disclosed proxy shell intersects a visible pass within the short runtime window.
+4. Its claim ceiling at M1 is contract/runtime-faithful baseline support only; trained-model and comparison claims remain M2/M3 work.
 
 ---
 

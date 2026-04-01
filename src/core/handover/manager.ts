@@ -15,6 +15,7 @@ import type {
   HandoverDecision,
   HandoverEvent,
   HandoverCandidate,
+  HandoverPolicyOverride,
   RlfState,
 } from './types';
 
@@ -130,6 +131,82 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   function emit(event: HandoverEvent): void {
     state.events.push(event);
+  }
+
+  function findOverrideTarget(
+    eligible: HandoverCandidate[],
+    override: HandoverPolicyOverride,
+  ): HandoverCandidate | null {
+    if (override.targetSatId && override.targetBeamId) {
+      return eligible.find((candidate) => (
+        candidate.satId === override.targetSatId &&
+        candidate.beamId === override.targetBeamId
+      )) ?? null;
+    }
+    if (override.targetSatId) {
+      return eligible.find((candidate) => candidate.satId === override.targetSatId) ?? null;
+    }
+    return eligible[0] ?? null;
+  }
+
+  function attachTarget(
+    input: HandoverTickInput,
+    target: HandoverCandidate,
+    reason: string,
+  ): HandoverDecision {
+    state.phase = 'attached';
+    state.pendingTarget = null;
+    state.tttStartTimeSec = null;
+    state.rlf = initialRlf();
+    state.serving = {
+      satId: target.satId,
+      beamId: target.beamId,
+      sinrDb: target.sinrDb,
+      attachTimeSec: input.timeSec,
+    };
+    emit({
+      tick: input.tick,
+      timeSec: input.timeSec,
+      type: 'attach',
+      targetSatId: target.satId,
+      sinrDb: target.sinrDb,
+      reason,
+    });
+    return { type: 'attach', targetSatId: target.satId, targetBeamId: target.beamId, reason };
+  }
+
+  function runPolicyOverride(
+    input: HandoverTickInput,
+    eligible: HandoverCandidate[],
+  ): HandoverDecision | null {
+    const override = input.policyOverride;
+    if (!override || override.mode === 'auto') return null;
+
+    if (override.mode === 'defer') {
+      if (state.phase === 'preparing') {
+        state.phase = 'attached';
+        state.pendingTarget = null;
+        state.tttStartTimeSec = null;
+      }
+      return { type: 'none', reason: 'policy override deferred handover' };
+    }
+
+    const target = findOverrideTarget(eligible, override);
+    if (!target) {
+      return { type: 'none', reason: 'policy override target unavailable' };
+    }
+
+    if (state.phase === 'idle') {
+      return attachTarget(input, target, 'policy override attach');
+    }
+
+    if (state.serving && state.serving.satId === target.satId && state.serving.beamId === target.beamId) {
+      return { type: 'none', reason: 'policy override already serving target' };
+    }
+
+    state.pendingTarget = target;
+    state.tttStartTimeSec = input.timeSec;
+    return executeHandover(input, 'policy override trigger');
   }
 
   /**
@@ -293,7 +370,10 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     return executeHandover(input);
   }
 
-  function executeHandover(input: HandoverTickInput): HandoverDecision {
+  function executeHandover(
+    input: HandoverTickInput,
+    executeReason = 'TTT expired, executing handover',
+  ): HandoverDecision {
     const target = state.pendingTarget!;
     const source = state.serving!;
 
@@ -304,7 +384,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
       sourceSatId: source.satId,
       targetSatId: target.satId,
       sinrDb: target.sinrDb,
-      reason: 'TTT expired, executing handover',
+      reason: executeReason,
     });
 
     // Phase 2: switching is instantaneous (always succeeds)
@@ -349,7 +429,7 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
       type: 'handover',
       targetSatId: target.satId,
       targetBeamId: target.beamId,
-      reason: isPingPong ? 'handover complete (ping-pong)' : 'handover complete',
+      reason: isPingPong ? 'handover complete (ping-pong)' : executeReason,
     };
   }
 
@@ -389,8 +469,11 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
       const eligible = filterCandidates(input.candidates, config.min_elevation_deg);
 
       switch (state.phase) {
-        case 'idle':
+        case 'idle': {
+          const overrideDecision = runPolicyOverride(smoothedInput, eligible);
+          if (overrideDecision) return overrideDecision;
           return tryAttach(smoothedInput, eligible);
+        }
 
         case 'attached': {
           // A2: RLF state machine — replaces binary null-SINR release
@@ -405,6 +488,8 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
           if (state.rlf.phase === 'out-of-sync') {
             return { type: 'none', reason: 'RLF T310 running, HO evaluation suspended' };
           }
+          const overrideDecision = runPolicyOverride(smoothedInput, eligible);
+          if (overrideDecision) return overrideDecision;
           return tickAttached(smoothedInput, eligible);
         }
 
@@ -416,6 +501,8 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
           if (smoothedInput.servingElevationDeg != null && smoothedInput.servingElevationDeg < config.min_elevation_deg) {
             return doRelease(smoothedInput, `serving elevation ${smoothedInput.servingElevationDeg.toFixed(1)}° < ${config.min_elevation_deg}° during preparation`);
           }
+          const overrideDecision = runPolicyOverride(smoothedInput, eligible);
+          if (overrideDecision) return overrideDecision;
           return tickPreparing(smoothedInput, eligible);
         }
 

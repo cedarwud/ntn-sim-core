@@ -65,10 +65,11 @@ export interface ProfileListEntry {
  *   3. 'Sensitivity' tier entries
  *   Within each tier: order matches the authoring registry declaration order.
  *
- * Expected return: 14 entries (one per active profile in the authoring registry).
+ * Expected return: one entry per active profile in the authoring registry
+ * (currently 15 entries).
  *
  * @version v1
- * @frozen — signature is stable; the 14-entry set expands only in Phase 5+
+ * @frozen — signature is stable; active profile count may expand via registry updates
  */
 export function getProfileList(): ProfileListEntry[] {
   return getProfileExposureCatalog().map(({ id, family, tier, label }) => ({

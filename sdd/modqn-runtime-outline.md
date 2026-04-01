@@ -1,15 +1,16 @@
-# MODQN Runtime (Outline)
+# MODQN Runtime SDD
 
-**Status:** Outline — promotion blocked by M1 convergence
-**Updated:** 2026-03-31 (downstream architecture Group 1 — promotion conditions added)
+**Status:** Active SDD — M2 entry open
+**Promoted:** 2026-04-01 (M1 completion gate satisfied)
+**Authority chain:** `modqn-baseline-spec-outline.md`, `phase0-architecture-spec.md §0C.6`
 
 ## Current Position in Sequence
 
-This outline covers M2 runtime implementation scope. It must not be treated as implementation-ready until M1 has delivered a confirmed `ModqnBaselineAdapter` interface.
+M1 convergence is complete. This document now defines the active M2 runtime/trainer layer above the shipped baseline bridge.
 
-**Read first:** `modqn-baseline-spec-outline.md` (now active spec) defines M1 boundaries.
+**Read first:** `modqn-baseline-spec-outline.md` defines the now-shipped M1 boundary and frozen paper-faithful contract surface.
 
-## Future M2 Scope
+## Active M2 Scope
 
 1. Training loop scaffolding for the reproduced baseline
 2. Action-space adapter training path (extends M1 `ModqnBaselineAdapter`)
@@ -17,14 +18,15 @@ This outline covers M2 runtime implementation scope. It must not be treated as i
 4. Evaluation hooks — run trained model against a held-out scenario
 5. Baseline artifact outputs used by UI (result bundle type for M3/U1)
 
-## Promotion Conditions
+## Promotion Record
 
-This outline may be promoted to an active SDD only when ALL of the following are met:
+Promotion conditions were satisfied on 2026-04-01:
 
-1. M1 has shipped `ModqnBaselineAdapter` in `src/core/algorithms/`
-2. The `Policy` interface from `policy-v1` has been confirmed sufficient for MODQN training path (or a contract extension has been reviewed)
-3. The baseline paper's training protocol (9000 episodes, ε-greedy, batch 128) is confirmed expressible through the platform runner surface without internal engine mutation
-4. `npm run validate:stage` is green after M1
+1. `ModqnBaselineAdapter` shipped in `src/core/algorithms/`
+2. `policy-v1` plus `modqn-contracts.ts` were reviewed as the stable training/runtime bridge
+3. The paper training protocol is now frozen in `MODQN_BASELINE_TRAINING_PROTOCOL`
+4. `validate-modqn-baseline.ts` proves constants, adapter logic, action-consumption wiring, and `modqn-paper-baseline` runtime viability
+5. `npm run validate:stage` remains the platform-wide green gate after adding `validate:modqn`
 
 ## What Stays Out of Scope
 

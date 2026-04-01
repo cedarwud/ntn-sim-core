@@ -83,6 +83,21 @@
         "src/core/config/parameter-registry.ts"
       ]
     },
+    "PAP-2024-MORL-MULTIBEAM": {
+      "title": "Handover for Multi-Beam LEO Satellite Networks: A Multi-Objective Reinforcement Learning Method",
+      "authors": "Sun, Zhai, Wu, Si, Yu",
+      "year": 2024,
+      "topic": "MODQN baseline: 4 satellites, 780 km, 7 beams/satellite, 100 users, 20 GHz, 500 MHz, 2 W per link, three-objective reward, weights [0.5,0.3,0.2]",
+      "usedIn": [
+        "src/core/contracts/modqn-contracts.ts",
+        "src/core/algorithms/modqn-baseline-adapter.ts",
+        "src/core/profiles/defaults-modqn.ts",
+        "src/core/config/parameter-registry-foundation-data.ts",
+        "src/core/config/parameter-registry-beam-channel-data.ts",
+        "src/core/config/parameter-registry-handover-data.ts",
+        "src/core/config/parameter-registry-energy-ue-data.ts"
+      ]
+    },
     "PAP-2025-DAPS-CORE": {
       "title": "DAPS Handover for LEO Non-Terrestrial Networks",
       "year": 2025,
@@ -364,6 +379,29 @@
     },
     "ASSUME-HO-001": "Hard-HO / A3 / A4 / D2 / CHO interruption is approximated by RTT = 2 x one-way propagation delay; DAPS and MC-HO use 0 ms interruption because the dual-active path is maintained during execution",
     "ASSUME-HO-DAPS": "DAPS dual-active phase bounded by max_dual_sec; packet duplication optional",
+    "ASSUME-MODQN-ORBIT": {
+      "description": "PAP-2024-MORL-MULTIBEAM fixes only a 4-satellite, 780 km STK constellation, not the detailed plane layout, inclination, or epoch. The runtime uses a disclosed 2x2 Walker-style proxy shell centered on the paper's Beijing study area so MODQN work can proceed on stable contracts without fabricating paper-backed orbital literals.",
+      "usedIn": [
+        "src/core/profiles/defaults-modqn.ts",
+        "src/core/config/parameter-registry-foundation-data.ts"
+      ]
+    },
+    "ASSUME-MODQN-BEAM": {
+      "description": "PAP-2024-MORL-MULTIBEAM specifies 7 beams per satellite and per-beam channel gains but does not specify the antenna family, peak gain, footprint diameter, or reuse-plan implementation needed by the current simulator. The runtime uses a disclosed 7-beam hexagonal proxy with explicit gain/footprint values and FRF=1, while keeping zero interference in the baseline scope.",
+      "usedIn": [
+        "src/core/profiles/defaults-modqn.ts",
+        "src/core/config/parameter-registry-foundation-data.ts",
+        "src/core/config/parameter-registry-beam-channel-data.ts"
+      ]
+    },
+    "ASSUME-MODQN-RUNTIME": {
+      "description": "MODQN baseline runtime bridging assumptions that are required by the current platform but absent from the paper: a disclosed episode epoch that yields an in-view pass for the 10 s runtime window, permissive attach floor, hard handover with TTT=0 and hysteresis=0, a diagnostic ping-pong window, and direct mapping of per-user decisions onto the independent-handover runtime path. These settings are runtime mechanics, not paper-backed baseline constants.",
+      "usedIn": [
+        "src/core/profiles/defaults-modqn.ts",
+        "src/core/config/parameter-registry-foundation-data.ts",
+        "src/core/config/parameter-registry-handover-data.ts"
+      ]
+    },
     "ASSUME-ATM-001": "Tier 4 atmospheric loss uses fixed mid-latitude zenith estimates from ITU-R simplified models: gaseous 0.35 dB (10–25 GHz) / 0.6 dB (25+ GHz) from ITU-R P.676; rain 0.8 dB (10–25 GHz) / 1.5 dB (25+ GHz) from ITU-R P.618 at 99% availability; scintillation 0.4 dB Ka-band from ITU-R P.618 tropospheric. Claim scope: LEO NTN Ka-band baseline only; not for site-specific or availability-sensitive studies. Source: link-budget.ts Tier 4 block.",
     "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed",
     "ASSUME-HO-ENERGY-001": {

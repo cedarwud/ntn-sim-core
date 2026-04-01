@@ -72,6 +72,12 @@ export interface HandoverDecision {
   reason: string;
 }
 
+export interface HandoverPolicyOverride {
+  mode: 'trigger' | 'defer' | 'auto';
+  targetSatId?: string;
+  targetBeamId?: string;
+}
+
 export interface HandoverEvent {
   tick: number;
   timeSec: number;
@@ -138,6 +144,8 @@ export interface HandoverTickInput {
    *  Required for D2 distance-event evaluation (A1).
    *  @source ntn-stack handover_event_trigger_service.py */
   servingRangeKm?: number | null;
+  /** Stable policy-driven override from the pull-model action path. */
+  policyOverride?: HandoverPolicyOverride;
 }
 
 // ---------------------------------------------------------------------------

@@ -126,6 +126,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
     bundle,
     lastObservation: null,
     pendingExternalAction: null,
+    pendingPolicyAction: null,
     rng,
     uePositions,
     mobilityUpdater,

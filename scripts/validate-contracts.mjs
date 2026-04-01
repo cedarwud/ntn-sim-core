@@ -4,7 +4,7 @@
  * Enforces:
  *   VAL-PLAT-008 — Contract files exist with required frozen type exports
  *   VAL-PLAT-009 — Zero forbidden import patterns (F1–F6) in viz/hooks
- *   VAL-PLAT-010 — getProfileList() runtime execution returns 14 correct entries
+ *   VAL-PLAT-010 — getProfileList() runtime execution returns the active profile set
  *
  * Run via: node --import tsx scripts/validate-contracts.mjs
  * Authority: phase4-runtime-contract-sdd.md §8.1–8.3
@@ -78,13 +78,31 @@ const REQUIRED_FILES = {
     frozen: true,
     requiredExports: ['PolicyObservation', 'PolicyAction', 'Policy'],
   },
+  'modqn-contracts.ts': {
+    frozen: true,
+    requiredExports: [
+      'ModqnBaselineObservation',
+      'ModqnActionVector',
+      'ModqnRewardVector',
+      'ModqnTrainingProtocol',
+      'MODQN_BASELINE_OBJECTIVE_WEIGHTS',
+      'MODQN_BASELINE_TRAINING_PROTOCOL',
+    ],
+  },
   'exposure-v1.ts': {
     frozen: true,
     requiredExports: ['ProfileListEntry', 'HandoverType', 'getProfileList'],
   },
   'index.ts': {
     frozen: false,   // barrel — @frozen not required
-    requiredExports: ['SimulationSnapshot', 'KpiBundle', 'BatchKpiEntry', 'getProfileList'],
+    requiredExports: [
+      'SimulationSnapshot',
+      'KpiBundle',
+      'BatchKpiEntry',
+      'ModqnBaselineObservation',
+      'MODQN_BASELINE_TRAINING_PROTOCOL',
+      'getProfileList',
+    ],
   },
 };
 
@@ -200,7 +218,7 @@ for (const { id, files, pattern, message } of FORBIDDEN) {
 console.log(`VAL-PLAT-009: ${v009Pass ? 'PASS' : 'FAIL'} — forbidden import patterns`);
 
 // ---------------------------------------------------------------------------
-// VAL-PLAT-010 — getProfileList() runtime execution returns correct 14 entries
+// VAL-PLAT-010 — getProfileList() runtime execution returns the active profile set
 //
 // Runs under node --import tsx so TypeScript imports resolve.
 // Authority: phase4-runtime-contract-sdd.md §8.3
@@ -213,7 +231,7 @@ const EXPECTED_IDS = new Set([
   'bh-resource-baseline',   'case9-daps-baseline',      'real-trace-validation',
   'meo-constellation-baseline', 'geo-relay-baseline',   'sinr-elevation-reproduction',
   'hobs-reproduction',      'timer-cho-reproduction',   'bh-pf-baseline',
-  'bh-sinr-greedy-baseline', 'bh-resource-energy-proof',
+  'bh-sinr-greedy-baseline', 'bh-resource-energy-proof', 'modqn-paper-baseline',
 ]);
 const VALID_TIERS = new Set(['Realistic', 'Advanced', 'Sensitivity']);
 
@@ -228,8 +246,8 @@ try {
     fail('VAL-PLAT-010: getProfileList() did not return an Array');
     v010Pass = false;
   } else {
-    if (list.length !== 14) {
-      fail(`VAL-PLAT-010: expected 14 entries, got ${list.length}`);
+    if (list.length !== EXPECTED_IDS.size) {
+      fail(`VAL-PLAT-010: expected ${EXPECTED_IDS.size} entries, got ${list.length}`);
       v010Pass = false;
     }
 

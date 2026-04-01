@@ -1,7 +1,7 @@
 # NTN Sim Core — Paper Family Matrix
 
-**Version:** 1.0.0
-**Date:** 2026-03-23
+**Version:** 1.0.1
+**Date:** 2026-04-01
 **Status:** Active
 
 ---
@@ -51,6 +51,7 @@ If a conflict appears:
 |---|---|---|---|---|---|---|---|---|
 | `FAM-ACCESS-SYNTH` | `case9-access-baseline` | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2024-MCCHO-CORE`, `PAP-2025-TIMERCHO-CORE` | synthetic Walker / analytic LEO | earth-moving access beams | Tier 0-5 access channel, event-based HO (A3/A4/CHO/Timer-CHO/MC-HO/DAPS), multi-UE, deterministic KPI path | access SINR, HO events, throughput proxy, fairness | `beamHO-bench`, `leo-beam-sim` | ✅ none (C1/C2/C3 fixed 2026-03-23) |
 | `FAM-MB-HOBS-SYNTH` | `hobs-multibeam-baseline` | `PAP-2024-HOBS`, `PAP-2024-MADRL-CORE`, `PAP-2021-SHADOWED-RICIAN` | synthetic Walker / analytic LEO | earth-moving multibeam | interference-aware SINR (per-interferer), active-beam truth, Bessel/3GPP gain, EE-L1, Tier 5 SR fading | multi-beam SINR, beam switching, EE-L1, overlap/serviceability | `leo-beam-sim`, `beamHO-bench` | ✅ none (C1/M2/M3/M4/M8 fixed 2026-03-23) |
+| `FAM-MODQN-SYNTH` | `modqn-paper-baseline` | `PAP-2024-MORL-MULTIBEAM` | synthetic `2 x 2` Walker-style proxy at `780 km` | earth-moving multibeam | paper-faithful MODQN state/action/reward bridge, 7-beam load-aware proxy, per-user policy handover bridge | downstream trainer/runtime baseline; M1 delivers the contract/runtime surface, M2/M3 deliver trained/evaluated artifacts | none | trained DQN and evaluation artifact path not yet landed (M2/M3 pending) |
 | `FAM-BH-SYNTH` | `bh-resource-baseline` | `PAP-2026-BHFREQREUSE`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-EEBH-UPLINK`, `PAP-2024-QMIXBH` | synthetic LEO shell | earth-fixed / BH-slot | scheduler truth, reuse policy (FRF formalized), cell-slot activity, EE-L2 with beta angle, traffic model | BH scheduling, per-cell service, resource efficiency, EE-L2 | `beamHO-bench`, `leo-beam-sim` | ✅ none (M3/M4/M7/P3 fixed 2026-03-23); MS4 (cell viz) deferred — viz only |
 | `FAM-RT-ACCESS-VALID` | `real-trace-validation` + access family | TLE-backed access / HO validation papers | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-ACCESS-SYNTH` | orbit realism, timing realism, replay curation, cross-mode parity | validates access-family timing realism; does not define new beam/channel family | `beamHO-bench`, `ntn-stack`, `leo-simulator` | Phase 4 wiring gaps (TLE path not wired in runner) |
 | `FAM-RT-MB-VALID` | `real-trace-validation` + multibeam or BH family | real-trace multibeam / BH validation studies | real-trace TLE / SGP4 or offline precompute | inherited from `FAM-MB-HOBS-SYNTH` or `FAM-BH-SYNTH` | cross-mode parity under real constellation timing | validates whether multibeam/BH conclusions survive real-trace orbit timing | `ntn-stack`, `leo-simulator`, `beamHO-bench` | Phase 4 wiring gaps |
@@ -65,6 +66,7 @@ The paper catalog should be triaged into the following intake buckets before imp
 |---|---|---|
 | synthetic access / handover / 3GPP-style SINR papers | `FAM-ACCESS-SYNTH` | map into `case9-access-baseline` unless the paper requires a different explicit orbit or observer contract |
 | synthetic multibeam / HOBS / EE-L1 papers | `FAM-MB-HOBS-SYNTH` | map into `hobs-multibeam-baseline` with declared beam-gain family and power-control rule |
+| synthetic MORL / per-user multibeam handover papers | `FAM-MODQN-SYNTH` | map into `modqn-paper-baseline` when the paper's primary claim is user-level beam selection via a paper-defined state/action/reward surface rather than generic HOBS EE or BH scheduling |
 | synthetic beam-hopping / resource / EE-L2 papers | `FAM-BH-SYNTH` | map into `bh-resource-baseline` and declare scheduler family plus cell semantics |
 | TLE-backed access validation papers | `FAM-RT-ACCESS-VALID` | inherit radio and HO contracts from access family; do not invent radio parameters from TLE |
 | TLE-backed multibeam or BH validation papers | `FAM-RT-MB-VALID` | inherit channel and scheduler contracts from the synthetic family being validated |
@@ -78,17 +80,19 @@ The recommended activation order remains phase-aligned:
 
 1. `FAM-ACCESS-SYNTH`
 2. `FAM-MB-HOBS-SYNTH`
-3. `FAM-RT-ACCESS-VALID`
-4. `FAM-BH-SYNTH`
-5. `FAM-RT-MB-VALID`
+3. `FAM-MODQN-SYNTH`
+4. `FAM-RT-ACCESS-VALID`
+5. `FAM-BH-SYNTH`
+6. `FAM-RT-MB-VALID`
 
 Rationale:
 
 1. access family establishes the first trustworthy HO + KPI path;
 2. HOBS multibeam is the first direct target-topic family;
-3. real-trace access validation proves orbit realism without changing radio semantics;
-4. BH should land after the benchmark core and replay contracts are credible;
-5. real-trace multibeam / BH validation depends on both earlier family correctness and Phase 4 replay integrity.
+3. MODQN can become active only after the frozen contract/runtime surface exists and therefore follows the access + multibeam baseline foundations;
+4. real-trace access validation proves orbit realism without changing radio semantics;
+5. BH should land after the benchmark core and replay contracts are credible;
+6. real-trace multibeam / BH validation depends on both earlier family correctness and Phase 4 replay integrity.
 
 ---
 
@@ -98,6 +102,7 @@ Rationale:
 |---|---|---|---|---|
 | `FAM-ACCESS-SYNTH` | allowed | allowed | ✅ allowed — all blockers cleared (C1/C2/C3), reproduction target RT-1/RT-3 defined | allowed with `provisional` tolerance; advance to `locked` after stable benchmark |
 | `FAM-MB-HOBS-SYNTH` | allowed | allowed | ✅ allowed — all blockers cleared (C1/M2/M3/M4/M8), reproduction target RT-2 defined | allowed with `provisional` tolerance |
+| `FAM-MODQN-SYNTH` | allowed | allowed | allowed at M1 as a contract/runtime-faithful baseline surface; trained-policy reproduction waits for M2/M3 | blocked until trained DQN artifacts and evaluation protocol land |
 | `FAM-BH-SYNTH` | allowed | allowed | ✅ allowed — scheduler/traffic/energy gaps cleared, FRF formalized | allowed with `provisional` tolerance; scheduler is generic baseline (disclosed) |
 | `FAM-RT-ACCESS-VALID` | allowed | allowed for parity studies | allowed after Phase 4 TLE wiring | blocked until Phase 4 TLE path wired in runner |
 | `FAM-RT-MB-VALID` | allowed | allowed for exploratory checks | allowed after Phase 4 parity | blocked until Phase 4 replay parity |

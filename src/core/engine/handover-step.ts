@@ -2,7 +2,7 @@ import type { SimEngineState } from './state';
 import type { TrajectorySample } from '../orbit/types';
 import type { UePosition } from '../ue/position-generator';
 import type { HoLogEntry } from '../common/types';
-import type { HandoverCandidate } from '../handover/types';
+import type { HandoverCandidate, HandoverPolicyOverride } from '../handover/types';
 import { buildSortedUeCandidates } from './channel-step';
 
 /**
@@ -14,6 +14,27 @@ import { buildSortedUeCandidates } from './channel-step';
 export interface HandoverStepResult {
   tickHoLog: HoLogEntry[];
   representativeServing: { satId: string; beamId: string } | null;
+}
+
+function extractPolicyOverride(state: SimEngineState): HandoverPolicyOverride | undefined {
+  const action = state.pendingExternalAction ?? state.pendingPolicyAction;
+  state.pendingExternalAction = null;
+  state.pendingPolicyAction = null;
+
+  if (!action) return undefined;
+
+  const targetSatId =
+    action.handoverAction.targetSatId ??
+    action.satelliteActions[0]?.satId;
+  const targetBeamId = targetSatId
+    ? action.satelliteActions.find((satAction) => satAction.satId === targetSatId)?.activeBeamIds?.[0]
+    : undefined;
+
+  return {
+    mode: action.handoverAction.mode,
+    ...(targetSatId ? { targetSatId } : {}),
+    ...(targetBeamId ? { targetBeamId } : {}),
+  };
 }
 
 export function runHandoverStep(
@@ -31,6 +52,7 @@ export function runHandoverStep(
   const { independentHandover, hoManager, hoManagers, uePositions } = state;
   const tickHoLog: HoLogEntry[] = [];
   const PRIMARY_UE_ID = 'ue-0';
+  const policyOverride = extractPolicyOverride(state);
 
   let representativeServing: { satId: string; beamId: string } | null = null;
 
@@ -58,7 +80,8 @@ export function runHandoverStep(
         candidates,
         servingElevationDeg: servingEntry?.elevationDeg ?? null,
         servingRangeKm: servingEntry?.rangeKm ?? null,
-        propagationDelayMs: (servingEntry && servingEntry.rangeKm) ? (servingEntry.rangeKm / 299.792) : undefined
+        propagationDelayMs: (servingEntry && servingEntry.rangeKm) ? (servingEntry.rangeKm / 299.792) : undefined,
+        policyOverride: ue.id === PRIMARY_UE_ID ? policyOverride : undefined,
       });
 
       if (ue.id === PRIMARY_UE_ID) {
@@ -85,7 +108,8 @@ export function runHandoverStep(
       candidates,
       servingElevationDeg: servingEntry?.elevationDeg ?? null,
       servingRangeKm: servingEntry?.rangeKm ?? null,
-      propagationDelayMs: (servingEntry && servingEntry.rangeKm) ? (servingEntry.rangeKm / 299.792) : undefined
+      propagationDelayMs: (servingEntry && servingEntry.rangeKm) ? (servingEntry.rangeKm / 299.792) : undefined,
+      policyOverride,
     });
     representativeServing = hoManager.getState().serving;
   }

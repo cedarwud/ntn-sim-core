@@ -20,6 +20,7 @@ import type {
 
 export type ProfileFamily =
   | 'case9-access-baseline'
+  | 'modqn-paper-baseline'
   | 'hobs-multibeam-baseline'
   | 'bh-resource-baseline'
   | 'real-trace-validation'

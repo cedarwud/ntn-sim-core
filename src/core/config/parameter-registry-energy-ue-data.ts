@@ -156,6 +156,7 @@ export const ENERGY_AND_UE_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-UE-SPEED-KMH', profileId: '__universal__', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-UE-001', sourceNote: 'static UE as baseline; set to non-zero only for mobility studies', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-UE-SPEED-KMH', profileId: 'modqn-paper-baseline', defaultValue: 30, sourceTier: 'paper-backed', sourceId: 'PAP-2024-MORL-MULTIBEAM', sourceNote: '30 km/h random wandering user speed', exposureMode: 'Realistic' },
     ],
   },
 ];

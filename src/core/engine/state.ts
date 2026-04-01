@@ -35,6 +35,7 @@ export interface SimEngineState {
   // Transient State
   lastObservation: PolicyObservation | null;
   pendingExternalAction: PolicyAction | null;
+  pendingPolicyAction: PolicyAction | null;
   rng: SeededRng;
   
   // UE State

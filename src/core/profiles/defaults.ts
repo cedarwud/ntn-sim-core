@@ -27,6 +27,10 @@ export {
 } from './defaults-hobs';
 
 export {
+  MODQN_PAPER_BASELINE,
+} from './defaults-modqn';
+
+export {
   BH_RESOURCE_BASELINE,
   BH_RESOURCE_ENERGY_PROOF,
   BH_PF_BASELINE,
@@ -54,6 +58,10 @@ import {
 } from './defaults-hobs';
 
 import {
+  MODQN_PAPER_BASELINE,
+} from './defaults-modqn';
+
+import {
   BH_RESOURCE_BASELINE,
   BH_RESOURCE_ENERGY_PROOF,
   BH_PF_BASELINE,
@@ -74,6 +82,7 @@ import {
 export const DEFAULT_PROFILES: Record<string, ProfileConfig> = {
   'case9-access-baseline': CASE9_ACCESS_BASELINE,
   'hobs-multibeam-baseline': HOBS_MULTIBEAM_BASELINE,
+  'modqn-paper-baseline': MODQN_PAPER_BASELINE,
   'bh-resource-baseline': BH_RESOURCE_BASELINE,
   'bh-resource-energy-proof': BH_RESOURCE_ENERGY_PROOF,
   'bh-pf-baseline': BH_PF_BASELINE,

@@ -81,6 +81,7 @@ export function buildTrajectoryCache(opts: BuildCacheOptions): TrajectoryCache {
   const observer = createObserverContext(observerLatDeg, observerLonDeg, observerAltKm);
   const nSteps = Math.floor(durationSec / stepSec) + 1;
   const trackingThresholdDeg = minElevationDeg - PASS_BUFFER_DEG;
+  const minPassDurationSec = durationSec < MIN_PASS_DURATION_SEC ? 0 : MIN_PASS_DURATION_SEC;
   const passesBySatId = new Map<string, SatellitePass[]>();
 
   for (const elem of elements) {
@@ -129,11 +130,11 @@ export function buildTrajectoryCache(opts: BuildCacheOptions): TrajectoryCache {
         peakElev = Math.max(peakElev, samples[i].elevationDeg);
       } else if (!above && inPass) {
         inPass = false;
-        finishPass(passes, elem.id, samples, passStartIdx, i - 1, peakElev, stepSec);
+        finishPass(passes, elem.id, samples, passStartIdx, i - 1, peakElev, stepSec, minPassDurationSec);
       }
     }
     if (inPass) {
-      finishPass(passes, elem.id, samples, passStartIdx, nSteps - 1, peakElev, stepSec);
+      finishPass(passes, elem.id, samples, passStartIdx, nSteps - 1, peakElev, stepSec, minPassDurationSec);
     }
 
     if (passes.length > 0) {
@@ -158,9 +159,10 @@ function finishPass(
   endIdx: number,
   peakElev: number,
   stepSec: number,
+  minPassDurationSec: number,
 ): void {
   const duration = (endIdx - startIdx) * stepSec;
-  if (duration < MIN_PASS_DURATION_SEC || peakElev <= 0) return;
+  if (duration < minPassDurationSec || peakElev <= 0) return;
   passes.push({
     satId,
     startTimeSec: samples[startIdx].timeSec,

@@ -99,25 +99,21 @@ export function runPolicyStep(
 
   state.lastObservation = observation;
 
-  // 2. Handle Policy (if attached to bundle or external)
-  // DP-5: bundle.policy.selectAction is called if provided
-  // For now, external pending action takes precedence for VAL-POLICY-001
-  let action: PolicyAction | null = state.pendingExternalAction;
-  
-  if (!action && bundle.policy.name !== 'no-op') {
+  // 2. Queue policy output for the NEXT tick's handover step.
+  let action: PolicyAction | null = null;
+  if (bundle.policy.name !== 'no-op') {
     action = bundle.policy.selectAction(observation);
   }
 
-  if (action) {
-    // Apply actions to state (e.g. override BH decisions or force HO)
-    // This is Phase 6+ logic, but we provide the hook here
-    if (action.satelliteActions.length > 0 && lastBhSlotDecision) {
-      for (const satAct of action.satelliteActions) {
-        if (satAct.activeBeamIds) {
-          lastBhSlotDecision.activeBeamsPerSat.set(satAct.satId, satAct.activeBeamIds);
-        }
+  state.pendingPolicyAction = action;
+
+  // Beam-scheduler overrides remain immediate because the slot plan is already
+  // part of the current discrete tick state.
+  if (action && action.satelliteActions.length > 0 && lastBhSlotDecision) {
+    for (const satAct of action.satelliteActions) {
+      if (satAct.activeBeamIds) {
+        lastBhSlotDecision.activeBeamsPerSat.set(satAct.satId, satAct.activeBeamIds);
       }
     }
-    // Handover actions would be applied in the NEXT tick's runHandoverStep
   }
 }

@@ -45,6 +45,22 @@ export type {
   HandoverAction,
 } from './policy-v1';
 
+// modqn-contracts
+export type {
+  ModqnBeamTruth,
+  ModqnBaselineObservation,
+  ModqnPaperState,
+  ModqnObjectiveQValue,
+  ModqnObjectiveWeights,
+  ModqnActionVector,
+  ModqnRewardInput,
+  ModqnRewardVector,
+  ModqnTrainingProtocol,
+  ModqnTruthSource,
+  ModqnPolicyBridge,
+} from './modqn-contracts';
+export { MODQN_BASELINE_OBJECTIVE_WEIGHTS, MODQN_BASELINE_TRAINING_PROTOCOL } from './modqn-contracts';
+
 // exposure-v1
 export type { HandoverType, ProfileListEntry, ParameterView, ParameterMetadataResponse } from './exposure-v1';
 export { getProfileList } from './exposure-v1';

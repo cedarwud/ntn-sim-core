@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.8.3
+**Version:** 4.8.4
 **Date:** 2026-04-01
-**Status:** Prior hardening/closure program complete; latest audited reruns of `validate:visual-browser` and `validate:stage` pass, with browser-sensitive evidence still treated as transient-watch rather than permanently de-flaked. Simulator Platform Refactor is complete through Phase 5 Group 3 (2026-03-31), and downstream architecture is now complete through Group 2 (2026-03-31; authority/docs synchronized 2026-04-01). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. Downstream Group 2 then landed the minimal `algorithms / experiments / view-models` skeleton without reopening direct `engine/` or authored-profile coupling; `M1` and `U1` may now start from the active downstream surface, while `estnet` remains paused.
+**Status:** Prior hardening/closure program complete; latest audited reruns of `validate:visual-browser` and `validate:stage` pass, with browser-sensitive evidence still treated as transient-watch rather than permanently de-flaked. Simulator Platform Refactor is complete through Phase 5 Group 3 (2026-03-31), and downstream architecture is now complete through Group 2 (2026-03-31; authority/docs synchronized 2026-04-01). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. Downstream MODQN M1 is now complete: `modqn-contracts.ts`, `modqn-paper-baseline`, `validate-modqn-baseline.ts`, short-episode trajectory-cache support, and the policy/external action handover bridge all landed on 2026-04-01, so MODQN is now M2-ready while `estnet` remains paused.
 
 ---
 
@@ -40,7 +40,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | Surface | Status | Note |
 |---|---|---|
 | Downstream architecture | ✅ complete (Group 2 landed 2026-03-31; doc sync 2026-04-01) | Active boundary lives in `sdd/downstream-runtime-architecture-sdd.md`; minimal skeleton exists at `src/core/algorithms/`, `src/core/experiments/`, `src/viz/view-models/`; `src/adapters/` intentionally not created |
-| `MODQN M1` baseline entry | ✅ ready | Active authority is `sdd/modqn-baseline-spec-outline.md`; baseline path is frozen-contract-only |
+| `MODQN M1` baseline entry | ✅ complete / M2-ready | Active authority is `sdd/modqn-baseline-spec-outline.md`; baseline path now uses the frozen `policy-v1` bridge plus reviewed `modqn-contracts.ts`, a dedicated `modqn-paper-baseline` profile, and `validate:modqn` |
 | `UI U1` baseline entry | ✅ ready | Active authority is `sdd/ui-integration-roadmap.md`; baseline path consumes frozen contracts plus `RunnerExposureApi` |
 | `estnet` consumer path | ⏸ paused | `sdd/estnet-ui-contract-outline.md` remains paused until explicit reopen |
 
@@ -91,7 +91,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | EXT-2 | MG4 E-level golden cases E-5 through E-11 | ✅ (VAL-SINR-002-E, VAL-HO-003-E, VAL-DELAY-001-E, VAL-MOBILITY-001-E, VAL-REPRO-001-E, VAL-POLICY-001-E, VAL-DOPPLER-001-E) |
 | EXT-3 | MG2 RL pull-model: `getObservation()`/`applyAction()` on `SimEngine` | ✅ (cached observation every tick, external action queue, E-10 validated) |
 | EXT-4 | BH scheduler extensions: `proportional-fair` + `sinr-greedy` | ✅ (`scheduler.ts`; `bh-pf-baseline`, `bh-sinr-greedy-baseline` profiles) |
-| EXT-5 | Profile audit tooling: `scripts/audit-profiles.ts` 10-check suite | ✅ (14 profiles pass; added to `validate:stage`) |
+| EXT-5 | Profile audit tooling: `scripts/audit-profiles.ts` 10-check suite | ✅ (15 profiles pass; added to `validate:stage`) |
 | EXT-6 | Doppler Tier 6 wired into engine SINR: Phase 2 + Phase 3 paths | ✅ (`tier6_doppler` flag, E-11 validates 0.711 dB degradation for S-band 30 kHz SCS) |
 
 ---
@@ -145,7 +145,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `channel` | 9 | `fspl.ts`, `beam-gain.ts`, `shadow-fading.ts`, `small-scale-fading.ts`, `doppler.ts`, `sinr.ts`, `link-budget.ts`, `types.ts`, `index.ts` |
 | `common` | 3 | `types.ts`, `constants.ts`, `index.ts` |
 | `config` | 9 | `parameter-registry.ts`, `parameter-registry-schema.ts`, `parameter-registry-data.ts`, `parameter-registry-foundation-data.ts`, `parameter-registry-beam-channel-data.ts`, `parameter-registry-handover-data.ts`, `parameter-registry-energy-ue-data.ts`, `profile-provenance-view.ts`, `paper-sources.json` |
-| `contracts` | 5 | `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts` |
+| `contracts` | 6 | `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `modqn-contracts.ts`, `exposure-v1.ts`, `index.ts` |
 | `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
 | `engine` | 12 | `bootstrap.ts`, `tick.ts`, `orbit-step.ts`, `channel-step.ts`, `handover-step.ts`, `kpi-step.ts`, `scheduler-step.ts`, `energy-step.ts`, `snapshot-step.ts`, `policy-step.ts`, `state.ts`, `public-types.ts` |
 | `experiments` | 2 | `types.ts`, `index.ts` — downstream landing zone for `ExperimentManifest`, `ExperimentResult` |
@@ -154,11 +154,11 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `models` | 9 | `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`, `index.ts` |
 | `orbit` | 11 | `propagation.ts`, `topocentric.ts`, `walker.ts`, `trajectory-cache.ts`, `tle-loader.ts`, `sgp4-adapter.ts`, `math.ts`, `types.ts`, `profile-runtime.ts`, `geo-stationary.ts`, `index.ts` |
 | `policy` | 2 | `types.ts`, `index.ts` |
-| `profiles` | 14 | `types.ts`, `runtime-schema.ts`, `bundle-vocabulary.ts`, `defaults.ts`, `defaults-access.ts`, `defaults-bh.ts`, `defaults-hobs.ts`, `defaults-misc.ts`, `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, `runtime-materialization.ts`, `loader.ts`, `observers.ts`, `index.ts` |
+| `profiles` | 15 | `types.ts`, `runtime-schema.ts`, `bundle-vocabulary.ts`, `defaults.ts`, `defaults-access.ts`, `defaults-bh.ts`, `defaults-hobs.ts`, `defaults-misc.ts`, `defaults-modqn.ts`, `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, `runtime-materialization.ts`, `loader.ts`, `observers.ts`, `index.ts` |
 | `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
 | `traffic` | 2 | `generator.ts`, `index.ts` |
 | `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
-| `algorithms` | 2 | `types.ts`, `index.ts` — downstream landing zone for contract-bound baseline adapters |
+| `algorithms` | 4 | `types.ts`, `index.ts`, `modqn-baseline-adapter.ts`, `modqn-baseline-types.ts` — downstream landing zone now includes the shipped MODQN baseline bridge |
 | root | 2 | `engine.ts`, `README.md` |
 
 ### `src/runner/` — current inventory
@@ -199,10 +199,11 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `validate-runtime.mjs` | Runtime smoke checks |
 | `validate-profile-layout.mjs` | Legacy profile layout checks (retained for `validate-structure.mjs` existence check; functionality absorbed into `validate-profiles.mjs`) |
 | `validate-profiles.mjs` | Canonical profile gate: Phase 1 layout checks + VAL-PLAT-006 (types/runtime-materialization export and circular-import checks) + VAL-PLAT-007 (authoring bundle+experiment -> runtime parity, SDD §9 deep-equality) |
+| `validate-modqn-baseline.ts` | Dedicated MODQN M1 gate: constants, import boundary, adapter bridge logic, policy/external action consumption, and baseline runtime viability |
 | `validate-multibeam-gating.ts` | Multi-beam gate |
 | `validate-orbit-parity.ts`, `validate-replay-manifest.ts`, `validate-final.mjs`, `validate-visual-browser.ts` | Orbit / replay / final / browser gates |
 | `golden-case-channel.mjs`, `golden-case-engine.ts`, `golden-case-orbit.mjs` | Golden case reference checks |
-| `run-baseline.ts`, `run-reproduction-comparison.ts` | Baseline and reproduction runners |
+| `run-baseline.ts`, `run-reproduction-comparison.ts` | Baseline and reproduction runners; `run-baseline.ts` now applies profile-aware sanity for short-episode MODQN smoke runs |
 | `audit-profiles.ts`, `check-*.ts` | Debug / inspection utilities |
 
 **Note:** `validate:specmode` verifies ID presence, specMode rule compliance, and (Rule 7) a heuristic semantic consistency check between `paper-sources.json` definitions and the authored `defaults-*.ts` bundle `sourceMap` `parameterPath` usage. Rule 7 is term-matching only — it is not full semantic equivalence — but it catches the coarsest category of provenance drift. `validate:trace` verifies ASSUME-/PAP-/STD- ID presence only.
@@ -235,7 +236,8 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | VAL-DAPS-002 | 6 | ✅ pass | DAPS 0ms vs baseline (formula-level) |
 | VAL-VIZ-002 | 3 | ✅ pass | engine snapshot carries beam truth; SceneShell uses `EarthMovingBeamLayer` / `EarthFixedCellLayer` |
 | VAL-PLAT-006 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — `ScenarioConfig`, `ModelBundleSelection`, `ExperimentBundle`, and `ProfileBundle` still export from `profiles/types.ts`; `ProfileConfig` still exports; `runtime-materialization.ts` exports `materializeRuntimeProfile()`; `types.ts` and `runtime-materialization.ts` pass the no-circular-import checks against `engine.ts`, `viz/`, `app/`, and `runner/` |
-| VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — all 14 authored registry entries satisfy `deepEqual(materializeRuntimeProfile(entry.bundle, entry.exp), DEFAULT_PROFILES[entry.id])` under the SDD §9 deep-equality rules (`Date#getTime`, absent≡undefined) |
+| VAL-PLAT-007 | P3 | ✅ pass | `scripts/validate-profiles.mjs` — all 15 authored registry entries satisfy `deepEqual(materializeRuntimeProfile(entry.bundle, entry.exp), DEFAULT_PROFILES[entry.id])` under the SDD §9 deep-equality rules (`Date#getTime`, absent≡undefined) |
+| VAL-MODQN-001 | M1 | ✅ pass | `scripts/validate-modqn-baseline.ts` — MODQN constants, adapter logic, action-consumption wiring, and `modqn-paper-baseline` runtime viability all pass together |
 | VAL-PLAT-011 | P5 | ✅ pass | `scripts/validate-structure.mjs` — recursive scan confirms every `src/core/**/*.ts|tsx` file is `<= 650` lines; historical blockers now read `engine.ts` = 106 lines, `parameter-registry.ts` = 7 lines plus data shards (largest shard: `parameter-registry-handover-data.ts` = 316), and `profiles/types.ts` = 40 lines |
 | VAL-PLAT-012 | P5 | ✅ pass | `scripts/validate-structure.mjs` — `engine.ts` is 106 lines, `src/core/engine/` contains the required phase modules, root `engine.ts` imports only orchestrator-facing modules, and it defines only `createSimEngine()` |
 

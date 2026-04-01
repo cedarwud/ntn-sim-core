@@ -270,10 +270,11 @@ export interface ProfileListEntry {
  *   3. 'Sensitivity' tier entries
  *   Within each tier: order matches DEFAULT_PROFILES declaration order.
  *
- * Expected return: 14 entries (one per profile in DEFAULT_PROFILES).
+ * Expected return: one entry per active profile in DEFAULT_PROFILES
+ * (currently 15 entries).
  *
  * @version v1
- * @frozen — signature is stable; the 14-entry set expands only in Phase 5+
+ * @frozen — signature is stable; the active profile set may expand without reopening v1
  */
 export function getProfileList(): ProfileListEntry[]
 ```
@@ -599,9 +600,10 @@ for (const { files, pattern, id } of checks) {
 
 1. `getProfileList()` is importable from `@/core/contracts/exposure-v1`
 2. Calling `getProfileList()` returns an `Array`
-3. Array length === 14
-4. The following 14 profile IDs are all present (exact set):
+3. Array length === 15
+4. The following 15 profile IDs are all present (exact set):
    `'realistic-first-screen'`, `'case9-access-baseline'`, `'hobs-multibeam-baseline'`,
+   `'modqn-paper-baseline'`,
    `'bh-resource-baseline'`, `'case9-daps-baseline'`, `'real-trace-validation'`,
    `'meo-constellation-baseline'`, `'geo-relay-baseline'`, `'sinr-elevation-reproduction'`,
    `'hobs-reproduction'`, `'timer-cho-reproduction'`, `'bh-pf-baseline'`,
@@ -617,10 +619,11 @@ const { getProfileList } = await import('../src/core/contracts/exposure-v1.ts');
 const list = getProfileList();
 
 if (!Array.isArray(list)) fail('VAL-PLAT-010: getProfileList() did not return an Array');
-if (list.length !== 14) fail(`VAL-PLAT-010: expected 14 entries, got ${list.length}`);
+if (list.length !== 15) fail(`VAL-PLAT-010: expected 15 entries, got ${list.length}`);
 
 const EXPECTED_IDS = new Set([
   'realistic-first-screen', 'case9-access-baseline', 'hobs-multibeam-baseline',
+  'modqn-paper-baseline',
   'bh-resource-baseline', 'case9-daps-baseline', 'real-trace-validation',
   'meo-constellation-baseline', 'geo-relay-baseline', 'sinr-elevation-reproduction',
   'hobs-reproduction', 'timer-cho-reproduction', 'bh-pf-baseline',

@@ -1,9 +1,9 @@
 # MODQN Baseline Spec
 
-**Status:** Active spec — baseline-only
+**Status:** Active spec — M1 complete, M2 entry authorized
 **Promoted:** 2026-03-31 (downstream architecture Group 1)
-**Clarified:** 2026-04-01 (M1 dependency boundary synced after downstream architecture Group 2)
-**Depends on:** Frozen platform contracts (runtime-v1 / kpi-v1 / policy-v1 / exposure-v1)
+**Updated:** 2026-04-01 (M1 completion synced: contract extension, runtime bridge, validation gate)
+**Depends on:** Frozen platform contracts (runtime-v1 / kpi-v1 / policy-v1 / exposure-v1) plus reviewed `src/core/contracts/modqn-contracts.ts`
 **Scope gate:** Baseline paper faithful reproduction only
 
 ---
@@ -18,7 +18,7 @@
 2. State / action / reward boundary matching the original paper's design
 3. Three-objective DQN training and evaluation path (throughput / HO-penalty / load-balance)
 4. Stable baseline KPI artifact bundle for UI handoff
-5. Layer placement inside `src/core/algorithms/` with `src/core/contracts/policy-v1` as the boundary
+5. Layer placement inside `src/core/algorithms/` with `policy-v1` as the frozen runtime bridge and `modqn-contracts.ts` as the reviewed paper-faithful extension
 
 ### 1.2 Explicitly Out of Scope
 
@@ -94,7 +94,7 @@ M1 implements inside `src/core/algorithms/`:
 1. `ModqnBaselineAdapter` — implements `Policy` from `policy-v1`
 2. State builder: maps `PolicyObservation` → MODQN state vector
 3. Action adapter: maps MODQN beam-selection output → `PolicyAction`
-4. Reward calculator: computes three-component vector from `PolicyReward`
+4. Reward calculator: computes the three-component paper reward vector from `ModqnRewardInput`
 5. Weight-scalarized Q-value selector (inference path)
 
 **M1 must NOT:**
@@ -106,15 +106,23 @@ M1 implements inside `src/core/algorithms/`:
 ### 3.2 Dependency Chain for M1
 
 ```
-src/core/contracts/policy-v1  ← M1 imports
-src/core/contracts/runtime-v1 ← M1 reads for observation inputs
-src/core/algorithms/           ← M1 lands here
+src/core/contracts/policy-v1       ← frozen runtime bridge
+src/core/contracts/modqn-contracts ← reviewed paper-faithful extension
+src/core/contracts/runtime-v1      ← observation/runtime truth surface
+src/core/algorithms/               ← M1 lands here
 ```
 
-For the approved baseline path, M1 imports only from frozen contracts.
+For the approved baseline path, M1 imports only from frozen contracts plus the reviewed MODQN-specific extension contract.
 If a later downstream spec needs metadata-driven config or other helper surfaces, that dependency must be named explicitly in that later spec and still must not cross into `engine/` internals.
 
 M1 must not depend on `src/core/engine/` internal files.
+
+### 3.3 M1 Completion Record (2026-04-01)
+
+1. `src/core/contracts/modqn-contracts.ts` now freezes the paper-specific state/action/reward/training constants without reopening `policy-v1`.
+2. `ModqnBaselineAdapter` now ships with the paper-state builder, scalarized decision path, policy bridge, and reward-vector helper that M2 can train against.
+3. `modqn-paper-baseline` is now the dedicated authored/runtime profile for the baseline paper, with explicit assumption-backed orbit, beam, and runtime provenance.
+4. `validate-modqn-baseline.ts` now enforces `VAL-MODQN-001` for constants, import boundaries, adapter logic, policy/external action consumption, and baseline runtime viability.
 
 ---
 
@@ -151,22 +159,21 @@ The following are explicitly deferred beyond M1:
 
 ---
 
-## 6. Promotion Conditions for modqn-runtime-outline.md
+## 6. M2 Entry Record
 
-`modqn-runtime-outline.md` may be promoted to active SDD only after:
+`modqn-runtime-outline.md` promotion conditions were satisfied on 2026-04-01 because:
 
-1. M1 has defined the concrete `ModqnBaselineAdapter` interface
-2. The state/action/reward shapes are confirmed against frozen contracts
-3. Training loop design is reviewed against the baseline paper
+1. M1 shipped the concrete `ModqnBaselineAdapter` surface in `src/core/algorithms/`
+2. The state/action/reward shapes are now confirmed against `policy-v1` plus `modqn-contracts.ts`
+3. The baseline paper's training constants are frozen in `MODQN_BASELINE_TRAINING_PROTOCOL`
+4. `npm run validate:modqn` and the targeted preflight validation set are green
 
 ---
 
 ## 7. Validation Expectations
 
-At M1 entry:
+At M1 completion, the required gate set is:
 1. `npm run lint` must pass
 2. `npm run validate:contracts` must pass — M1 code must import only from `@/core/contracts`
-3. `npm run validate:stage` must remain green
-
-At M1 completion, add:
-4. Unit-level test: `ModqnBaselineAdapter` returns well-formed `PolicyAction` for a synthetic observation
+3. `npm run validate:modqn` must pass — dedicated `VAL-MODQN-001` gate
+4. `npm run validate:stage` must remain green

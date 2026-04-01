@@ -18,6 +18,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-HO-TRIGGER-THRESHOLD-DB', profileId: 'case9-access-baseline', defaultValue: -6, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-THRESHOLD-SINR', sourceNote: '−6 dB SINR-relative simplification vs H3 absolute; Advanced', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-HO-TRIGGER-THRESHOLD-DB', profileId: 'modqn-paper-baseline', defaultValue: -30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'policy-driven baseline uses a permissive attach floor because beam choice comes from MODQN rather than event-trigger gating', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-HO-TRIGGER-THRESHOLD-DB', profileId: 'realistic-first-screen', defaultValue: -8, sourceTier: 'standard-backed', sourceId: 'STD-3GPP-38133', sourceNote: 'attach floor = Q_out = −8 dB (TS 38.133 §7.6)', exposureMode: 'Realistic' },
     ],
   },
@@ -48,6 +49,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-HO-TTT-MS', profileId: 'case9-access-baseline', defaultValue: 640, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-TTT-NTN', sourceNote: 'TTT=640 ms NTN-extended assumption; H2 paper-backed presets: 0/40/256 ms', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-HO-TTT-MS', profileId: 'modqn-paper-baseline', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'slot-wise policy actions execute immediately in the runtime bridge', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-HO-TTT-MS', profileId: 'realistic-first-screen', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'TTT=40 ms (Table I)', exposureMode: 'Realistic' },
     ],
   },
@@ -63,6 +65,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'case9-access-baseline', defaultValue: 1, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'hysteresis 1 dB', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'modqn-paper-baseline', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'slot-wise policy actions use zero hysteresis in the runtime bridge', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'realistic-first-screen', defaultValue: 2, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'hysteresis 2 dB (Table I)', exposureMode: 'Realistic' },
     ],
   },
@@ -78,6 +81,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-HO-MIN-ELEV-DEG', profileId: '__universal__', defaultValue: 10, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SINR-ELEVATION', sourceNote: 'min elevation 10° (§IV)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-HO-MIN-ELEV-DEG', profileId: 'modqn-paper-baseline', defaultValue: 10, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'minimum elevation is kept at 10° as a runtime safety floor; the MODQN paper does not publish a separate elevation gate', exposureMode: 'Advanced' },
     ],
   },
   {
@@ -92,6 +96,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-HO-PINGPONG-WINDOW-SEC', profileId: '__universal__', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-002', sourceNote: '30 s suppression window; engineering choice', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-HO-PINGPONG-WINDOW-SEC', profileId: 'modqn-paper-baseline', defaultValue: 10, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: '10 s KPI diagnostics window for the MODQN baseline bridge', exposureMode: 'Advanced' },
     ],
   },
   {

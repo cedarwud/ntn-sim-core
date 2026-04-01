@@ -17,3 +17,18 @@
 
 export type { AlgorithmDescriptor } from './types';
 export type { Policy, PolicyObservation, PolicyAction, PolicyReward } from './types';
+
+export { ModqnBaselineAdapter } from './modqn-baseline-adapter';
+
+import { ModqnBaselineAdapter } from './modqn-baseline-adapter';
+import type { AlgorithmDescriptor } from './types';
+
+/**
+ * MODQN Baseline Registration.
+ */
+export const MODQN_BASELINE_DESCRIPTOR: AlgorithmDescriptor = {
+  id: 'modqn-baseline',
+  displayName: 'MODQN Baseline (2024)',
+  paperId: 'PAP-2024-MORL-MULTIBEAM',
+  createPolicy: () => new ModqnBaselineAdapter(),
+};
