@@ -1,8 +1,8 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.8.2
-**Date:** 2026-03-31
-**Status:** Prior hardening/closure program complete; latest audited reruns of `validate:visual-browser` and `validate:stage` pass, but the browser gate remains under transient watch after one same-day re-audit timeout. Simulator Platform Refactor is now complete through Phase 5 Group 3 (2026-03-31). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. The required Phase 5 validation set is currently passing in the latest audited reruns, with browser-visible checks still treated as transient-sensitive rather than permanently de-flaked.
+**Version:** 4.8.3
+**Date:** 2026-04-01
+**Status:** Prior hardening/closure program complete; latest audited reruns of `validate:visual-browser` and `validate:stage` pass, with browser-sensitive evidence still treated as transient-watch rather than permanently de-flaked. Simulator Platform Refactor is complete through Phase 5 Group 3 (2026-03-31), and downstream architecture is now complete through Group 2 (2026-03-31; authority/docs synchronized 2026-04-01). Final platform audit re-check passed on 2026-03-31 after stabilizing the DAPS live browser gate: `useSimulation.ts` now preserves missed discrete ticks and holds short-lived dual-active snapshots long enough for browser probes to observe them, while `engine/tick.ts` advances handover/KPI/energy exactly once per discrete tick. Phase 1 closure is hardened in the current tree: `validate-parameter-registry.mjs` now machine-enforces profile-specific registry/runtime parity in addition to coverage/source/namespace checks. Phase 4 (Runtime Contract Freeze) remains the frozen consumer-boundary baseline: `src/core/contracts/`, `RunnerExposureApi`, and `getProfileList()` semantics were preserved while Phase 5 reworked internal ownership. Phase 5 Group 1 froze the split/retirement plan and reviewer-grade `VAL-PLAT-011/012` contract; Group 2 landed `src/core/engine/`, split `profiles/types.ts`, moved orbit bootstrap ownership into `src/core/orbit/profile-runtime.ts`, and scoped the `parameter-registry` size split; Group 3 retired browser sync XHR real-trace bootstrap in both `useSimulation.ts` and `useReplay.ts`, resolved the beam-selection naming collision, deleted `profile-composer.ts`, retired runtime `ProfileConfig.sourceMap`, moved authored exposure/provenance/materialization responsibilities into `profile-exposure-catalog.ts`, `profile-authoring-registry.ts`, `runtime-materialization.ts`, and `profile-provenance-view.ts`, and machine-enforced `VAL-PLAT-011/012` in `validate-structure.mjs`. Downstream Group 2 then landed the minimal `algorithms / experiments / view-models` skeleton without reopening direct `engine/` or authored-profile coupling; `M1` and `U1` may now start from the active downstream surface, while `estnet` remains paused.
 
 ---
 
@@ -32,6 +32,17 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | 3 | Scenario/Profile/Experiment Split | ✅ complete (2026-03-30) — Group 1 (SDD), Group 2 (types + compose/decompose), Group 3 (file split + thin re-export defaults.ts + observers.ts) all done | `sdd/phase3-scenario-profile-experiment-split.md §10` — VAL-PLAT-005/006/007 PASS after Group 3 file split; `validate:stage` green (exit 0) |
 | 4 | Runtime Contract Freeze | ✅ complete (2026-03-30) — Group 1 (SDD spec frozen) + Group 2 (contracts landed, consumers migrated, VAL-PLAT-008/009/010 PASS) | `sdd/phase4-runtime-contract-sdd.md §10` — VAL-PLAT-008/009/010 all PASS |
 | 5 | Cleanup + Modularization | ✅ complete (2026-03-31) — Group 1 plan freeze, Group 2 structural split, and Group 3 legacy retirement / gate closure all landed; `validate:structure` now enforces `VAL-PLAT-011/012` and Phase 5 exit criteria are satisfied | `sdd/phase5-cleanup-and-modularization-sdd.md §9` — Phase 5 complete |
+
+---
+
+## 1c. Downstream Entry Status
+
+| Surface | Status | Note |
+|---|---|---|
+| Downstream architecture | ✅ complete (Group 2 landed 2026-03-31; doc sync 2026-04-01) | Active boundary lives in `sdd/downstream-runtime-architecture-sdd.md`; minimal skeleton exists at `src/core/algorithms/`, `src/core/experiments/`, `src/viz/view-models/`; `src/adapters/` intentionally not created |
+| `MODQN M1` baseline entry | ✅ ready | Active authority is `sdd/modqn-baseline-spec-outline.md`; baseline path is frozen-contract-only |
+| `UI U1` baseline entry | ✅ ready | Active authority is `sdd/ui-integration-roadmap.md`; baseline path consumes frozen contracts plus `RunnerExposureApi` |
+| `estnet` consumer path | ⏸ paused | `sdd/estnet-ui-contract-outline.md` remains paused until explicit reopen |
 
 ---
 
@@ -137,6 +148,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `contracts` | 5 | `runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`, `index.ts` |
 | `energy` | 4 | `layer1.ts`, `layer2.ts`, `types.ts`, `index.ts` |
 | `engine` | 12 | `bootstrap.ts`, `tick.ts`, `orbit-step.ts`, `channel-step.ts`, `handover-step.ts`, `kpi-step.ts`, `scheduler-step.ts`, `energy-step.ts`, `snapshot-step.ts`, `policy-step.ts`, `state.ts`, `public-types.ts` |
+| `experiments` | 2 | `types.ts`, `index.ts` — downstream landing zone for `ExperimentManifest`, `ExperimentResult` |
 | `handover` | 9 | `manager.ts`, `baselines.ts`, `daps.ts`, `cho.ts`, `mc-ho.ts`, `ranking.ts`, `d2-distance.ts`, `types.ts`, `index.ts` |
 | `kpi` | 4 | `accumulator.ts`, `recompute.ts`, `types.ts`, `index.ts` |
 | `models` | 9 | `geometry.ts`, `path-loss.ts`, `beam-gain.ts`, `sinr.ts`, `handover.ts`, `power-ee.ts`, `policy.ts`, `model-bundle.ts`, `index.ts` |
@@ -146,6 +158,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `trace` | 4 | `types.ts`, `factory.ts`, `serialization.ts`, `index.ts` |
 | `traffic` | 2 | `generator.ts`, `index.ts` |
 | `ue` | 3 | `position-generator.ts`, `mobility.ts`, `index.ts` |
+| `algorithms` | 2 | `types.ts`, `index.ts` — downstream landing zone for contract-bound baseline adapters |
 | root | 2 | `engine.ts`, `README.md` |
 
 ### `src/runner/` — current inventory
@@ -166,6 +179,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `overlays` | 12 | `ControlPanel.tsx`, `SimHud.tsx`, `BeamInfoOverlay.tsx`, `HandoverLinkOverlay.tsx`, `BhExplainabilityPanel.tsx`, `BatchKpiPanel.tsx`, `HoEventLogOverlay.tsx`, `SinrCdfOverlay.tsx`, `SinrElevationScatter.tsx`, `SinrTimeSeriesOverlay.tsx`, `Starfield.tsx`, `ValidationProbe.tsx` |
 | `scene` | 3 | `SceneShell.tsx`, `NTPUScene.tsx`, `CameraRig.tsx` |
 | `validation` | 1 | `store.ts` (browser-side validation probe store) |
+| `view-models` | 2 | `types.ts`, `index.ts` — downstream landing zone for KPI/card/chart projection types |
 
 ### `src/app/` — current inventory
 

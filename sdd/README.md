@@ -2,12 +2,13 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-03-29, the project is being re-positioned from "paper-specific simulator hardening" to a longer-lived **parameter-driven, model-pluggable simulator platform**. The SDD set is therefore split into:
+As of 2026-04-01, the project has completed the simulator-platform refactor and the downstream-architecture Group 2 landing. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **Outline files** for downstream work that must be promoted after preflight / repo re-review
-4. **Historical / closure files** moved to `archive/`
+3. **Active downstream entry files** that now authorize baseline `M1` / `U1`
+4. **Deferred / paused downstream files** that still require additional promotion
+5. **Historical / closure files** moved to `archive/`
 
 ## 1. Core Authority
 
@@ -40,7 +41,7 @@ These files remain the long-lived authority set:
 
 ## 2. Completed Program: Simulator Platform Refactor
 
-These files define the now-complete platform-refactor program that unlocked downstream work. MODQN runtime work and new UI integration work must still be promoted from outline to active SDDs through their own preflight/review flow; they should no longer be framed as blocked on unfinished Phase 5 cleanup.
+These files define the now-complete platform-refactor program that unlocked downstream work. They remain the frozen upstream baseline for all downstream programs.
 
 1. `ntn-sim-core-platform-refactor-roadmap.md`
    - master roadmap for the platform refactor program
@@ -56,23 +57,36 @@ These files define the now-complete platform-refactor program that unlocked down
    - runtime APIs and external integration contracts
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
-8. `downstream-runtime-architecture-sdd.md`
-   - shared downstream-prep boundary for algorithms / experiments / view-models / adapters before baseline MODQN and baseline UI start
 
-## 3. Deferred Program Outlines
+## 3. Active Downstream Entry Surface
 
-These are intentionally outline-level documents only. The upstream platform dependency is already satisfied, but they must not be treated as implementation-ready SDDs until the repository is re-reviewed and the relevant outline is rewritten/promoted into the smallest active SDD surface.
+These files are now the implementation-ready downstream authority for the baseline entry surfaces.
+
+1. `downstream-runtime-architecture-sdd.md`
+   - shared downstream boundary and Group 2 landing record for `algorithms / experiments / view-models / adapters`
+2. `modqn-baseline-spec-outline.md`
+   - active baseline `M1` spec; restricted to frozen contract inputs
+3. `ui-integration-roadmap.md`
+   - active baseline `U1` spec; restricted to frozen contracts and stable runner surfaces
+
+`M1` and `U1` must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
+
+## 4. Deferred / Paused Downstream Files
+
+These files are not valid implementation authority for the current baseline entry path without further promotion or explicit reopen.
 
 1. `modqn-roadmap.md`
-2. `modqn-baseline-spec-outline.md`
-3. `modqn-runtime-outline.md`
-4. `modqn-experiment-outline.md`
-5. `ui-integration-roadmap.md`
-6. `estnet-ui-contract-outline.md`
+   - broader program roadmap; not a direct implementation surface
+2. `modqn-runtime-outline.md`
+   - deferred until `M2` promotion
+3. `modqn-experiment-outline.md`
+   - deferred until `M3` promotion
+4. `estnet-ui-contract-outline.md`
+   - paused future-consumer path; not active until explicit reopen
 
-Each outline must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become an active SDD.
+Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
-## 4. Archived Historical Documents
+## 5. Archived Historical Documents
 
 Closed closure notes, stale roadmaps, donor-migration notes, and one-shot acceptance documents are no longer kept in this folder as authority. They are archived under:
 
@@ -80,12 +94,13 @@ Closed closure notes, stale roadmaps, donor-migration notes, and one-shot accept
 
 Historical documents may be cited for forensic context, but they must not override the active authority set above.
 
-## 5. Working Rule
+## 6. Working Rule
 
 1. No KPI-impacting implementation should land without a corresponding place in:
    - the core authority set
    - the current active SDD surface (including any promoted downstream SDDs)
    - the validation matrix
-2. Do not start MODQN implementation or new UI integration from outline files alone.
-3. Any outline promoted into active work must first be rewritten after re-checking current repo state.
-4. Architecture changes should update the blueprint under `docs/architecture/` in the same change set when that blueprint is still the governing view.
+2. `M1` / `U1` may start only from the active downstream entry surface above plus the matching `todo/` handoff docs.
+3. Do not start `M2`, `M3`, or `estnet` work from deferred / paused files alone.
+4. Any deferred outline promoted into active work must first be rewritten after re-checking current repo state.
+5. Architecture changes should update the blueprint under `docs/architecture/` in the same change set when that blueprint is still the governing view.

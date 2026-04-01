@@ -1,8 +1,8 @@
 # NTN Sim Core — Architecture Blueprint
 
-**Version:** 0.2.2
-**Date:** 2026-03-31
-**Status:** Updated — Platform Refactor is complete through Phase 5 Group 3. The planned `src/core/engine/`, `src/core/profiles/`, `src/core/config/`, and runner ownership split surfaces are landed; browser sync bootstrap debt and Phase 3 compatibility shims are retired; downstream MODQN / UI / estnet work may now start from their own preflight-reviewed programs rather than from platform-cleanup prompts. See `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the normative target module map and dependency rules.
+**Version:** 0.2.3
+**Date:** 2026-04-01
+**Status:** Updated — Platform Refactor is complete through Phase 5 Group 3. The planned `src/core/engine/`, `src/core/profiles/`, `src/core/config/`, and runner ownership split surfaces are landed; browser sync bootstrap debt and Phase 3 compatibility shims are retired; downstream MODQN / UI work may now start from the clarified downstream-architecture surfaces (Group 1 + Group 2 complete), while `estnet` remains paused until explicitly reopened. See `sdd/phase0-architecture-spec.md §0B.2–0B.3` for the normative target module map and dependency rules.
 
 ---
 

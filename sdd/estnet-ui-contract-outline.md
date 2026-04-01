@@ -1,22 +1,30 @@
 # estnet-ui-kickoff Contract (Outline)
 
-**Status:** Paused outline  
-**Blocked by:** Phase 4 Runtime Contract completion
+**Status:** Paused outline — do not promote without explicit user direction
+**Updated:** 2026-04-01 (paused gate synced after downstream architecture Group 2)
 
-## Purpose
+## Note on Upstream Blocker
 
-Define how `project/estnet-ui-kickoff` should consume `ntn-sim-core` without importing internal implementation details.
+Phase 4 Runtime Contract is now complete. The upstream platform blocker is resolved.
+This outline remains paused by policy, not by an unfinished upstream dependency.
+The user must explicitly reopen estnet integration before this outline may be promoted.
 
-This topic is currently paused and should not be promoted into active work until the user explicitly reopens estnet integration.
+## Promotion Gate
 
-## Future Contract Areas
+This outline may only be promoted when:
 
-1. simulation input schema
-2. parameter metadata schema
-3. snapshot/KPI schema
-4. experiment manifest schema
-5. profile/model bundle descriptors
+1. The user explicitly requests estnet integration work
+2. The `src/adapters/` directory is deliberately created as part of the estnet reopen change set (it was intentionally not created in downstream architecture Group 2)
+3. Frozen contracts (`runtime-v1`, `kpi-v1`, `exposure-v1`) are confirmed sufficient for external consumer use — or a contract extension path has been approved
 
-## Note
+## Future Contract Areas (if reopened)
 
-This outline must be rewritten after Phase 4, because the final contract should reflect the actual post-refactor runtime API rather than current profile internals.
+1. Simulation input schema for external consumer
+2. Parameter metadata schema
+3. Snapshot / KPI schema
+4. Experiment manifest schema
+5. Profile / model bundle descriptors
+
+## Current Constraint
+
+`project/estnet-ui-kickoff` must NOT be allowed to import internal authored profile files or `src/core/engine/` internals. All consumption must go through `src/core/contracts/` and `src/adapters/` (future).
