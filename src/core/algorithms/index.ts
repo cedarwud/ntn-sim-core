@@ -8,7 +8,8 @@
  * @created 2026-03-31 (downstream architecture Group 2)
  * @authority sdd/downstream-runtime-architecture-sdd.md §3.1, §8B
  *
- * Current state: skeleton only — M1 will add ModqnBaselineAdapter here.
+ * Current state: M1 baseline bridge landed; M2 consumes this surface for
+ * training/evaluation work without reopening engine internals.
  *
  * Dependency rules:
  *   MAY import:   @/core/contracts

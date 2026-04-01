@@ -2,11 +2,11 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-01, the project has completed the simulator-platform refactor and the downstream-architecture Group 2 landing. The SDD set is therefore split into:
+As of 2026-04-01, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, and the MODQN M2 baseline reproduction closure. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **Active downstream entry files** that now authorize baseline `M1` / `U1`
+3. **Active downstream files** that now authorize current `M3 preflight` / `U1` work
 4. **Deferred / paused downstream files** that still require additional promotion
 5. **Historical / closure files** moved to `archive/`
 
@@ -58,18 +58,20 @@ These files define the now-complete platform-refactor program that unlocked down
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
 
-## 3. Active Downstream Entry Surface
+## 3. Active Downstream Surface
 
-These files are now the implementation-ready downstream authority for the baseline entry surfaces.
+These files are now the implementation-ready downstream authority for the current downstream work surface.
 
 1. `downstream-runtime-architecture-sdd.md`
    - shared downstream boundary and Group 2 landing record for `algorithms / experiments / view-models / adapters`
 2. `modqn-baseline-spec-outline.md`
-   - active baseline `M1` spec; restricted to frozen contract inputs
-3. `ui-integration-roadmap.md`
+   - active MODQN baseline authority; M1 completion record plus the frozen paper-faithful contract surface consumed by M2
+3. `modqn-runtime-outline.md`
+   - active MODQN runtime/trainer authority; now records the shipped M2 baseline reproduction surface and M3 preflight entry conditions
+4. `ui-integration-roadmap.md`
    - active baseline `U1` spec; restricted to frozen contracts and stable runner surfaces
 
-`M1` and `U1` must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
+Current MODQN/UI work must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
 
 ## 4. Deferred / Paused Downstream Files
 
@@ -77,11 +79,9 @@ These files are not valid implementation authority for the current baseline entr
 
 1. `modqn-roadmap.md`
    - broader program roadmap; not a direct implementation surface
-2. `modqn-runtime-outline.md`
-   - deferred until `M2` promotion
-3. `modqn-experiment-outline.md`
-   - deferred until `M3` promotion
-4. `estnet-ui-contract-outline.md`
+2. `modqn-experiment-outline.md`
+   - deferred until explicit `M3` promotion, but now unblocked by the shipped M2 result/artifact surface
+3. `estnet-ui-contract-outline.md`
    - paused future-consumer path; not active until explicit reopen
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
@@ -100,7 +100,7 @@ Historical documents may be cited for forensic context, but they must not overri
    - the core authority set
    - the current active SDD surface (including any promoted downstream SDDs)
    - the validation matrix
-2. `M1` / `U1` may start only from the active downstream entry surface above plus the matching `todo/` handoff docs.
-3. Do not start `M2`, `M3`, or `estnet` work from deferred / paused files alone.
+2. Current downstream work (`MODQN M3 preflight`, `UI U1`) may start only from the active downstream surface above plus the matching `todo/` handoff docs.
+3. Do not start `M3` implementation or `estnet` work from deferred / paused files alone.
 4. Any deferred outline promoted into active work must first be rewritten after re-checking current repo state.
 5. Architecture changes should update the blueprint under `docs/architecture/` in the same change set when that blueprint is still the governing view.

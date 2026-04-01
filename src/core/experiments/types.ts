@@ -1,8 +1,8 @@
 /**
  * src/core/experiments/types — Downstream boundary types for experiment specs.
  *
- * This file defines the minimal type surface that M2/M3 will extend when
- * implementing baseline experiment manifests and artifact bundles.
+ * This file defines the minimal type surface that the shipped M2 path and the
+ * later M3 viewer-facing result surface build on for baseline experiments.
  *
  * @layer experiments
  * @created 2026-03-31 (downstream architecture Group 2)
@@ -18,13 +18,14 @@
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
 
 // ---------------------------------------------------------------------------
-// Experiment manifest (filled by M2)
+// Experiment manifest
 // ---------------------------------------------------------------------------
 
 /**
  * Descriptor for a single reproducible experiment run.
  *
- * M2 will define concrete manifests (e.g. MODQN baseline training manifest).
+ * M2 defines concrete manifests such as the MODQN baseline reproduction
+ * manifest; later downstream surfaces should extend rather than replace this.
  */
 export interface ExperimentManifest {
   /** Unique experiment identifier. */
@@ -40,14 +41,14 @@ export interface ExperimentManifest {
 }
 
 // ---------------------------------------------------------------------------
-// Experiment result bundle (filled by M3)
+// Experiment result bundle
 // ---------------------------------------------------------------------------
 
 /**
  * Result of a completed experiment run.
  *
- * M3 will fill this with KPI data, training curves, and artifact paths.
- * U1 view-models will consume this type for baseline result display.
+ * M2 fills this with held-out KPI data and wall-clock timing; M3 stabilizes
+ * richer viewer-facing result bundles on top of this baseline contract.
  */
 export interface ExperimentResult {
   /** Matches the manifest ID. */

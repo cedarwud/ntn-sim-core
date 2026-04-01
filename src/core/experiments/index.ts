@@ -9,7 +9,9 @@
  * @created 2026-03-31 (downstream architecture Group 2)
  * @authority sdd/downstream-runtime-architecture-sdd.md §3.2, §8B
  *
- * Current state: skeleton only — M2 will add baseline training manifests here.
+ * Current state: M2 baseline reproduction path landed. This layer now owns
+ * deterministic MODQN sampling, training/eval manifests, and held-out
+ * artifact assembly above the frozen M1 adapter surface.
  *
  * Dependency rules:
  *   MAY import:   @/core/contracts, @/core/algorithms, runner surfaces
@@ -17,3 +19,19 @@
  */
 
 export type { ExperimentManifest, ExperimentResult } from './types';
+export type {
+  ModqnExperience,
+  ModqnSamplingConfig,
+  ModqnSamplingPlan,
+  ModqnSamplingWindow,
+  ModqnTrainingManifest,
+  ModqnTrainingMetrics,
+  ModqnHeldOutEvaluation,
+  ModqnHeldOutWindowResult,
+  ModqnReproductionResult,
+} from './modqn-reproduction-types';
+
+export { ModqnTrainer } from './modqn-trainer';
+export { MODQN_REPRODUCTION_MANIFEST } from './modqn-reproduction-manifest';
+export { buildModqnSamplingPlan } from './modqn-sampling';
+export { runModqnBaselineReproduction } from './modqn-reproduction-runner';
