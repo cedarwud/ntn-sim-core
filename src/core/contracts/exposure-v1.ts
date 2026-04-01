@@ -4,13 +4,18 @@
  * @version v1
  * @frozen — breaking changes require a new file: exposure-v2.ts
  *
- * Sources: profiles/profile-exposure-catalog.ts (for getProfileList); profiles/types.ts (HandoverType)
+ * Sources: profiles/profile-exposure-catalog.ts (for getProfileList);
+ *          parameter-registry + profile loader (for getParameterView);
+ *          profiles/types.ts (HandoverType)
  * Consumers: src/viz/overlays/ControlPanel.tsx, future estnet-ui-kickoff
  * Forbidden imports in this file: engine.ts, runner/, React, hardcoded profile arrays
  *
  * Phase 4 Group 2 — phase4-runtime-contract-sdd.md §4.4
  */
 
+import { PARAMETER_REGISTRY } from '@/core/config/parameter-registry';
+import type { ParameterEntry, ProfileParameterBinding } from '@/core/config/parameter-registry-schema';
+import { loadProfile } from '@/core/profiles/loader';
 import { getProfileExposureCatalog } from '@/core/profiles/profile-exposure-catalog';
 
 // ---------------------------------------------------------------------------
@@ -81,7 +86,116 @@ export function getProfileList(): ProfileListEntry[] {
 }
 
 // ---------------------------------------------------------------------------
-// ParameterView (stub — @decision-pending DP3)
+// getParameterView
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the parameter metadata for a given profile, filtering out Internal-only fields.
+ *
+ * @version v1
+ */
+export function getParameterView(profileId: string): ParameterMetadataResponse {
+  const profile = loadProfile(profileId);
+  const parameters: ParameterView[] = [];
+
+  for (const entry of PARAMETER_REGISTRY) {
+    const binding = resolveBinding(entry, profileId);
+    if (!binding || binding.exposureMode === 'Internal-only' || binding.sourceTier === 'debug-only') continue;
+
+    parameters.push({
+      parameterId: entry.spec.id,
+      profileId,
+      value: resolveExposedValue(entry, binding, profile),
+      unit: entry.spec.unit ?? undefined,
+      tier: toParameterViewTier(binding.sourceTier),
+      specMode: binding.exposureMode,
+      sourceId: binding.sourceId,
+    });
+  }
+
+  parameters.sort(compareParameterViews);
+
+  return {
+    profileId,
+    parameters,
+  };
+}
+
+function resolveBinding(
+  entry: ParameterEntry,
+  profileId: string,
+): ProfileParameterBinding | undefined {
+  const exact = entry.bindings.find((binding) => binding.profileId === profileId);
+  if (exact) return exact;
+  return entry.bindings.find((binding) => binding.profileId === '__universal__');
+}
+
+function getValueAtPath(profile: unknown, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>((current, segment) => {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return undefined;
+      }
+      return (current as Record<string, unknown>)[segment];
+    }, profile);
+}
+
+function resolveExposedValue(
+  entry: ParameterEntry,
+  binding: ProfileParameterBinding,
+  profile: unknown,
+): number | string | boolean {
+  const runtimeValue = getValueAtPath(profile, entry.spec.parameterPath);
+  if (typeof runtimeValue === 'number' || typeof runtimeValue === 'string' || typeof runtimeValue === 'boolean') {
+    return runtimeValue;
+  }
+
+  const boundValue = binding.defaultValue;
+  if (typeof boundValue === 'number' || typeof boundValue === 'string' || typeof boundValue === 'boolean') {
+    return boundValue;
+  }
+
+  return entry.spec.isDerived ? 'derived' : 'not-set';
+}
+
+function toParameterViewTier(
+  tier: ProfileParameterBinding['sourceTier'],
+): ParameterView['tier'] {
+  switch (tier) {
+    case 'normative':
+    case 'paper-backed':
+    case 'standard-backed':
+    case 'assumption-backed':
+      return tier;
+    case 'debug-only':
+      return 'assumption-backed';
+  }
+}
+
+function specModeRank(specMode: ParameterView['specMode']): number {
+  switch (specMode) {
+    case 'Realistic':
+      return 0;
+    case 'Advanced':
+      return 1;
+    case 'Sensitivity':
+      return 2;
+    case 'Internal-only':
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function compareParameterViews(left: ParameterView, right: ParameterView): number {
+  const modeDelta = specModeRank(left.specMode) - specModeRank(right.specMode);
+  if (modeDelta !== 0) return modeDelta;
+  return left.parameterId.localeCompare(right.parameterId);
+}
+
+// ---------------------------------------------------------------------------
+// ParameterView
 // ---------------------------------------------------------------------------
 
 /**
@@ -89,9 +203,6 @@ export function getProfileList(): ProfileListEntry[] {
  * Backed by Phase 1 PARAMETER_REGISTRY + ProfileParameterBinding.
  *
  * @version v1-draft
- * @decision-pending — DECISION-POINT-DP3: full field set deferred until first active consumer (MODQN/estnet).
- *   Group 2 must create this stub; Group 2 must NOT expand it beyond this definition unless an active
- *   Phase 4 consumer (ControlPanel, useBatchKpi, runner-exposure-api) explicitly requires it.
  */
 export interface ParameterView {
   parameterId: string;
@@ -107,7 +218,6 @@ export interface ParameterView {
  * Response to a parameter metadata query for one profile.
  *
  * @version v1-draft
- * @decision-pending — DECISION-POINT-DP3: deferred until MODQN/estnet needs it.
  */
 export interface ParameterMetadataResponse {
   profileId: string;

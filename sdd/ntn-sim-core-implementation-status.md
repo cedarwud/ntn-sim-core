@@ -41,7 +41,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 |---|---|---|
 | Downstream architecture | ✅ complete (Group 2 landed 2026-03-31; doc sync 2026-04-01) | Active boundary lives in `sdd/downstream-runtime-architecture-sdd.md`; minimal skeleton exists at `src/core/algorithms/`, `src/core/experiments/`, `src/viz/view-models/`; `src/adapters/` intentionally not created |
 | `MODQN` baseline reproduction | ✅ M3 complete / U1 richer-handoff ready | Active authority is `sdd/modqn-baseline-spec-outline.md` + `sdd/modqn-runtime-outline.md` + `sdd/modqn-experiment-outline.md`; baseline path now uses the frozen `policy-v1` bridge plus reviewed `modqn-contracts.ts`, deterministic epoch-window sampling, held-out evaluation artifacts, the stabilized `ModqnReproductionResult`, `ModqnViewModel`, `validate:modqn`, `validate:modqn:m2`, and `validate:modqn:m3` |
-| `UI U1` baseline entry | ✅ ready | Active authority is `sdd/ui-integration-roadmap.md`; baseline path consumes frozen contracts plus `RunnerExposureApi` |
+| `UI` baseline viewer path (`U1` + `U2`) | ✅ complete | Active authority is `sdd/ui-integration-roadmap.md`; shipped path now includes registry-backed exposure alignment, contracts-first single-run viewer, baseline-only dual-run comparison/export helpers, and optional MODQN M3 richer handoff consumption without crossing manifest/runtime internals; current-tree reruns of `validate:contracts`, `validate:visual-browser`, and `validate:stage` passed on 2026-04-01 |
 | `estnet` consumer path | ⏸ paused | `sdd/estnet-ui-contract-outline.md` remains paused until explicit reopen |
 
 ---

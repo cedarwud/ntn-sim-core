@@ -39,6 +39,24 @@ export interface KpiCardViewModel {
 }
 
 /**
+ * Single detail row in a KPI section.
+ */
+export interface KpiDetailRowViewModel {
+  readonly label: string;
+  readonly formattedValue: string;
+  readonly rawValue: number;
+  readonly unit?: string;
+}
+
+/**
+ * Grouped section for baseline result display.
+ */
+export interface KpiDetailSectionViewModel {
+  readonly title: string;
+  readonly rows: readonly KpiDetailRowViewModel[];
+}
+
+/**
  * Single data point in a chart series.
  */
 export interface ChartDataPoint {
@@ -70,3 +88,4 @@ export interface ChartSeriesViewModel {
  * Placeholder — U1 will implement the actual projection logic.
  */
 export type KpiBundleProjector = (bundle: KpiBundle) => KpiCardViewModel[];
+export type KpiBundleSectionProjector = (bundle: KpiBundle) => KpiDetailSectionViewModel[];

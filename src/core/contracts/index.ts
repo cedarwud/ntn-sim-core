@@ -63,4 +63,4 @@ export { MODQN_BASELINE_OBJECTIVE_WEIGHTS, MODQN_BASELINE_TRAINING_PROTOCOL } fr
 
 // exposure-v1
 export type { HandoverType, ProfileListEntry, ParameterView, ParameterMetadataResponse } from './exposure-v1';
-export { getProfileList } from './exposure-v1';
+export { getProfileList, getParameterView } from './exposure-v1';

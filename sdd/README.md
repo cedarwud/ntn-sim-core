@@ -2,11 +2,11 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-01, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M2 baseline reproduction closure, and the MODQN M3 result-handoff stabilization. The SDD set is therefore split into:
+As of 2026-04-01, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M2 baseline reproduction closure, the MODQN M3 result-handoff stabilization, and the UI baseline viewer path through U2. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **Active downstream files** that now authorize current `U1` work and any future approved MODQN follow-ons
+3. **Active downstream files** that authorize the shipped downstream baseline surfaces plus any future approved MODQN/UI follow-ons
 4. **Deferred / paused downstream files** that still require additional promotion
 5. **Historical / closure files** moved to `archive/`
 
@@ -70,10 +70,12 @@ These files are now the implementation-ready downstream authority for the curren
    - active MODQN runtime/trainer authority; records the shipped M2 runtime/trainer surface consumed by later downstream work
 4. `modqn-experiment-outline.md`
    - active MODQN M3 result/artifact authority; defines the stabilized baseline result bundle and viewer-facing handoff surface
-5. `ui-integration-roadmap.md`
-   - active baseline `U1` spec; restricted to frozen contracts and stable runner surfaces
+5. `modqn-baseline-acceptance-note.md`
+   - active reviewer note for aggregate M1-to-M3 baseline acceptance before optional `U1` richer-handoff consumption
+6. `ui-integration-roadmap.md`
+   - active baseline UI spec covering the shipped `U1`/`U2` path; still restricted to frozen contracts and stable runner surfaces
 
-Current MODQN/UI work must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
+Any resumed MODQN/UI follow-on work must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
 
 ## 4. Deferred / Paused Downstream Files
 
@@ -100,7 +102,7 @@ Historical documents may be cited for forensic context, but they must not overri
    - the core authority set
    - the current active SDD surface (including any promoted downstream SDDs)
    - the validation matrix
-2. Current downstream work (`UI U1` plus any explicitly reopened MODQN follow-ons) may start only from the active downstream surface above plus the matching `todo/` handoff docs.
+2. Any resumed downstream work (including shipped UI baseline follow-on changes or explicitly reopened MODQN follow-ons) may start only from the active downstream surface above plus the matching `todo/` handoff docs.
 3. Do not start paused MODQN follow-on work or `estnet` work from deferred / paused files alone.
 4. Any deferred outline promoted into active work must first be rewritten after re-checking current repo state.
 5. Architecture changes should update the blueprint under `docs/architecture/` in the same change set when that blueprint is still the governing view.

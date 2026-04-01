@@ -19,10 +19,17 @@
 
 export type {
   KpiCardViewModel,
+  KpiDetailRowViewModel,
+  KpiDetailSectionViewModel,
   ChartDataPoint,
   ChartSeriesViewModel,
   KpiBundleProjector,
+  KpiBundleSectionProjector,
 } from './types';
 
+export {
+  projectKpiBundleToCards,
+  projectKpiBundleToSections,
+} from './kpi-bundle-projectors';
 export type { ModqnComparisonRow } from './modqn-view-model';
 export { ModqnViewModel } from './modqn-view-model';

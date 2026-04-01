@@ -108,6 +108,23 @@ export class ModqnViewModel {
     ];
   }
 
+  /**
+   * Enhanced comparison row including a reference benchmark result.
+   */
+  public getComparisonWithReference(referenceKpi: KpiBundle): (ModqnComparisonRow & { reference: string })[] {
+    const base = this.getKpiComparison();
+    return base.map(row => {
+      let refValue = 'N/A';
+      if (row.metric === 'Mean SINR') refValue = referenceKpi.meanSinrDb.toFixed(2);
+      else if (row.metric === 'Mean Throughput') refValue = referenceKpi.meanThroughputMbps.toFixed(2);
+      else if (row.metric === 'Total Handovers') refValue = String(referenceKpi.totalHandovers);
+      else if (row.metric === 'Ping-Pong Count') refValue = String(referenceKpi.pingPongCount);
+      else if (row.metric === 'Outage Ratio') refValue = referenceKpi.outageRatio.toFixed(4);
+
+      return { ...row, reference: refValue };
+    });
+  }
+
   public getLimitations(): string[] {
     return [...this.result.metadata.constraints];
   }

@@ -2,7 +2,7 @@
 
 **Status:** Active spec — baseline scope only
 **Promoted:** 2026-03-31 (downstream architecture Group 1)
-**Clarified:** 2026-04-01 (U1 entry surface and post-M3 handoff wording synced after downstream architecture Group 2)
+**Clarified:** 2026-04-01 (U1 entry surface, shipped U2 baseline follow-on, and post-M3 handoff wording synced after downstream architecture Group 2)
 **Depends on:** Frozen platform contracts (runtime-v1 / kpi-v1 / exposure-v1)
 **Scope gate:** Baseline reproduction viewer + existing UI/UX improvements only
 
@@ -70,7 +70,7 @@ U1 entry consumes:
 - Depend on `src/core/experiments/` manifest internals
 - Import engine internals
 
-### 3.2 U2 Scope (deferred, requires U1 convergence)
+### 3.2 U2 Scope (completed baseline follow-on; keep as closure reference)
 
 1. Extended KPI comparison (two runs side-by-side, baseline only)
 2. Parameter preset navigation
@@ -105,9 +105,9 @@ Purpose: convert frozen contract outputs into UI-oriented structures.
 **U1 entry path:**
 - U1 does not wait for M3; it may start from `kpi-v1`, `runtime-v1`, `exposure-v1`, and `RunnerExposureApi`
 
-**After U1:**
-- U2 may extend the baseline viewer with comparison features
-- After M3 exports a stable `ExperimentResult` / baseline result bundle, U1/U2 may consume that single export without importing experiment manifest internals
+**U1/U2 baseline path:**
+- U2 has already extended the shipped baseline viewer with baseline-only comparison, preset navigation, and export helpers
+- After M3 exports a stable `ModqnReproductionResult` / baseline result bundle, U1/U2 may consume that single export without importing experiment manifest internals
 
 ---
 
@@ -123,10 +123,10 @@ Purpose: convert frozen contract outputs into UI-oriented structures.
 
 ## 7. Validation Expectations
 
-At U1 entry:
+For the shipped U1/U2 path and any follow-on rerun:
 1. `npm run lint` must pass
 2. `npm run validate:contracts` must pass — new viz code imports only from `@/core/contracts`
 3. `npm run validate:stage` must remain green
 
-If U1 adds browser-visible surfaces:
+If browser-visible UI surfaces change:
 4. Run `npm run validate:visual-browser` and record result

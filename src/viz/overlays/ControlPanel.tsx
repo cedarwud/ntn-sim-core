@@ -29,7 +29,7 @@ export interface ControlPanelProps {
   showElevScatter?: boolean;
   onShowElevScatterToggle?: () => void;
   onExportKpi?: () => void;
-  onOpenBatchKpi?: () => void;
+  onOpenBaselineResults?: () => void;
   hoTypeOverride?: HandoverType | null;
   onHoTypeOverrideChange?: (type: HandoverType | null) => void;
   /** Current active profile ID (spec §10 tier-based selector). */
@@ -119,6 +119,12 @@ const btnActive: React.CSSProperties = {
   fontWeight: 700,
 };
 
+const btnSecondaryStyle: React.CSSProperties = {
+  ...btnBase,
+  color: '#a7b6c7',
+  borderColor: '#556273',
+};
+
 const checkboxLabelStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -147,7 +153,7 @@ export const ControlPanel = React.memo(function ControlPanel({
   showElevScatter = false,
   onShowElevScatterToggle,
   onExportKpi,
-  onOpenBatchKpi,
+  onOpenBaselineResults,
   hoTypeOverride = null,
   onHoTypeOverrideChange,
   profileId,
@@ -333,8 +339,8 @@ export const ControlPanel = React.memo(function ControlPanel({
         </div>
       )}
 
-      {/* KPI Export + Batch */}
-      {(onExportKpi || onOpenBatchKpi) && (
+      {/* KPI Export + baseline viewer */}
+      {(onExportKpi || onOpenBaselineResults) && (
         <div style={rowStyle}>
           {onExportKpi && (
             <button
@@ -346,14 +352,14 @@ export const ControlPanel = React.memo(function ControlPanel({
               Export KPI
             </button>
           )}
-          {onOpenBatchKpi && (
+          {onOpenBaselineResults && (
             <button
-              data-testid="open-batch-kpi"
-              style={btnBase}
-              onClick={onOpenBatchKpi}
-              title="Run all profiles and compare KPIs"
+              data-testid="open-baseline-results"
+              style={profileId === 'modqn-paper-baseline' ? { ...btnSecondaryStyle, borderColor: '#00d4ff', color: '#00d4ff' } : btnSecondaryStyle}
+              onClick={onOpenBaselineResults}
+              title={profileId === 'modqn-paper-baseline' ? "Open MODQN Baseline Reproduction Results (M3)" : "Open the single-run baseline result viewer"}
             >
-              Batch KPI
+              {profileId === 'modqn-paper-baseline' ? 'MODQN Results' : 'Baseline Viewer'}
             </button>
           )}
         </div>

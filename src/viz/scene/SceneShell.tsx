@@ -24,7 +24,8 @@ import SinrTimeSeriesOverlay from '@/viz/overlays/SinrTimeSeriesOverlay';
 import HoEventLogOverlay from '@/viz/overlays/HoEventLogOverlay';
 import SinrCdfOverlay from '@/viz/overlays/SinrCdfOverlay';
 import SinrElevationScatter from '@/viz/overlays/SinrElevationScatter';
-import { BatchKpiPanel } from '@/viz/overlays/BatchKpiPanel';
+import { BaselineResultPanel } from '@/viz/overlays/BaselineResultPanel';
+import { ParameterPanel } from '@/viz/overlays/ParameterPanel';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
@@ -248,7 +249,7 @@ export function SceneShell() {
   const [showHoLog, setShowHoLog] = useState(false);
   const [showSinrCdf, setShowSinrCdf] = useState(false);
   const [showElevScatter, setShowElevScatter] = useState(false);
-  const [showBatchKpi, setShowBatchKpi] = useState(false);
+  const [showBaselineResults, setShowBaselineResults] = useState(false);
   const [hoTypeOverride, setHoTypeOverride] = useState<HandoverType | null>(null);
   const exportKpiFnRef = useRef<(() => KpiBundle | null) | null>(null);
   const setExportKpiFn = useCallback((fn: (() => KpiBundle | null) | null) => {
@@ -283,7 +284,14 @@ export function SceneShell() {
       <HoEventLogOverlay snapshot={liveSnapshot} visible={showHoLog} />
       <SinrCdfOverlay snapshot={liveSnapshot} visible={showSinrCdf} />
       <SinrElevationScatter snapshot={liveSnapshot} visible={showElevScatter} />
-      {showBatchKpi && <BatchKpiPanel onClose={() => setShowBatchKpi(false)} />}
+      <ParameterPanel profileId={profileId} visible={!showBaselineResults} />
+      {showBaselineResults && (
+        <BaselineResultPanel
+          profileId={profileId}
+          handoverTypeOverride={hoTypeOverride}
+          onClose={() => setShowBaselineResults(false)}
+        />
+      )}
       <ControlPanel
         speed={speed}
         onSpeedChange={setSpeed}
@@ -304,7 +312,7 @@ export function SceneShell() {
         showElevScatter={showElevScatter}
         onShowElevScatterToggle={() => setShowElevScatter((v) => !v)}
         onExportKpi={handleExportKpi}
-        onOpenBatchKpi={() => setShowBatchKpi(true)}
+        onOpenBaselineResults={() => setShowBaselineResults(true)}
         hoTypeOverride={hoTypeOverride}
         onHoTypeOverrideChange={setHoTypeOverride}
         profileId={profileId}
