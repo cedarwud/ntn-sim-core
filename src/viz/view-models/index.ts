@@ -9,7 +9,8 @@
  * @authority sdd/downstream-runtime-architecture-sdd.md §3.3, §8B
  *            sdd/ui-integration-roadmap.md §4
  *
- * Current state: skeleton only — U1 will add baseline result projectors here.
+ * Current state: baseline projector surface now includes the MODQN M3
+ * result-bundle view model alongside the generic U1 projector primitives.
  *
  * Dependency rules:
  *   MAY import:   @/core/contracts, @/core/experiments (result types)
@@ -22,3 +23,6 @@ export type {
   ChartSeriesViewModel,
   KpiBundleProjector,
 } from './types';
+
+export type { ModqnComparisonRow } from './modqn-view-model';
+export { ModqnViewModel } from './modqn-view-model';

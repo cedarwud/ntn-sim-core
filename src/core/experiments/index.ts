@@ -9,9 +9,9 @@
  * @created 2026-03-31 (downstream architecture Group 2)
  * @authority sdd/downstream-runtime-architecture-sdd.md §3.2, §8B
  *
- * Current state: M2 baseline reproduction path landed. This layer now owns
- * deterministic MODQN sampling, training/eval manifests, and held-out
- * artifact assembly above the frozen M1 adapter surface.
+ * Current state: the baseline reproduction path is landed through M3. This
+ * layer now owns deterministic MODQN sampling, training/eval manifests,
+ * held-out artifact assembly, and the stabilized result bundle exported to UI.
  *
  * Dependency rules:
  *   MAY import:   @/core/contracts, @/core/algorithms, runner surfaces

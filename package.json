@@ -31,9 +31,10 @@
     "validate:bundle": "node --import tsx scripts/validate-model-bundle.ts",
     "validate:modqn": "node --import tsx scripts/validate-modqn-baseline.ts",
     "validate:modqn:m2": "node --import tsx scripts/validate-modqn-m2.ts",
-    "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
+    "validate:modqn:m3": "node --import tsx scripts/validate-modqn-m3.ts",
     "validate:contracts": "node --import tsx scripts/validate-contracts.mjs",
-    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:specmode && npm run validate:assumption-manifest && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles && npm run validate:registry && npm run validate:bundle && npm run validate:contracts && npm run validate:modqn && npm run validate:modqn:m2"
+    "validate:integration": "npm run validate:golden-engine && npm run validate:reproduction",
+    "validate:stage": "npm run lint && npm run build && npm run validate:structure && npm run validate:trace && npm run validate:specmode && npm run validate:assumption-manifest && npm run validate:profiles && npm run validate:core-purity && npm run validate:final && npm run validate:runtime && npm run validate:orbit-parity && npm run validate:multibeam-gating && npm run validate:replay-manifest && npm run validate:visual-browser && npm run validate:golden-orbit && npm run validate:golden-channel && npm run validate:golden-engine && npm run validate:audit-profiles && npm run validate:registry && npm run validate:bundle && npm run validate:contracts && npm run validate:modqn && npm run validate:modqn:m2 && npm run validate:modqn:m3"
   },
   "keywords": [
     "3d",

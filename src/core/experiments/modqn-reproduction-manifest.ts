@@ -31,6 +31,8 @@ export const MODQN_REPRODUCTION_MANIFEST: ModqnTrainingManifest = {
     actionChannel: 'selectPaperAction+buildPolicyAction',
     evaluationAggregation: 'mean-held-out-kpi',
     primaryUserId: 'ue-0',
+    useIndependentHandover: true,
+    samplingStrategy: 'deterministic-epoch-sweep',
     runtimeDisclosure: [
       'Training/evaluation consume the M1 handoff surface: ModqnBaselineAdapter.buildPaperState(), selectPaperAction(), buildPolicyAction(), and buildRewardVector().',
       'Episode diversity comes from deterministic epoch sweeps over the disclosed modqn-paper-baseline 2x2 proxy; it is no longer a single 10 s smoke window.',

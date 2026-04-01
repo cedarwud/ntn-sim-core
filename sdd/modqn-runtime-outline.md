@@ -1,12 +1,13 @@
 # MODQN Runtime SDD
 
-**Status:** Active SDD — M2 complete, M3 preflight open
+**Status:** Active SDD — M2 runtime shipped, M3 handoff complete
 **Promoted:** 2026-04-01 (M1 completion gate satisfied)
 **Authority chain:** `modqn-baseline-spec-outline.md`, `phase0-architecture-spec.md §0C.6`
 
 ## Current Position in Sequence
 
-M1 convergence is complete. This document now records the shipped M2 runtime/trainer layer above the reviewed baseline bridge.
+M1 convergence is complete. This document records the shipped M2 runtime/trainer layer above the reviewed baseline bridge.
+The stable M3 result/artifact handoff now lives in `modqn-experiment-outline.md`.
 
 **Read first:** `modqn-baseline-spec-outline.md` defines the now-shipped M1 boundary and frozen paper-faithful contract surface.
 

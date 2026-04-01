@@ -58,6 +58,10 @@ function now(): number {
   return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
 }
 
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
 function profileStep(profile: ProfileConfig): number {
   return profile.timeControl.stepSec;
 }
@@ -457,6 +461,7 @@ export function runModqnBaselineReproduction(
     }
 
     heldOutResults.push({
+      windowId: window.windowId,
       episode: {
         ...execution.summary,
         episodeIndex: index,
@@ -473,10 +478,27 @@ export function runModqnBaselineReproduction(
     heldOutResults.map((result) => result.kpiBundle),
   );
   const wallClockMs = now() - wallClockStartMs;
+  const constraints = uniqueStrings([
+    ...manifest.params.runtimeDisclosure,
+    ...samplingPlan.limitationNotes,
+  ]);
+  const completedAt = new Date().toISOString();
+  const trainingSummary = {
+    totalEpisodes: trainingEpisodes.length,
+    totalSteps: trainingEpisodes.reduce((sum, episode) => sum + episode.decisions, 0),
+    wallClockMs,
+    curves: {
+      episodes: [...trainer.metrics.episodes],
+      throughputLoss: [...trainer.metrics.loss.throughput],
+      handoverLoss: [...trainer.metrics.loss.handover],
+      loadBalanceLoss: [...trainer.metrics.loss.loadBalance],
+      scalarReward: [...trainer.metrics.reward.scalar],
+    },
+  };
 
   return {
     experimentId: manifest.id,
-    completedAt: new Date().toISOString(),
+    completedAt,
     kpiBundle: aggregateKpiBundle,
     wallClockMs,
     manifest,
@@ -487,12 +509,16 @@ export function runModqnBaselineReproduction(
       aggregateReward,
       scalarReward: scalarizeReward(aggregateReward, manifest.weights),
       aggregateKpiBundle,
+      averageKpi: aggregateKpiBundle,
       windows: heldOutResults,
-      limitationNotes: [
-        ...manifest.params.runtimeDisclosure,
-        ...samplingPlan.limitationNotes,
-      ],
+      limitationNotes: constraints,
     },
     artifactBundles: heldOutResults.map((result) => result.artifactBundle),
+    trainingSummary,
+    metadata: {
+      paperId: 'PAP-2024-MORL-MULTIBEAM',
+      constraints,
+      reproductionTimestamp: completedAt,
+    },
   };
 }
