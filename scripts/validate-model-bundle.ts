@@ -179,6 +179,7 @@ async function validatePlat005(): Promise<boolean> {
   let buildWalkerConfig: (profile: unknown) => unknown;
   let loadOmmRecords: (json: unknown[]) => unknown[];
   let ommToSatrecs: (records: unknown[]) => Array<{ id: string; satrec: unknown }>;
+  let satrecsToOrbitElements: (entries: Array<{ id: string; satrec: unknown }>) => unknown[];
 
   try {
     const mb = await import('../src/core/models/model-bundle.js');
@@ -194,6 +195,8 @@ async function validatePlat005(): Promise<boolean> {
     const tleModule = await import('../src/core/orbit/tle-loader.js');
     loadOmmRecords = tleModule.loadOmmRecords;
     ommToSatrecs = tleModule.ommToSatrecs;
+    const sgp4Module = await import('../src/core/orbit/sgp4-adapter.js');
+    satrecsToOrbitElements = sgp4Module.satrecsToOrbitElements;
   } catch (e) {
     console.log(`VAL-PLAT-005: FAIL — import error: ${e}`);
     console.log('  Check that tsx is set up and paths are correct.');
@@ -211,7 +214,8 @@ async function validatePlat005(): Promise<boolean> {
       let cache: unknown;
       const isRealTrace = (profile.orbitMode as string) === 'real-trace';
       if (isRealTrace) {
-        // Load TLE fixture and build a short cache to exercise Sgp4TleGeometry code path
+        // Load the OMM/TLE fixture and build a short SGP4-sampled cache to
+        // exercise the real-trace geometry family without changing the consume path.
         const tleDataPath = profile.tleDataPath as string;
         const fixturePath = path.join(root, tleDataPath);
         if (!fs.existsSync(fixturePath)) {
@@ -222,20 +226,7 @@ async function validatePlat005(): Promise<boolean> {
         const ommJson = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as unknown[];
         const records = loadOmmRecords(ommJson);
         const satrecs = ommToSatrecs(records);
-        // Map SatrecEntry to OrbitElement (required fields for buildTrajectoryCache)
-        const elements = satrecs.map((s) => ({
-          id: s.id,
-          shellId: 'real-trace',
-          altitudeKm: (profile.orbital as Record<string, number>).altitude_km,
-          epochUtcMs: (profile.timeControl as Record<string, number>).epochUtcMs,
-          eccentricity: 0,
-          inclinationRad: 0,
-          raanRad: 0,
-          argPerigeeRad: 0,
-          meanAnomalyRad: 0,
-          meanMotionRevPerDay: 15.5,
-          satrec: s.satrec,  // passed through for SGP4 propagation
-        }));
+        const elements = satrecsToOrbitElements(satrecs);
         cache = (buildTrajectoryCache as (opts: unknown) => unknown)({
           elements,
           observerLatDeg: (profile.observer as Record<string, number>).latitudeDeg,

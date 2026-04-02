@@ -11,6 +11,7 @@
 
 import type {
   OrbitElement,
+  OrbitPoint,
   TrajectorySample,
   SatellitePass,
   TrajectoryCache,
@@ -18,6 +19,7 @@ import type {
 import { MIN_VISIBLE_ELEVATION_DEG } from '@/core/common/constants';
 import { propagateOrbitElement } from './propagation';
 import { propagateGeo } from './geo-stationary';
+import { getOrbitElementSatrec, propagateSgp4 } from './sgp4-adapter';
 import { createObserverContext, computeTopocentricPoint } from './topocentric';
 
 // ── Public options ──
@@ -64,6 +66,23 @@ function cubicHermite(
   );
 }
 
+function propagateCacheSamplePoint(element: OrbitElement, utcMs: number): OrbitPoint {
+  if (element.orbitType === 'geo') {
+    return propagateGeo(element, utcMs);
+  }
+
+  const satrec = getOrbitElementSatrec(element);
+  if (satrec) {
+    const point = propagateSgp4(satrec, utcMs);
+    if (!point) {
+      throw new Error(`[buildTrajectoryCache] SGP4 propagation failed for ${element.id} at ${utcMs}`);
+    }
+    return point;
+  }
+
+  return propagateOrbitElement(element, utcMs);
+}
+
 // ── Cache builder ──
 
 export function buildTrajectoryCache(opts: BuildCacheOptions): TrajectoryCache {
@@ -90,9 +109,7 @@ export function buildTrajectoryCache(opts: BuildCacheOptions): TrajectoryCache {
     for (let i = 0; i < nSteps; i++) {
       const timeSec = i * stepSec;
       const utcMs = epochUtcMs + timeSec * 1000;
-      const point = elem.orbitType === 'geo'
-        ? propagateGeo(elem, utcMs)
-        : propagateOrbitElement(elem, utcMs);
+      const point = propagateCacheSamplePoint(elem, utcMs);
       const topo = computeTopocentricPoint(observer, point.ecefKm);
       samples[i] = {
         timeSec,

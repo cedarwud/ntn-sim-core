@@ -87,7 +87,7 @@ export function buildModelBundle(
   // --- geometry ---
   let geometry: GeometryModel;
   // OrbitMode = 'synthetic' | 'real-trace'; 'real-trace' uses the current
-  // cache-backed real-trace geometry family.
+  // SGP4-sampled cache-backed real-trace geometry family.
   if (profile.orbitMode === 'real-trace') {
     geometry = new Sgp4TleGeometry(trajectoryCache);
   } else {

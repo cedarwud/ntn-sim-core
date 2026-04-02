@@ -4,7 +4,7 @@
 **Date:** 2026-04-01
 **Depends on:** Platform Refactor complete, downstream architecture complete, frozen contracts intact
 **Motivation:** future `OMNeT++` consumer work may require mixed `LEO / MEO / GEO` satellite sets and larger real-trace catalogs than the current validation-sized envelope
-**Current disposition (2026-04-01 rerun):** `no-go`; do not promote until `real-trace-truth-path-correction-outline.md` is either completed or explicitly declined
+**Current disposition (2026-04-01 rerun):** `no-go`; `T1` is now completed, but this line remains blocked unless it is separately re-promoted with fresh evidence
 
 ---
 
@@ -126,8 +126,8 @@ A reviewer-grade preflight should produce:
 This note becomes implementation-relevant only if all of the following happen:
 
 1. the user explicitly reopens real-trace scalability work;
-2. the narrower `real-trace-truth-path-correction-outline.md` surface is already closed or explicitly declined;
-3. preflight evidence concludes `go-with-tight-scope` or `go`;
+2. the narrower `real-trace-truth-path-correction-outline.md` surface remains closed and no new truth-path drift has reopened it;
+3. a fresh preflight rerun concludes `go-with-tight-scope` or `go`;
 4. the follow-on is rewritten into an implementation-ready active SDD surface;
 5. corresponding `todo/` prompts are updated for that promoted surface.
 

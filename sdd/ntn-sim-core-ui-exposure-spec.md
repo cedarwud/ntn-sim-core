@@ -4,7 +4,7 @@
 >
 > **Authority:** This document is subordinate to `simulator-parameter-spec.md` (the canonical parameter authority) and `ntn-sim-core-sdd.md` (the design contract). It translates the spec's Mode Classification (§0) into concrete UI rules.
 >
-> **Last updated:** 2026-03-28 (Phase 4 UI exposure layer)
+> **Last updated:** 2026-04-01 (T1 real-trace truth-path wording sync)
 
 ---
 
@@ -25,7 +25,7 @@ The following quantities are **never free controls** in any mode:
 
 | Quantity | Why | UI rule |
 |---|---|---|
-| `elevation angle α` | Determined by SGP4/Walker propagation | Output display only (HUD, scatter plot) |
+| `elevation angle α` | Determined by Walker propagation or the real-trace SGP4-sampled cache path | Output display only (HUD, scatter plot) |
 | `slant range d` | Mathematically linked to α and h_s | Output display only |
 | `off-axis angle θ` | Requires 3D beam/UE geometry | Computed internally |
 | `path loss L` | Derived from d, f_c, scenario class | Output metric only |
@@ -63,7 +63,7 @@ This is the **default profile** when no `?profile=` URL param is set. All user-f
 | `hobs-multibeam-baseline` | Advanced — HOBS Multi-Beam (Ka 28 GHz) | Ka 28 GHz, 19 beams FRF=3, energy L1 |
 | `bh-resource-baseline` | Advanced — BH Resource (Ka 20 GHz) | 780 km, earth-fixed BH, 12 cells |
 | `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO |
-| `real-trace-validation` | Advanced — Real-Trace (OMM/TLE) | Real Starlink OMM/TLE ingest, validation-sized real-trace envelope |
+| `real-trace-validation` | Advanced — Real-Trace (OMM/TLE) | Real Starlink OMM/TLE ingest, SGP4-sampled cache-backed validation-sized envelope |
 | `meo-constellation-baseline` | Advanced — MEO Constellation | 8062 km MEO, Ka 20 GHz |
 | `geo-relay-baseline` | Advanced — GEO Relay | 35786 km GEO, Ku 12 GHz |
 

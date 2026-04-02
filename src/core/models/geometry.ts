@@ -2,8 +2,8 @@
  * GeometryModel — Phase 2 model-bundle interface (P2-11).
  *
  * Defines the GeometryModel interface and concrete wrappers that delegate to
- * orbit/trajectory-cache.ts for both Walker and the current real-trace cache
- * path. No orbit physics logic is implemented here.
+ * orbit/trajectory-cache.ts for both Walker and the current real-trace
+ * SGP4-sampled cache path. No orbit physics logic is implemented here.
  *
  * Layer: L2 (src/core/models/)
  * Authority: phase2-model-bundle-sdd.md §5.1
@@ -70,8 +70,8 @@ export interface GeometryModel {
 
 /**
  * Wraps orbit/trajectory-cache.ts getActivePassesAt + interpolatePass.
- * Works for both synthetic (Walker) and the current real-trace cache back-end because
- * the trajectory cache is orbit-agnostic after build time.
+ * Works for both synthetic (Walker) and the real-trace SGP4-sampled cache
+ * back-end because the trajectory cache is orbit-agnostic after build time.
  * familyId is set by the caller based on profile.orbitMode.
  */
 export class TrajectoryCacheGeometry implements GeometryModel {
@@ -136,8 +136,8 @@ export class TrajectoryCacheGeometry implements GeometryModel {
 }
 
 // Alias: Sgp4TleGeometry preserves the historical geometry family id for the
-// current real-trace path. It delegates to the same cache-based approach;
-// any truth-path distinction is determined during cache construction, not here.
+// current real-trace path. Cache samples for that path now come from SatRec-
+// backed SGP4 during cache construction; geometry still consumes the cache.
 export class Sgp4TleGeometry extends TrajectoryCacheGeometry {
   constructor(cache: TrajectoryCache) {
     super(cache, 'sgp4-tle');

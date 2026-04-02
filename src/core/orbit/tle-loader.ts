@@ -1,13 +1,13 @@
 /**
  * TLE / OMM data loader: parse CelesTrak OMM JSON and convert to satellite.js SatRec.
  *
- * Source: CelesTrak OMM JSON format + satellite.js twoline2satrec
+ * Source: CelesTrak OMM JSON format + satellite.js json2satrec
  * Tier: standard-backed (OMM is CCSDS standard; SGP4 is Vallado reference)
  *
  * This file must not import React, Three.js, or scene code.
  */
 
-import { twoline2satrec } from 'satellite.js';
+import { json2satrec } from 'satellite.js';
 
 /** OMM record as found in CelesTrak JSON files. */
 export interface OmmRecord {
@@ -55,18 +55,19 @@ export function loadOmmRecords(jsonArray: OmmRecord[]): OmmRecord[] {
 }
 
 /**
- * Convert OMM records to satellite.js SatRec objects by constructing TLE line pairs.
- *
- * TLE format reference: https://celestrak.org/columns/v04n03/
+ * Convert OMM records to satellite.js SatRec objects using the library's
+ * direct OMM/JSON parser. This preserves the source epoch fields without
+ * synthesizing fragile intermediate TLE strings.
  */
 export function ommToSatrecs(records: OmmRecord[]): SatrecEntry[] {
   const results: SatrecEntry[] = [];
 
   for (const r of records) {
     try {
-      const line1 = buildTleLine1(r);
-      const line2 = buildTleLine2(r);
-      const satrec = twoline2satrec(line1, line2);
+      const satrec = json2satrec({
+        ...r,
+        EPHEMERIS_TYPE: (r.EPHEMERIS_TYPE ?? 0) as 0,
+      } as Parameters<typeof json2satrec>[0]);
 
       if (satrec && !satrec.error) {
         results.push({
@@ -111,102 +112,4 @@ export function sampleRecords(
   }
 
   return indices.slice(0, maxCount).sort((a, b) => a - b).map((i) => records[i]);
-}
-
-// ── TLE line construction helpers ──────────────────────────────────────
-
-/**
- * Parse OMM EPOCH string (ISO 8601) to TLE epoch format: YYDDDdddddddd
- * where YY = 2-digit year, DDD = day of year, dddddddd = fractional day.
- */
-function epochToTleFormat(epochStr: string): { yy: string; dayFraction: string } {
-  const d = new Date(epochStr);
-  const year = d.getUTCFullYear();
-  const yy = String(year % 100).padStart(2, '0');
-
-  const startOfYear = Date.UTC(year, 0, 1);
-  const dayOfYear = (d.getTime() - startOfYear) / 86400000 + 1; // 1-indexed
-  const dayFraction = dayOfYear.toFixed(8).padStart(12, ' ');
-
-  return { yy, dayFraction };
-}
-
-/**
- * Format a number in TLE exponential notation: ±NNNNN±E
- * e.g. 0.0001738 → " 17380-3"
- */
-function tleExponential(value: number): string {
-  if (value === 0) return ' 00000-0';
-  const sign = value < 0 ? '-' : ' ';
-  const abs = Math.abs(value);
-  const exp = Math.floor(Math.log10(abs));
-  const mantissa = abs / Math.pow(10, exp);
-  const mantStr = Math.round(mantissa * 100000)
-    .toString()
-    .padStart(5, '0')
-    .slice(0, 5);
-  const expSign = exp >= 0 ? '+' : '-';
-  const expStr = Math.abs(exp).toString();
-  return `${sign}${mantStr}${expSign}${expStr}`;
-}
-
-/** Compute TLE checksum (mod 10 of digit sum, '-' counts as 1). */
-function tleChecksum(line: string): number {
-  let sum = 0;
-  for (let i = 0; i < 68; i++) {
-    const ch = line[i];
-    if (ch >= '0' && ch <= '9') sum += Number(ch);
-    else if (ch === '-') sum += 1;
-  }
-  return sum % 10;
-}
-
-/** Build TLE Line 1 from OMM record. */
-function buildTleLine1(r: OmmRecord): string {
-  const norad = String(r.NORAD_CAT_ID).padStart(5, '0');
-  const classification = r.CLASSIFICATION_TYPE || 'U';
-  // International designator from OBJECT_ID: "2019-074B" → "19074B  "
-  const intlParts = r.OBJECT_ID.split('-');
-  const intlYear = intlParts[0]?.slice(2) || '00';
-  const intlLaunch = (intlParts[1] || '000').padStart(3, '0');
-  const intlPiece = (intlParts.slice(2).join('') || intlParts[1]?.replace(/^\d+/, '') || '').padEnd(3, ' ');
-  // Re-parse: OBJECT_ID format is "YYYY-NNNP" where P is piece
-  const intlDesignator = `${intlYear}${intlLaunch}${intlPiece}`.slice(0, 8).padEnd(8, ' ');
-
-  const { yy, dayFraction } = epochToTleFormat(r.EPOCH);
-  const epochField = `${yy}${dayFraction}`.padEnd(14, ' ');
-
-  // Mean motion dot (first derivative / 2) — TLE format: ±.NNNNNNNN
-  const nDot = r.MEAN_MOTION_DOT / 2;
-  const nDotSign = nDot < 0 ? '-' : ' ';
-  const nDotStr = `${nDotSign}.${Math.abs(nDot).toFixed(8).split('.')[1]}`;
-
-  const nDDot = tleExponential(r.MEAN_MOTION_DDOT / 6);
-  const bstar = tleExponential(r.BSTAR);
-
-  const ephType = String(r.EPHEMERIS_TYPE ?? 0);
-  const elSetNo = String(r.ELEMENT_SET_NO ?? 999).padStart(4, ' ');
-
-  // Construct line without checksum (68 chars)
-  let line = `1 ${norad}${classification} ${intlDesignator}${epochField}${nDotStr} ${nDDot} ${bstar} ${ephType} ${elSetNo}`;
-  // Pad or trim to exactly 68 chars
-  line = line.padEnd(68, ' ').slice(0, 68);
-  return line + String(tleChecksum(line));
-}
-
-/** Build TLE Line 2 from OMM record. */
-function buildTleLine2(r: OmmRecord): string {
-  const norad = String(r.NORAD_CAT_ID).padStart(5, '0');
-  const inc = r.INCLINATION.toFixed(4).padStart(8, ' ');
-  const raan = r.RA_OF_ASC_NODE.toFixed(4).padStart(8, ' ');
-  // Eccentricity: no leading "0." — just 7 digits
-  const ecc = r.ECCENTRICITY.toFixed(7).split('.')[1];
-  const argP = r.ARG_OF_PERICENTER.toFixed(4).padStart(8, ' ');
-  const ma = r.MEAN_ANOMALY.toFixed(4).padStart(8, ' ');
-  const mm = r.MEAN_MOTION.toFixed(8).padStart(11, ' ');
-  const rev = String(r.REV_AT_EPOCH ?? 0).padStart(5, ' ');
-
-  let line = `2 ${norad} ${inc} ${raan} ${ecc} ${argP} ${ma} ${mm}${rev}`;
-  line = line.padEnd(68, ' ').slice(0, 68);
-  return line + String(tleChecksum(line));
 }

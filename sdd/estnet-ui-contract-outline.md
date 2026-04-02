@@ -9,6 +9,8 @@ Phase 4 Runtime Contract is now complete. The upstream platform blocker is resol
 This outline remains paused by policy, not by an unfinished upstream dependency.
 The user must explicitly reopen estnet integration before this outline may be promoted.
 
+If a future reopen broadens the target to `OMNeT++` / `INET` / other external-consumer realism work, that reopen should be authored as a new dedicated kickoff surface instead of silently stretching the old baseline `E1` prompt/framework.
+
 ## Promotion Gate
 
 This outline may only be promoted when:

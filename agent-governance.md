@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-03-31-d`
+**Governance-Version:** `2026-04-02-a`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -75,6 +75,8 @@ Current implemented skills:
    - use when `todo/` prompt sequencing, completion state, or archive/completed placement needs updating
 5. `paper-to-parameter-provenance`
    - use when mapping literature/standard evidence into parameter registry or provenance surfaces
+6. `ntn-openspec-follow-on-kickoff`
+   - use when deciding whether a future `OMNeT++ / INET / estnet` or other external-consumer/backend realism track should use OpenSpec as a separate workflow without replacing the current `ntn-sim-core` SDD authority set
 
 ### 3.2 UI / UX Skill Rule
 

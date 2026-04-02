@@ -1,6 +1,6 @@
 # ntn-sim-core Agent Rules
 
-**Governance-Version:** `2026-03-31-d`
+**Governance-Version:** `2026-04-02-a`
 
 This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -27,7 +27,11 @@ This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers
 6. When creating or revising local skills, also read:
    - [/home/u24/papers/ntn-sim-core/.codex/skills/skill-creator/SKILL.md](/home/u24/papers/ntn-sim-core/.codex/skills/skill-creator/SKILL.md)
    after `agent-governance.md`.
-7. When changing agent-facing governance, update:
+7. When deciding whether a future follow-on, especially `OMNeT++ / INET / estnet` or other external-consumer/backend realism work, should use OpenSpec, also read:
+   - [/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md](/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md)
+   after `agent-governance.md`.
+   Treat it as a supplemental workflow aid for future-track bootstrapping, not as a replacement for current SDD authority or frozen contracts.
+8. When changing agent-facing governance, update:
    - [agent-governance.md](/home/u24/papers/ntn-sim-core/agent-governance.md)
    - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
    - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)

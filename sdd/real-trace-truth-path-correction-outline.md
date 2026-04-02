@@ -1,9 +1,9 @@
 # Real-Trace Truth-Path Correction SDD
 
-**Status:** Active SDD — T1 narrow truth-path correction
+**Status:** Completed SDD — shipped T1 narrow truth-path correction
 **Promoted:** 2026-04-01 (`go-with-tight-scope` preflight verdict)
 **Authority chain:** `phase4-runtime-contract-sdd.md`, `real-trace-truth-path-preflight-note.md`
-**Blocked companion:** `real-trace-scalability-preflight-note.md` remains paused until T1 closes or is explicitly declined
+**Blocked companion:** `real-trace-scalability-preflight-note.md` remains paused after T1 closure unless it is separately re-promoted
 
 ---
 
@@ -16,13 +16,13 @@ The 2026-04-01 reviewer-grade preflight concluded:
 3. the mismatch exists in both runtime behavior and surviving wording/family naming;
 4. larger mixed-orbit / scalability work must remain blocked until this narrower question is closed.
 
-This document is therefore the next valid orbit follow-on surface.
+This document therefore served as the authorized T1 implementation surface and now remains the shipped correction authority / completion record.
 
 **Read first:** `real-trace-truth-path-preflight-note.md` records the evidence and the promotion verdict.
 
 ---
 
-## 2. Active T1 Goal
+## 2. T1 Goal
 
 T1 exists to make the shipped real-trace path truthfully describable again without reopening broader orbit/runtime scope.
 
@@ -50,7 +50,7 @@ This keeps the correction narrow while making the `sgp4-tle` naming family no lo
 
 ---
 
-## 4. Active T1 Scope
+## 4. Implemented T1 Scope
 
 ### 4.1 Runtime Landing Zone
 
@@ -145,4 +145,4 @@ T1 is complete only when all of the following are true:
 4. existing replay/contract/UI boundaries remain intact;
 5. the repo still treats `real-trace scalability` as blocked unless separately re-promoted later.
 
-Until then, this document is the active implementation authority for the narrow truth-path correction only.
+This document now serves as the shipped runtime-authority note and completion record for the narrow truth-path correction only.

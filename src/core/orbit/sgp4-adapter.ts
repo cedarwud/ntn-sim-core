@@ -19,6 +19,13 @@ import type { OrbitElement, OrbitPoint } from './types';
 import type { SatrecEntry } from './tle-loader';
 import { EARTH_RADIUS_KM, TWO_PI, MU_EARTH_KM3_S2, DAY_SECONDS } from '@/core/common/constants';
 
+export const SGP4_SAMPLED_CACHE_TRUTH_PATH = 'sgp4-sampled-cache';
+
+type OrbitElementRuntimeMetadata = {
+  satrec?: any;
+  truthPath?: string;
+};
+
 /**
  * Propagate a satellite.js SatRec to a given UTC time.
  * Returns OrbitPoint or null on propagation error.
@@ -57,10 +64,13 @@ export function propagateSgp4(satrec: any, atUtcMs: number): OrbitPoint | null {
 
 /**
  * Convert TLE-derived SatrecEntries into OrbitElement objects for compatibility
- * with the existing trajectory cache and Walker-based pipeline.
+ * with the existing trajectory cache pipeline while preserving the SatRec
+ * needed for SGP4-backed cache sampling.
  *
- * The resulting OrbitElements use the osculating elements embedded in the SatRec
- * and carry a reference to the SatRec for SGP4 propagation.
+ * The returned objects are still shaped like OrbitElement for compatibility,
+ * but they retain non-contract runtime metadata (`satrec`, `truthPath`) so
+ * real-trace cache construction can sample from the original SatRec instead of
+ * immediately degrading to the generic Kepler path.
  */
 export function satrecsToOrbitElements(satrecs: SatrecEntry[]): OrbitElement[] {
   return satrecs.map((entry) => {
@@ -79,7 +89,7 @@ export function satrecsToOrbitElements(satrecs: SatrecEntry[]): OrbitElement[] {
     const jd = (sr.jdsatepoch ?? 0) + (sr.jdsatepochF ?? 0);
     const epochUtcMs = (jd - 2440587.5) * 86400000;
 
-    return {
+    const element: OrbitElement = {
       id: entry.id,
       shellId: 'tle',
       altitudeKm,
@@ -90,8 +100,23 @@ export function satrecsToOrbitElements(satrecs: SatrecEntry[]): OrbitElement[] {
       argPerigeeRad: sr.argpo ?? 0,
       meanAnomalyRad: sr.mo ?? 0,
       meanMotionRevPerDay,
-    } satisfies OrbitElement;
+    };
+
+    return Object.assign(element, {
+      satrec: entry.satrec,
+      truthPath: SGP4_SAMPLED_CACHE_TRUTH_PATH,
+    });
   });
+}
+
+export function getOrbitElementSatrec(element: OrbitElement): any | null {
+  const metadata = element as OrbitElement & OrbitElementRuntimeMetadata;
+  return metadata.satrec ?? null;
+}
+
+export function getOrbitElementTruthPath(element: OrbitElement): string | null {
+  const metadata = element as OrbitElement & OrbitElementRuntimeMetadata;
+  return metadata.truthPath ?? null;
 }
 
 function isFiniteVec(v: { x: number; y: number; z: number }): boolean {

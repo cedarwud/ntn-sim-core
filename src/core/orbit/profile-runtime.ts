@@ -15,7 +15,9 @@ import { satrecsToOrbitElements } from './sgp4-adapter';
 export const INTERACTIVE_TRAJECTORY_CACHE_STEP_SEC = 10;
 
 /**
- * Resolve constellation elements from profile (Walker synthetic or TLE real-trace).
+ * Resolve constellation elements from profile (Walker synthetic or OMM/TLE real-trace).
+ * Real-trace elements retain SatRec metadata so cache construction can sample
+ * from SGP4 without changing the later cache-backed consume path.
  * Ownership: P5-4 migration from benchmark-runner.ts.
  */
 export function resolveProfileOrbitElements(
@@ -51,11 +53,11 @@ export async function resolveProfileOrbitElementsAsync(
   if (profile.orbitMode === 'real-trace' && profile.tleDataPath) {
     const response = await fetch(profile.tleDataPath);
     if (!response.ok) {
-      throw new Error(`[resolveProfileOrbitElementsAsync] Failed to load TLE fixture: ${profile.tleDataPath}`);
+      throw new Error(`[resolveProfileOrbitElementsAsync] Failed to load OMM/TLE fixture: ${profile.tleDataPath}`);
     }
     const ommJson = await response.json();
     if (!Array.isArray(ommJson)) {
-      throw new Error(`[resolveProfileOrbitElementsAsync] Expected array fixture: ${profile.tleDataPath}`);
+      throw new Error(`[resolveProfileOrbitElementsAsync] Expected OMM/TLE array fixture: ${profile.tleDataPath}`);
     }
     return resolveProfileOrbitElements(
       profile,
@@ -68,6 +70,8 @@ export async function resolveProfileOrbitElementsAsync(
 
 /**
  * Build trajectory cache from profile and its resolved elements.
+ * SatRec-backed real-trace elements are sampled through SGP4 during cache
+ * construction; geometry/runtime still consume the cache after build time.
  * Ownership: P5-4 migration from benchmark-runner.ts.
  */
 export function buildProfileTrajectoryCache(

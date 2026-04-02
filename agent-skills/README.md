@@ -9,6 +9,7 @@
 3. `ntn-validation-gate-runner`
 4. `ntn-todo-prompt-maintainer`
 5. `paper-to-parameter-provenance`
+6. `ntn-openspec-follow-on-kickoff`
 
 其餘項目仍先保留為規劃清單，避免後續由不同 agent 接手時又回到零散 prompt 驅動。
 
@@ -89,6 +90,8 @@
    - 用途：檢查 `Realistic / Advanced / Sensitivity / Internal-only` 暴露策略，避免 derived quantities 被錯誤暴露。
 4. `estnet-contract-integration`
    - 用途：處理 `ntn-sim-core` 與 `project/estnet-ui-kickoff` 的 contract 對接，而不是讓 consumer 直接吃內部 runtime 細節。
+5. `ntn-openspec-follow-on-kickoff`
+   - 用途：判斷未來 `OMNeT++ / INET / estnet` 或其他 external-consumer/backend realism track 是否適合用 OpenSpec 啟動，並明確限制它不能取代目前的 `sdd/` authority。
 
 `project/estnet-ui-kickoff` 在這個階段仍視為 future consumer notes，不建議現在就建立 project-local skills。只有在以下條件成立後，才建議升級成獨立治理與 skill 目標：
 
@@ -164,6 +167,7 @@
 1. `ntn-phase-preflight`
 2. `ntn-sdd-sync`
 3. `ntn-validation-gate-runner`
+4. `ntn-openspec-follow-on-kickoff`
 
 其餘 skills 先保留在這份 roadmap 中即可。
 
@@ -179,3 +183,8 @@
 2. `frontend-design`
 3. `webapp-testing`
 4. `skill-creator`
+
+補充：
+
+- `ntn-openspec-follow-on-kickoff` 是 repo-local workflow skill，不是 OpenSpec upstream integration。
+- 它的目的是幫 future-track kickoff 做 go/no-go 與 placement 判斷，不是把 `ntn-sim-core` 現行治理改成 OpenSpec。

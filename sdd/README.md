@@ -2,13 +2,14 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-01, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M2 baseline reproduction closure, the MODQN M3 result-handoff stabilization, and the UI baseline viewer path through U2. The SDD set is therefore split into:
+As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, and the real-trace truth-path correction (`T1`). A new paper-oriented governance follow-on is now promoted. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **Active downstream files** that authorize the shipped downstream baseline surfaces plus any future approved MODQN/UI follow-ons
-4. **Deferred / paused downstream files** that still require additional promotion
-5. **Historical / closure files** moved to `archive/`
+3. **Active paper-oriented follow-on files** that define the current next hardening surface
+4. **Shipped downstream files** that record the completed downstream baseline surfaces and future reopen reference points
+5. **Deferred / paused downstream files** that still require additional promotion
+6. **Historical / closure files** moved to `archive/`
 
 ## 1. Core Authority
 
@@ -30,13 +31,15 @@ These files remain the long-lived authority set:
    - current baseline/profile family reference
 8. `ntn-sim-core-paper-family-matrix.md`
    - literature family map and claim ceiling guide
-9. `ntn-sim-core-reproduction-protocol.md`
+9. `ntn-sim-core-research-positioning-note.md`
+   - paper-oriented project positioning, gap ranking, and next-direction guidance
+10. `ntn-sim-core-reproduction-protocol.md`
    - reproduction claim discipline
-10. `ntn-sim-core-reproduction-targets.md`
+11. `ntn-sim-core-reproduction-targets.md`
    - active reproduction target definitions
-11. `ntn-sim-core-ui-exposure-spec.md`
+12. `ntn-sim-core-ui-exposure-spec.md`
    - current UI exposure contract
-12. `ntn-sim-core-frontend-beam-visual-sdd.md`
+13. `ntn-sim-core-frontend-beam-visual-sdd.md`
    - frontend visual/rendering contract that still governs truth-driven beam rendering
 
 ## 2. Completed Program: Simulator Platform Refactor
@@ -58,9 +61,16 @@ These files define the now-complete platform-refactor program that unlocked down
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
 
-## 3. Active Downstream Surface
+## 3. Active Paper-Oriented Follow-On
 
-These files are now the implementation-ready downstream authority for the current downstream work surface.
+This file is the current next active follow-on surface. It tightens how the existing simulator should be used for publication-oriented work without reopening runtime architecture.
+
+1. `paper-mode-claim-mode-hardening-outline.md`
+   - active paper-oriented governance hardening surface; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule
+
+## 4. Shipped Downstream Surface
+
+These files remain the shipped downstream authority for the completed baseline surfaces. They are still the correct reference set for reviewer reruns and future reopen work, but they are **not** by themselves an active instruction to keep implementing the same lines.
 
 1. `downstream-runtime-architecture-sdd.md`
    - shared downstream boundary and Group 2 landing record for `algorithms / experiments / view-models / adapters`
@@ -75,11 +85,11 @@ These files are now the implementation-ready downstream authority for the curren
 6. `ui-integration-roadmap.md`
    - active baseline UI spec covering the shipped `U1`/`U2` path; still restricted to frozen contracts and stable runner surfaces
 7. `real-trace-truth-path-correction-outline.md`
-   - active narrow orbit/runtime correction surface; closes current real-trace wording/runtime drift without reopening broader scalability work
+   - shipped narrow orbit/runtime correction authority; records the landed real-trace wording/runtime drift closure without reopening broader scalability work
 
-Any resumed MODQN/UI follow-on work must start from this surface plus the companion `todo/` handoff docs, not from older outline-only wording.
+Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
-## 4. Deferred / Paused Downstream Files
+## 5. Deferred / Paused Downstream Files
 
 These files are not valid implementation authority for the current baseline entry path without further promotion or explicit reopen.
 
@@ -90,11 +100,11 @@ These files are not valid implementation authority for the current baseline entr
 3. `real-trace-truth-path-preflight-note.md`
    - completed preflight decision record for the promoted T1 truth-path correction surface; not implementation authority itself
 4. `real-trace-scalability-preflight-note.md`
-   - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused until T1 truth-path correction is closed or explicitly declined
+   - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused after T1 closure unless it is separately re-promoted
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
-## 5. Archived Historical Documents
+## 6. Archived Historical Documents
 
 Closed closure notes, stale roadmaps, donor-migration notes, and one-shot acceptance documents are no longer kept in this folder as authority. They are archived under:
 
@@ -102,7 +112,7 @@ Closed closure notes, stale roadmaps, donor-migration notes, and one-shot accept
 
 Historical documents may be cited for forensic context, but they must not override the active authority set above.
 
-## 6. Working Rule
+## 7. Working Rule
 
 1. No KPI-impacting implementation should land without a corresponding place in:
    - the core authority set

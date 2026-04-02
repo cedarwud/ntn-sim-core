@@ -185,7 +185,7 @@ Derived from `bh-resource-baseline`. All physical parameters inherited unchanged
 | raw orbit data | local `tle_data/` snapshots | local dataset + `beamHO-bench` workflow | raw truth layer |
 | frontend subset size | sampled subset sized for browser-friendly rendering | `beamHO-bench` sampled-fixture approach | exact count is manifest-defined, not hardcoded in this spec |
 | heavy validation mode | larger subset or precomputed orbit windows allowed | `orbit-engine`, `leo-simulator` | supports more realistic scale without overloading frontend |
-| propagator | SGP4 preferred | `beamHO-bench`, TLE-backed papers | fallback paths must be explicitly labeled as fallback |
+| propagator | SGP4-sampled cache-backed path | `beamHO-bench`, TLE-backed papers | validation-sized real-trace cache samples use SatRec-backed SGP4; runtime consumes cached passes/interpolation after build time |
 | beam/channel family | inherited from the synthetic profile family being validated | cross-mode policy | TLE does not define beam/power/resource parameters |
 | window selection | deterministic ranked selection | `runner/curation` policy | must be recorded in replay metadata |
 

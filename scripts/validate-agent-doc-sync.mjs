@@ -28,6 +28,8 @@ const files = [
   ['GEMINI.md', gemini],
 ];
 
+const requiredOpenSpecSkill = 'ntn-openspec-follow-on-kickoff';
+
 const forbiddenCanonicalSections = [
   '## 2. Authority Order',
   '## 3. Active Program Rule',
@@ -52,6 +54,9 @@ for (const [name, src] of files) {
   }
   if (!src.includes('thin wrapper')) {
     errors.push(`${name}: does not describe itself as a thin wrapper`);
+  }
+  if (!src.includes(requiredOpenSpecSkill)) {
+    errors.push(`${name}: missing local OpenSpec follow-on skill reference (${requiredOpenSpecSkill})`);
   }
   for (const heading of forbiddenCanonicalSections) {
     if (src.includes(heading)) {
