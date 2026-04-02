@@ -23,7 +23,6 @@ export function runEnergyStep(
     energyL2Manager,
     isMultiBeam,
     kpiAcc,
-    beamLayouts,
     l2InitializedSats,
   } = state;
 
@@ -59,37 +58,46 @@ export function runEnergyStep(
       }
     }
 
+    const legacyMetrics = energyManager.computeMetrics(throughputs);
+
     if (bundle.power && bundle.ee) {
-      const numActiveBeams = representativeServing
-        ? (satSinrs.find((s) => s.satId === representativeServing!.satId) ? 1 : 0)
-        : 0;
       const totalThroughputBps = Array.from(throughputs.values()).reduce((s, v) => s + v, 0);
-      
-      const totalBeamsInSystem = satSamples.reduce((sum, { satId }) => {
-        const layout = beamLayouts.get(satId);
-        return sum + (layout ? layout.beams.length : 0);
-      }, 0);
+      const txPowerPerBeamDbm =
+        profile.rf.tx_power_per_beam_dbm ?? DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm;
+      const defaultActiveTxPowerW = Math.pow(10, (txPowerPerBeamDbm - 30) / 10);
+      const activeBeamOverheadW = Math.max(
+        0,
+        DEFAULT_ENERGY_LAYER1_CONFIG.activeBeamPowerW - defaultActiveTxPowerW,
+      );
 
       const powerResult = bundle.power.compute({
-        txPowerPerBeamDbm: profile.rf.tx_power_per_beam_dbm ?? DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm,
-        numActiveBeams,
-        circuitPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.idlePowerW * Math.max(0, totalBeamsInSystem - numActiveBeams),
+        activeTxPowerW: legacyMetrics.activeTxPowerW,
+        activeBeamCount: legacyMetrics.activeBeamCount,
+        idleBeamCount: legacyMetrics.idleBeamCount,
+        offBeamCount: legacyMetrics.offBeamCount,
+        activeBeamOverheadW,
+        idleBeamPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.idlePowerW,
+        offBeamPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.offBeamPowerW,
       });
 
       const eeBpj = bundle.ee.computeBitsPerJoule({
         throughputBps: totalThroughputBps,
-        totalPowerW: powerResult.totalPowerW,
+        denominatorPowerW: legacyMetrics.activeTxPowerW,
       });
 
-      const legacyMetrics = energyManager.computeMetrics(throughputs);
       state.lastEnergyMetrics = {
         systemEeBitsPerJoule: eeBpj,
         perBeamEe: legacyMetrics.perBeamEe,
+        activeTxPowerW: legacyMetrics.activeTxPowerW,
+        totalCommunicationPowerW: powerResult.totalCommunicationPowerW,
         totalPowerW: powerResult.totalPowerW,
+        activeBeamCount: legacyMetrics.activeBeamCount,
+        idleBeamCount: legacyMetrics.idleBeamCount,
+        offBeamCount: legacyMetrics.offBeamCount,
         activeBeamRatio: legacyMetrics.activeBeamRatio,
       };
     } else {
-      state.lastEnergyMetrics = energyManager.computeMetrics(throughputs);
+      state.lastEnergyMetrics = legacyMetrics;
     }
 
     if (state.lastEnergyMetrics) {

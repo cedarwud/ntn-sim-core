@@ -1,6 +1,6 @@
 # Gemini CLI Instructions — ntn-sim-core
 
-**Governance-Version:** `2026-04-02-a`
+**Governance-Version:** `2026-04-02-b`
 
 This file is the Gemini-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -31,7 +31,11 @@ This file is the Gemini-facing workflow wrapper for work inside `/home/u24/paper
    - [/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md](/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md)
    after `agent-governance.md`.
    Treat it as a supplemental workflow aid for future-track bootstrapping, not as a replacement for current SDD authority or frozen contracts.
-8. When changing agent-facing governance, update:
+8. When a task needs workspace-level external/reference workflow discovery, also read:
+   - [/home/u24/papers/skills/README.md](/home/u24/papers/skills/README.md)
+   after `agent-governance.md`.
+   Treat it as a discoverability index only; do not let it override current SDD authority, project-local skills, or frozen contracts.
+9. When changing agent-facing governance, update:
    - [agent-governance.md](/home/u24/papers/ntn-sim-core/agent-governance.md)
    - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
    - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)

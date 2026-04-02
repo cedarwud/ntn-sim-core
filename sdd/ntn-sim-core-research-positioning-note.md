@@ -164,13 +164,15 @@ The highest-value remaining gaps are not “more features everywhere.” They ar
    - now a shipped current-anchor paper-evidence surface,
    - strengthens parity evidence and paper-ready comparison packaging for the current anchor baseline.
 3. **EE / power realism hardening**
-   - only if the next paper’s central claim depends on `EE` as more than a secondary metric.
+   - now landed as a shipped narrow hardening surface,
+   - hardened denominator semantics, provenance, disclosure, and the minimum sensitivity bar through `VAL-EE-003` / `VAL-EE-004`,
+   - remains relevant only when `EE` must serve as more than a secondary metric.
 4. **future-paper-family extension**
    - only after the current anchor parity line is strong enough to justify opening a sibling baseline.
 
-As of 2026-04-02, items `1` and `2` above are both complete and shipped through `sdd/paper-mode-claim-mode-hardening-outline.md` and `sdd/modqn-targeted-parity-outline.md`.
+As of 2026-04-02, items `1`, `2`, and `3` above are all complete and shipped through `sdd/paper-mode-claim-mode-hardening-outline.md`, `sdd/modqn-targeted-parity-outline.md`, and `sdd/ee-power-realism-hardening-outline.md`.
 
-That shipped state means the current tree is paper-usable through the PM1 authority surface plus the TP1 parity bundle, and any next strengthening step now requires a fresh follow-on promotion rather than hidden `OMNeT++ / INET / estnet` or real-trace scalability prerequisites.
+That state means the current tree is already paper-usable through the PM1 authority surface, the TP1 parity bundle, and the landed EP1 denominator/disclosure hardening, without turning `OMNeT++ / INET / estnet` or real-trace scalability into hidden prerequisites.
 
 ### 6.2 Separate Future Track: `OMNeT++` / `INET` / `estnet`
 

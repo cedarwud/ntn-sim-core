@@ -29,6 +29,7 @@ const files = [
 ];
 
 const requiredOpenSpecSkill = 'ntn-openspec-follow-on-kickoff';
+const requiredWorkspaceSkillIndex = 'skills/README.md';
 
 const forbiddenCanonicalSections = [
   '## 2. Authority Order',
@@ -57,6 +58,9 @@ for (const [name, src] of files) {
   }
   if (!src.includes(requiredOpenSpecSkill)) {
     errors.push(`${name}: missing local OpenSpec follow-on skill reference (${requiredOpenSpecSkill})`);
+  }
+  if (!src.includes(requiredWorkspaceSkillIndex)) {
+    errors.push(`${name}: missing workspace skill/reference index reference (${requiredWorkspaceSkillIndex})`);
   }
   for (const heading of forbiddenCanonicalSections) {
     if (src.includes(heading)) {

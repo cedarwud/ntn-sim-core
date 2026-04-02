@@ -403,7 +403,7 @@
       ]
     },
     "ASSUME-ATM-001": "Tier 4 atmospheric loss uses fixed mid-latitude zenith estimates from ITU-R simplified models: gaseous 0.35 dB (10–25 GHz) / 0.6 dB (25+ GHz) from ITU-R P.676; rain 0.8 dB (10–25 GHz) / 1.5 dB (25+ GHz) from ITU-R P.618 at 99% availability; scintillation 0.4 dB Ka-band from ITU-R P.618 tropospheric. Claim scope: LEO NTN Ka-band baseline only; not for site-specific or availability-sensitive studies. Source: link-budget.ts Tier 4 block.",
-    "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed",
+    "ASSUME-ENERGY-001": "Layer 1 beam-state energy defaults: txPowerPerBeamDbm=40 dBm (= 10 W per beam, aligned with spec P1 per PAP-2025-MAAC-BHPOWER [S10]; legacy value was 43 dBm — do not use); activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 are unverified calibration values and must not be labeled paper-backed. EP1 semantic rule: runtime systemEeBitsPerJoule is active-TX-only EE, while runtime totalPowerW is a broader beam-state communication-power proxy; neither may be repackaged as total communication power without explicit disclosure.",
     "ASSUME-HO-ENERGY-001": {
       "description": "Per-handover energy cost E_u,HO has no corpus-backed numeric default in the final simulator spec. If energy_per_handover_j is set, it must be labeled assumption-backed, provenance-tagged at parameterPath=energy.energy_per_handover_j, and reported as a scenario sensitivity parameter rather than a paper-backed baseline constant.",
       "usedIn": [

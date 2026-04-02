@@ -7,6 +7,7 @@
  */
 
 import type { KpiBundleShell } from '@/core/common/types';
+import { buildEePowerDisclosureFromProfileSnapshot } from '@/core/energy/layer1';
 import type {
   RunManifest,
   ResolvedConfig,
@@ -148,6 +149,11 @@ export function createRunArtifactBundle(
   kpiBundle?: KpiBundleShell,
   assumptionSet?: AssumptionRecord[],
 ): RunArtifactBundle {
+  const eePowerDisclosure = buildEePowerDisclosureFromProfileSnapshot(
+    resolvedConfig.profileSnapshot,
+    (assumptionSet ?? []).map((record) => record.id),
+  );
+
   return {
     manifest,
     resolvedConfig,
@@ -157,5 +163,6 @@ export function createRunArtifactBundle(
     replayManifest,
     replayArtifact,
     ...(assumptionSet !== undefined && assumptionSet.length > 0 ? { assumptionSet } : {}),
+    ...(eePowerDisclosure !== undefined ? { eePowerDisclosure } : {}),
   };
 }

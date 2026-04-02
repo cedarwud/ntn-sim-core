@@ -1,7 +1,7 @@
 # Documentation Index
 
 This folder holds the architecture and SDD documents for `ntn-sim-core`.
-The simulator-platform refactor is complete, the shipped downstream baseline lines are closed through `MODQN M3` / `UI U2`, the narrow real-trace truth-path correction (`T1`) is shipped, and the paper-oriented governance / parity surfaces (`PM1`, `TP1`) are also shipped. There is no newly promoted paper-oriented active follow-on at the moment.
+The simulator-platform refactor is complete, the shipped downstream baseline lines are closed through `MODQN M3` / `UI U2`, the narrow real-trace truth-path correction (`T1`) is shipped, and the paper-oriented governance / parity / `EE-power` surfaces (`PM1`, `TP1`, `EP1`) are also shipped. There is currently no newly promoted paper-oriented active follow-on.
 
 ## Primary Entry Points
 
@@ -45,7 +45,7 @@ The simulator-platform refactor is complete, the shipped downstream baseline lin
 1. `architecture blueprint` defines the intended shape of the system.
 2. `SDD` defines the normative engineering contract.
 3. `platform-refactor roadmap` records the completed execution order that produced the frozen platform closure.
-4. shipped downstream baseline work (`M1` -> `M3`, `U1` -> `U2`, plus the separately shipped `T1` truth-path correction, `PM1`, and `TP1`) should be read from the active shipped downstream surface defined in `../sdd/README.md`, `downstream-runtime-architecture-sdd.md`, and the matching baseline specs; any new `MODQN` / `UI` / paper-oriented / `estnet` / runtime work still requires fresh promotion or explicit reopen.
+4. shipped downstream baseline work (`M1` -> `M3`, `U1` -> `U2`, plus the separately shipped `T1` truth-path correction, `PM1`, `TP1`, and `EP1`) should be read from the active shipped downstream surface defined in `../sdd/README.md`, `downstream-runtime-architecture-sdd.md`, and the matching baseline specs; any additional `MODQN` / `UI` / paper-oriented / `estnet` / runtime work still requires fresh promotion or explicit reopen.
 5. `validation matrix` defines what must be true before a phase or active downstream surface can be considered done.
 6. companion governance docs constrain what may be merged, claimed, or assumed during implementation.
 7. historical closure documents may explain how earlier work landed, but they do not override the active SDD set.

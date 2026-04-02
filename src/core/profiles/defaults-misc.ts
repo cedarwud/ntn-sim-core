@@ -286,8 +286,9 @@ export const GEO_RELAY_BASELINE: ProfileConfig =
 //     which is Internal-only per spec R7 and is present in all profiles
 //   - energy.layer1_enabled=false: beam-state power values P5/P6/P7 have no
 //     paper-backed Realistic default (spec GAP-5); enabling EE would require
-//     ASSUME-ENERGY-001 (Internal-only calibration) in the artifact — incompatible
-//     with a first-screen Realistic audit claim
+//     ASSUME-ENERGY-001 (Internal-only calibration) plus EP1 disclosure that
+//     systemEeBitsPerJoule is active-TX-only and totalPowerW is a broader
+//     communication-power proxy — incompatible with a first-screen Realistic audit claim
 //   - trigger_threshold_db=-8 = Q_out: attach floor derived from the same Q_out
 //     that already has standard-backed provenance (TR 38.133 §7.6); semantics:
 //     "attach only to a satellite whose SINR exceeds the link quality floor"

@@ -168,6 +168,31 @@ const cardValueStyle: React.CSSProperties = {
   fontWeight: 700,
 };
 
+const disclosureTextStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: '#9eb0c4',
+  lineHeight: 1.5,
+  marginBottom: 6,
+};
+
+const disclosureValueStyle: React.CSSProperties = {
+  color: '#dce4ef',
+};
+
+function formatHeadlineClaimStatus(status: 'secondary-only' | 'robustness-or-sensitivity-only'): string {
+  return status === 'secondary-only'
+    ? 'secondary metric only'
+    : 'robustness or sensitivity only';
+}
+
+function formatRecommendedFallback(
+  fallback: 'utility-form-fallback-objective' | 'secondary-metric-only',
+): string {
+  return fallback === 'utility-form-fallback-objective'
+    ? 'utility-form fallback objective'
+    : 'secondary metric only';
+}
+
 export const BaselineResultPanel: React.FC<BaselineResultPanelProps> = React.memo(
   ({ profileId, handoverTypeOverride, onClose }) => {
     const [referenceId, setReferenceId] = useState<string>('');
@@ -203,6 +228,45 @@ export const BaselineResultPanel: React.FC<BaselineResultPanelProps> = React.mem
         : null,
       [modqn.viewModel, ref.result],
     );
+    const renderEeDisclosure = useCallback((
+      disclosure: NonNullable<typeof main.eePowerDisclosure>,
+    ) => (
+      <div style={panelStyle}>
+        <div style={{ ...sectionTitleStyle, fontSize: 10, color: '#556' }}>
+          EE / Power Disclosure
+        </div>
+        <div style={disclosureTextStyle}>
+          <span style={{ color: '#71d7ff' }}>Runtime EE:</span>{' '}
+          <span style={disclosureValueStyle}>
+            `systemEeBitsPerJoule` remains active-TX-only EE.
+          </span>
+        </div>
+        <div style={disclosureTextStyle}>
+          <span style={{ color: '#71d7ff' }}>Runtime power:</span>{' '}
+          <span style={disclosureValueStyle}>
+            `totalPowerW` remains the broader communication-power proxy.
+          </span>
+        </div>
+        <div style={disclosureTextStyle}>
+          <span style={{ color: '#71d7ff' }}>Assumptions:</span>{' '}
+          <span style={disclosureValueStyle}>
+            {disclosure.assumptionIds.length > 0 ? disclosure.assumptionIds.join(', ') : 'none'}
+          </span>
+        </div>
+        <div style={disclosureTextStyle}>
+          <span style={{ color: '#71d7ff' }}>Claim bar:</span>{' '}
+          <span style={disclosureValueStyle}>
+            {formatHeadlineClaimStatus(disclosure.headlineClaimStatus)}
+          </span>
+        </div>
+        <div style={{ ...disclosureTextStyle, marginBottom: 0 }}>
+          <span style={{ color: '#71d7ff' }}>Fallback:</span>{' '}
+          <span style={disclosureValueStyle}>
+            {formatRecommendedFallback(disclosure.recommendedFallback)}
+          </span>
+        </div>
+      </div>
+    ), []);
 
     useEffect(() => {
       if (!comparisonEnabled && referenceId) {
@@ -292,6 +356,7 @@ export const BaselineResultPanel: React.FC<BaselineResultPanelProps> = React.mem
                     ))}
                   </div>
                 ))}
+                {main.eePowerDisclosure && renderEeDisclosure(main.eePowerDisclosure)}
               </>
             )}
           </div>
@@ -323,6 +388,7 @@ export const BaselineResultPanel: React.FC<BaselineResultPanelProps> = React.mem
                     ))}
                   </div>
                 ))}
+                {ref.eePowerDisclosure && renderEeDisclosure(ref.eePowerDisclosure)}
               </>
             )}
           </div>

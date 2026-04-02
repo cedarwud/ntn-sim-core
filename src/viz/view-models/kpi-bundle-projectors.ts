@@ -131,12 +131,17 @@ export function projectKpiBundleToSections(bundle: KpiBundle): KpiDetailSectionV
       title: 'Energy',
       rows: [
         row(
-          'System EE',
+          'System EE (active-TX only)',
           bundle.systemEeBitsPerJoule,
           formatDecimal(bundle.systemEeBitsPerJoule, 2),
           'bits/J',
         ),
-        row('Total Power', bundle.totalPowerW, formatDecimal(bundle.totalPowerW, 2), 'W'),
+        row(
+          'Total Power Proxy',
+          bundle.totalPowerW,
+          formatDecimal(bundle.totalPowerW, 2),
+          'W',
+        ),
         row(
           'Active Beam Ratio',
           bundle.activeBeamRatio,

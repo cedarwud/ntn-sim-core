@@ -313,6 +313,7 @@ console.log('\n=== VAL-EE-001: Energy Layer 1 ===\n');
 
 // 19 beams, 5 active.
 // Power constants from DEFAULT_ENERGY_LAYER1_CONFIG (src/core/energy/layer1.ts):
+//   txPowerPerBeamDbm = 40 dBm = 10 W active TX denominator per active beam
 //   activeBeamPowerW = 20 W  (@assumption ASSUME-ENERGY-001)
 //   idleBeamPowerW   =  5 W  (@assumption ASSUME-ENERGY-001)
 //   offBeamPowerW    =  0.1 W (@assumption — internal calibration)
@@ -320,24 +321,38 @@ console.log('\n=== VAL-EE-001: Energy Layer 1 ===\n');
 const numBeams = 19;
 const activeBeams = 5;
 const idleBeams = numBeams - activeBeams;
+const txPowerPerBeamW = 10;
 const activeW = 20;   // watts per active beam (ASSUME-ENERGY-001)
 const idleW = 5;      // watts per idle beam   (ASSUME-ENERGY-001)
 
+const activeTxPower = activeBeams * txPowerPerBeamW;
 const totalPower = activeBeams * activeW + idleBeams * idleW;
+const expectedActiveTxPower = 5 * 10;
 const expectedPower = 5 * 20 + 14 * 5;  // 100 + 70 = 170 W
-checkAbs('Total power (5 active × 20W, 14 idle × 5W)', totalPower, expectedPower, 0.001, 'W');
+checkAbs('Active TX denominator (5 active × 10W)', activeTxPower, expectedActiveTxPower, 0.001, 'W');
+checkAbs('Total communication-power proxy (5 active × 20W, 14 idle × 5W)', totalPower, expectedPower, 0.001, 'W');
 checkAbs('Total power = 170W', totalPower, 170, 0.001, 'W');
 
-// EE = throughput / power
+// EP1 runtime split:
+//   - system EE uses active TX power only
+//   - totalPowerW is the broader communication-power proxy
 const throughput_bps = 500e6; // 500 Mbps
-const EE = throughput_bps / totalPower;
-const expectedEE = 500e6 / 170;
-checkAbs('EE = throughput/power', EE, expectedEE, 0.01, 'bps/W');
+const EE = throughput_bps / activeTxPower;
+const expectedEE = 500e6 / 50;
+const proxyEE = throughput_bps / totalPower;
+checkAbs('System EE = throughput / active TX power', EE, expectedEE, 0.01, 'bps/W');
+checkAbs('Proxy EE = throughput / total communication-power proxy', proxyEE, 500e6 / 170, 0.01, 'bps/W');
+checkBool(
+  'EP1 split keeps active-TX EE above proxy EE for the same throughput',
+  EE > proxyEE,
+  `systemEE=${EE.toFixed(0)} > proxyEE=${proxyEE.toFixed(0)}`,
+);
 
 // Changing active beam count changes EE proportionally
 const activeBeams2 = 10;
 const totalPower2 = activeBeams2 * activeW + (numBeams - activeBeams2) * idleW;
-const EE2 = throughput_bps / totalPower2;
+const activeTxPower2 = activeBeams2 * txPowerPerBeamW;
+const EE2 = throughput_bps / activeTxPower2;
 // More active beams → more power → lower EE (if throughput constant)
 checkBool('More active beams → lower EE (same throughput)',
   EE2 < EE, `EE(5)=${EE.toFixed(0)} > EE(10)=${EE2.toFixed(0)}`);

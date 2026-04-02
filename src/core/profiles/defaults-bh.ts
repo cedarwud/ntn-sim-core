@@ -100,7 +100,7 @@ export const BH_RESOURCE_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'assumption-backed', id: 'ASSUME-BW-001', parameterPath: 'rf.bandwidth_mhz', specMode: 'Advanced', note: '500MHz BW — representative for BH resource studies; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption; spec H2 paper-backed presets are 0/40/256ms' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB SINR-relative; spec H3 requires absolute derivation' },
-    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'activeBeamPowerW=20, idlePowerW=5 are GAP-5 unverified calibration values (spec P5/P6 Internal-only)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'Layer-1 power path remains EP1 disclosure-only: systemEeBitsPerJoule is active-TX-only EE, while totalPowerW is the broader beam-state communication-power proxy; activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 remain GAP-5 assumption-backed calibration values' },
   ],
 };
 
@@ -269,7 +269,7 @@ export const BH_PF_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'assumption-backed', id: 'ASSUME-BW-001', parameterPath: 'rf.bandwidth_mhz', specMode: 'Advanced', note: '500MHz BW — representative for BH resource studies; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption; spec H2 paper-backed presets are 0/40/256ms' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB SINR-relative; spec H3 requires absolute derivation' },
-    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'activeBeamPowerW=20, idlePowerW=5 are GAP-5 unverified calibration values (spec P5/P6 Internal-only)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'Layer-1 power path remains EP1 disclosure-only: systemEeBitsPerJoule is active-TX-only EE, while totalPowerW is the broader beam-state communication-power proxy; activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 remain GAP-5 assumption-backed calibration values' },
     {
       tier: 'paper-backed',
       id: 'PAP-2024-HOBS',
@@ -353,7 +353,7 @@ export const BH_SINR_GREEDY_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'assumption-backed', id: 'ASSUME-BW-001', parameterPath: 'rf.bandwidth_mhz', specMode: 'Advanced', note: '500MHz BW — representative for BH resource studies; no single paper locator' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption; spec H2 paper-backed presets are 0/40/256ms' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB SINR-relative; spec H3 requires absolute derivation' },
-    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'activeBeamPowerW=20, idlePowerW=5 are GAP-5 unverified calibration values (spec P5/P6 Internal-only)' },
+    { tier: 'assumption-backed', id: 'ASSUME-ENERGY-001', parameterPath: 'energy.layer1_enabled', specMode: 'Internal-only', note: 'Layer-1 power path remains EP1 disclosure-only: systemEeBitsPerJoule is active-TX-only EE, while totalPowerW is the broader beam-state communication-power proxy; activeBeamPowerW=20, idlePowerW=5, offBeamPowerW=0.1 remain GAP-5 assumption-backed calibration values' },
     {
       tier: 'paper-backed',
       id: 'PAP-2026-DRL-BHOPT',

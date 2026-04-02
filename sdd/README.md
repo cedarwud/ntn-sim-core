@@ -2,14 +2,13 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), and the current-anchor MODQN targeted parity package (`TP1`). There is no newly promoted paper-oriented implementation lane at the moment; any further paper-oriented work now requires a fresh follow-on promotion rather than continuation from an already-shipped pack. The SDD set is therefore split into:
+As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), and the `EE / power` realism hardening line (`EP1`). There is currently no separately promoted paper-oriented implementation line beyond these shipped surfaces. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **No currently promoted paper-oriented follow-on files**
-4. **Shipped downstream files** that record the completed downstream baseline surfaces and future reopen reference points
-5. **Deferred / paused downstream files** that still require additional promotion
-6. **Historical / closure files** moved to `archive/`
+3. **Shipped downstream files** that record the completed downstream baseline surfaces and paper-oriented follow-ons
+4. **Deferred / paused downstream files** that still require additional promotion
+5. **Historical / closure files** moved to `archive/`
 
 ## 1. Core Authority
 
@@ -61,16 +60,7 @@ These files define the now-complete platform-refactor program that unlocked down
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
 
-## 3. No Currently Promoted Paper-Oriented Follow-On
-
-There is no currently promoted paper-oriented implementation line beyond the shipped `PM1` and `TP1` surfaces.
-
-Any further paper-oriented work should start only after:
-
-1. a fresh reviewer-grade rerun against the shipped current-anchor evidence surface if needed, and
-2. a newly promoted follow-on SDD plus matching `todo/` handoff pack.
-
-## 4. Shipped Downstream Surface
+## 3. Shipped Downstream Surface
 
 These files remain the shipped downstream authority for the completed baseline surfaces. They are still the correct reference set for reviewer reruns and future reopen work, but they are **not** by themselves an active instruction to keep implementing the same lines.
 
@@ -92,10 +82,17 @@ These files remain the shipped downstream authority for the completed baseline s
    - shipped PM1 governance prerequisite; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule consumed by the shipped parity surface
 9. `modqn-targeted-parity-outline.md`
    - shipped TP1 paper-evidence surface; records the landed current-anchor parity bundle, `VAL-MODQN-004`, and the current target labels (`range-faithful` / `trend-faithful` / `qualitative-only`) without reopening runtime architecture
+10. `ee-power-realism-hardening-outline.md`
+   - shipped EP1 paper-safety surface; records the landed active-TX EE vs broader communication-power proxy split, the artifact `eePowerDisclosure` surface, and the minimum sensitivity/disclosure bar without reopening backend/protocol realism or downstream architecture
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
-## 5. Deferred / Paused Downstream Files
+Any new paper-oriented work beyond these shipped surfaces should still start only after:
+
+1. a fresh reviewer-grade rerun against the shipped current-anchor evidence / paper-safety surface if needed, and
+2. a newly promoted follow-on SDD plus matching `todo/` handoff pack.
+
+## 4. Deferred / Paused Downstream Files
 
 These files are not valid implementation authority for the current baseline entry path without further promotion or explicit reopen.
 
@@ -110,7 +107,7 @@ These files are not valid implementation authority for the current baseline entr
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
-## 6. Archived Historical Documents
+## 5. Archived Historical Documents
 
 Closed closure notes, stale roadmaps, donor-migration notes, and one-shot acceptance documents are no longer kept in this folder as authority. They are archived under:
 
@@ -118,7 +115,7 @@ Closed closure notes, stale roadmaps, donor-migration notes, and one-shot accept
 
 Historical documents may be cited for forensic context, but they must not override the active authority set above.
 
-## 7. Working Rule
+## 6. Working Rule
 
 1. No KPI-impacting implementation should land without a corresponding place in:
    - the core authority set

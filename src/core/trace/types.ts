@@ -15,6 +15,7 @@ import type {
   KpiBundleShell,
   SimulationSnapshot,
 } from '@/core/common/types';
+import type { EePowerDisclosure } from '@/core/energy/types';
 
 // Re-export so consumers can get KpiBundleShell from trace module
 export type { KpiBundleShell };
@@ -149,6 +150,12 @@ export interface RunArtifactBundle {
    * Omitted when no assumption-backed entries are present.
    */
   assumptionSet?: AssumptionRecord[];
+  /**
+   * EP1 disclosure surface for EE/power runtime semantics, denominator terms,
+   * and claim-bar wording. Omitted when the run does not materialize any EE/power
+   * path that needs disclosure.
+   */
+  eePowerDisclosure?: EePowerDisclosure;
 }
 
 // ---------------------------------------------------------------------------

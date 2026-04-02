@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-04-02-a`
+**Governance-Version:** `2026-04-02-b`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -16,7 +16,8 @@ must remain thin wrappers around this document rather than independent full rule
 
 1. `ntn-sim-core` is the current primary development target in the `papers` workspace.
 2. The active long-term direction is a **parameter-driven, model-pluggable simulator platform**, not a one-paper reproduction codebase.
-3. Platform Refactor is complete; MODQN work, new UI work, and any future `estnet-ui-kickoff` integration must enter through preflight-first downstream promotion against the frozen platform closure, not by reopening closed Phase 1–5 work.
+3. Platform Refactor is complete; shipped downstream and paper-oriented follow-ons now include `MODQN M3`, `UI U1/U2`, `T1`, `PM1`, `TP1`, and `EP1`.
+4. There is currently no new active paper-oriented queue; any new MODQN/UI/paper-oriented/`estnet`/external-consumer work must enter through a fresh promotion or explicit reopen against the frozen platform closure, not by reopening closed Phase 1–5 work.
 
 ## 2. Authority Order
 
@@ -46,7 +47,8 @@ When instructions conflict, use this order:
    - [sdd/ntn-sim-core-ui-exposure-spec.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-ui-exposure-spec.md)
    - [sdd/ntn-sim-core-frontend-beam-visual-sdd.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
 6. [README.md](/home/u24/papers/ntn-sim-core/README.md) and [docs/README.md](/home/u24/papers/ntn-sim-core/docs/README.md)
-7. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
+7. [/home/u24/papers/skills/README.md](/home/u24/papers/skills/README.md) for workspace-level skill/reference discovery only
+8. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
 
 ## 3. Downstream Promotion Rule
 
@@ -77,6 +79,22 @@ Current implemented skills:
    - use when mapping literature/standard evidence into parameter registry or provenance surfaces
 6. `ntn-openspec-follow-on-kickoff`
    - use when deciding whether a future `OMNeT++ / INET / estnet` or other external-consumer/backend realism track should use OpenSpec as a separate workflow without replacing the current `ntn-sim-core` SDD authority set
+
+### 3.1b Workspace External Reference Rule
+
+When a task may benefit from workspace-level external/reference assets such as:
+
+1. `OpenSpec/`
+2. `autoresearch/`
+3. `ui-ux-pro-max-skill/`
+
+first use [/home/u24/papers/skills/README.md](/home/u24/papers/skills/README.md) to determine their role.
+
+These assets are discoverability/reference aids only:
+
+1. they do not replace the active `sdd/` authority set,
+2. they do not replace project-local skills under `agent-skills/`,
+3. and they must not be vendored back into `ntn-sim-core/agent-skills/` unless a new repo-local skill is intentionally authored.
 
 ### 3.2 UI / UX Skill Rule
 

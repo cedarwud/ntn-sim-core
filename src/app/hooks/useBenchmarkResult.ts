@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
+import { getProfileProvenanceView } from '@/core/config/profile-provenance-view';
+import { buildEePowerDisclosureFromProfileSnapshot } from '@/core/energy/layer1';
+import type { EePowerDisclosure } from '@/core/energy/types';
+import { loadProfile } from '@/core/profiles/loader';
 import {
   defaultRunnerExposureApi,
   type RunnerBenchmarkResponse,
@@ -15,6 +19,7 @@ export interface UseBenchmarkResultResult {
   readonly result: RunnerBenchmarkResponse | null;
   readonly loading: boolean;
   readonly error: string | null;
+  readonly eePowerDisclosure: EePowerDisclosure | null;
   readonly reload: () => void;
 }
 
@@ -32,6 +37,22 @@ export function useBenchmarkResult(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const eePowerDisclosure = useMemo(() => {
+    if (!options.enabled) {
+      return null;
+    }
+
+    try {
+      const profile = loadProfile(options.profileId);
+      const provenance = getProfileProvenanceView(profile.id);
+      return buildEePowerDisclosureFromProfileSnapshot(
+        profile as unknown as Record<string, unknown>,
+        (provenance.assumptionSet ?? []).map((record) => record.id),
+      ) ?? null;
+    } catch {
+      return null;
+    }
+  }, [options.enabled, options.profileId]);
 
   const reload = useCallback(() => {
     setReloadToken((value) => value + 1);
@@ -82,5 +103,5 @@ export function useBenchmarkResult(
     reloadToken,
   ]);
 
-  return { result, loading, error, reload };
+  return { result, loading, error, eePowerDisclosure, reload };
 }

@@ -13,6 +13,66 @@
  */
 
 // ---------------------------------------------------------------------------
+// EP1 semantics / disclosure
+// ---------------------------------------------------------------------------
+
+export type EePowerSourceRole =
+  | 'paper-backed'
+  | 'synthesized'
+  | 'assumption-backed';
+
+export type EePowerRuntimeStatus =
+  | 'reported'
+  | 'derived-disclosure-only'
+  | 'configured-not-materialized'
+  | 'unavailable';
+
+export type EePowerTermId =
+  | 'active-tx-power'
+  | 'active-beam-power-proxy'
+  | 'idle-beam-power-proxy'
+  | 'off-beam-power-proxy'
+  | 'circuit-power'
+  | 'pa-efficiency'
+  | 'handover-energy'
+  | 'handover-penalty-weight';
+
+export type EePowerSemanticId =
+  | 'active-tx-power-oriented-ee'
+  | 'total-communication-power'
+  | 'handover-aware-ee'
+  | 'utility-form-fallback-objective';
+
+export interface EePowerTermDisclosure {
+  id: EePowerTermId;
+  symbol: string;
+  sourceRole: EePowerSourceRole;
+  runtimeStatus: EePowerRuntimeStatus;
+  runtimeField?: string;
+  assumptionIds?: string[];
+  note: string;
+}
+
+export interface EePowerSemanticDisclosure {
+  id: EePowerSemanticId;
+  runtimeStatus: EePowerRuntimeStatus;
+  runtimeField?: string;
+  numerator: string;
+  denominatorTerms: EePowerTermId[];
+  note: string;
+  claimGuard: string;
+}
+
+export interface EePowerDisclosure {
+  denominatorTerms: EePowerTermDisclosure[];
+  semantics: EePowerSemanticDisclosure[];
+  assumptionIds: string[];
+  headlineClaimStatus: 'secondary-only' | 'robustness-or-sensitivity-only';
+  sensitivityRequirement: string;
+  recommendedFallback: 'utility-form-fallback-objective' | 'secondary-metric-only';
+}
+
+// ---------------------------------------------------------------------------
 // Beam Power State
 // ---------------------------------------------------------------------------
 
@@ -29,7 +89,13 @@ export interface BeamPowerEntry {
   state: BeamPowerState;
   /** Current transmit power in dBm. */
   txPowerDbm: number;
-  /** Power consumption in watts for this state. */
+  /** Current transmit power in watts (active-TX denominator term). */
+  txPowerW: number;
+  /**
+   * Communication-power proxy in watts for this beam state.
+   * Active beams carry fixed beam-state overhead plus the current TX power;
+   * idle/off beams carry assumption-backed proxy values only.
+   */
   consumptionW: number;
 }
 
@@ -40,6 +106,7 @@ export interface BeamPowerEntry {
 /** Satellite-level energy snapshot. */
 export interface SatelliteEnergyState {
   satId: string;
+  /** Total communication-power proxy across all beams on this satellite. */
   totalPowerW: number;
   activeBeamCount: number;
   totalBeamCount: number;
@@ -52,14 +119,32 @@ export interface SatelliteEnergyState {
 
 /** Energy efficiency metrics for a tick. */
 export interface EnergyEfficiencyMetrics {
-  /** System EE: total throughput / total power (bits/Joule). */
+  /**
+   * Runtime KPI alias kept for the frozen KPI contract.
+   * Semantics: active-TX-power-oriented EE = total throughput / active TX power.
+   */
   systemEeBitsPerJoule: number;
-  /** Per-beam EE. */
+  /** Per-beam active-TX EE proxy. */
   perBeamEe: Array<{ beamId: string; eeBitsPerJoule: number }>;
-  /** Total power consumption across all satellites in watts. */
+  /** Active transmit power denominator actually used by systemEeBitsPerJoule. */
+  activeTxPowerW: number;
+  /**
+   * Total communication-power proxy across active/idle/off beam states.
+   * This is broader than the active-TX EE denominator and is assumption-backed.
+   */
+  totalCommunicationPowerW: number;
+  /**
+   * Frozen-KPI compatibility alias for totalCommunicationPowerW.
+   * External KPI/report surfaces still read this as totalPowerW.
+   */
   totalPowerW: number;
+  activeBeamCount: number;
+  idleBeamCount: number;
+  offBeamCount: number;
   /** Active beam ratio: active/total. */
   activeBeamRatio: number;
+  /** EP1 disclosure surface for denominator semantics and claim bars. */
+  eePowerDisclosure?: EePowerDisclosure;
 }
 
 // ---------------------------------------------------------------------------
