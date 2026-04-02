@@ -17,7 +17,7 @@ Each reproduction target has:
 3. a metric, comparison mode, and tolerance;
 4. documented assumptions where source parameters are incomplete.
 
-**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. The last recorded comparison snapshot was archived to `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`; fresh reruns should produce new experiment artifacts rather than treating that snapshot as active authority.
+**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. The last recorded comparison snapshot was archived to `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`; fresh reruns should produce new experiment artifacts rather than treating that snapshot as active authority. As of 2026-04-02, the current active paper-evidence follow-on is `TP1` (`sdd/modqn-targeted-parity-outline.md`), which may extend this document with a current-anchor MODQN parity target instead of treating the existing 3-target list as the final long-term ceiling.
 
 ---
 

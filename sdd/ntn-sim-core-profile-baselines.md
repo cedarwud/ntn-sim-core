@@ -1,7 +1,7 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.2.3
-**Date:** 2026-04-01
+**Version:** 1.2.4
+**Date:** 2026-04-02
 **Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults and makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for the authoring vocabulary split and `sdd/phase5-cleanup-and-modularization-sdd.md §6` for the retirement/materialization closure.
 
 ---
@@ -33,9 +33,11 @@ The intent is to be concrete enough for implementation and review, without prete
 ### 2.1 `modqn-paper-baseline`
 
 1. `modqn-paper-baseline` is the dedicated downstream MODQN baseline, not the first-screen platform baseline.
-2. It fixes the baseline paper envelope at `780 km`, a disclosed `2 x 2` proxy shell, `7` beams per satellite, `20 GHz`, `500 MHz`, `100` uniformly distributed UEs, and weights `[0.5, 0.3, 0.2]`.
-3. The observer remains Beijing, but the `10 s` episode epoch is explicitly assumption-backed and tuned so the disclosed proxy shell intersects a visible pass within the short runtime window.
-4. Its claim ceiling at M1 is contract/runtime-faithful baseline support only; trained-model and comparison claims remain M2/M3 work.
+2. As of `PM1` (`sdd/paper-mode-claim-mode-hardening-outline.md`), it is the current frozen anchor baseline for paper-oriented claim packaging.
+3. It fixes the baseline paper envelope at `780 km`, a disclosed `2 x 2` proxy shell, `7` beams per satellite, `20 GHz`, `500 MHz`, `100` uniformly distributed UEs, and weights `[0.5, 0.3, 0.2]`.
+4. The observer remains Beijing, but the `10 s` episode epoch is explicitly assumption-backed and tuned so the disclosed proxy shell intersects a visible pass within the short runtime window.
+5. Its paper-safe main-result corridor centers on throughput / scalarized reward, handover outcomes, load-balance behavior, and stable KPI-bundle outputs; assumption-heavy `EE / power` remains secondary or sensitivity-only unless a later energy-centered authority raises the bar.
+6. Materially different future paper families must land as sibling baselines rather than rewriting `modqn-paper-baseline` in place.
 
 ---
 

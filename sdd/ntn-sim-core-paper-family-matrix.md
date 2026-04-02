@@ -1,7 +1,7 @@
 # NTN Sim Core — Paper Family Matrix
 
-**Version:** 1.0.2
-**Date:** 2026-04-01
+**Version:** 1.0.3
+**Date:** 2026-04-02
 **Status:** Active
 
 ---
@@ -42,6 +42,9 @@ If a conflict appears:
 3. A family may remain active for engineering and benchmark use even when its `paper-claim` ceiling is still blocked.
 4. Exact paper replication requires all explicit source-paper parameters to match or be disclosed as assumptions.
 5. TLE-backed studies do not create a separate radio/beam family by themselves; they inherit channel, beam, and scheduler contracts from a synthetic family.
+6. As of `PM1`, `FAM-MODQN-SYNTH` via `modqn-paper-baseline` is the current frozen paper-mode anchor family.
+7. A materially different future paper family must land as a sibling baseline rather than silently replacing the current anchor family.
+8. `OMNeT++ / INET / estnet` and blocked real-trace scalability work remain separate future tracks unless a later SDD explicitly promotes them.
 
 ---
 

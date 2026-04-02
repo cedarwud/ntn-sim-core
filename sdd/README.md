@@ -2,7 +2,7 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, and the real-trace truth-path correction (`T1`). A new paper-oriented governance follow-on is now promoted. The SDD set is therefore split into:
+As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, and the real-trace truth-path correction (`T1`). A new paper-oriented governance follow-on is now promoted on top of that shipped baseline rather than as another runtime lane. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
@@ -63,10 +63,10 @@ These files define the now-complete platform-refactor program that unlocked down
 
 ## 3. Active Paper-Oriented Follow-On
 
-This file is the current next active follow-on surface. It tightens how the existing simulator should be used for publication-oriented work without reopening runtime architecture.
+This file is the current next active follow-on surface. It strengthens paper-oriented parity evidence for the current anchor baseline without reopening runtime architecture. Any already-shipped truth-path runtime/validation work remains owned by the `T1` surface in Section 4 rather than being reclassified into this parity line.
 
-1. `paper-mode-claim-mode-hardening-outline.md`
-   - active paper-oriented governance hardening surface; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule
+1. `modqn-targeted-parity-outline.md`
+   - active current-anchor parity hardening surface; packages stronger parity evidence for `PAP-2024-MORL-MULTIBEAM` / `modqn-paper-baseline`, labels targets as trend-faithful / range-faithful / qualitative-only, and keeps PM1 claim ceilings intact
 
 ## 4. Shipped Downstream Surface
 
@@ -85,7 +85,9 @@ These files remain the shipped downstream authority for the completed baseline s
 6. `ui-integration-roadmap.md`
    - active baseline UI spec covering the shipped `U1`/`U2` path; still restricted to frozen contracts and stable runner surfaces
 7. `real-trace-truth-path-correction-outline.md`
-   - shipped narrow orbit/runtime correction authority; records the landed real-trace wording/runtime drift closure without reopening broader scalability work
+   - shipped narrow orbit/runtime correction authority; records the landed real-trace wording/runtime drift closure without reopening broader scalability work, and remains the owner of that runtime/validation scope even while later paper-oriented follow-ons are active
+8. `paper-mode-claim-mode-hardening-outline.md`
+   - shipped PM1 governance prerequisite; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule consumed by the active parity line
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 

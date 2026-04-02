@@ -1,7 +1,7 @@
 # NTN Sim Core — Reproduction Protocol
 
-**Version:** 1.0.0
-**Date:** 2026-03-23
+**Version:** 1.0.1
+**Date:** 2026-04-02
 **Status:** Active
 
 ---
@@ -31,6 +31,16 @@ Its job is to answer four questions for every future claim:
 | `L3` | paper-claim reproduction | a figure, table, or result is suitable for paper evidence under the acceptance gates | publishable artifact set with locked tolerance and disclosure |
 
 No result may be described as `L3` unless the benchmark run gate and paper-claim gate both pass.
+
+### 2.1 Paper-Mode Packaging Rule
+
+`PM1` adds a packaging rule on top of the reproduction ladder:
+
+1. main-result material should stay anchored to one declared profile family and should carry the primary parity target for that family;
+2. robustness material may stress-check or validate the main result, but it does not replace the anchor-family evidence path;
+3. sensitivity / appendix material must be labeled as such, especially for assumption-heavy `EE / power`, weight sweeps, or envelope-stretch studies;
+4. if a paper is not energy-centered, assumption-heavy `EE / power` must not become the sole basis for an `L3` headline claim;
+5. if a paper is energy-centered, `EE / power` may contribute to an `L3` claim only with explicit disclosure plus at least one sensitivity path.
 
 ---
 

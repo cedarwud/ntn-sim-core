@@ -115,6 +115,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-MODQN-001` | downstream MODQN | paper-faithful MODQN bridge remains wired: constants, authored baseline envelope, contracts-only algorithm imports, adapter state/action/reward logic, policy/external action consumption, and `modqn-paper-baseline` runtime viability all pass together | M1 |
 | `VAL-MODQN-002` | downstream MODQN | deterministic MODQN epoch-window sampling, M1-surface-backed training/evaluation closure, held-out evaluation path, and baseline artifact/result bundle all pass together | M2 |
 | `VAL-MODQN-003` | downstream MODQN | M3-stabilized result bundle, disclosure-complete metadata, real runner serialization, and truth-safe `ModqnViewModel` consumption all pass together without breaking the shipped M2 surface | M3 |
+| `VAL-MODQN-004` | downstream MODQN parity | current-anchor parity bundle exists over shipped MODQN result truth, labels targets as trend-faithful / range-faithful / qualitative-only, and preserves the disclosed proxy ceiling without exceeding PM1 claim limits | TP1 |
 
 ---
 

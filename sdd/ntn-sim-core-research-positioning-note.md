@@ -1,6 +1,6 @@
 # NTN Sim Core — Research Positioning Note
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Date:** 2026-04-02  
 **Status:** Active research-positioning companion for paper-oriented follow-on planning  
 **Depends on:** `ntn-sim-core-implementation-status.md`, `ntn-sim-core-paper-family-matrix.md`, `ntn-sim-core-profile-baselines.md`, `system-model-refs/*`, `paper-catalog/*`
@@ -129,10 +129,12 @@ The highest-value remaining gaps are not “more features everywhere.” They ar
 1. **EE / power assumption discipline**
    - keep paper-backed and assumption-backed power terms explicitly separated,
    - keep assumption sets exposed whenever `EE` is reported,
-   - avoid presenting assumption-only denominators as universal truth.
+   - avoid presenting assumption-only denominators as universal truth,
+   - do not let non-energy-centered papers turn assumption-heavy `EE / power` into the headline claim.
 2. **Paper-mode / claim-mode experiment discipline**
-   - define a cleaner publication-oriented configuration surface:
+   - PM1 now hardens a cleaner publication-oriented configuration surface around the current frozen anchor `PAP-2024-MORL-MULTIBEAM` / `modqn-paper-baseline`:
      - what belongs in the main result set,
+     - what belongs in robustness checks,
      - what belongs only in sensitivity / appendix,
      - what is too assumption-heavy to serve as the main claim.
 3. **Reference-paper parity / cross-check evidence**
@@ -154,15 +156,21 @@ The highest-value remaining gaps are not “more features everywhere.” They ar
 
 ### 6.1 Recommended as the Next Publication-Oriented Improvement Themes
 
-1. **paper-mode / claim-mode packaging**
-   - a small follow-on that defines a cleaner “publication configuration” for main-result vs robustness-result usage,
-   - without reopening contracts or the platform core.
-2. **EE / power realism hardening**
+1. **paper-mode / claim-mode hardening (`PM1`)**
+   - completed governance prerequisite,
+   - froze `PAP-2024-MORL-MULTIBEAM` / `modqn-paper-baseline` as the current anchor baseline,
+   - defined main-result vs robustness vs sensitivity usage without reopening contracts or the platform core.
+2. **targeted parity strengthening**
+   - the current active paper-evidence line,
+   - strengthens parity evidence and paper-ready comparison packaging for the current anchor baseline.
+3. **EE / power realism hardening**
    - only if the next paper’s central claim depends on `EE` as more than a secondary metric.
-3. **targeted parity strengthening**
-   - for the specific paper family that the next submission wants to compare against.
+4. **future-paper-family extension**
+   - only after the current anchor parity line is strong enough to justify opening a sibling baseline.
 
-As of 2026-04-02, item `1` above has been promoted into `sdd/paper-mode-claim-mode-hardening-outline.md` as the current next paper-oriented governance follow-on.
+As of 2026-04-02, item `1` above is complete and item `2` has been promoted into `sdd/modqn-targeted-parity-outline.md` as the current next paper-oriented evidence follow-on.
+
+That promotion means the current tree is paper-usable through the shipped PM1 authority surface, and the next strengthening step is current-anchor parity evidence rather than hidden `OMNeT++ / INET / estnet` or real-trace scalability prerequisites.
 
 ### 6.2 Separate Future Track: `OMNeT++` / `INET` / `estnet`
 
