@@ -1,6 +1,6 @@
 # MODQN Targeted Parity Strengthening SDD
 
-**Status:** Active follow-on SDD — current-anchor parity / paper-evidence hardening  
+**Status:** Shipped follow-on SDD — current-anchor parity package and `VAL-MODQN-004` landed; future paper-family extension remains future-track  
 **Promoted:** 2026-04-02  
 **Depends on:** `paper-mode-claim-mode-hardening-outline.md`, `modqn-baseline-spec-outline.md`, `modqn-runtime-outline.md`, `modqn-experiment-outline.md`, `modqn-baseline-acceptance-note.md`, `ntn-sim-core-reproduction-protocol.md`, `ntn-sim-core-reproduction-targets.md`  
 **Scope gate:** current-anchor parity evidence and paper-ready result packaging only
@@ -119,6 +119,20 @@ The comparison bundle must continue disclosing:
 4. `ue-0` control scope,
 5. epsilon-decay assumption.
 
+### 4.4 Current Packaged Targets
+
+The current tree now ships one explicit current-anchor parity bundle over `runModqnBaselineReproduction()` / `ModqnReproductionResult`.
+
+Current packaged targets are:
+
+| Target ID | Paper Reference | Comparison Mode | Current Label | Current Note |
+|---|---|---|---|---|
+| `anchor-envelope` | `Table I / Table II / §IV` | paper-backed parameter envelope | `range-faithful` | shipped profile + frozen manifest align on the paper-backed anchor rows; current artifact still discloses the `2 x 2` proxy and validation-sized execution subset |
+| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `trend-faithful` | shipped scalar reward decreases as user count increases |
+| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `trend-faithful` | shipped scalar reward increases over the selected current-family sweep; the frozen `4`-satellite anchor remains covered by the envelope target |
+| `weighted-reward-user-speed` | `Fig. 5(b)` | held-out scalar reward trend over `30 / 90 / 150 km/h` | `qualitative-only` | current shipped proxy artifact does not show a stable decreasing speed trend, so this target stays below trend-faithful |
+| `baseline-comparator-ranking` | `Fig. 3(b) / Fig. 4(b) / Fig. 5(b)` | qualitative comparator note | `qualitative-only` | shipped truth currently executes only `MODQN`; `RSS_max` / `DQN_throughput` / `DQN_scalar` are not re-run on this surface |
+
 ---
 
 ## 5. Paper-Ready Artifact Bundle
@@ -133,6 +147,19 @@ Minimum bundle contents:
 4. disclosure notes for each non-exact paper-scale deviation,
 5. figure/table-ready exports derived from shipped result truth,
 6. a short verdict on whether the bundle supports only trend-faithful or also range-faithful wording.
+
+Build/export boundary for the landed surface:
+
+1. `runModqnAnchorParityBundle()` may assemble current-anchor sweep evidence over the shipped MODQN runner truth path,
+2. `comparisonRows`, `figures`, and markdown export are packaging projections over the already-materialized bundle targets,
+3. paper-ready export helpers must not invent hidden simulator truth or hidden comparator outcomes beyond that materialized bundle.
+
+The current landed bundle is implemented as:
+
+1. `src/core/experiments/modqn-targeted-parity.ts`
+2. `src/core/experiments/modqn-targeted-parity-types.ts`
+3. `scripts/run-modqn-parity-bundle.ts`
+4. `scripts/validate-modqn-parity.ts`
 
 This bundle may be consumed by future paper writing, but it does not by itself authorize broader claims than PM1 allows.
 
@@ -157,7 +184,7 @@ Allowed companion sync:
 3. `sdd/ntn-sim-core-reproduction-protocol.md`
 4. `todo/modqn/README.md`
 5. `todo/README.md`
-6. repo navigation docs that describe the current active follow-on
+6. repo navigation docs that describe the shipped parity surface and any future reopen boundary
 
 ---
 
@@ -185,12 +212,19 @@ Existing gates that must stay green:
 1. `npm run validate:modqn`
 2. `npm run validate:modqn:m2`
 3. `npm run validate:modqn:m3`
-4. `npm run validate:stage`
+4. `npm run validate:modqn:parity`
+5. `npm run validate:stage`
 
 This line should also prepare a narrower parity gate:
 
 1. `VAL-MODQN-004`
    - verifies that the current anchor parity bundle exists, uses shipped result truth, labels targets as trend-faithful / range-faithful / qualitative-only, and preserves the disclosed proxy ceiling
+
+Current gate implementation:
+
+1. `scripts/validate-modqn-parity.ts`
+2. wired into `npm run validate:modqn:parity`
+3. included in `npm run validate:stage`
 
 The intended validation shape is:
 
@@ -206,7 +240,7 @@ This follow-on is complete only when:
 
 1. the current anchor paper has at least one explicit parity package built from shipped truth,
 2. each packaged target has an explicit parity label,
-3. paper-ready figures/tables can be generated without inventing new simulator truth,
+3. paper-ready figures/tables are packaging projections over materialized parity targets and can be generated without inventing new simulator truth,
 4. the disclosed proxy ceiling remains attached to the package,
 5. the repo can distinguish “baseline can run” from “baseline has paper-oriented parity evidence”.
 

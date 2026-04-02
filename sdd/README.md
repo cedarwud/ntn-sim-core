@@ -2,11 +2,11 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, and the real-trace truth-path correction (`T1`). A new paper-oriented governance follow-on is now promoted on top of that shipped baseline rather than as another runtime lane. The SDD set is therefore split into:
+As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), and the current-anchor MODQN targeted parity package (`TP1`). There is no newly promoted paper-oriented implementation lane at the moment; any further paper-oriented work now requires a fresh follow-on promotion rather than continuation from an already-shipped pack. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
-3. **Active paper-oriented follow-on files** that define the current next hardening surface
+3. **No currently promoted paper-oriented follow-on files**
 4. **Shipped downstream files** that record the completed downstream baseline surfaces and future reopen reference points
 5. **Deferred / paused downstream files** that still require additional promotion
 6. **Historical / closure files** moved to `archive/`
@@ -61,12 +61,14 @@ These files define the now-complete platform-refactor program that unlocked down
 7. `phase5-cleanup-and-modularization-sdd.md`
    - dead code cleanup, file-splitting, and deprecation retirement
 
-## 3. Active Paper-Oriented Follow-On
+## 3. No Currently Promoted Paper-Oriented Follow-On
 
-This file is the current next active follow-on surface. It strengthens paper-oriented parity evidence for the current anchor baseline without reopening runtime architecture. Any already-shipped truth-path runtime/validation work remains owned by the `T1` surface in Section 4 rather than being reclassified into this parity line.
+There is no currently promoted paper-oriented implementation line beyond the shipped `PM1` and `TP1` surfaces.
 
-1. `modqn-targeted-parity-outline.md`
-   - active current-anchor parity hardening surface; packages stronger parity evidence for `PAP-2024-MORL-MULTIBEAM` / `modqn-paper-baseline`, labels targets as trend-faithful / range-faithful / qualitative-only, and keeps PM1 claim ceilings intact
+Any further paper-oriented work should start only after:
+
+1. a fresh reviewer-grade rerun against the shipped current-anchor evidence surface if needed, and
+2. a newly promoted follow-on SDD plus matching `todo/` handoff pack.
 
 ## 4. Shipped Downstream Surface
 
@@ -87,7 +89,9 @@ These files remain the shipped downstream authority for the completed baseline s
 7. `real-trace-truth-path-correction-outline.md`
    - shipped narrow orbit/runtime correction authority; records the landed real-trace wording/runtime drift closure without reopening broader scalability work, and remains the owner of that runtime/validation scope even while later paper-oriented follow-ons are active
 8. `paper-mode-claim-mode-hardening-outline.md`
-   - shipped PM1 governance prerequisite; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule consumed by the active parity line
+   - shipped PM1 governance prerequisite; freezes the current anchor baseline, defines main-result vs robustness vs sensitivity claim tiers, and records the sibling-baseline extension rule consumed by the shipped parity surface
+9. `modqn-targeted-parity-outline.md`
+   - shipped TP1 paper-evidence surface; records the landed current-anchor parity bundle, `VAL-MODQN-004`, and the current target labels (`range-faithful` / `trend-faithful` / `qualitative-only`) without reopening runtime architecture
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 

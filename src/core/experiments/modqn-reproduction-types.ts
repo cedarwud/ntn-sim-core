@@ -7,11 +7,23 @@ import type {
   ModqnTrainingProtocol,
 } from '@/core/contracts/modqn-contracts';
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
+import type { ProfileConfig } from '@/core/profiles/types';
 import type { RunArtifactBundle } from '@/core/trace/types';
 import type { ExperimentManifest, ExperimentResult } from './types';
 
 export type ModqnWindowPlacement = 'entry' | 'mid' | 'exit';
 export type ModqnWindowRole = 'train' | 'held-out';
+
+type DeepPartialValue<T> =
+  T extends readonly unknown[]
+    ? T
+    : T extends object
+      ? { readonly [K in keyof T]?: DeepPartialValue<T[K]> }
+      : T;
+
+export type ModqnProfileOverrides = {
+  readonly [K in keyof ProfileConfig]?: DeepPartialValue<ProfileConfig[K]>;
+};
 
 /**
  * Deterministic episode-sampling envelope for the M2/M3 baseline path.

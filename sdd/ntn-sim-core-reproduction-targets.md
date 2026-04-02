@@ -1,8 +1,8 @@
 # NTN Sim Core — Reproduction Targets
 
-**Version:** 0.3.0
-**Date:** 2026-03-27
-**Status:** Active — dedicated reproduction profiles landed; current results remain review/provisional
+**Version:** 0.3.1
+**Date:** 2026-04-02
+**Status:** Active — dedicated reproduction profiles landed; current-anchor MODQN parity bundle now also exists over the shipped baseline truth surface
 **Purpose:** Define reference paper reproduction targets, profile mappings, tolerance thresholds, and comparison workflows for validating ntn-sim-core against published results.
 
 ---
@@ -17,7 +17,7 @@ Each reproduction target has:
 3. a metric, comparison mode, and tolerance;
 4. documented assumptions where source parameters are incomplete.
 
-**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. The last recorded comparison snapshot was archived to `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`; fresh reruns should produce new experiment artifacts rather than treating that snapshot as active authority. As of 2026-04-02, the current active paper-evidence follow-on is `TP1` (`sdd/modqn-targeted-parity-outline.md`), which may extend this document with a current-anchor MODQN parity target instead of treating the existing 3-target list as the final long-term ceiling.
+**Current status note:** dedicated reproduction profiles now exist for all 3 targets: `sinr-elevation-reproduction`, `hobs-reproduction`, and `timer-cho-reproduction`. The last recorded comparison snapshot was archived to `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`; fresh reruns should produce new experiment artifacts rather than treating that snapshot as active authority. As of 2026-04-02, `TP1` (`sdd/modqn-targeted-parity-outline.md`) has also landed one current-anchor MODQN parity bundle over the shipped `PAP-2024-MORL-MULTIBEAM` / `modqn-paper-baseline` truth surface instead of treating the existing 3-target list as the final long-term ceiling.
 
 ---
 
@@ -28,6 +28,23 @@ Each reproduction target has:
 | 1 | PAP-2022-SINR-ELEVATION | SINR vs elevation angle, multi-beam interference | FAM-ACCESS-SYNTH | canonical SINR reference, Table III has explicit parameters |
 | 2 | PAP-2024-HOBS | HOBS beam scheduling, multi-beam EE | FAM-MB-HOBS-SYNTH | target-topic paper, explicit 37-beam Ka-band setup (Table I) |
 | 3 | PAP-2025-TIMERCHO-CORE | Timer-CHO handover, geometry-assisted | FAM-ACCESS-SYNTH | CHO validation, explicit RLF/UHO metrics |
+
+## 2A. Current Anchor MODQN Parity Bundle (TP1)
+
+This section records the current shipped parity package for the frozen anchor baseline:
+
+1. paper: `PAP-2024-MORL-MULTIBEAM`
+2. profile: `modqn-paper-baseline`
+3. truth surface: `runModqnBaselineReproduction()` / `ModqnReproductionResult`
+4. export/gate surface: `runModqnAnchorParityBundle()` / `scripts/run-modqn-parity-bundle.ts` / `scripts/validate-modqn-parity.ts`
+
+| Target ID | Paper Reference | Comparison Mode | Current Label | Current Evidence |
+|---|---|---|---|---|
+| `anchor-envelope` | `Table I / Table II / §IV` | paper-backed parameter envelope | `range-faithful` | shipped profile + frozen manifest align on the paper-backed anchor rows; current artifact still discloses the `2 x 2` proxy and validation-sized execution subset |
+| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `trend-faithful` | shipped held-out scalar reward decreases `318.39 → 302.79 → 81.85` |
+| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `trend-faithful` | shipped held-out scalar reward increases `6.08 → 169.19 → 207.09`; the frozen `4`-satellite anchor remains covered by the envelope target |
+| `weighted-reward-user-speed` | `Fig. 5(b)` | held-out scalar reward trend over `30 / 90 / 150 km/h` | `qualitative-only` | shipped proxy artifact stays effectively flat/mixed rather than showing a stable decreasing speed trend |
+| `baseline-comparator-ranking` | `Fig. 3(b) / Fig. 4(b) / Fig. 5(b)` | qualitative comparator note | `qualitative-only` | shipped truth currently executes only `MODQN`; comparator baselines are not rerun on this surface |
 
 ---
 

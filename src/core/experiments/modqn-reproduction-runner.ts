@@ -19,6 +19,7 @@ import { MODQN_REPRODUCTION_MANIFEST } from './modqn-reproduction-manifest';
 import type {
   ModqnEpisodeSummary,
   ModqnHeldOutWindowResult,
+  ModqnProfileOverrides,
   ModqnReproductionResult,
   ModqnSamplingPlan,
   ModqnSamplingWindow,
@@ -41,6 +42,7 @@ export interface RunModqnBaselineReproductionOptions {
   readonly manifest?: ModqnTrainingManifest;
   readonly trainingEpisodeLimit?: number;
   readonly heldOutEpisodeLimit?: number;
+  readonly profileOverrides?: ModqnProfileOverrides;
 }
 
 interface EpisodeExecution {
@@ -406,7 +408,12 @@ export function runModqnBaselineReproduction(
   options: RunModqnBaselineReproductionOptions = {},
 ): ModqnReproductionResult {
   const manifest = options.manifest ?? MODQN_REPRODUCTION_MANIFEST;
-  const baseProfile = loadProfile(manifest.profileId);
+  const baseProfile = options.profileOverrides
+    ? resolveProfile(
+      loadProfile(manifest.profileId),
+      options.profileOverrides as Partial<ProfileConfig>,
+    )
+    : loadProfile(manifest.profileId);
   const samplingPlan: ModqnSamplingPlan = buildModqnSamplingPlan(manifest, baseProfile);
   const catalog = buildBeamCatalog(samplingPlan.catalogSatIds, baseProfile.beam.num_beams);
   const trainer = new ModqnTrainer({

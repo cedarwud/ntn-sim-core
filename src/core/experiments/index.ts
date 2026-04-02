@@ -21,6 +21,7 @@
 export type { ExperimentManifest, ExperimentResult } from './types';
 export type {
   ModqnExperience,
+  ModqnProfileOverrides,
   ModqnSamplingConfig,
   ModqnSamplingPlan,
   ModqnSamplingWindow,
@@ -30,8 +31,25 @@ export type {
   ModqnHeldOutWindowResult,
   ModqnReproductionResult,
 } from './modqn-reproduction-types';
+export type {
+  ModqnAnchorParityBundle,
+  ModqnPaperReadyFigure,
+  ModqnParityComparisonMode,
+  ModqnParityComparisonRow,
+  ModqnParityEnvelopeTarget,
+  ModqnParityLabel,
+  ModqnParityParameterRow,
+  ModqnParityQualitativeTarget,
+  ModqnParitySweepPoint,
+  ModqnParitySweepTarget,
+  ModqnParityTarget,
+} from './modqn-targeted-parity-types';
 
 export { ModqnTrainer } from './modqn-trainer';
 export { MODQN_REPRODUCTION_MANIFEST } from './modqn-reproduction-manifest';
 export { buildModqnSamplingPlan } from './modqn-sampling';
 export { runModqnBaselineReproduction } from './modqn-reproduction-runner';
+export {
+  formatModqnAnchorParityBundleMarkdown,
+  runModqnAnchorParityBundle,
+} from './modqn-targeted-parity';
