@@ -30,6 +30,7 @@ const files = [
 
 const requiredOpenSpecSkill = 'ntn-openspec-follow-on-kickoff';
 const requiredWorkspaceSkillIndex = 'skills/README.md';
+const requiredWorkspaceSkillBootstrap = 'skills/skill-bootstrap-manifest.json';
 
 const forbiddenCanonicalSections = [
   '## 2. Authority Order',
@@ -61,6 +62,9 @@ for (const [name, src] of files) {
   }
   if (!src.includes(requiredWorkspaceSkillIndex)) {
     errors.push(`${name}: missing workspace skill/reference index reference (${requiredWorkspaceSkillIndex})`);
+  }
+  if (!src.includes(requiredWorkspaceSkillBootstrap)) {
+    errors.push(`${name}: missing workspace skill bootstrap manifest reference (${requiredWorkspaceSkillBootstrap})`);
   }
   for (const heading of forbiddenCanonicalSections) {
     if (src.includes(heading)) {

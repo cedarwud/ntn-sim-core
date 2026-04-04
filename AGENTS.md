@@ -1,6 +1,6 @@
 # ntn-sim-core Agent Rules
 
-**Governance-Version:** `2026-04-02-b`
+**Governance-Version:** `2026-04-04-a`
 
 This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -35,7 +35,11 @@ This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers
    - [/home/u24/papers/skills/README.md](/home/u24/papers/skills/README.md)
    after `agent-governance.md`.
    Treat it as a discoverability index only; do not let it override current SDD authority, project-local skills, or frozen contracts.
-9. When changing agent-facing governance, update:
+9. In a fresh environment, if a needed workspace-level supplemental skill is missing locally, also read:
+   - [/home/u24/papers/skills/skill-bootstrap-manifest.json](/home/u24/papers/skills/skill-bootstrap-manifest.json)
+   after `agent-governance.md`.
+   Only install entries marked `installable`, and only when the current task actually needs them. Do not install `reference-only` repos as skills.
+10. When changing agent-facing governance, update:
    - [agent-governance.md](/home/u24/papers/ntn-sim-core/agent-governance.md)
    - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
    - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)

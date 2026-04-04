@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-04-02-b`
+**Governance-Version:** `2026-04-04-a`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -48,7 +48,8 @@ When instructions conflict, use this order:
    - [sdd/ntn-sim-core-frontend-beam-visual-sdd.md](/home/u24/papers/ntn-sim-core/sdd/ntn-sim-core-frontend-beam-visual-sdd.md)
 6. [README.md](/home/u24/papers/ntn-sim-core/README.md) and [docs/README.md](/home/u24/papers/ntn-sim-core/docs/README.md)
 7. [/home/u24/papers/skills/README.md](/home/u24/papers/skills/README.md) for workspace-level skill/reference discovery only
-8. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
+8. [/home/u24/papers/skills/skill-bootstrap-manifest.json](/home/u24/papers/skills/skill-bootstrap-manifest.json) for fresh-environment supplemental-skill install-on-demand decisions only
+9. archived historical docs under `/home/u24/papers/archive/ntn-sim-core-sdd-history-2026-03-29/` for forensic context only
 
 ## 3. Downstream Promotion Rule
 
@@ -95,6 +96,14 @@ These assets are discoverability/reference aids only:
 1. they do not replace the active `sdd/` authority set,
 2. they do not replace project-local skills under `agent-skills/`,
 3. and they must not be vendored back into `ntn-sim-core/agent-skills/` unless a new repo-local skill is intentionally authored.
+
+If the current environment is missing a workspace-level supplemental skill that a task genuinely needs:
+
+1. read [/home/u24/papers/skills/skill-bootstrap-manifest.json](/home/u24/papers/skills/skill-bootstrap-manifest.json);
+2. only install entries marked `installable`;
+3. install them on demand rather than eagerly at startup;
+4. do not install entries marked `reference-only` as if they were skills;
+5. keep all installed supplemental skills subordinate to the active SDD set, frozen contracts, and validation rules.
 
 ### 3.2 UI / UX Skill Rule
 
