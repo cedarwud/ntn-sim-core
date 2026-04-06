@@ -1,6 +1,6 @@
 # ntn-sim-core Agent Rules
 
-**Governance-Version:** `2026-04-04-a`
+**Governance-Version:** `2026-04-04-b`
 
 This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -27,7 +27,7 @@ This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers
 6. When creating or revising local skills, also read:
    - [/home/u24/papers/ntn-sim-core/.codex/skills/skill-creator/SKILL.md](/home/u24/papers/ntn-sim-core/.codex/skills/skill-creator/SKILL.md)
    after `agent-governance.md`.
-7. When deciding whether a future follow-on, especially `OMNeT++ / INET / estnet` or other external-consumer/backend realism work, should use OpenSpec, also read:
+7. When deciding whether a future `ntn-sim-core`-side follow-on, especially `OMNeT++ / INET / estnet` contract/export work or other external-consumer/backend realism work, should use OpenSpec, also read:
    - [/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md](/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md)
    after `agent-governance.md`.
    Treat it as a supplemental workflow aid for future-track bootstrapping, not as a replacement for current SDD authority or frozen contracts.
@@ -39,10 +39,13 @@ This file is the Codex-facing workflow wrapper for work inside `/home/u24/papers
    - [/home/u24/papers/skills/skill-bootstrap-manifest.json](/home/u24/papers/skills/skill-bootstrap-manifest.json)
    after `agent-governance.md`.
    Only install entries marked `installable`, and only when the current task actually needs them. Do not install `reference-only` repos as skills.
-10. When changing agent-facing governance, update:
+10. Standalone ESTNET visualization work now lives in:
+   - [/home/u24/papers/estnet-visual-simulator/README.md](/home/u24/papers/estnet-visual-simulator/README.md)
+   - [/home/u24/papers/estnet-visual-simulator/docs/README.md](/home/u24/papers/estnet-visual-simulator/docs/README.md)
+   Do not pull that project back into `ntn-sim-core` unless the task explicitly requires simulator-side contract/export changes.
+11. When changing agent-facing governance, update:
    - [agent-governance.md](/home/u24/papers/ntn-sim-core/agent-governance.md)
    - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
    - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)
-   - [GEMINI.md](/home/u24/papers/ntn-sim-core/GEMINI.md)
    - `scripts/validate-agent-doc-sync.mjs`
    in the same change set.

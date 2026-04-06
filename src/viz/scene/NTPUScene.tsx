@@ -6,6 +6,7 @@ import { VISUAL_SCENE_CONFIG } from '@/config/visual-scene.config';
 export function NTPUScene() {
   const { scene } = useGLTF(VISUAL_SCENE_CONFIG.scene.modelPath);
 
+  // Clone once per loaded GLTF scene and convert basic materials into lit materials.
   const processedScene = useMemo(() => {
     const clonedScene = scene.clone(true);
 
@@ -19,12 +20,10 @@ export function NTPUScene() {
           if (Array.isArray(mesh.material)) {
             mesh.material = mesh.material.map((material) => {
               if (material instanceof THREE.MeshBasicMaterial) {
-                const convertedMaterial = new THREE.MeshStandardMaterial({
+                return new THREE.MeshStandardMaterial({
                   color: material.color,
                   map: material.map,
                 });
-                material.dispose();
-                return convertedMaterial;
               }
 
               return material;
@@ -35,7 +34,6 @@ export function NTPUScene() {
               color: basicMaterial.color,
               map: basicMaterial.map,
             });
-            basicMaterial.dispose();
           }
         }
       }
@@ -45,7 +43,10 @@ export function NTPUScene() {
   }, [scene]);
 
   return (
-    <group position={VISUAL_SCENE_CONFIG.scene.position}>
+    <group
+      position={VISUAL_SCENE_CONFIG.scene.position}
+      rotation={VISUAL_SCENE_CONFIG.scene.rotation}
+    >
       <primitive object={processedScene} scale={VISUAL_SCENE_CONFIG.scene.scale} />
     </group>
   );

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,12 +7,10 @@ const rootDir = path.dirname(fileURLToPath(new URL('../package.json', import.met
 const governancePath = path.join(rootDir, 'agent-governance.md');
 const agentsPath = path.join(rootDir, 'AGENTS.md');
 const claudePath = path.join(rootDir, 'CLAUDE.md');
-const geminiPath = path.join(rootDir, 'GEMINI.md');
 
 const governance = readFileSync(governancePath, 'utf8');
 const agents = readFileSync(agentsPath, 'utf8');
 const claude = readFileSync(claudePath, 'utf8');
-const gemini = readFileSync(geminiPath, 'utf8');
 
 const versionMatch = governance.match(/\*\*Governance-Version:\*\*\s*`([^`]+)`/);
 if (!versionMatch) {
@@ -25,7 +23,6 @@ const version = versionMatch[1];
 const files = [
   ['AGENTS.md', agents],
   ['CLAUDE.md', claude],
-  ['GEMINI.md', gemini],
 ];
 
 const requiredOpenSpecSkill = 'ntn-openspec-follow-on-kickoff';
@@ -46,6 +43,10 @@ const forbiddenCanonicalSections = [
 ];
 
 let errors = [];
+
+if (existsSync(path.join(rootDir, 'GEMINI.md'))) {
+  errors.push('GEMINI.md should not exist; the Gemini wrapper has been retired');
+}
 
 for (const [name, src] of files) {
   if (!src.includes(`**Governance-Version:** \`${version}\``)) {

@@ -1,6 +1,6 @@
 # NTN Sim Core Agent Governance
 
-**Governance-Version:** `2026-04-04-a`
+**Governance-Version:** `2026-04-04-b`
 
 This file is the shared canonical rule set for agent work inside `/home/u24/papers/ntn-sim-core/`.
 
@@ -8,7 +8,6 @@ Both:
 
 - [AGENTS.md](/home/u24/papers/ntn-sim-core/AGENTS.md)
 - [CLAUDE.md](/home/u24/papers/ntn-sim-core/CLAUDE.md)
-- [GEMINI.md](/home/u24/papers/ntn-sim-core/GEMINI.md)
 
 must remain thin wrappers around this document rather than independent full rule sets.
 
@@ -17,7 +16,8 @@ must remain thin wrappers around this document rather than independent full rule
 1. `ntn-sim-core` is the current primary development target in the `papers` workspace.
 2. The active long-term direction is a **parameter-driven, model-pluggable simulator platform**, not a one-paper reproduction codebase.
 3. Platform Refactor is complete; shipped downstream and paper-oriented follow-ons now include `MODQN M3`, `UI U1/U2`, `T1`, `PM1`, `TP1`, and `EP1`.
-4. There is currently no new active paper-oriented queue; any new MODQN/UI/paper-oriented/`estnet`/external-consumer work must enter through a fresh promotion or explicit reopen against the frozen platform closure, not by reopening closed Phase 1–5 work.
+4. There is currently no new active paper-oriented queue; any new MODQN/UI/paper-oriented or `ntn-sim-core`-side `estnet`/external-consumer contract/export work must enter through a fresh promotion or explicit reopen against the frozen platform closure, not by reopening closed Phase 1–5 work.
+5. Standalone ESTNET visualization / acceptance work now lives outside this repo in `/home/u24/papers/estnet-visual-simulator/`; `ntn-sim-core` should only be touched for explicit simulator-side contract/export needs.
 
 ## 2. Authority Order
 
@@ -54,14 +54,14 @@ When instructions conflict, use this order:
 ## 3. Downstream Promotion Rule
 
 1. Do not start MODQN implementation from outline docs alone.
-2. Do not start new UI integration or `estnet-ui-kickoff` integration from outline docs alone.
+2. Do not start new UI integration or `ntn-sim-core`-side estnet contract/export work from outline docs alone.
 3. Platform Refactor is already complete. The current work order is:
    - re-check platform closure / current repo state against frozen contracts and validation
    - rewrite or promote the relevant downstream outline into the smallest active SDD surface
    - validation and status sync
    - only then downstream implementation
 4. If a downstream outline needs to become active, rewrite it first after re-checking current repo state.
-5. `project/estnet-ui-kickoff` remains paused unless the user explicitly reopens estnet integration.
+5. `/home/u24/papers/estnet-visual-simulator/` and `/home/u24/papers/estnet-bootstrap-kit/` are the active standalone ESTNET projects. Do not reopen estnet work inside `ntn-sim-core` unless the task explicitly requires simulator-side contract/export changes.
 
 ### 3.1 Local Skill Rule
 
@@ -123,7 +123,7 @@ When a task materially involves UI, UX, visual design, interaction design, param
 
 ### 3.3 Skill Authoring Rule
 
-When the task is to create, revise, install, or normalize local skills under `agent-skills/` or assistant-local `.codex/.claude/.gemini/skills/`:
+When the task is to create, revise, install, or normalize local skills under `agent-skills/` or assistant-local `.codex/.claude/skills/`:
 
 1. keep this governance file and the active SDD set as the primary authority;
 2. use the installed assistant-local `skill-creator` skill as a supplementary authoring aid;
@@ -212,5 +212,5 @@ If browser-visible behavior changes, include the relevant visual validation path
 ## 10. Donor / External Project Rule
 
 1. `project/beamHO-bench/` is donor/reference-only for current `ntn-sim-core` work.
-2. `project/estnet-ui-kickoff/` or other external consumers should be treated as future contract consumers, not internal module owners.
+2. `project/estnet-ui-kickoff/` is a historical kickoff archive; `/home/u24/papers/estnet-visual-simulator/` and other external consumers should be treated as sibling projects, not internal module owners.
 3. If borrowing ideas from donor repos, re-express them through `ntn-sim-core` contracts and active SDD vocabulary.

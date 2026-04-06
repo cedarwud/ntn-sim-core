@@ -1,13 +1,13 @@
-# estnet-ui-kickoff Contract (Outline)
+# Historical ESTNET Consumer Contract (Outline)
 
-**Status:** Paused outline — do not promote without explicit user direction
+**Status:** Paused historical outline — do not promote without explicit user direction
 **Updated:** 2026-04-01 (paused gate synced after downstream architecture Group 2)
 
 ## Note on Upstream Blocker
 
 Phase 4 Runtime Contract is now complete. The upstream platform blocker is resolved.
 This outline remains paused by policy, not by an unfinished upstream dependency.
-The user must explicitly reopen estnet integration before this outline may be promoted.
+The user must explicitly reopen `ntn-sim-core`-side estnet contract/export work before this outline may be promoted.
 
 If a future reopen broadens the target to `OMNeT++` / `INET` / other external-consumer realism work, that reopen should be authored as a new dedicated kickoff surface instead of silently stretching the old baseline `E1` prompt/framework.
 
@@ -29,4 +29,4 @@ This outline may only be promoted when:
 
 ## Current Constraint
 
-`project/estnet-ui-kickoff` must NOT be allowed to import internal authored profile files or `src/core/engine/` internals. All consumption must go through `src/core/contracts/` and `src/adapters/` (future).
+A future standalone ESTNET consumer must NOT be allowed to import internal authored profile files or `src/core/engine/` internals. All consumption must go through `src/core/contracts/` and `src/adapters/` (future).

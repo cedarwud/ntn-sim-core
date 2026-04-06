@@ -7,7 +7,7 @@
  * Sources: profiles/profile-exposure-catalog.ts (for getProfileList);
  *          parameter-registry + profile loader (for getParameterView);
  *          profiles/types.ts (HandoverType)
- * Consumers: src/viz/overlays/ControlPanel.tsx, future estnet-ui-kickoff
+ * Consumers: src/viz/overlays/ControlPanel.tsx, future standalone ESTNET consumer
  * Forbidden imports in this file: engine.ts, runner/, React, hardcoded profile arrays
  *
  * Phase 4 Group 2 — phase4-runtime-contract-sdd.md §4.4

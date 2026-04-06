@@ -17,7 +17,7 @@ Read these first:
 5. the relevant prompt files under:
    - `todo/platform-refactor/`
    - `todo/modqn/`
-   - `todo/ui-estnet/`
+   - `todo/ui-estnet/` (historical redirect only)
 
 If the change touches literature or parameter provenance assumptions, also read:
 6. `/home/u24/papers/AGENTS.md`

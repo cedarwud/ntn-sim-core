@@ -38,7 +38,7 @@ This SDD is intentionally smaller than the Phase 1–5 platform program. It exis
 1. implementing MODQN training logic;
 2. implementing baseline UI screens;
 3. reopening Platform Refactor Phase 1–5;
-4. activating `project/estnet-ui-kickoff`;
+4. activating standalone ESTNET consumer work inside `ntn-sim-core`;
 5. introducing HOBS / EE / comparison variants.
 
 ## 3. Target Downstream Layers
@@ -340,7 +340,7 @@ This downstream-prep stage is complete only when:
 2. `modqn-baseline-spec-outline.md` is no longer acting as a mere outline for the approved baseline scope;
 3. `ui-integration-roadmap.md` is no longer acting as a mere outline for the approved baseline UI scope;
 4. any newly created downstream skeleton directories are wired without violating frozen contracts;
-5. `todo/README.md`, `todo/modqn/README.md`, and `todo/ui-estnet/README.md` all point to the promoted downstream path.
+5. `todo/README.md`, `todo/modqn/README.md`, and the then-current ESTNET handoff surface all point to the promoted downstream path.
 
 **All five criteria are now satisfied as of Group 2 completion.**
 

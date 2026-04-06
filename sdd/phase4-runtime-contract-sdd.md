@@ -14,7 +14,7 @@ Freeze stable, versioned contracts between `ntn-sim-core` runtime and external c
 1. UI / viz no longer need to import unstable internals
 2. headless / replay / runner integration uses stable exposure surfaces
 3. future MODQN runtime/training code depends on contracts, not file layout
-4. `project/estnet-ui-kickoff` can later consume stable schemas instead of internal modules
+4. a future standalone ESTNET consumer can later consume stable schemas instead of internal modules
 
 After Phase 4, the simulator must expose stable contract files under `src/core/contracts/` and a stable profile/exposure surface that downstream programs can depend on without reading `ProfileConfig` internals.
 
@@ -47,7 +47,7 @@ After Phase 4, the simulator must expose stable contract files under `src/core/c
 | Deletion of `src/core/common/types.ts` or `src/core/profiles/types.ts` | Phase 5+ (contracts re-export from them; source files remain) |
 | Polished UI product/demo work | downstream UI program |
 | MODQN runtime/training implementation | downstream MODQN program |
-| Actual `estnet-ui-kickoff` integration code | downstream estnet program |
+| Actual standalone ESTNET consumer integration code | downstream estnet program |
 
 **Critical rule:** Phase 4 freezes contracts; it does **not** do large cleanup or architecture surgery.
 Acceptance gates explicitly reject splitting `engine.ts` before contract freeze is complete.
@@ -64,7 +64,7 @@ Phase 4 must explicitly satisfy these consumer categories:
 | `src/app/hooks/**` (app hooks) | `src/runner/runner-exposure-api`, `src/core/contracts/*` | direct import from `runner/headless/benchmark-runner` when exposure wrapper exists |
 | `src/runner/**` (headless / replay) | internal modules freely | N/A — runner internals are not restricted |
 | future MODQN | `src/core/contracts/policy-v1`, `kpi-v1`, `runtime-v1` | direct dependence on `engine.ts` internals or `policy/types.ts` |
-| future `estnet-ui-kickoff` | `src/core/contracts/exposure-v1`, `runtime-v1`, `kpi-v1` | direct dependency on repo-internal module file paths |
+| future standalone ESTNET consumer | `src/core/contracts/exposure-v1`, `runtime-v1`, `kpi-v1` | direct dependency on repo-internal module file paths |
 
 ### 3.1 Contract Files (complete list)
 
@@ -100,7 +100,7 @@ Where Phase 0 stub SDD conflicts with this section, **this section takes precede
  * @frozen — breaking changes require a new file: runtime-v2.ts
  *
  * Source: src/core/common/types.ts (re-export only)
- * Consumers: src/viz/**, future estnet-ui-kickoff
+* Consumers: src/viz/**, future standalone ESTNET consumer
  * Forbidden imports in this file: engine.ts, profiles/, runner/, kpi/, policy/
  */
 ```
@@ -212,7 +212,7 @@ export interface BatchKpiEntry {
 **File:** `src/core/contracts/exposure-v1.ts`
 **Operation:** define new types + `getProfileList()` function; re-export `HandoverType`
 **Sources:** `src/core/profiles/profile-exposure-catalog.ts` (profile list metadata), `src/core/profiles/types.ts` (HandoverType only)
-**Consumers:** `src/viz/overlays/ControlPanel.tsx`, future estnet-ui-kickoff, any profile-listing consumer
+**Consumers:** `src/viz/overlays/ControlPanel.tsx`, future standalone ESTNET consumer, any profile-listing consumer
 **Forbidden imports in this file:** `engine.ts`, `runner/`, React, hardcoded profile arrays
 
 **Note on rule X3 compliance:** `exposure-v1.ts` is the only contract file that imports from `profiles/`. This is a deliberate bridge layer exception. The file is NOT a leaf; it is the stable exposure surface over the profile authoring layer.
@@ -226,7 +226,7 @@ export interface BatchKpiEntry {
  * @frozen — breaking changes require a new file: exposure-v2.ts
  *
  * Sources: profiles/profile-exposure-catalog.ts (for getProfileList); profiles/types.ts (HandoverType)
- * Consumers: src/viz/overlays/ControlPanel.tsx, future estnet-ui-kickoff
+* Consumers: src/viz/overlays/ControlPanel.tsx, future standalone ESTNET consumer
  * Forbidden imports in this file: engine.ts, runner/, React, hardcoded profile arrays
  */
 ```
@@ -746,6 +746,6 @@ Before Phase 4 is complete:
 
 1. MODQN runtime must not depend on unstable internal snapshot/policy types
 2. UI product/demo work must not bypass exposure contracts
-3. `estnet-ui-kickoff` must not be integrated against internal module paths
+3. future standalone ESTNET consumer work must not be integrated against internal module paths
 
 Only after Phase 4 completes may downstream programs treat the contract surfaces as stable. The contract files (`runtime-v1.ts`, `kpi-v1.ts`, `policy-v1.ts`, `exposure-v1.ts`) are the stable surface downstream programs should depend on.

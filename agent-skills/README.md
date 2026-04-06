@@ -25,7 +25,7 @@
 5. [`paper-to-parameter-provenance`](/home/u24/papers/ntn-sim-core/agent-skills/paper-to-parameter-provenance/SKILL.md)
    - 論文 / 標準到 parameter / provenance surface 的映射
 6. [`ntn-openspec-follow-on-kickoff`](/home/u24/papers/ntn-sim-core/agent-skills/ntn-openspec-follow-on-kickoff/SKILL.md)
-   - 判斷 future `OMNeT++ / INET / estnet` 或其他 external-consumer/backend realism track 是否適合用 OpenSpec 啟動
+   - 判斷 future `OMNeT++ / INET / estnet` 或其他 external-consumer/backend realism / contract-export track 是否適合用 OpenSpec 啟動
 
 ## 2. Assistant-Local Supplemental Skills
 
@@ -33,7 +33,6 @@
 
 1. `.codex/skills/`
 2. `.claude/skills/`
-3. `.gemini/skills/`
 
 目前常用：
 

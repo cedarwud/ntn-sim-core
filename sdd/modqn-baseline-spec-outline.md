@@ -27,7 +27,7 @@
 3. Multi-variant comparison dashboards
 4. Thesis-wide ablation / sensitivity expansion
 5. Any change that requires reopening frozen Phase 1–5 contracts
-6. `estnet-ui-kickoff` consumer integration
+6. future standalone ESTNET consumer integration
 
 ---
 

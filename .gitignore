@@ -24,7 +24,9 @@ Thumbs.db
 .vscode/
 *.code-workspace
 
-# claude
+# Agent / assistant local state
+.codex
 .claude/
+.cursor/
 
 screenshots/

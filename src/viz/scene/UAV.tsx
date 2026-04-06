@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
@@ -13,7 +13,6 @@ export function UAV({
   position = VISUAL_SCENE_CONFIG.uav.defaultPosition,
   scale = VISUAL_SCENE_CONFIG.uav.defaultScale,
 }: UAVProps) {
-  const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF(VISUAL_SCENE_CONFIG.uav.modelPath);
 
   const clonedScene = useMemo(() => {
@@ -31,7 +30,7 @@ export function UAV({
   }, [scene]);
 
   return (
-    <group ref={groupRef} position={position} scale={scale}>
+    <group position={position} scale={scale}>
       <primitive object={clonedScene} />
       <pointLight
         intensity={0.3}

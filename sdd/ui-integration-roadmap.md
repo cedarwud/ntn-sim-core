@@ -24,7 +24,7 @@
 
 1. MODQN comparison dashboards (multi-variant)
 2. HOBS / EE variant comparison views
-3. `project/estnet-ui-kickoff` consumer integration
+3. future standalone ESTNET consumer integration
 4. Any consumer-driven expansion of frozen contracts
 5. New provenance invention (display only, no re-computation of simulator truth)
 

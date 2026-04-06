@@ -241,7 +241,7 @@ Evaluated from the perspective of a **long-lived simulator platform**, not a sin
 | Swap SINR/path-loss model | Requires editing `engine.ts` internals (Phase 2/3 branch) and `link-budget.ts` | Blocking for Phase 2 (model bundles) |
 | Add new parameter | Add to `ProfileConfig`, add to default profile, add TSDoc annotation, add ControlPanel label if user-visible | Medium cost; no registry to update |
 | UI reads parameter metadata | Not possible — no machine-readable provenance layer | Blocking for any provenance-aware UI |
-| External consumer integration | Must import internal TS types; no frozen API contract | Blocking for `estnet-ui-kickoff` |
+| External consumer integration | Must import internal TS types; no frozen API contract | Blocking for future standalone ESTNET consumer work |
 | New paper / model family | Safe to add new profile in `defaults.ts`; no cross-cutting contract breaks | Low cost today, but scales poorly |
 
 **Assessment:** The codebase is functionally complete for its current paper-set but has three hard blockers before it can be treated as a platform:
@@ -1586,10 +1586,10 @@ These downstream programs are explicitly blocked until specified phases complete
 
 | Gate condition | Required phase | What unlocks |
 |---|---|---|
-| estnet-ui can depend on snapshot types | Phase 4 complete | `runtime-v1.ts` frozen; import path is stable |
-| estnet-ui can consume parameter metadata | Phase 4 complete | Exposure contract types stable |
-| estnet-ui full integration protocol can be defined | Phase 5 complete | No internal churn remaining; integration scope is clean |
-| `project/estnet-ui-kickoff/` outline → active SDD | **Phase 5 complete** | Per `agent-governance.md §3.3` |
+| standalone ESTNET consumer can depend on snapshot types | Phase 4 complete | `runtime-v1.ts` frozen; import path is stable |
+| standalone ESTNET consumer can consume parameter metadata | Phase 4 complete | Exposure contract types stable |
+| standalone ESTNET consumer full integration protocol can be defined | Phase 5 complete | No internal churn remaining; integration scope is clean |
+| external ESTNET consumer outline → active SDD | **Phase 5 complete** | Per `agent-governance.md §3.3` |
 
 ---
 
