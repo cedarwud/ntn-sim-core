@@ -319,13 +319,14 @@ export function SceneShell() {
         onProfileChange={setProfileId}
       />
       <Canvas
-        shadows
+        frameloop="demand"
+        dpr={1}
         gl={{
           toneMapping: ACESFilmicToneMapping,
           toneMappingExposure: 1.2,
           alpha: true,
           powerPreference: 'high-performance',
-          antialias: true,
+          antialias: false,
         }}
       >
         <CameraRig />

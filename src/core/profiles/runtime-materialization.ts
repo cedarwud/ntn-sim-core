@@ -35,6 +35,7 @@ export function materializeRuntimeProfile(
       sats_per_plane: bundle.orbital.sats_per_plane,
       raan_spread_deg: bundle.orbital.raan_spread_deg,
       phase_offset_deg: bundle.orbital.phase_offset_deg,
+      ...(bundle.orbital.phasing_factor !== undefined && { phasing_factor: bundle.orbital.phasing_factor }),
       ...(orbitalTopology?.orbitType !== undefined && { orbitType: orbitalTopology.orbitType }),
       ...(orbitalTopology?.extra_shells !== undefined && { extra_shells: orbitalTopology.extra_shells.map((shell) => ({ ...shell })) }),
       ...(orbitalTopology?.geoSatellites !== undefined && { geoSatellites: orbitalTopology.geoSatellites.map((sat) => ({ ...sat })) }),

@@ -280,8 +280,11 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   function tryAttach(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
     const best = eligible[0];
-    if (!best || best.sinrDb < config.trigger_threshold_db) {
-      return { type: 'none', reason: 'no candidate above threshold' };
+    // Attach requires Q_in (higher bar) to prevent rapid attach/release cycling
+    // when SINR hovers near Q_out. Guard band = Q_in - Q_out (default 2 dB).
+    const attachThreshold = Math.max(config.trigger_threshold_db, rlfQin);
+    if (!best || best.sinrDb < attachThreshold) {
+      return { type: 'none', reason: 'no candidate above attach threshold' };
     }
 
     state.phase = 'attached';
@@ -317,6 +320,15 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
     );
 
     if (checkCondition(servingSinr, best, config)) {
+      // Ping-pong guard: block TTT start if target was recently-served satellite
+      if (
+        best !== undefined &&
+        previousServingSatId === best.satId &&
+        input.timeSec - state.lastHoTimeSec <= pingPongWindowSec
+      ) {
+        return { type: 'none', reason: 'ping-pong guard: target recently served, TTT blocked' };
+      }
+
       // Start TTT
       state.phase = 'preparing';
       state.pendingTarget = best!;

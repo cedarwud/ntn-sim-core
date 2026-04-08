@@ -71,7 +71,7 @@ export function runHandoverStep(
       }));
 
       const servingState = ueHoManager.getState().serving;
-      const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
+      const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId && c.beamId === servingState.beamId) : null;
 
       ueHoManager.tick({
         tick: tickNumber,
@@ -99,7 +99,7 @@ export function runHandoverStep(
     }));
 
     const servingState = hoManager.getState().serving;
-    const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
+    const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId && c.beamId === servingState.beamId) : null;
 
     hoManager.tick({
       tick: tickNumber,

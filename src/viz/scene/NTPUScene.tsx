@@ -13,8 +13,6 @@ export function NTPUScene() {
     clonedScene.traverse((obj: THREE.Object3D) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
 
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {

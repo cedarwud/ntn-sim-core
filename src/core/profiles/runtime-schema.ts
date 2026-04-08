@@ -34,6 +34,8 @@ export interface OrbitalConfig {
   sats_per_plane: number;
   raan_spread_deg: number;
   phase_offset_deg: number;
+  /** Walker phasing factor F. Default: floor(num_planes/2) (PAP-2021-SESSION-DURATION). */
+  phasing_factor?: number;
   extra_shells?: Array<{
     id: string;
     altitude_km: number;

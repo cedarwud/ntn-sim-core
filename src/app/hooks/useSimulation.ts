@@ -7,7 +7,7 @@
  * Must be used inside an R3F <Canvas>.
  */
 
-import { useFrame } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { loadProfile, resolveProfile } from '@/core/profiles';
@@ -49,7 +49,7 @@ export interface UseSimulationResult {
 // Throttle interval (ms) — cap snapshot state updates to ~60 fps
 // ---------------------------------------------------------------------------
 
-const SNAPSHOT_INTERVAL_MS = 16;
+const SNAPSHOT_INTERVAL_MS = 33; // ~30fps engine ticks (GPU still renders at 60fps)
 const TRANSIENT_VISUAL_HOLD_MS = 120;
 
 function isPriorityTransientSnapshot(snapshot: SimulationSnapshot | null): boolean {
@@ -143,83 +143,82 @@ export function useSimulation(
     setSnapshot(null);
   }, [runtime]);
 
-  // ── 4. Frame loop ──
+  // ── 4. Simulation loop (setInterval, decoupled from render) ──
 
-  useFrame((_, delta) => {
+  const invalidate = useThree((s) => s.invalidate);
+
+  useEffect(() => {
     if (paused || !runtime) return;
 
-    const { engine, profile, durationSec } = runtime;
+    let lastTime = performance.now();
 
-    // Advance time, wrap at end
-    simTimeRef.current += delta * speed;
-    if (simTimeRef.current >= durationSec) {
-      simTimeRef.current %= durationSec;
-      engine.reset();
-      lastProcessedTickRef.current = null;
-      handoverCountRef.current = 0;
-      prevServingSatIdRef.current = null;
-      lastKnownServingRef.current = null;
-      stickySnapshotRef.current = null;
-      stickySnapshotHoldUntilRef.current = 0;
-    }
-    if (simTimeRef.current < 0) {
-      simTimeRef.current = 0;
-    }
+    const id = setInterval(() => {
+      const { engine, profile, durationSec } = runtime;
+      const now = performance.now();
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
 
-    // Throttle snapshot updates to ~20 fps
-    const now = performance.now();
-    if (now - lastSnapshotTimeRef.current < SNAPSHOT_INTERVAL_MS) return;
-    lastSnapshotTimeRef.current = now;
+      // Advance sim time
+      simTimeRef.current += delta * speed;
+      if (simTimeRef.current >= durationSec) {
+        simTimeRef.current %= durationSec;
+        engine.reset();
+        lastProcessedTickRef.current = null;
+        handoverCountRef.current = 0;
+        prevServingSatIdRef.current = null;
+        lastKnownServingRef.current = null;
+        stickySnapshotRef.current = null;
+        stickySnapshotHoldUntilRef.current = 0;
+      }
 
-    const timeSec = simTimeRef.current;
-    const stepSec = profile.timeControl.stepSec;
-    const tickNumber = Math.floor(timeSec / stepSec);
-    const lastProcessedTick = lastProcessedTickRef.current;
+      const timeSec = simTimeRef.current;
+      const stepSec = profile.timeControl.stepSec;
+      const tickNumber = Math.floor(timeSec / stepSec);
+      const lastProcessedTick = lastProcessedTickRef.current;
 
-    // Browser rendering can skip over integer simulation ticks under load.
-    // Catch up through every missed tick so short-lived truth states such as
-    // DAPS dual-active are still realized in live mode.
-    let publishedSnap: SimulationSnapshot | null = null;
-
-    if (lastProcessedTick !== null && tickNumber > lastProcessedTick + 1) {
-      for (let missedTick = lastProcessedTick + 1; missedTick < tickNumber; missedTick += 1) {
-        const missedSnap = engine.tick(missedTick * stepSec, missedTick);
-        if (publishedSnap === null && isPriorityTransientSnapshot(missedSnap)) {
-          publishedSnap = missedSnap;
+      // Catch up missed ticks
+      let publishedSnap: SimulationSnapshot | null = null;
+      if (lastProcessedTick !== null && tickNumber > lastProcessedTick + 1) {
+        for (let missedTick = lastProcessedTick + 1; missedTick < tickNumber; missedTick += 1) {
+          const missedSnap = engine.tick(missedTick * stepSec, missedTick);
+          if (publishedSnap === null && isPriorityTransientSnapshot(missedSnap)) {
+            publishedSnap = missedSnap;
+          }
         }
       }
-    }
 
-    const finalSnap = engine.tick(timeSec, tickNumber);
-    const candidateSnap = publishedSnap ?? finalSnap;
-    if (isPriorityTransientSnapshot(candidateSnap)) {
-      stickySnapshotRef.current = candidateSnap;
-      stickySnapshotHoldUntilRef.current = now + TRANSIENT_VISUAL_HOLD_MS;
-    } else if (stickySnapshotHoldUntilRef.current <= now) {
-      stickySnapshotRef.current = null;
-    }
-
-    const snap = stickySnapshotRef.current && stickySnapshotHoldUntilRef.current > now
-      ? stickySnapshotRef.current
-      : candidateSnap;
-    lastProcessedTickRef.current = tickNumber;
-
-    // Track handover count: any satellite change, including null-gap transitions.
-    // lastKnownServingRef tracks the last non-null satellite to catch A→null→B paths.
-    const currentServing = finalSnap.ues[0]?.servingSatId ?? null;
-    if (currentServing !== null) {
-      if (
-        lastKnownServingRef.current !== null &&
-        currentServing !== lastKnownServingRef.current
-      ) {
-        handoverCountRef.current += 1;
+      const finalSnap = engine.tick(timeSec, tickNumber);
+      const candidateSnap = publishedSnap ?? finalSnap;
+      if (isPriorityTransientSnapshot(candidateSnap)) {
+        stickySnapshotRef.current = candidateSnap;
+        stickySnapshotHoldUntilRef.current = now + TRANSIENT_VISUAL_HOLD_MS;
+      } else if (stickySnapshotHoldUntilRef.current <= now) {
+        stickySnapshotRef.current = null;
       }
-      lastKnownServingRef.current = currentServing;
-    }
-    prevServingSatIdRef.current = currentServing;
 
-    setSnapshot(snap);
-  });
+      const snap = stickySnapshotRef.current && stickySnapshotHoldUntilRef.current > now
+        ? stickySnapshotRef.current
+        : candidateSnap;
+      lastProcessedTickRef.current = tickNumber;
+
+      const currentServing = finalSnap.ues[0]?.servingSatId ?? null;
+      if (currentServing !== null) {
+        if (
+          lastKnownServingRef.current !== null &&
+          currentServing !== lastKnownServingRef.current
+        ) {
+          handoverCountRef.current += 1;
+        }
+        lastKnownServingRef.current = currentServing;
+      }
+      prevServingSatIdRef.current = currentServing;
+
+      setSnapshot(snap);
+      invalidate(); // trigger one GPU render per update
+    }, SNAPSHOT_INTERVAL_MS);
+
+    return () => clearInterval(id);
+  }, [runtime, paused, speed, invalidate]);
 
   // ── 5. Derived counts ──
 

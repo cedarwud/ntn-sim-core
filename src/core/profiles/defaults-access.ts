@@ -55,7 +55,7 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   orbital: {
     altitude_km: 600,
     inclination_deg: 53,
-    num_planes: 24,
+    num_planes: 72,
     sats_per_plane: 22,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
@@ -72,7 +72,7 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
   beam: { num_beams: 19, frf: 1, interference_beams: 42 },
   channel: { deployment_environment: SUBURBAN },
-  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10 },
+  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10, sinr_ema_alpha: 0.3, pingPongWindowSec: 30 },
   energy: {},
   ueConfig: { speed_kmh: 0 },
   sourceMap: [
@@ -88,10 +88,12 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2024-MCCHO-CORE', note: 'access handover baseline' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: 'channel tiers 0-2, NTN channel model' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=9 dB (handheld UE, S-band case 9)' },
-    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 24x22=528 Starlink-like constellation at 600km/53°; paper does not mandate exact constellation' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 600km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); paper does not mandate exact constellation' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed engineering constant; must NOT be exposed as UI slider' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption (not in spec H2 paper-backed presets of 0/40/256ms); conservative NTN value accounting for propagation delay; spec mode Advanced, not Realistic' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-THRESHOLD-SINR', parameterPath: 'handover.trigger_threshold_db', specMode: 'Advanced', note: 'trigger_threshold_db=−6 dB: SINR-relative simplification vs spec H3 absolute derivation (N_floor + Q_out); assumption-backed; spec mode Advanced' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-SINR-EMA', parameterPath: 'handover.sinr_ema_alpha', specMode: 'Advanced', note: 'SINR EMA α=0.3 with stepSec=1s: time-constant ≈2.6s, suppresses single-tick SINR fluctuations without masking genuine fades; implementation-level smoothing filter' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-PP-GUARD', parameterPath: 'handover.pingPongWindowSec', specMode: 'Advanced', note: 'Ping-pong guard 30s: blocks oscillating handovers back to recently-served satellite; standard stability mechanism in NTN handover studies (PAP-2021-SESSION-DURATION)' },
   ],
 };
 
@@ -139,7 +141,7 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   orbital: {
     altitude_km: 600,
     inclination_deg: 53,
-    num_planes: 24,
+    num_planes: 72,
     sats_per_plane: 22,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
@@ -156,7 +158,7 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
   beam: { num_beams: 19, frf: 1, interference_beams: 42 },
   channel: { deployment_environment: SUBURBAN },
-  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10 },
+  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10, sinr_ema_alpha: 0.3, pingPongWindowSec: 30 },
   energy: {},
   ueConfig: { speed_kmh: 0 },
   sourceMap: [
@@ -167,6 +169,8 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted to expose dual-active inside the deterministic replay window' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-SINR-EMA', parameterPath: 'handover.sinr_ema_alpha', specMode: 'Advanced', note: 'SINR EMA α=0.3 with stepSec=1s: time-constant ≈2.6s, stabilizes serving SINR estimates for DAPS dual-active window evaluation' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-PP-GUARD', parameterPath: 'handover.pingPongWindowSec', specMode: 'Advanced', note: 'Ping-pong guard 30s: blocks oscillating handovers back to recently-served satellite' },
   ],
 };
 
@@ -219,6 +223,7 @@ export const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {
     sats_per_plane: 11,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
+    phasing_factor: 1, // paper-backed: F=1 from Paper Table I
   },
   // Paper Table II: S-band 2GHz, 30MHz BW, 34 dBW/MHz EIRP, 290K noise
   rf: {
@@ -295,7 +300,7 @@ export const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
   orbital: {
     altitude_km: 550,
     inclination_deg: 53,
-    num_planes: 24,
+    num_planes: 72,
     sats_per_plane: 22,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
@@ -331,7 +336,7 @@ export const TIMER_CHO_REPRODUCTION_BUNDLE: ProfileBundle = {
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'rural SF/CL lookup environment' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', note: '10deg min elevation' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
-    { tier: 'assumption-backed', id: 'ASSUME-ORB-REPRO-RT3', specMode: 'Advanced', note: 'Walker 24x22 used as Starlink-like proxy; paper does not mandate exact constellation' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-REPRO-RT3', specMode: 'Advanced', note: 'Walker 72x22=1584 Starlink shell-1 nominal, F=P/2=36 (PAP-2021-SESSION-DURATION); paper describes Starlink-like 550km/72-planes' },
     { tier: 'assumption-backed', id: 'ASSUME-TIMERCHO-GEOM', specMode: 'Advanced', note: 'Timer-CHO geometry timer simplified to α×TTT; full ToS_remain model requires beam radius and satellite velocity beyond HO manager scope' },
   ],
 };

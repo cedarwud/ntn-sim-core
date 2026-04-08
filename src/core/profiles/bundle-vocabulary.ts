@@ -125,6 +125,8 @@ export interface ProfileBundle {
     sats_per_plane: number;
     raan_spread_deg: number;
     phase_offset_deg: number;
+    /** Walker phasing factor F. Default: floor(num_planes/2) (PAP-2021-SESSION-DURATION). */
+    phasing_factor?: number;
   };
   rf: {
     frequency_ghz: number;

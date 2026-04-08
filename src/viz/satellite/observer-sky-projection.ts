@@ -30,17 +30,19 @@ export const DEFAULT_SKY_PROJECTION: SkyProjectionConfig = {
 const DEG2RAD = Math.PI / 180;
 
 /**
- * VISUAL-ONLY: Power-compressed radial mapping.
+ * VISUAL-ONLY: Elevation-linear radial mapping (standard sky-plot projection).
  *
- * r = cos(el)^1.6 — mild nonlinear compression that keeps low-elevation
- * satellites near the edge (natural horizon entry/exit) while pulling
- * mid-elevation satellites toward center.
+ * r = 1 - el/90° — each degree of elevation gets equal radial space.
+ * Spreads low-elevation satellites more evenly instead of compressing them
+ * into a thin outer ring (which cos^P projections do because d/d(el) cos ≈ 0
+ * near the horizon).
  *
- * Linear cos(el):   10°→0.98  30°→0.87  45°→0.71  60°→0.50
- * Power 1.6:        10°→0.98  30°→0.80  45°→0.58  60°→0.33
+ * Previous cos^1.6:  10°→0.98  30°→0.80  45°→0.58  60°→0.33
+ * Elevation-linear:  10°→0.89  30°→0.67  45°→0.50  60°→0.33
  */
 function compressedRadius(elevationRad: number): number {
-  return Math.pow(Math.cos(elevationRad), 1.6);
+  const elevationDeg = elevationRad / DEG2RAD;
+  return Math.max(0, 1 - elevationDeg / 90);
 }
 
 /**

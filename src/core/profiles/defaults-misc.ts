@@ -333,11 +333,11 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
     energy: { layer1_enabled: false, layer2_enabled: false },
     ueConfig: {},
   },
-  // spec §10: 600km (PAP-2022-A4EVENT-CORE, PAP-2025-TIMERCHO-CORE); 53° Starlink-class
+  // spec §10: 600km (PAP-2022-A4EVENT-CORE, PAP-2025-TIMERCHO-CORE); 53° Starlink shell-1 nominal
   orbital: {
     altitude_km: 600,
     inclination_deg: 53,
-    num_planes: 24,
+    num_planes: 72,
     sats_per_plane: 22,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
@@ -375,6 +375,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   sourceMap: [
     // --- Orbital ---
     { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'orbital.altitude_km', note: '600km LEO orbit', specMode: 'Realistic' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Realistic', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 600km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); paper does not mandate exact constellation' },
     // --- RF ---
     { tier: 'paper-backed', id: 'PAP-2026-DRL-BHOPT', parameterPath: 'rf.frequency_ghz', note: 'Ka-band 20GHz (PAP-2026-DRL-BHOPT, PAP-2024-MORL-MULTIBEAM; NOTE: PAP-2024-HOBS is 28GHz)', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2024-HOBS', parameterPath: 'rf.bandwidth_mhz', note: '100MHz bandwidth (PAP-2024-HOBS, PAP-2025-EEBH-UPLINK)', specMode: 'Realistic' },

@@ -54,7 +54,7 @@ export const HOBS_MULTIBEAM_BASELINE_BUNDLE: ProfileBundle = {
   orbital: {
     altitude_km: 550,
     inclination_deg: 53,
-    num_planes: 24,
+    num_planes: 72,
     sats_per_plane: 22,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
@@ -98,7 +98,7 @@ export const HOBS_MULTIBEAM_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2024-MADRL-CORE', note: 'multi-beam interference baseline' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=5 dB (VSAT/laptop UE, Ka-band)' },
-    { tier: 'assumption-backed', id: 'ASSUME-ORB-002', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 24x22=528 sats; HOBS paper constellation scale assumption' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-002', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 550km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); HOBS paper does not mandate exact constellation' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-BEAM-001', parameterPath: 'antenna.peak_gain_dbi', specMode: 'Advanced', note: 'peak gain 38dBi, beam diameter 25km — representative Ka-band values (no single paper locator)' },
     { tier: 'assumption-backed', id: 'ASSUME-ATM-001', parameterPath: 'channel.tier4_atmospheric', specMode: 'Advanced', note: 'Tier 4 atmospheric: ITU-R P.676/P.618 mid-latitude Ka-band; gaseous 0.6dB, rain 1.5dB, scintillation 0.4dB; spec R3 Advanced mode only' },
@@ -157,6 +157,7 @@ export const HOBS_REPRODUCTION_BUNDLE: ProfileBundle = {
     sats_per_plane: 12,
     raan_spread_deg: 360,
     phase_offset_deg: 0,
+    phasing_factor: 1, // paper-backed: F=1 from Paper §IV
   },
   // Paper Table I: Ka-band 28GHz, 100MHz BW, Pmax=50dBm
   rf: {

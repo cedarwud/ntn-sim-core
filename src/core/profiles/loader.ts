@@ -32,7 +32,7 @@ export function buildWalkerConfig(profile: ProfileConfig, epochUtcMs: number): W
     inclinationDeg: orb.inclination_deg,
     planes: orb.num_planes,
     satsPerPlane: orb.sats_per_plane,
-    phasingFactor: 1,
+    phasingFactor: orb.phasing_factor ?? Math.floor(orb.num_planes / 2),
     orbitType: orb.orbitType,
   };
 
