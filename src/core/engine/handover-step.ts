@@ -71,7 +71,13 @@ export function runHandoverStep(
       }));
 
       const servingState = ueHoManager.getState().serving;
-      const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId && c.beamId === servingState.beamId) : null;
+      // Match by satId only: candidates have one entry per satellite (best beam).
+      // When the satellite's best beam changes, this is an implicit intra-satellite
+      // beam switch — update serving beamId silently.
+      const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
+      if (servingEntry && servingState && servingEntry.beamId !== servingState.beamId) {
+        (servingState as { beamId: string }).beamId = servingEntry.beamId;
+      }
 
       ueHoManager.tick({
         tick: tickNumber,
@@ -99,7 +105,13 @@ export function runHandoverStep(
     }));
 
     const servingState = hoManager.getState().serving;
-    const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId && c.beamId === servingState.beamId) : null;
+    // Match by satId only: candidates have one entry per satellite (best beam).
+    // When the satellite's best beam changes, this is an implicit intra-satellite
+    // beam switch — update serving beamId silently.
+    const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
+    if (servingEntry && servingState && servingEntry.beamId !== servingState.beamId) {
+      (servingState as { beamId: string }).beamId = servingEntry.beamId;
+    }
 
     hoManager.tick({
       tick: tickNumber,

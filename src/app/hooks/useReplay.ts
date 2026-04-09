@@ -17,7 +17,7 @@
  * @see sdd/ntn-sim-core-frontend-beam-visual-sdd.md §12.2 (4V-3)
  */
 
-import { useFrame } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { useState, useEffect, useRef } from 'react';
 
 import { loadProfile } from '@/core/profiles';
@@ -108,10 +108,13 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
           'showcase',
         );
         const { selectedWindow, replayManifest } = replayPlan;
-        const totalTicks = Math.floor(prof.timeControl.durationSec / prof.timeControl.stepSec);
+        // Only run ticks up to window end — full-duration recording is unnecessary
+        // because we only keep window snapshots.  Engine state evolves forward from
+        // tick 0 so state at the window is still correct.
+        const endTicks = Math.round(selectedWindow.endTimeSec / prof.timeControl.stepSec) + 1;
         const snapshots = recordWindow(
           engine,
-          totalTicks,
+          endTicks,
           prof.timeControl.stepSec,
           selectedWindow.startTimeSec,
           selectedWindow.endTimeSec,
@@ -150,23 +153,41 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
   const [replayState, setReplayState] = useState<ReplayState | null>(null);
   const lastSnapshotTimeRef = useRef(0);
 
-  // ── 3. Frame loop ──
+  // ── 3. Interval-based advance (decoupled from R3F demand-render loop) ──
+  // Uses setInterval like useSimulation.ts so the controller advances
+  // independently of R3F frame scheduling.  With frameloop="demand",
+  // relying on useFrame to call invalidate() creates a chicken-and-egg
+  // problem: if R3F stops scheduling frames (no pending invalidations),
+  // useFrame never fires and the loop never restarts.  setInterval fires
+  // unconditionally, calling invalidate() to re-drive the canvas.
 
-  useFrame((_, delta) => {
+  const invalidate = useThree((s) => s.invalidate);
+
+  useEffect(() => {
     if (!runtime) return;
-    const { controller } = runtime;
 
-    if (!paused) {
-      controller.advance(delta * 1000); // advance expects ms
-    }
+    let lastTime = performance.now();
 
-    const now = performance.now();
-    if (now - lastSnapshotTimeRef.current < SNAPSHOT_INTERVAL_MS) return;
-    lastSnapshotTimeRef.current = now;
+    const id = setInterval(() => {
+      const { controller } = runtime;
+      const now = performance.now();
+      const deltaMs = now - lastTime;
+      lastTime = now;
 
-    setSnapshot(controller.getSnapshot());
-    setReplayState(controller.getState());
-  });
+      if (!paused) {
+        controller.advance(deltaMs);
+      }
+
+      if (now - lastSnapshotTimeRef.current < SNAPSHOT_INTERVAL_MS) return;
+      lastSnapshotTimeRef.current = now;
+
+      setSnapshot(controller.getSnapshot());
+      setReplayState(controller.getState());
+      invalidate(); // trigger one GPU render per snapshot update
+    }, SNAPSHOT_INTERVAL_MS);
+
+    return () => clearInterval(id);
+  }, [runtime, paused, invalidate]);
 
   // ── 4. Derived ──
 

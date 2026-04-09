@@ -6,6 +6,7 @@ import { selectBeamForUe } from '../beam/selection';
 import type { SimEngineState } from './state';
 import { getOrCreateBeamLayout } from './bootstrap';
 import type { LargeScaleModel, DeploymentEnvironment } from '../channel/types';
+import { selectBeamForGeodeticUe } from './ue-nadir-offset';
 
 /**
  * Phase 5 Core Structural Split: Channel logic.
@@ -36,6 +37,9 @@ export function computeBundleSinrSingleBeam(
   interferingSamples: TrajectorySample[],
 ): number {
   const { profile, bundle, txEirp, noiseDbm, deploymentEnvironment, largeScaleModel, implementationLossDb, rng } = state;
+  const primaryUe = state.uePositions[0];
+  const referenceLatDeg = primaryUe?.latitudeDeg ?? profile.observer.latitudeDeg;
+  const referenceLonDeg = primaryUe?.longitudeDeg ?? profile.observer.longitudeDeg;
   const rngFn = profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null;
   const isLos = (s: TrajectorySample) => s.elevationDeg >= (profile.channel.los_elevation_deg ?? 20);
   const tiers = {
@@ -92,8 +96,8 @@ export function computeBundleSinrSingleBeam(
           offAxisAngleDeg: computeOffAxisAngle(
             iSample.latDeg,
             iSample.lonDeg,
-            profile.observer.latitudeDeg,
-            profile.observer.longitudeDeg,
+            referenceLatDeg,
+            referenceLonDeg,
             iSample.altKm,
           ),
           peakGainDbi: profile.antenna.peak_gain_dbi,
@@ -126,6 +130,9 @@ export function computeBundleSinrMultiBeam(
   otherSats: Array<{ satId: string; sample: TrajectorySample; selection: BeamSelectionResult }>,
 ): number {
   const { profile, bundle, txEirp, noiseDbm, deploymentEnvironment, largeScaleModel, implementationLossDb, rng } = state;
+  const primaryUe = state.uePositions[0];
+  const referenceLatDeg = primaryUe?.latitudeDeg ?? profile.observer.latitudeDeg;
+  const referenceLonDeg = primaryUe?.longitudeDeg ?? profile.observer.longitudeDeg;
   const rngFn = profile.channel.tier1_large_scale || profile.channel.tier5_fading ? () => rng.next() : null;
   const isLos = (s: TrajectorySample) => s.elevationDeg >= (profile.channel.los_elevation_deg ?? 20);
   const tiers = {
@@ -211,8 +218,8 @@ export function computeBundleSinrMultiBeam(
       const crossOffAxisDeg = computeOffAxisAngle(
         other.sample.latDeg,
         other.sample.lonDeg,
-        profile.observer.latitudeDeg,
-        profile.observer.longitudeDeg,
+        referenceLatDeg,
+        referenceLonDeg,
         other.sample.altKm,
       );
       const iBeamGainDb = bundle.beamGain.computeGainDb({
@@ -262,7 +269,24 @@ export function computeUeSinrFromSatEntry(
 
   if (isMultiBeam) {
     const layout = getOrCreateBeamLayout(state, satEntry.satId, satEntry.sample.altKm);
-    const ueSelection = selectBeamForUe(layout, ue.offsetEastKm, ue.offsetNorthKm, profile.antenna, activeBeamIds);
+    const ueSelection = profile.beamSemantics === 'earth-fixed-bh'
+      ? selectBeamForGeodeticUe(
+          layout,
+          satEntry.sample,
+          {
+            latitudeDeg: ue.latitudeDeg ?? profile.observer.latitudeDeg,
+            longitudeDeg: ue.longitudeDeg ?? profile.observer.longitudeDeg,
+          },
+          profile.antenna,
+          activeBeamIds,
+        )
+      : selectBeamForUe(
+          layout,
+          ue.offsetEastKm,
+          ue.offsetNorthKm,
+          profile.antenna,
+          activeBeamIds,
+        );
     const gainDb = bundle.beamGain.computeGainDb({
       offAxisAngleDeg: ueSelection.offAxisAngleDeg,
       peakGainDbi: profile.antenna.peak_gain_dbi,
@@ -283,8 +307,8 @@ export function computeUeSinrFromSatEntry(
   const ueOffAxisDeg = computeOffAxisAngle(
     profile.observer.latitudeDeg,
     profile.observer.longitudeDeg,
-    ue.latitudeDeg || profile.observer.latitudeDeg,
-    ue.longitudeDeg || profile.observer.longitudeDeg,
+    ue.latitudeDeg ?? profile.observer.latitudeDeg,
+    ue.longitudeDeg ?? profile.observer.longitudeDeg,
     satEntry.sample.altKm,
   );
   const gainDb = bundle.beamGain.computeGainDb({

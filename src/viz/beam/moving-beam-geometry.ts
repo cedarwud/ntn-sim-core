@@ -7,11 +7,12 @@ import {
 /**
  * VISUAL-ONLY moving-beam projection constants.
  *
- * Donor-aligned contract:
- * - `leo-beam-sim` keeps one footprint radius in world units for readability
- * - beam offsets are then scaled from beam-footprint km into world units
+ * Beam footprint radius in world units. Independent from hex cell sizing in bh-cell-analysis.
+ *   kmToWorld = MOVING_BEAM_FOOTPRINT_RADIUS_WORLD / footprintRadiusKm
+ *   footprintRadiusWorld = MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = 45 WU
+ * Ring-1 beams at beamSpacingKm offset → beamSpacingKm × kmToWorld ≈ HEX_SPACING_WU.
  */
-export const MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = 56;
+export const MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = 45;
 export const MOVING_BEAM_GROUND_Y = 1;
 
 const EPSILON_KM = 1e-6;
@@ -79,12 +80,16 @@ export function computeMovingBeamGroundTarget(
 ): MovingBeamGroundTarget {
   const [satX, satY, satZ] = projection.satPos;
 
+  // Observer-relative ground target: beam offset × kmToWorld, no satDomePos component.
+  // This places every beam's cone ground disc at its fixed earth cell position,
+  // matching bh-cell-analysis beamGroundPosition regardless of satellite azimuth/elevation.
+  // Serving beam (offset 0,0) → (0,0) = observer, same result as the old isUeAnchored path.
   return {
     satX,
     satY,
     satZ,
-    groundX: isUeAnchored ? 0 : satX + beam.offsetEastKm * projection.kmToWorld,
-    groundZ: isUeAnchored ? 0 : satZ - beam.offsetNorthKm * projection.kmToWorld,
+    groundX: beam.offsetEastKm * projection.kmToWorld,
+    groundZ: -beam.offsetNorthKm * projection.kmToWorld,
     beamSpacingKm: projection.beamSpacingKm,
     footprintRadiusKm: projection.footprintRadiusKm,
     kmToWorld: projection.kmToWorld,

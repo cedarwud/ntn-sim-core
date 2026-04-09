@@ -52,8 +52,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
       vocabularyLayer: 'scenario',
     },
     bindings: [
-      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'case9-access-baseline', defaultValue: 24, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker 24x22=528 Starlink-like at 600 km/53°', exposureMode: 'Advanced' },
-      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-multibeam-baseline', defaultValue: 24, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-002', sourceNote: 'Walker 24x22=528 sats; HOBS paper constellation scale', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'case9-access-baseline', defaultValue: 72, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker 72x22=1584 Starlink shell-1 at 600 km/53°', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-multibeam-baseline', defaultValue: 72, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-002', sourceNote: 'Walker 72x22=1584 sats; HOBS baseline constellation', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'modqn-paper-baseline', defaultValue: 2, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-ORBIT', sourceNote: '2 planes in the disclosed 4-satellite proxy shell', exposureMode: 'Advanced' },
     ],
   },

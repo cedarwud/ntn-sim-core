@@ -227,6 +227,7 @@ export const ControlPanel = React.memo(function ControlPanel({
               <option value="a4-event">A4 (Realistic)</option>
             </optgroup>
             <optgroup label="── Advanced ──">
+              <option value="sinr-offset">SINR-Offset [Adv]</option>
               <option value="cho">CHO [Adv]</option>
               <option value="timer-cho">Timer-CHO [Adv]</option>
               <option value="mc-ho">MC-HO [Adv]</option>

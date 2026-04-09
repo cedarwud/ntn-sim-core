@@ -24,7 +24,8 @@ export type HandoverType =
   | 'timer-cho'
   | 'daps'
   | 'max-elevation'
-  | 'max-remaining-time';
+  | 'max-remaining-time'
+  | 'sinr-offset';
 
 export interface OrbitalConfig {
   orbitType?: OrbitType;
@@ -111,6 +112,11 @@ export interface HandoverConfig {
   d2_serving_dist_km?: number;
   d2_target_dist_km?: number;
   sinr_ema_alpha?: number;
+  sinr_offset_db?: number;
+  sinr_offset_trigger_time_sec?: number;
+  sinr_offset_pending_hold_sec?: number;
+  sinr_offset_smoothing_sec?: number;
+  sinr_offset_intra_switch_sec?: number;
   rlf_qout_db?: number;
   rlf_qin_db?: number;
   rlf_n310?: number;

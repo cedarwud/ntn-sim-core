@@ -161,4 +161,11 @@ export interface HandoverManager {
   drainEvents(): HandoverEvent[];
   /** Reset to initial state. */
   reset(): void;
+  /** Trigger-progress state for explainability (sinr-offset only). */
+  getTriggerState?(): {
+    triggerAccumulatedSec: number;
+    triggerTimeSec: number;
+    pendingTargetSatId: string | null;
+    pendingTargetBeamId: string | null;
+  };
 }

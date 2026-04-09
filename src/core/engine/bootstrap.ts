@@ -112,8 +112,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
     energyL2Manager = createEnergyLayer2(profile.energy.layer2_overrides ?? {});
   }
 
-  const hasBhConfig = profile.beam.bh_max_active_per_slot !== undefined;
-  const isBhActive = isMultiBeam && (profile.beamSemantics === 'earth-fixed-bh' || hasBhConfig);
+  const isBhActive = isMultiBeam && profile.beamSemantics === 'earth-fixed-bh';
   const bhScheduler = isBhActive ? createBhScheduler({
     strategy: profile.beam.bh_strategy ?? 'round-robin',
     maxActiveBeamsPerSlot: profile.beam.bh_max_active_per_slot ?? 1,

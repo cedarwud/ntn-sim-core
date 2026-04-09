@@ -34,7 +34,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
       vocabularyLayer: 'model-bundle',
     },
     bindings: [
-      { parameterId: 'PARAM-HO-A3-OFFSET-DB', profileId: 'realistic-first-screen', defaultValue: 2, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'A3 offset=2 dB (Table I, TS 38.331 §5.5.4.4)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-HO-A3-OFFSET-DB', profileId: '__universal__', defaultValue: 2, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'A3 offset=2 dB default (TS 38.331 §5.5.4.4); only active when handover.type = a3-event', exposureMode: 'Advanced' },
     ],
   },
   {
@@ -50,7 +50,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     bindings: [
       { parameterId: 'PARAM-HO-TTT-MS', profileId: 'case9-access-baseline', defaultValue: 640, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-TTT-NTN', sourceNote: 'TTT=640 ms NTN-extended assumption; H2 paper-backed presets: 0/40/256 ms', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-HO-TTT-MS', profileId: 'modqn-paper-baseline', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'slot-wise policy actions execute immediately in the runtime bridge', exposureMode: 'Advanced' },
-      { parameterId: 'PARAM-HO-TTT-MS', profileId: 'realistic-first-screen', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'TTT=40 ms (Table I)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-HO-TTT-MS', profileId: 'realistic-first-screen', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-002', sourceNote: 'sinr-offset HO does not use TTT; set to 0 to disable A3/A4 trigger path', exposureMode: 'Realistic' },
     ],
   },
   {
@@ -66,7 +66,7 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
     bindings: [
       { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'case9-access-baseline', defaultValue: 1, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'hysteresis 1 dB', exposureMode: 'Realistic' },
       { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'modqn-paper-baseline', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-RUNTIME', sourceNote: 'slot-wise policy actions use zero hysteresis in the runtime bridge', exposureMode: 'Advanced' },
-      { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'realistic-first-screen', defaultValue: 2, sourceTier: 'paper-backed', sourceId: 'PAP-2022-A4EVENT-CORE', sourceNote: 'hysteresis 2 dB (Table I)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-HO-HYSTERESIS-DB', profileId: 'realistic-first-screen', defaultValue: 0, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-002', sourceNote: 'sinr-offset HO does not use hysteresis; set to 0', exposureMode: 'Realistic' },
     ],
   },
   {

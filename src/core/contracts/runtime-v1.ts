@@ -37,4 +37,6 @@ export type {
   BeamRole,
   /** @version v1 @frozen */
   ContinuityState,
+  /** @version v1 */
+  HoExplanation,
 } from '@/core/common/types';

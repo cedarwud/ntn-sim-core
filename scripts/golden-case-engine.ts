@@ -99,18 +99,20 @@ console.log('\n=== Golden Case E-1: case9-access-baseline (300s, seed=42) ===\n'
 
 const kpi1 = runProfile(CASE9_ACCESS_BASELINE, 300);
 
-// Locked KPI expectations (updated 2026-03-28 after spec-alignment pass)
-// Baseline moved lower because:
-// 1. shadow fading now keeps its signed zero-mean draw (no abs bias removal)
-// 2. interferers now use the same enabled large-scale / clutter / fading path as serving
-// 3. implementation_loss_db = 2.5 dB is now applied explicitly in the runtime link budget
-// These values are the new deterministic 300 s baseline for the corrected channel path.
+// Locked KPI expectations (updated 2026-04-09 after top-K interferer pruning)
+// Baseline shifted higher because:
+// 1. Multi-beam SINR now uses top-15 interferers by elevation (MAX_SINR_INTERFERERS=15)
+//    instead of all ~100+ visible satellites. Low-elevation satellites contribute
+//    negligible interference individually but their cumulative count inflated the
+//    interference floor. This matches leo-beam-sim's elevation-filtered approach.
+// 2. All prior corrections from 2026-03-28 still apply (shadow fading, per-interferer PL,
+//    implementation_loss_db=2.5 dB).
 // Tolerances: ±1 dB for SINR, ±5 Mbps for throughput.
-checkAbs('Mean SINR', kpi1.meanSinrDb, 0.9053, 1.0);
-checkAbs('SINR 5th percentile', kpi1.sinrPercentile5Db, -5.2837, 1.5);
-checkAbs('SINR 95th percentile', kpi1.sinrPercentile95Db, 7.2301, 1.5);
+checkAbs('Mean SINR', kpi1.meanSinrDb, 2.6705, 1.0);
+checkAbs('SINR 5th percentile', kpi1.sinrPercentile5Db, -4.3537, 1.5);
+checkAbs('SINR 95th percentile', kpi1.sinrPercentile95Db, 9.5748, 1.5);
 checkRange('Outage ratio', kpi1.outageRatio, 0, 0.05);
-checkAbs('Mean throughput (Mbps)', kpi1.meanThroughputMbps, 26.4925, 5.0);
+checkAbs('Mean throughput (Mbps)', kpi1.meanThroughputMbps, 33.8028, 5.0);
 // HO timing depends on TTT + propagation delay (A2/P2). In a 300s window the
 // serving satellite may not reach the hand-over threshold, so 0 is valid.
 checkRange('Total handovers', kpi1.totalHandovers, 0, 3);

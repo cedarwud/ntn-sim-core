@@ -32,7 +32,7 @@ const SAT_MODEL_SCALE = 4;
 // ---------------------------------------------------------------------------
 
 /** Max satellite markers to render. HO-relevant sats are always included. */
-const MAX_DISPLAY_SATS = 15;
+const MAX_DISPLAY_SATS = 10;
 
 /** Satellites below this elevation are never rendered (but still in engine). */
 const MIN_DISPLAY_ELEVATION_DEG = 10;

@@ -49,7 +49,7 @@ export interface UseSimulationResult {
 // Throttle interval (ms) — cap snapshot state updates to ~60 fps
 // ---------------------------------------------------------------------------
 
-const SNAPSHOT_INTERVAL_MS = 33; // ~30fps engine ticks (GPU still renders at 60fps)
+const SNAPSHOT_INTERVAL_MS = 50; // 20fps simulation updates (was 33 / 30fps)
 const TRANSIENT_VISUAL_HOLD_MS = 120;
 
 function isPriorityTransientSnapshot(snapshot: SimulationSnapshot | null): boolean {

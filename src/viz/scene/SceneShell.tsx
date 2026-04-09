@@ -19,6 +19,7 @@ import { EarthMovingBeamLayer, EarthFixedCellLayer } from '@/viz/beam';
 import { BeamInfoOverlay } from '@/viz/overlays/BeamInfoOverlay';
 import { HandoverLinkOverlay } from '@/viz/overlays/HandoverLinkOverlay';
 import { BhExplainabilityPanel } from '@/viz/overlays/BhExplainabilityPanel';
+import { HandoverExplainabilityPanel } from '@/viz/overlays/HandoverExplainabilityPanel';
 import { ValidationProbe } from '@/viz/overlays/ValidationProbe';
 import SinrTimeSeriesOverlay from '@/viz/overlays/SinrTimeSeriesOverlay';
 import HoEventLogOverlay from '@/viz/overlays/HoEventLogOverlay';
@@ -120,13 +121,13 @@ function buildOrbitParitySummary(
 // Beam + overlay composition (inside Canvas)
 // ---------------------------------------------------------------------------
 
-function BeamLayers({ snapshot, showBeams }: { snapshot: SimulationSnapshot | null; showBeams: boolean }) {
+function BeamLayers({ snapshot, showBeams, isBhProfile }: { snapshot: SimulationSnapshot | null; showBeams: boolean; isBhProfile: boolean }) {
   return (
     <>
       <EarthMovingBeamLayer snapshot={snapshot} visible={showBeams} />
       <BeamInfoOverlay snapshot={snapshot} visible={showBeams} />
       <HandoverLinkOverlay snapshot={snapshot} visible={showBeams} />
-      <EarthFixedCellLayer snapshot={snapshot} visible={showBeams} />
+      {isBhProfile && <EarthFixedCellLayer snapshot={snapshot} visible={showBeams} />}
     </>
   );
 }
@@ -180,10 +181,11 @@ function LiveLayer({ onStatsUpdate, onSnapshotUpdate, onExportKpiReady, speed, p
     });
   }, [result.snapshot]);
 
+  const isBhProfile = profileId.startsWith('bh-');
   return (
     <>
       <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
-      <BeamLayers snapshot={result.snapshot} showBeams={showBeams} />
+      <BeamLayers snapshot={result.snapshot} showBeams={showBeams} isBhProfile={isBhProfile} />
     </>
   );
 }
@@ -226,10 +228,11 @@ function ReplayLayer({ onStatsUpdate, onSnapshotUpdate, onExportKpiReady, speed,
     });
   }, [result.snapshot]);
 
+  const isBhProfile = profileId.startsWith('bh-');
   return (
     <>
       <SatelliteSkyLayer snapshot={result.snapshot} showLabels={showLabels} />
-      <BeamLayers snapshot={result.snapshot} showBeams={showBeams} />
+      <BeamLayers snapshot={result.snapshot} showBeams={showBeams} isBhProfile={isBhProfile} />
     </>
   );
 }
@@ -279,6 +282,7 @@ export function SceneShell() {
       <Starfield starCount={180} />
       {hudData && <SimHud {...hudData} />}
       <BhExplainabilityPanel />
+      <HandoverExplainabilityPanel snapshot={liveSnapshot} />
       <ValidationProbe visible={validationMode} />
       <SinrTimeSeriesOverlay snapshot={liveSnapshot} visible={showSinrChart} />
       <HoEventLogOverlay snapshot={liveSnapshot} visible={showHoLog} />

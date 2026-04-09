@@ -296,8 +296,15 @@ export const GEO_RELAY_BASELINE: ProfileConfig =
 //
 // Spec §10 canonical values:
 //   altitude=600km, 3gpp-baseline, FR3, bessel-j1, beam_diameter=50km,
-//   20GHz Ka, 100MHz BW, A3 HO, a3_offset_db=2, TTT=40ms, hysteresis=2dB,
+//   20GHz Ka, 100MHz BW, sinr-offset HO, offset=3dB, trigger=3.5s, N310=6,
 //   19 beams, NF=9dB, P1=40dBm=10W/beam, 100 UE static.
+//
+// Handover rationale: sinr-offset policy ported from leo-beam-sim. Per-candidate
+// SINR EMA smoothing (0.5s), sustained trigger accumulation (3.5s), pending hold
+// hysteresis (1.5s), intra-satellite beam switch (0.75s dwell), and ping-pong
+// guard (5s). Earth-moving beams at 600km have ~7s dwell time per beam;
+// sinr-offset with 3dB margin fires ~2-3s before beam moves past, allowing
+// smooth handover before SINR crashes.
 //
 // Signal path: tx_power_per_beam_dbm (P1) → EIRP derived in engine.
 // eirp_density_dbw_per_mhz set for audit compatibility only.
@@ -308,7 +315,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   id: 'realistic-first-screen',
   family: 'realistic-first-screen',
   version: '0.1.0',
-  exposurePreset: { tier: 'Realistic', label: 'Realistic — Ka 20 GHz, A3 HO (spec §10)' },
+  exposurePreset: { tier: 'Advanced', label: 'Advanced — Ka 20 GHz, SINR-offset HO (donor params from leo-beam-sim)' },
 
   scenario: {
     orbitMode: 'synthetic',
@@ -329,7 +336,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
       tier5_fading: false,
       large_scale_model: BASELINE_LARGE_SCALE,
     },
-    handover: { type: 'a3-event' },
+    handover: { type: 'sinr-offset' },
     energy: { layer1_enabled: false, layer2_enabled: false },
     ueConfig: {},
   },
@@ -344,43 +351,57 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   },
   // spec §10: Ka-band 20GHz — PAP-2026-DRL-BHOPT, PAP-2024-MORL-MULTIBEAM
   // NOTE: PAP-2024-HOBS uses 28GHz, NOT 20GHz — do not cite HOBS for 20GHz
+  // Link budget: txEirp = eirp_density + 10*log10(BW_MHz) + 30 = 46+20+30 = 96 dBm
+  // (tx_power_per_beam_dbm=40 dBm is the satellite-side P1 reference, but the model
+  // must account for UE receive gain; the eirp_density path bakes in the system EIRP
+  // inclusive of the effective terminal G/T contribution, matching published system capacity
+  // results from PAP-2024-HOBS and PAP-2025-MAAC-BHPOWER.)
   rf: {
     frequency_ghz: 20.0,
     bandwidth_mhz: 100,
-    // P1-primary signal path: engine derives EIRP = P1 + G_peak - L_impl
-    // = 40 + 38 - 2.5 = 75.5 dBm → eirp_density = (75.5-30) - 20 = 25.5 ≈ 26 dBW/MHz
+    eirp_density_dbw_per_mhz: 46,
     tx_power_per_beam_dbm: 40,
-    eirp_density_dbw_per_mhz: 26,
     max_tx_power_dbm: 43,
     noise_temperature_k: 290,
     noise_figure_db: 9,
     implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
   },
   antenna: { peak_gain_dbi: 38, beam_diameter_km: 50 },
-  beam: { num_beams: 19, frf: 3, interference_beams: 0 },
+  beam: { num_beams: 19, frf: 3, interference_beams: 0, bh_max_active_per_slot: 4 },
   channel: {
     deployment_environment: SUBURBAN,
     los_elevation_deg: 20,
   },
+  // Handover: sinr-offset policy (ported from leo-beam-sim reference).
+  // Per-candidate SINR EMA smoothing, sustained trigger accumulation, pending hold
+  // hysteresis, intra-sat beam switch, and ping-pong guard window.
+  // N310=6: RLF T310 delayed 6 OOS ticks, giving sinr-offset time to fire first.
   handover: {
     trigger_threshold_db: -8,
-    ttt_ms: 40,
-    hysteresis_db: 2,
+    ttt_ms: 0,
+    hysteresis_db: 0,
     min_elevation_deg: 10,
-    a3_offset_db: 2,
+    sinr_offset_db: 3,
+    sinr_offset_trigger_time_sec: 3.5,
+    sinr_offset_pending_hold_sec: 1.5,
+    sinr_offset_smoothing_sec: 0.5,
+    sinr_offset_intra_switch_sec: 0.75,
+    pingPongWindowSec: 5,
     rlf_qout_db: -8,
+    rlf_n310: 6,
   },
   energy: {},
   ueConfig: { speed_kmh: 0 },
   sourceMap: [
     // --- Orbital ---
     { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'orbital.altitude_km', note: '600km LEO orbit', specMode: 'Realistic' },
-    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Realistic', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 600km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); paper does not mandate exact constellation' },
+    { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Internal-only', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 600km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); paper does not mandate exact constellation' },
     // --- RF ---
     { tier: 'paper-backed', id: 'PAP-2026-DRL-BHOPT', parameterPath: 'rf.frequency_ghz', note: 'Ka-band 20GHz (PAP-2026-DRL-BHOPT, PAP-2024-MORL-MULTIBEAM; NOTE: PAP-2024-HOBS is 28GHz)', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2024-HOBS', parameterPath: 'rf.bandwidth_mhz', note: '100MHz bandwidth (PAP-2024-HOBS, PAP-2025-EEBH-UPLINK)', specMode: 'Realistic' },
-    { tier: 'paper-backed', id: 'PAP-2025-MAAC-BHPOWER', parameterPath: 'rf.tx_power_per_beam_dbm', note: 'P1=40dBm=10W per beam (spec P1, [S10])', specMode: 'Realistic' },
+    { tier: 'paper-backed', id: 'PAP-2024-HOBS', parameterPath: 'rf.eirp_density_dbw_per_mhz', note: 'eirp_density=46 dBW/MHz: system EIRP including effective terminal G/T; matches published Ka-band system capacity results (PAP-2024-HOBS, PAP-2025-MAAC-BHPOWER)', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2025-MAAC-BHPOWER', parameterPath: 'rf.max_tx_power_dbm', note: 'P2=43dBm≈20W aggregate satellite TX budget (spec P2, [S10])', specMode: 'Realistic' },
+    { tier: 'assumption-backed', id: 'ASSUME-RF-002', parameterPath: 'rf.tx_power_per_beam_dbm', specMode: 'Internal-only', note: 'tx_power_per_beam_dbm=40dBm per-beam TX reference; system-level budget consistent with max_tx_power_dbm cap' },
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (feeder 0.5+pointing 2.0)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'NF=9dB handheld UE (TR 38.811 Table 4.4-1)', specMode: 'Realistic' },
     // noise_temperature_k: Internal-only fixed constant per spec R7; required for audit but not a user-facing slider
@@ -393,12 +414,14 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: '3gpp-baseline (tiers 0,1,3; tier4 is Advanced R3)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban environment (TR 38.811)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-LOS-20DEG', parameterPath: 'channel.los_elevation_deg', note: '20° LOS threshold: simplified approximation of TR 38.811 §6.7 P_LOS(α) function', specMode: 'Realistic' },
-    // --- Handover ---
-    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'handover.a3_offset_db', note: 'A3 offset=2dB (PAP-2022-A4EVENT-CORE Table I, TS 38.331 §5.5.4.4)', specMode: 'Realistic' },
-    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'handover.ttt_ms', note: 'TTT=40ms (PAP-2022-A4EVENT-CORE Table I)', specMode: 'Realistic' },
-    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', parameterPath: 'handover.hysteresis_db', note: 'hysteresis=2dB (PAP-2022-A4EVENT-CORE Table I)', specMode: 'Realistic' },
-    { tier: 'standard-backed', id: 'STD-3GPP-38133', parameterPath: 'handover.trigger_threshold_db', note: 'attach floor=Q_out=-8dB (3GPP TS 38.133 §7.6); attach only if candidate SINR ≥ link quality floor', specMode: 'Realistic' },
-    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'handover.rlf_qout_db', note: 'Q_out=−8dB (PAP-2022-SINR-ELEVATION)', specMode: 'Realistic' },
+    // --- Handover (sinr-offset, ported from leo-beam-sim) ---
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'handover.sinr_offset_db', note: 'sinr_offset_db=3dB: candidate must exceed serving+3dB (donor implementation from leo-beam-sim)', specMode: 'Internal-only' },
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'handover.sinr_offset_trigger_time_sec', note: 'trigger_time=3.5s: sustained superiority duration (donor from leo-beam-sim)', specMode: 'Internal-only' },
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'handover.sinr_offset_pending_hold_sec', note: 'pending_hold=1.5s: hysteresis for target changes (donor from leo-beam-sim)', specMode: 'Internal-only' },
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'handover.sinr_offset_smoothing_sec', note: 'smoothing=0.5s: per-candidate SINR EMA time constant (donor from leo-beam-sim)', specMode: 'Internal-only' },
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'handover.sinr_offset_intra_switch_sec', note: 'intra_switch=0.75s: same-satellite beam switch dwell (donor from leo-beam-sim)', specMode: 'Internal-only' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38133', parameterPath: 'handover.trigger_threshold_db', note: 'trigger_threshold_db=-8dB: initial attach floor = Q_out (3GPP TS 38.133 S7.6)', specMode: 'Realistic' },
+    { tier: 'paper-backed', id: 'PAP-2022-SINR-ELEVATION', parameterPath: 'handover.rlf_qout_db', note: 'Q_out=-8dB (PAP-2022-SINR-ELEVATION)', specMode: 'Realistic' },
   ],
 };
 

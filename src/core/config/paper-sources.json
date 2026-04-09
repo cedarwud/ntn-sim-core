@@ -422,6 +422,12 @@
         "src/core/config/parameter-registry.ts"
       ]
     },
+    "ASSUME-RF-002": {
+      "description": "Per-beam TX power dBm: tx_power_per_beam_dbm=40dBm satellite-side per-beam P_tx reference; consistent with max_tx_power_dbm aggregate cap. No single corpus paper mandates this exact value — derived from system-level P_tx/P_EIRP budget anchored by PAP-2025-MAAC-BHPOWER.",
+      "usedIn": [
+        "src/core/profiles/defaults-misc.ts"
+      ]
+    },
     "ASSUME-CUR-002": {
       "description": "Thermal noise T_sys = T_ant + T_0*(NF-1); T_ant = 290 K (clear sky); T_0 = 290 K",
       "usedIn": [
@@ -476,6 +482,24 @@
         "src/core/config/parameter-registry.ts"
       ]
     },
+    "ASSUME-HO-TTT-A3": {
+      "description": "A3 TTT=3000ms for earth-moving beam proactive handover: requires 3 consecutive ticks (stepSec=1s) of sustained candidate superiority; modeled after leo-beam-sim 3.5s trigger-time validated implementation; compensates for beam dwell time ~7s at 600km.",
+      "usedIn": [
+        "src/core/profiles/defaults-misc.ts"
+      ]
+    },
+    "ASSUME-HO-SINR-EMA": {
+      "description": "SINR EMA smoothing coefficient α=0.3 (equivalent to 3GPP L3 filter k≈7): suppresses single-tick SINR fluctuations in serving measurement before HO evaluation; time constant ≈2.6s at stepSec=1s. Engineering choice within ASSUME-HO-002 envelope.",
+      "usedIn": [
+        "src/core/profiles/defaults-access.ts"
+      ]
+    },
+    "ASSUME-HO-PP-GUARD": {
+      "description": "Ping-pong guard window 30s: blocks TTT start when best HO target is the previously-served satellite and last HO was within 30s. Standard stability mechanism in NTN handover literature (PAP-2021-SESSION-DURATION documents LEO dwell times of 40-180s). Engineering choice within ASSUME-HO-002 envelope.",
+      "usedIn": [
+        "src/core/profiles/defaults-access.ts"
+      ]
+    },
     "ASSUME-UE-001": {
       "description": "UE scenario parameters without universal paper-backed defaults: ueConfig.speed_kmh (static UE assumed as baseline unless mobility study is the topic), ueConfig.count (100 is a common simulation population in corpus papers but not mandated). These are scenario-level engineering choices unless a specific paper explicitly constrains them.",
       "usedIn": [
@@ -486,6 +510,13 @@
       "description": "BH traffic arrival rate: bh_traffic_arrival_rate default (10 arrivals/beam/s Poisson) is an engineering placeholder; no single corpus paper mandates this exact arrival intensity. Must be swept in any traffic-sensitive BH experiment.",
       "usedIn": [
         "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "LEO-BEAM-SIM-REF": {
+      "description": "Donor implementation reference: sinr-offset handover policy parameters (offset_db=3, trigger_time=3.5s, pending_hold=1.5s, smoothing=0.5s, intra_switch=0.75s) ported from project/leo-beam-sim. These are engineering design choices validated in the donor app, not paper-backed constants. Must be declared as assumption-backed in any result that depends on these values.",
+      "usedIn": [
+        "src/core/profiles/defaults-misc.ts",
+        "src/core/handover/sinr-offset.ts"
       ]
     }
   }

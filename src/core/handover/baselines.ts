@@ -15,6 +15,7 @@ import { createChoManager } from './cho';
 import { createMcHoManager } from './mc-ho';
 import { createD2Manager } from './d2-distance';
 import { createMaxElevationManager, createMaxRemainingTimeManager } from './ranking';
+import { createSinrOffsetManager } from './sinr-offset';
 
 /**
  * Hard handover baseline: immediate switch with no TTT.
@@ -73,6 +74,8 @@ export function createBaselineFromConfig(config: HandoverConfig): HandoverManage
       return createMaxElevationManager(config);
     case 'max-remaining-time':
       return createMaxRemainingTimeManager(config);
+    case 'sinr-offset':
+      return createSinrOffsetManager(config);
     default:
       return createHandoverManager({ ...config, type: 'a4-event' });
   }

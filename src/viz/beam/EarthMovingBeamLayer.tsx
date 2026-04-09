@@ -18,10 +18,12 @@ import { selectBeamSatellites } from './beam-visibility-selection';
 import {
   computeMovingBeamGroundTarget,
   isUeAnchoredMovingBeam,
-  MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
-  MOVING_BEAM_GROUND_Y,
   resolveMovingBeamProjection,
 } from './moving-beam-geometry';
+import {
+  MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
+  MOVING_BEAM_GROUND_Y,
+} from './beam-visual-constants';
 
 // ---------------------------------------------------------------------------
 // VISUAL-ONLY constants

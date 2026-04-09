@@ -17,17 +17,15 @@ import { resolve } from 'node:path';
 
 import { loadProfile } from '../src/core/profiles/loader';
 import { recomputeKpiFromSnapshots } from '../src/core/kpi/recompute';
-import { generateWalkerConstellation } from '../src/core/orbit/walker';
-import { buildTrajectoryCache } from '../src/core/orbit/trajectory-cache';
+import { resolveProfileOrbitElements, buildProfileTrajectoryCache } from '../src/core/orbit/profile-runtime';
 import { createSimEngine } from '../src/core/engine';
-import { loadOmmRecords, ommToSatrecs, sampleRecords } from '../src/core/orbit/tle-loader';
-import { satrecsToOrbitElements } from '../src/core/orbit/sgp4-adapter';
+import { loadOmmRecords } from '../src/core/orbit/tle-loader';
 import { createReplaySelectionPlan } from '../src/runner/curation';
 import { executeBenchmarkRun } from '../src/runner/headless/benchmark-runner';
 import { createReplayArtifact } from '../src/core/trace/factory';
 import { recordRun, recordWindow, createReplayController } from '../src/runner/replay/controller';
 import type { ProfileConfig } from '../src/core/profiles/types';
-import type { OrbitElement, TrajectoryCache } from '../src/core/orbit/types';
+import type { TrajectoryCache } from '../src/core/orbit/types';
 import type { OmmRecord } from '../src/core/orbit/tle-loader';
 import type { ReplayManifest } from '../src/core/trace/types';
 import type { SimulationSnapshot } from '../src/core/common/types';
@@ -59,44 +57,19 @@ function checkAbs(label: string, actual: number, expected: number, tol: number, 
 
 function loadFixtureRecords(profile: ProfileConfig): OmmRecord[] | undefined {
   if (profile.orbitMode !== 'real-trace' || !profile.tleDataPath) return undefined;
-  const path = resolve(import.meta.dirname, '..', profile.tleDataPath);
-  return JSON.parse(readFileSync(path, 'utf-8')) as OmmRecord[];
+  const filePath = resolve(import.meta.dirname, '..', profile.tleDataPath);
+  return JSON.parse(readFileSync(filePath, 'utf-8')) as OmmRecord[];
 }
 
-function buildElements(profile: ProfileConfig, tleOmmData?: OmmRecord[]): OrbitElement[] {
-  if (profile.orbitMode === 'real-trace' && tleOmmData) {
-    let records = loadOmmRecords(tleOmmData);
-    const maxSats = profile.tleMaxSatellites ?? 200;
-    if (records.length > maxSats) {
-      records = sampleRecords(records, maxSats, profile.seed);
-    }
-    const satrecs = ommToSatrecs(records);
-    return satrecsToOrbitElements(satrecs);
-  }
-
-  return generateWalkerConstellation({
-    shells: [{
-      id: `${profile.id}-shell`,
-      altitudeKm: profile.orbital.altitude_km,
-      inclinationDeg: profile.orbital.inclination_deg,
-      planes: profile.orbital.num_planes,
-      satsPerPlane: profile.orbital.sats_per_plane,
-    }],
-    epochUtcMs: profile.timeControl.epochUtcMs,
-  });
-}
-
+/**
+ * Build trajectory cache using the same canonical path as executeBenchmarkRun.
+ * Using resolveProfileOrbitElements ensures phasingFactor and extra_shells are
+ * included — matching the benchmark runner exactly so window selection and KPI
+ * comparisons in this script are deterministic against the artifact.
+ */
 function buildCache(profile: ProfileConfig, tleOmmData?: OmmRecord[]): TrajectoryCache {
-  const elements = buildElements(profile, tleOmmData);
-  return buildTrajectoryCache({
-    elements,
-    observerLatDeg: profile.observer.latitudeDeg,
-    observerLonDeg: profile.observer.longitudeDeg,
-    observerAltKm: profile.observer.altitudeM / 1000,
-    durationSec: profile.timeControl.durationSec,
-    stepSec: profile.timeControl.stepSec,
-    epochUtcMs: profile.timeControl.epochUtcMs,
-  });
+  const elements = resolveProfileOrbitElements(profile, tleOmmData);
+  return buildProfileTrajectoryCache(profile, elements);
 }
 
 function compareManifestIdentity(label: string, a: ReplayManifest, b: ReplayManifest) {

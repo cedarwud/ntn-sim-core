@@ -208,6 +208,23 @@ export interface HoLogEntry {
   ueId: string;
 }
 
+/** Handover explainability data for the UI panel (sinr-offset profiles). */
+export interface HoExplanation {
+  servingSinrDb: number | null;
+  servingElevationDeg: number | null;
+  servingRangeKm: number | null;
+  pendingTargetSatId: string | null;
+  pendingTargetBeamId: string | null;
+  pendingTargetSinrDb: number | null;
+  pendingTargetElevationDeg: number | null;
+  pendingTargetRangeKm: number | null;
+  sinrDeltaDb: number | null;
+  triggerProgressSec: number;
+  triggerThresholdSec: number;
+  handoverOffsetDb: number;
+  hoCount: number;
+}
+
 /**
  * A single simulation tick output.
  * This is the ONLY interface viz may consume from core.
@@ -225,6 +242,8 @@ export interface SimulationSnapshot {
   daps?: DapsSnapshot;
   /** HO events that occurred this tick (may be empty). */
   recentHoEvents?: HoLogEntry[];
+  /** Handover explainability data (sinr-offset profiles). */
+  hoExplanation?: HoExplanation;
 }
 
 /** Per-beam snapshot for visualization (SDD §8, frontend-beam-visual-sdd §7). */

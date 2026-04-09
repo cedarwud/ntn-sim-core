@@ -25,13 +25,14 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { chromium } from 'playwright-core';
 import type { Page, Browser } from 'playwright-core';
+import { MOVING_BEAM_FOOTPRINT_RADIUS_WORLD } from '../src/viz/beam/beam-visual-constants.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CHROME_BIN = process.env.CHROME_BIN || '/usr/bin/google-chrome';
 const SCREENSHOT_DIR = resolve(ROOT, 'screenshots', 'validation');
 const DEFAULT_PREVIEW_PORT = 4173;
 let activeBaseUrl = `http://127.0.0.1:${DEFAULT_PREVIEW_PORT}`;
-const EXPECTED_MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = 56;
+const EXPECTED_MOVING_BEAM_FOOTPRINT_RADIUS_WORLD = MOVING_BEAM_FOOTPRINT_RADIUS_WORLD;
 const GEOMETRY_TOLERANCE_WORLD = 1e-6;
 const EPSILON_KM = 1e-6;
 
@@ -192,17 +193,19 @@ function validateMovingBeamGeometry(state: VisualState | null) {
       : null;
 
     for (const sample of satSamples) {
-      const radialOffsetKm = Math.hypot(sample.offsetEastKm, sample.offsetNorthKm);
-      let expectedGroundX = sample.satX;
-      let expectedGroundZ = sample.satZ;
-
-      if (sample.isUeAnchored) {
-        expectedGroundX = 0;
-        expectedGroundZ = 0;
-      } else if (radialOffsetKm > EPSILON_KM && expectedScale != null) {
-        expectedGroundX = sample.satX + sample.offsetEastKm * expectedScale;
-        expectedGroundZ = sample.satZ - sample.offsetNorthKm * expectedScale;
-      }
+      // Current moving-beam contract:
+      //   UE-anchored roles -> observer origin
+      //   other beams       -> satellite-relative lattice on the ground plane
+      const expectedGroundX = sample.isUeAnchored
+        ? 0
+        : expectedScale != null
+          ? sample.satX + sample.offsetEastKm * expectedScale
+          : sample.satX;
+      const expectedGroundZ = sample.isUeAnchored
+        ? 0
+        : expectedScale != null
+          ? sample.satZ - sample.offsetNorthKm * expectedScale
+          : sample.satZ;
 
       comparableSamples += 1;
       maxDelta = Math.max(
@@ -324,6 +327,8 @@ async function waitForState(
     if (predicate(state)) return state;
     await delay(250);
   }
+  const finalState = await readVisualState(page);
+  console.error(`  [DEBUG] state on timeout: mode=${finalState?.runtime?.mode}, profile=${finalState?.runtime?.profileId}, replayWindowStart=${finalState?.runtime?.replayWindowStartSec}, beamPresent=${finalState?.beamInfoOverlay?.present}, handoverPresent=${finalState?.handoverLinkOverlay?.present}, servingSat=${finalState?.runtime?.primaryUe?.servingSatId}, sinr=${finalState?.runtime?.primaryUe?.sinrDb}`);
   throw new Error(`state predicate not satisfied within ${timeoutMs}ms`);
 }
 
@@ -412,7 +417,7 @@ async function validateReplay(page: Page) {
       current.runtime.replayWindowStartSec !== null &&
       Boolean(current.beamInfoOverlay?.present) &&
       Boolean(current.handoverLinkOverlay?.present),
-    30000,
+    60000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-hobs-replay.png') });

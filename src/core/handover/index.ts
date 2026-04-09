@@ -25,3 +25,5 @@ export type { ChoPhase } from './cho';
 
 export { createMcHoManager } from './mc-ho';
 export type { McHoPhase, McHoState } from './mc-ho';
+
+export { createSinrOffsetManager } from './sinr-offset';

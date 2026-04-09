@@ -170,7 +170,7 @@ export const EarthFixedCellLayer = React.memo(function EarthFixedCellLayer({
         <HexCellMesh
           key={`${cell.cx.toFixed(0)},${cell.cz.toFixed(0)}`}
           cell={cell}
-          state={cellStates[i]}
+          state={cellStates[i] ?? 'noCoverage'}
         />
       ))}
     </group>

@@ -1,5 +1,5 @@
 import type { SimEngineState } from './state';
-import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, UeState, BhSlotSnapshot, DapsSnapshot, HoLogEntry, BeamRole } from '../common/types';
+import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, UeState, BhSlotSnapshot, DapsSnapshot, HoLogEntry, BeamRole, HoExplanation } from '../common/types';
 import type { TrajectorySample } from '../orbit/types';
 import type { ServingState } from '../handover/types';
 import {
@@ -161,6 +161,62 @@ export function runSnapshotStep(
     targetSatId: extendedHoState.targetServing?.satId ?? null,
   } : undefined;
 
+  // Handover explainability (sinr-offset profiles that expose trigger state)
+  let hoExplanation: HoExplanation | undefined;
+  const mainManager = independentHandover ? hoManagers.get('ue-0')! : hoManager;
+  const triggerState = mainManager.getTriggerState?.();
+  if (mainHoState.serving) {
+    const servingEntry = satSinrs.find((s) => s.satId === mainHoState.serving!.satId);
+    const servingSample = satSamples.find((s) => s.satId === mainHoState.serving!.satId);
+    const servingSinrDb = servingEntry?.sinrDb ?? null;
+
+    let pendingTargetSinrDb: number | null = null;
+    let pendingTargetElevationDeg: number | null = null;
+    let pendingTargetRangeKm: number | null = null;
+    let ptSatId = triggerState?.pendingTargetSatId ?? null;
+    let ptBeamId = triggerState?.pendingTargetBeamId ?? null;
+    if (ptSatId) {
+      const targetEntry = satSinrs.find((s) => s.satId === ptSatId);
+      const targetSample = satSamples.find((s) => s.satId === ptSatId);
+      pendingTargetSinrDb = targetEntry?.sinrDb ?? null;
+      pendingTargetElevationDeg = targetSample?.sample.elevationDeg ?? null;
+      pendingTargetRangeKm = targetSample?.sample.rangeKm ?? null;
+    } else {
+      // No pending target — show the best eligible non-serving candidate
+      const minElev = profile.handover.min_elevation_deg ?? 10;
+      const bestCandidate = satSinrs
+        .filter((s) => s.satId !== mainHoState.serving!.satId && s.sample.elevationDeg >= minElev)
+        .sort((a, b) => b.sinrDb - a.sinrDb)[0];
+      if (bestCandidate) {
+        ptSatId = bestCandidate.satId;
+        ptBeamId = bestCandidate.bestBeamId;
+        pendingTargetSinrDb = bestCandidate.sinrDb;
+        pendingTargetElevationDeg = bestCandidate.sample.elevationDeg;
+        pendingTargetRangeKm = bestCandidate.sample.rangeKm;
+      }
+    }
+
+    const sinrDeltaDb = (pendingTargetSinrDb !== null && servingSinrDb !== null)
+      ? pendingTargetSinrDb - servingSinrDb
+      : null;
+
+    hoExplanation = {
+      servingSinrDb,
+      servingElevationDeg: servingSample?.sample.elevationDeg ?? null,
+      servingRangeKm: servingSample?.sample.rangeKm ?? null,
+      pendingTargetSatId: ptSatId,
+      pendingTargetBeamId: ptBeamId,
+      pendingTargetSinrDb,
+      pendingTargetElevationDeg,
+      pendingTargetRangeKm,
+      sinrDeltaDb,
+      triggerProgressSec: triggerState?.triggerAccumulatedSec ?? 0,
+      triggerThresholdSec: triggerState?.triggerTimeSec ?? 0,
+      handoverOffsetDb: profile.handover.sinr_offset_db ?? 3,
+      hoCount: mainHoState.totalHandovers,
+    };
+  }
+
   return {
     tick: tickNumber,
     timeSec,
@@ -169,5 +225,6 @@ export function runSnapshotStep(
     recentHoEvents: tickHoLog,
     bhSlot,
     daps,
+    hoExplanation,
   };
 }

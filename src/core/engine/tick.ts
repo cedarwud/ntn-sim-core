@@ -71,7 +71,7 @@ export function executeTick(
   if (!state.isMultiBeam) {
     for (let i = 0; i < activeSatSamples.length; i++) {
       const { satId, sample } = activeSatSamples[i];
-      if (!visibleSatSet.has(satId)) continue; 
+      if (!visibleSatSet.has(satId)) continue;
 
       const others = activeSatSamples.filter((_, j) => j !== i).map((s) => s.sample);
       const sinrDb = computeBundleSinrSingleBeam(state, sample, others);
@@ -89,9 +89,14 @@ export function executeTick(
     for (const { satId, sample } of activeSatSamples) {
       const layout = state.beamLayouts.get(satId);
       const activeBeams = state.lastBhSlotDecision?.activeBeamsPerSat.get(satId);
-      
+
       let selection: BeamSelectionResult;
       if (layout) {
+        // Steerable-beam model: the satellite steers its beam lattice center
+        // toward the UE, so beam selection uses (0,0) offset (UE at lattice
+        // origin). This is physically correct for earth-moving profiles where
+        // beams track the UE. For earth-fixed-bh profiles, beams are fixed
+        // to ground cells and ue-nadir-offset.ts should be used instead.
         selection = selectBeamForUe(layout, 0, 0, state.profile.antenna, activeBeams);
       } else {
         selection = {
@@ -104,16 +109,29 @@ export function executeTick(
       allActiveSelections.push({ satId, sample, selection });
     }
 
+    // Pre-sort by elevation descending so each serving satellite can cheaply find its
+    // top-K interferers without an O(N²) re-sort. Low-elevation interferers contribute
+    // negligible interference (~13 dB weaker at 5° vs 80° elevation due to path loss),
+    // so capping at MAX_SINR_INTERFERERS has near-zero physics impact while cutting
+    // per-tick channel computations from O(N²) to O(N × K).
+    const MAX_SINR_INTERFERERS = 15;
+    const allActiveSortedByElev = [...allActiveSelections].sort(
+      (a, b) => b.sample.elevationDeg - a.sample.elevationDeg,
+    );
+
     for (const entry of allActiveSelections) {
       const { satId, sample, selection } = entry;
       if (!visibleSatSet.has(satId)) continue;
-      
+
       const activeBeams = state.lastBhSlotDecision?.activeBeamsPerSat.get(satId);
       if (state.lastBhSlotDecision && (!activeBeams || activeBeams.length === 0)) continue;
 
-      const otherActiveSats = allActiveSelections
-        .filter((s) => s.satId !== satId)
-        .map((s) => ({ satId: s.satId, sample: s.sample, selection: s.selection }));
+      const otherActiveSats: Array<{ satId: string; sample: TrajectorySample; selection: BeamSelectionResult }> = [];
+      for (const s of allActiveSortedByElev) {
+        if (s.satId === satId) continue;
+        otherActiveSats.push({ satId: s.satId, sample: s.sample, selection: s.selection });
+        if (otherActiveSats.length >= MAX_SINR_INTERFERERS) break;
+      }
       
       const sinrDb = computeBundleSinrMultiBeam(state, satId, sample, selection, otherActiveSats);
       
