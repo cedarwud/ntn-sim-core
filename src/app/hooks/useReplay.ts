@@ -3,7 +3,7 @@
  *
  * On mount (once per profileId):
  *   1. Builds constellation + cache + engine (same as useSimulation)
- *   2. Selects a deterministic replay window from the trajectory cache
+ *   2. Selects a deterministic replay window from geometry or continuity truth
  *   3. Runs the engine headlessly and stores only the selected-window snapshots
  *   4. Returns a replay controller and exposes snapshot / state
  *
@@ -20,6 +20,7 @@
 import { useThree } from '@react-three/fiber';
 import { useState, useEffect, useRef } from 'react';
 
+import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 import { loadProfile } from '@/core/profiles';
 import { buildInteractiveProfileRuntime } from '@/core/orbit/profile-runtime';
 import { createSimEngine } from '@/core/engine';
@@ -76,7 +77,7 @@ interface ReplayRuntime {
 
 export function useReplay(options?: UseReplayOptions): UseReplayResult {
   const {
-    profileId = 'realistic-first-screen',
+    profileId = DEFAULT_INTERACTIVE_PROFILE_ID,
     speed = 1,
     paused = false,
     initialSeekSec = null,
@@ -145,7 +146,11 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
     return () => {
       disposed = true;
     };
-  }, [initialSeekSec, profileId, speed]);
+  }, [initialSeekSec, profileId]);
+
+  useEffect(() => {
+    runtime?.controller.setPlaybackSpeed(speed);
+  }, [runtime, speed]);
 
   // ── 2. Snapshot state ──
 

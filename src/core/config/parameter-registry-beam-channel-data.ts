@@ -66,11 +66,12 @@ export const BEAM_AND_CHANNEL_PARAMETER_REGISTRY: ParameterEntry[] = [
       unit: null,
       allowedRange: { min: 1, max: 100 },
       isDerived: false,
-      dependencyRule: 'only active when beamSemantics = earth-fixed-bh',
+      dependencyRule: 'active when bh_max_active_per_slot is defined (any beamSemantics)',
       vocabularyLayer: 'model-bundle',
     },
     bindings: [
       { parameterId: 'PARAM-BEAM-BH-MAX-ACTIVE', profileId: 'bh-resource-baseline', defaultValue: 4, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-001', sourceNote: 'engineering choice: 4 active of 12 beams per slot', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-BEAM-BH-MAX-ACTIVE', profileId: 'case9-daps-baseline', defaultValue: 7, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-DAPS-001', sourceNote: 'ceil(19/3)=7 active of 19 beams per slot (earth-moving DAPS)', exposureMode: 'Advanced' },
     ],
   },
   {
@@ -81,11 +82,12 @@ export const BEAM_AND_CHANNEL_PARAMETER_REGISTRY: ParameterEntry[] = [
       unit: 's',
       allowedRange: { min: 0.1, max: 60 },
       isDerived: false,
-      dependencyRule: 'only active when beamSemantics = earth-fixed-bh',
+      dependencyRule: 'active when bh_max_active_per_slot is defined (any beamSemantics)',
       vocabularyLayer: 'model-bundle',
     },
     bindings: [
       { parameterId: 'PARAM-BEAM-BH-FRAME-DUR-SEC', profileId: 'bh-resource-baseline', defaultValue: 5, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-001', sourceNote: '5 s frame = 1 s/slot, visible hopping at stepSec=1', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-BEAM-BH-FRAME-DUR-SEC', profileId: 'case9-daps-baseline', defaultValue: 5, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-DAPS-001', sourceNote: '5 s frame for earth-moving DAPS BH', exposureMode: 'Advanced' },
     ],
   },
   {
@@ -101,6 +103,7 @@ export const BEAM_AND_CHANNEL_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-BEAM-BH-SLOTS-PER-FRAME', profileId: 'bh-resource-baseline', defaultValue: 3, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-001', sourceNote: 'ceil(12/4)=3 slots', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-BEAM-BH-SLOTS-PER-FRAME', profileId: 'case9-daps-baseline', defaultValue: 3, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BH-DAPS-001', sourceNote: 'ceil(19/7)=3 slots', exposureMode: 'Advanced' },
     ],
   },
   {

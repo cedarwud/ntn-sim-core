@@ -64,6 +64,7 @@ Operational merge, benchmark, and showcase acceptance rules are further constrai
 | `VAL-FV-004` | visualization | earth-fixed / BH cell view reflects scheduler, service, interference, and energy truth | 5 |
 | `VAL-DAPS-001` | continuity | DAPS/DC-like state transitions are logged and replayable | 6 |
 | `VAL-DAPS-002` | continuity | DAPS-enabled run shows measurable continuity difference versus baseline under same scenario | 6 |
+| `VAL-DAPS-003` | handover | DAPS A3-style trigger: candidate > serving + hysteresis triggers preparation regardless of serving SINR level; elevation accelerant only affects TTT | 6 |
 | `VAL-FV-009` | visualization | DAPS/DC-like dual-active continuity links or equivalent explainers are visible without inventing unsupported states | 6 |
 
 ### Platform Refactor Gates (added 2026-03-29, from Phase 0C)
@@ -150,6 +151,7 @@ Each validation check operates at one of three levels:
 | VAL-EE-004 | structural + runtime | validate-ee-disclosure.ts — runtime denominator split plus artifact disclosure/sensitivity-bar enforcement for denominator-sensitive EE |
 | VAL-BH-001 | F | validate-runtime.mjs |
 | VAL-DAPS-002 | F | validate-runtime.mjs |
+| VAL-DAPS-003 | E | validate-daps-trigger.ts — runs actual createDapsManager() with A3 trigger, hysteresis, and elevation accelerant checks |
 | VAL-HO-003 | F | validate-runtime.mjs |
 | VAL-HO-004 | F | validate-runtime.mjs |
 | VAL-UE-001 | F | validate-runtime.mjs |
@@ -270,9 +272,9 @@ Any showcase/demo sequence must additionally prove:
 
 | ID | Phase | Result | Date | Notes |
 |---|---|---|---|---|
-| `VAL-PLAT-001` | P1 | ✅ PASS | 2026-03-31 | All 58 canonical parameterPaths present in PARAMETER_REGISTRY; all profile-specific binding defaults match runtime profiles |
-| `VAL-PLAT-002` | P1 | ✅ PASS | 2026-03-29 | All 35 distinct sourceIds resolve in paper-sources.json (nested-section lookup) |
-| `VAL-PLAT-003` | P1 | ✅ PASS | 2026-03-29 | 58 PARAM-* IDs: unique, prefixed, no collision with source namespace |
+| `VAL-PLAT-001` | P1 | ✅ PASS | 2026-04-11 | All 59 canonical parameterPaths present in PARAMETER_REGISTRY; all profile-specific binding defaults match runtime profiles |
+| `VAL-PLAT-002` | P1 | ✅ PASS | 2026-04-11 | All 38 distinct sourceIds resolve in paper-sources.json (nested-section lookup) |
+| `VAL-PLAT-003` | P1 | ✅ PASS | 2026-04-11 | 59 PARAM-* IDs: unique, prefixed, no collision with source namespace |
 | `VAL-PLAT-004` | P2 | ✅ PASS | 2026-03-30 | engine.ts contains no raw tier-flag dispatch chains; all 8 bundle families dispatched. Re-verified after Phase 3 Group 3 file split |
 | `VAL-PLAT-004b` | P2 | ✅ PASS | 2026-03-30 | `src/core/models/` contains all 8 required interface files; `ModelBundle` in `model-bundle.ts`. Re-verified after Phase 3 Group 3 file split |
 | `VAL-PLAT-005` | P2 | ✅ PASS | 2026-04-01 | `buildModelBundle` produced valid non-null bundles for all 15 active profiles (per SDD §8.2 validation requirement). Re-verified after MODQN profile registration |

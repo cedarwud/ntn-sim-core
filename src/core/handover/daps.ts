@@ -1,20 +1,10 @@
 /**
  * DAPS (Dual Active Protocol Stack) handover manager for ntn-sim-core.
- *
- * During handover, both source and target links remain active simultaneously,
- * providing service continuity (zero interruption time).
- *
- * Paper sources:
- *   - PAP-2025-DAPS-CORE: DAPS procedure, dual-active phase, path switch
- *   - PAP-2024-MCCHO-CORE: dual connectivity + packet duplication
- *   - PAP-2025-RSMA: GEO+LEO soft HO with rate splitting
- *
- * Governance:
- *   - SDD: sdd/ntn-sim-core-sdd.md §9.3, §9.3.1
- *   - Constraints: sdd/ntn-sim-core-development-constraints.md §3, §4
- *   - This file must not import React, Three.js, or scene code.
+ * Source/target links stay active for a bounded dual-active window so the
+ * source can keep serving while the target is prepared and promoted.
+ * Sources: PAP-2025-DAPS-CORE, PAP-2024-MCCHO-CORE, PAP-2025-RSMA.
+ * Governance: sdd/ntn-sim-core-sdd.md §9.3/§9.3.1; no React/Three imports.
  */
-
 import type {
   HandoverManager,
   HandoverManagerState,
@@ -23,25 +13,20 @@ import type {
   HandoverEvent,
   HandoverCandidate,
   ServingState,
+  RlfState,
 } from './types';
-
-// ---------------------------------------------------------------------------
-// DAPS Types
-// ---------------------------------------------------------------------------
-
 export type DapsPhase =
   | 'idle'
-  | 'single-active'      // normal serving (one link)
-  | 'prepared'            // target identified, preparation started
-  | 'dual-active'         // both source and target active (DAPS core)
-  | 'path-switched'       // traffic moved to target, source releasing
-  | 'completed';          // fully switched to target
-
+  | 'single-active'
+  | 'prepared'
+  | 'dual-active'
+  | 'path-switched'
+  | 'completed';
 export interface DapsState extends HandoverManagerState {
   dapsPhase: DapsPhase;
-  /** Source serving state (maintained during dual-active). */
+  /** Source serving state maintained while dual-active is in progress. */
   sourceServing: ServingState | null;
-  /** Target serving state (active during dual-active and path-switch). */
+  /** Target serving state maintained while dual-active is in progress. */
   targetServing: ServingState | null;
   /** Time when dual-active started. */
   dualActiveStartSec: number | null;
@@ -50,15 +35,16 @@ export interface DapsState extends HandoverManagerState {
   /** Whether packet duplication is enabled. */
   packetDuplication: boolean;
 }
-
 export interface DapsConfig {
-  /** Trigger threshold for starting DAPS preparation (dB). */
+  /** Absolute SINR threshold for attach and path-switch (dB). Not an inter-HO gate. */
   triggerThresholdDb: number;
-  /** Hysteresis for target selection (dB). */
+  /** Hysteresis for target selection and path switch (dB). */
   hysteresisDb: number;
-  /** Preparation time before dual-active (seconds). */
+  /** Time-to-trigger before entering the DAPS preparation phase. */
+  tttSec: number;
+  /** Preparation time after TTT expiry and before dual-active starts. */
   preparationTimeSec: number;
-  /** Max dual-active duration (seconds). */
+  /** Maximum allowed dual-active duration in seconds. */
   maxDualActiveSec: number;
   /** Path switch threshold: target SINR must exceed this to switch (dB). */
   pathSwitchThresholdDb: number;
@@ -66,125 +52,249 @@ export interface DapsConfig {
   minElevationDeg: number;
   /** Enable packet duplication during dual-active. */
   packetDuplication: boolean;
+  pingPongWindowSec: number;
+  /** Elevation TTT accelerant (deg). Low elevation → shorter TTT. Not a gate. */
+  prepareElevationDeg?: number;
+  /** EMA smoothing factor for serving SINR. α=1 disables smoothing. */
+  sinrEmaAlpha: number;
+  /** RLF Qout threshold in dB. */
+  rlfQoutDb: number;
+  /** RLF Qin threshold in dB. */
+  rlfQinDb: number;
+  /** N310 out-of-sync events required to start T310. */
+  rlfN310: number;
+  /** N311 in-sync events required to cancel T310. */
+  rlfN311: number;
+  /** T310 timer in seconds. */
+  rlfT310Sec: number;
 }
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const PING_PONG_WINDOW_SEC = 5;
-
+const DEFAULT_PING_PONG_WINDOW_SEC = 5;
+const DEFAULT_RLF_QOUT_DB = -8.0;
+const DEFAULT_RLF_QIN_DB = -6.0;
+const DEFAULT_RLF_N310 = 1;
+const DEFAULT_RLF_N311 = 1;
+const DEFAULT_RLF_T310_MS = 2000;
+const MIN_DUAL_ACTIVE_OVERLAP_SEC = 0;
 const DEFAULT_DAPS_CONFIG: DapsConfig = {
   triggerThresholdDb: -6,
-  hysteresisDb: 2,
+  hysteresisDb: 1,
+  tttSec: 0.64,
   preparationTimeSec: 0.5,
   maxDualActiveSec: 2.0,
   pathSwitchThresholdDb: -6,
   minElevationDeg: 10,
   packetDuplication: true,
+  pingPongWindowSec: DEFAULT_PING_PONG_WINDOW_SEC,
+  sinrEmaAlpha: 1,
+  rlfQoutDb: DEFAULT_RLF_QOUT_DB,
+  rlfQinDb: DEFAULT_RLF_QIN_DB,
+  rlfN310: DEFAULT_RLF_N310,
+  rlfN311: DEFAULT_RLF_N311,
+  rlfT310Sec: DEFAULT_RLF_T310_MS / 1000,
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Map DapsPhase to HoPhase for HandoverManagerState compatibility.
- */
-function dapsPhaseToHoPhase(dp: DapsPhase): HandoverManagerState['phase'] {
-  switch (dp) {
-    case 'idle': return 'idle';
-    case 'single-active': return 'attached';
-    case 'prepared': return 'preparing';
-    case 'dual-active': return 'switching';
-    case 'path-switched': return 'switching';
-    case 'completed': return 'completed';
-  }
+function initialRlf(): RlfState {
+  return { phase: 'normal', n310Count: 0, n311Count: 0, t310StartSec: null };
 }
-
+const DAPS_TO_HO_PHASE: Record<DapsPhase, HandoverManagerState['phase']> = {
+  'idle': 'idle', 'single-active': 'attached', 'prepared': 'preparing',
+  'dual-active': 'switching', 'path-switched': 'switching', 'completed': 'completed',
+};
 function filterCandidates(
   candidates: HandoverCandidate[],
   minElevationDeg: number,
 ): HandoverCandidate[] {
-  return candidates.filter((c) => c.elevationDeg >= minElevationDeg);
+  return candidates.filter((candidate) => candidate.elevationDeg >= minElevationDeg);
 }
-
-function initialDapsState(config: DapsConfig): DapsState {
-  return {
-    phase: 'idle',
-    serving: null,
-    pendingTarget: null,
-    tttStartTimeSec: null,
-    lastHoTimeSec: -Infinity,
-    totalHandovers: 0,
-    totalFailures: 0,
-    totalPingPongs: 0,
-    totalRlfs: 0,
-    rlf: { phase: 'normal', n310Count: 0, n311Count: 0, t310StartSec: null },
-    events: [],
-    dapsPhase: 'idle',
-    sourceServing: null,
-    targetServing: null,
-    dualActiveStartSec: null,
-    maxDualActiveSec: config.maxDualActiveSec,
-    packetDuplication: config.packetDuplication,
-  };
+function initialDapsState(c: DapsConfig): DapsState {
+  return { phase: 'idle', serving: null, pendingTarget: null, tttStartTimeSec: null,
+    lastHoTimeSec: -Infinity, totalHandovers: 0, totalFailures: 0, totalPingPongs: 0,
+    totalRlfs: 0, rlf: initialRlf(), events: [], dapsPhase: 'idle', sourceServing: null,
+    targetServing: null, dualActiveStartSec: null,
+    maxDualActiveSec: c.maxDualActiveSec, packetDuplication: c.packetDuplication };
 }
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
 export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverManager {
   const config: DapsConfig = { ...DEFAULT_DAPS_CONFIG, ...userConfig };
   let state = initialDapsState(config);
   let previousServingSatId: string | null = null;
-  /** Time when preparation phase started (for preparationTimeSec timer). */
-  let prepStartTimeSec: number | null = null;
+  let preparationStartSec: number | null = null;
+  let servingEmaSinrDb: number | null = null;
+  const candidateEma = new Map<string, number>();
 
   function syncPhase(): void {
-    state.phase = dapsPhaseToHoPhase(state.dapsPhase);
+    state.phase = DAPS_TO_HO_PHASE[state.dapsPhase];
+  }
+
+  /** Smooth candidate SINRs with the same EMA alpha used for serving. */
+  function smoothCandidates(raw: HandoverCandidate[]): HandoverCandidate[] {
+    const active = new Set<string>();
+    const out = raw.map((c) => {
+      const k = `${c.satId}:${c.beamId}`;
+      active.add(k);
+      const p = candidateEma.get(k);
+      const s = p === undefined ? c.sinrDb : config.sinrEmaAlpha * c.sinrDb + (1 - config.sinrEmaAlpha) * p;
+      candidateEma.set(k, s);
+      return { ...c, sinrDb: s };
+    });
+    for (const k of candidateEma.keys()) if (!active.has(k)) candidateEma.delete(k);
+    return out.sort((a, b) => b.sinrDb - a.sinrDb);
   }
 
   function emit(event: HandoverEvent): void {
     state.events.push(event);
   }
 
-  function bestNonServing(eligible: HandoverCandidate[]): HandoverCandidate | undefined {
-    return eligible.find(
-      (c) => !state.serving || c.satId !== state.serving.satId || c.beamId !== state.serving.beamId,
-    );
+  function effectiveTttSec(delayMs?: number, elevationDeg?: number | null): number {
+    let ttt = config.tttSec;
+    if (ttt <= 0) return 0; // instant trigger — skip delay/elevation adjustments
+    if (delayMs) ttt += 2 * delayMs / 1000;
+    // Elevation accelerant: low serving elevation → shorter TTT (50–100%).
+    const pe = config.prepareElevationDeg;
+    if (pe !== undefined && elevationDeg != null && elevationDeg < pe) {
+      const range = pe - config.minElevationDeg;
+      if (range > 0) {
+        const f = Math.max(0, Math.min(1, (elevationDeg - config.minElevationDeg) / range));
+        ttt *= 0.5 + 0.5 * f;
+      }
+    }
+    return ttt;
   }
 
-  // -- idle ----------------------------------------------------------------
+  function bestNonServing(eligible: HandoverCandidate[]): HandoverCandidate | undefined {
+    return eligible.find((candidate) => (
+      !state.serving
+      || candidate.satId !== state.serving.satId
+      || candidate.beamId !== state.serving.beamId
+    ));
+  }
 
-  function tickIdle(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
-    const best = eligible[0];
-    if (!best || best.sinrDb < config.triggerThresholdDb) {
-      return { type: 'none', reason: 'no candidate above threshold' };
-    }
+  /** Pure A3: candidate must exceed serving by hysteresis. No source-degradation gate. */
+  function shouldPrepare(
+    servingSinrDb: number,
+    bestCandidate: HandoverCandidate | undefined,
+  ): boolean {
+    if (!bestCandidate) return false;
+    return bestCandidate.sinrDb > servingSinrDb + config.hysteresisDb;
+  }
+
+  function attachThresholdDb(): number {
+    return Math.max(config.triggerThresholdDb, config.rlfQinDb);
+  }
+
+  function resetTriggerState(): void {
+    state.pendingTarget = null;
+    state.tttStartTimeSec = null;
+    preparationStartSec = null;
+  }
+
+  function attachTarget(
+    input: HandoverTickInput,
+    target: HandoverCandidate,
+    reason: string,
+  ): HandoverDecision {
     state.dapsPhase = 'single-active';
     syncPhase();
     state.serving = {
-      satId: best.satId,
-      beamId: best.beamId,
-      sinrDb: best.sinrDb,
+      satId: target.satId,
+      beamId: target.beamId,
+      sinrDb: target.sinrDb,
       attachTimeSec: input.timeSec,
     };
+    state.sourceServing = null;
+    state.targetServing = null;
+    state.dualActiveStartSec = null;
+    state.rlf = initialRlf();
+    resetTriggerState();
     emit({
       tick: input.tick,
       timeSec: input.timeSec,
       type: 'attach',
-      targetSatId: best.satId,
-      sinrDb: best.sinrDb,
-      reason: 'initial attach',
+      targetSatId: target.satId,
+      sinrDb: target.sinrDb,
+      reason,
     });
-    return { type: 'attach', targetSatId: best.satId, targetBeamId: best.beamId, reason: 'initial attach' };
+    return {
+      type: 'attach',
+      targetSatId: target.satId,
+      targetBeamId: target.beamId,
+      reason,
+    };
   }
 
-  // -- single-active -------------------------------------------------------
+  function rlfTick(sinrDb: number | null, timeSec: number, tick: number): boolean {
+    const rlf = state.rlf;
+    const isOos = sinrDb === null || sinrDb < config.rlfQoutDb;
+    const isIn = sinrDb !== null && sinrDb >= config.rlfQinDb;
 
-  function tickSingleActive(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
+    if (rlf.phase === 'normal') {
+      if (isOos) {
+        rlf.n310Count += 1;
+        if (rlf.n310Count >= config.rlfN310) {
+          rlf.phase = 'out-of-sync';
+          rlf.t310StartSec = timeSec;
+          rlf.n311Count = 0;
+          emit({
+            tick,
+            timeSec,
+            type: 'rlf-oos',
+            sinrDb: sinrDb ?? undefined,
+            reason: `N310=${rlf.n310Count} OOS events, T310 started`,
+          });
+        }
+      } else {
+        rlf.n310Count = 0;
+      }
+      return false;
+    }
+
+    if (rlf.phase === 'out-of-sync') {
+      if (timeSec - rlf.t310StartSec! >= config.rlfT310Sec) {
+        rlf.phase = 'reestablish';
+        state.totalRlfs += 1;
+        emit({
+          tick,
+          timeSec,
+          type: 'rlf-declared',
+          sinrDb: sinrDb ?? undefined,
+          reason: `T310 expired after ${config.rlfT310Sec * 1000} ms — RLF declared`,
+        });
+        return true;
+      }
+      if (isIn) {
+        rlf.n311Count += 1;
+        if (rlf.n311Count >= config.rlfN311) {
+          rlf.phase = 'normal';
+          rlf.n310Count = 0;
+          rlf.n311Count = 0;
+          rlf.t310StartSec = null;
+          emit({
+            tick,
+            timeSec,
+            type: 'rlf-recovery',
+            sinrDb: sinrDb ?? undefined,
+            reason: `N311=${rlf.n311Count} IS events, T310 cancelled`,
+          });
+        }
+      } else {
+        rlf.n311Count = 0;
+      }
+    }
+
+    return false;
+  }
+  function tryAttach(
+    input: HandoverTickInput,
+    eligible: HandoverCandidate[],
+  ): HandoverDecision {
+    const best = eligible[0];
+    if (!best || best.sinrDb < attachThresholdDb()) {
+      return { type: 'none', reason: 'no candidate above attach threshold' };
+    }
+    return attachTarget(input, best, 'initial attach');
+  }
+  function tickSingleActive(
+    input: HandoverTickInput,
+    eligible: HandoverCandidate[],
+  ): HandoverDecision {
     const servingSinr = input.servingSinrDb!;
     state.serving!.sinrDb = servingSinr;
 
@@ -193,67 +303,77 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
     }
 
     const best = bestNonServing(eligible);
-    // A4-style condition: serving below threshold AND candidate better by hysteresis
-    if (
-      best &&
-      servingSinr < config.triggerThresholdDb &&
-      best.sinrDb > servingSinr + config.hysteresisDb
-    ) {
-      state.dapsPhase = 'prepared';
-      syncPhase();
-      state.pendingTarget = best;
-      prepStartTimeSec = input.timeSec;
-
-      emit({
-        tick: input.tick,
-        timeSec: input.timeSec,
-        type: 'ho-trigger',
-        sourceSatId: state.serving!.satId,
-        targetSatId: best.satId,
-        sinrDb: servingSinr,
-        reason: 'daps-prepare',
-      });
-
-      // If preparation time is 0, immediately go dual-active
-      if (config.preparationTimeSec <= 0) {
-        return enterDualActive(input);
-      }
-      return { type: 'none', reason: 'daps-prepare' };
+    if (!shouldPrepare(servingSinr, best)) {
+      return { type: 'none', reason: 'no handover condition' };
     }
 
-    return { type: 'none', reason: 'no handover condition' };
+    if (
+      best
+      && previousServingSatId === best.satId
+      && input.timeSec - state.lastHoTimeSec <= config.pingPongWindowSec
+    ) {
+      return { type: 'none', reason: 'ping-pong guard: target recently served, DAPS blocked' };
+    }
+
+    // Transition to prepared — BH scheduler freezes during this phase,
+    // so beams stay stable and SINR won't fluctuate from slot rotation.
+    state.dapsPhase = 'prepared';
+    syncPhase();
+    state.pendingTarget = best!;
+    state.tttStartTimeSec = input.timeSec;
+    preparationStartSec = null;
+
+    emit({
+      tick: input.tick,
+      timeSec: input.timeSec,
+      type: 'ho-trigger',
+      sourceSatId: state.serving!.satId,
+      targetSatId: best!.satId,
+      sinrDb: servingSinr,
+      reason: 'daps condition met, TTT started',
+    });
+
+    return { type: 'none', reason: 'daps prepared, BH frozen' };
   }
-
-  // -- prepared ------------------------------------------------------------
-
-  function tickPrepared(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
+  function tickPrepared(
+    input: HandoverTickInput,
+    eligible: HandoverCandidate[],
+  ): HandoverDecision {
     const servingSinr = input.servingSinrDb!;
     state.serving!.sinrDb = servingSinr;
 
-    const best = bestNonServing(eligible);
-
-    // Cancel if condition no longer holds
-    if (
-      !best ||
-      !(servingSinr < config.triggerThresholdDb && best.sinrDb > servingSinr + config.hysteresisDb)
-    ) {
+    const trackedTarget = state.pendingTarget
+      ? eligible.find((candidate) => candidate.satId === state.pendingTarget!.satId)
+      : undefined;
+    const best = trackedTarget ?? bestNonServing(eligible);
+    // A3 leaving condition uses -hysteresis (enter uses +hysteresis).
+    const keepPrepared = trackedTarget
+      ? best !== undefined && best.sinrDb >= servingSinr - config.hysteresisDb
+      : shouldPrepare(servingSinr, best);
+    if (!keepPrepared || !best) {
       state.dapsPhase = 'single-active';
       syncPhase();
-      state.pendingTarget = null;
-      prepStartTimeSec = null;
-      return { type: 'none', reason: 'daps preparation cancelled, condition cleared' };
+      resetTriggerState();
+      return { type: 'none', reason: 'daps condition cleared, preparation cancelled' };
     }
 
     state.pendingTarget = best;
 
-    // Wait for preparation timer
-    if (input.timeSec - prepStartTimeSec! < config.preparationTimeSec) {
+    const tttElapsedSec = input.timeSec - state.tttStartTimeSec!;
+    if (tttElapsedSec < effectiveTttSec(input.propagationDelayMs, input.servingElevationDeg)) {
+      return { type: 'none', reason: 'daps TTT running' };
+    }
+
+    if (preparationStartSec === null) {
+      preparationStartSec = input.timeSec;
+    }
+
+    if (input.timeSec - preparationStartSec < config.preparationTimeSec) {
       return { type: 'none', reason: 'daps preparation in progress' };
     }
 
     return enterDualActive(input);
   }
-
   function enterDualActive(input: HandoverTickInput): HandoverDecision {
     const target = state.pendingTarget!;
 
@@ -267,8 +387,8 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
       sinrDb: target.sinrDb,
       attachTimeSec: input.timeSec,
     };
-    // Primary serving remains source during dual-active
-    prepStartTimeSec = null;
+    state.tttStartTimeSec = null;
+    preparationStartSec = null;
 
     emit({
       tick: input.tick,
@@ -277,56 +397,52 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
       sourceSatId: state.serving!.satId,
       targetSatId: target.satId,
       sinrDb: target.sinrDb,
-      reason: 'daps-dual-active',
+      reason: 'daps dual-active started',
     });
 
-    return { type: 'none', reason: 'daps-dual-active' };
+    return { type: 'none', reason: 'daps dual-active' };
   }
+  function canPathSwitch(targetSinr: number): boolean {
+    return targetSinr >= config.pathSwitchThresholdDb;
+  }
+  function tickDualActive(
+    input: HandoverTickInput,
+    eligible: HandoverCandidate[],
+  ): HandoverDecision {
+    const sourceSinr = input.servingSinrDb!;
+    state.serving!.sinrDb = sourceSinr;
+    if (state.sourceServing) state.sourceServing.sinrDb = sourceSinr;
 
-  // -- dual-active ---------------------------------------------------------
-
-  function tickDualActive(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
-    const servingSinr = input.servingSinrDb!;
-    state.serving!.sinrDb = servingSinr;
-    if (state.sourceServing) state.sourceServing.sinrDb = servingSinr;
-
-    // Update target SINR from candidates
-    const targetCandidate = eligible.find(
-      (c) =>
-        state.targetServing &&
-        c.satId === state.targetServing.satId &&
-        c.beamId === state.targetServing.beamId,
-    );
+    const targetCandidate = eligible.find((candidate) => (
+      state.targetServing
+      && candidate.satId === state.targetServing.satId
+    ));
     if (targetCandidate && state.targetServing) {
+      state.targetServing.beamId = targetCandidate.beamId;
       state.targetServing.sinrDb = targetCandidate.sinrDb;
     }
 
-    const elapsed = input.timeSec - state.dualActiveStartSec!;
+    const elapsedSec = input.timeSec - state.dualActiveStartSec!;
     const targetSinr = state.targetServing?.sinrDb ?? -Infinity;
 
-    // Fallback: max duration exceeded or target disappeared
-    if (elapsed >= config.maxDualActiveSec || !targetCandidate) {
-      return dapsFallback(input, elapsed >= config.maxDualActiveSec
-        ? 'daps-fallback: max dual-active duration exceeded'
-        : 'daps-fallback: target lost');
+    if (elapsedSec >= config.maxDualActiveSec || !targetCandidate) return dapsFallback(
+      input,
+      elapsedSec >= config.maxDualActiveSec
+        ? 'daps fallback: max dual-active duration exceeded'
+        : 'daps fallback: target lost',
+    );
+    if (elapsedSec < Math.min(config.maxDualActiveSec, MIN_DUAL_ACTIVE_OVERLAP_SEC)) {
+      return { type: 'none', reason: 'daps dual-active, minimum overlap running' };
     }
-
-    // Path switch: target SINR good enough
-    if (targetSinr >= config.pathSwitchThresholdDb) {
-      return doPathSwitch(input);
-    }
-
+    if (canPathSwitch(targetSinr)) return doPathSwitch(input);
     return { type: 'none', reason: 'daps dual-active, waiting for path switch condition' };
   }
-
   function doPathSwitch(input: HandoverTickInput): HandoverDecision {
     const target = state.targetServing!;
     const source = state.sourceServing!;
 
     state.dapsPhase = 'path-switched';
     syncPhase();
-
-    // Primary serving switches to target
     state.serving = {
       satId: target.satId,
       beamId: target.beamId,
@@ -341,23 +457,21 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
       sourceSatId: source.satId,
       targetSatId: target.satId,
       sinrDb: target.sinrDb,
-      reason: 'daps-path-switch',
+      reason: 'daps path switch',
     });
 
-    // Immediately complete (release source)
     return completeHandover(input, source, target);
   }
-
   function completeHandover(
     input: HandoverTickInput,
     source: ServingState,
     target: ServingState,
   ): HandoverDecision {
-    // Ping-pong detection
-    const isPingPong =
-      previousServingSatId === target.satId &&
-      input.timeSec - state.lastHoTimeSec <= PING_PONG_WINDOW_SEC;
-    if (isPingPong) state.totalPingPongs++;
+    const isPingPong = (
+      previousServingSatId === target.satId
+      && input.timeSec - state.lastHoTimeSec <= config.pingPongWindowSec
+    );
+    if (isPingPong) state.totalPingPongs += 1;
 
     previousServingSatId = source.satId;
 
@@ -366,9 +480,10 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
     state.sourceServing = null;
     state.targetServing = null;
     state.dualActiveStartSec = null;
-    state.pendingTarget = null;
     state.lastHoTimeSec = input.timeSec;
-    state.totalHandovers++;
+    state.totalHandovers += 1;
+    state.rlf = initialRlf();
+    resetTriggerState();
 
     emit({
       tick: input.tick,
@@ -377,27 +492,24 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
       sourceSatId: source.satId,
       targetSatId: target.satId,
       sinrDb: target.sinrDb,
-      reason: isPingPong ? 'daps-complete (ping-pong)' : 'daps-complete',
+      reason: isPingPong ? 'daps complete (ping-pong)' : 'daps complete',
     });
 
     return {
       type: 'handover',
       targetSatId: target.satId,
       targetBeamId: target.beamId,
-      reason: isPingPong ? 'daps-complete (ping-pong)' : 'daps-complete',
+      reason: isPingPong ? 'daps complete (ping-pong)' : 'daps complete',
     };
   }
-
   function dapsFallback(input: HandoverTickInput, reason: string): HandoverDecision {
-    // Revert to source only
     state.dapsPhase = 'single-active';
     syncPhase();
-    // serving remains source (was never changed during dual-active)
     state.targetServing = null;
     state.sourceServing = null;
     state.dualActiveStartSec = null;
-    state.pendingTarget = null;
-    state.totalFailures++;
+    state.totalFailures += 1;
+    resetTriggerState();
 
     emit({
       tick: input.tick,
@@ -410,19 +522,16 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
 
     return { type: 'none', reason };
   }
-
-  // -- release -------------------------------------------------------------
-
   function doRelease(input: HandoverTickInput, reason: string): HandoverDecision {
     const source = state.serving;
     state.dapsPhase = 'idle';
     syncPhase();
     state.serving = null;
-    state.pendingTarget = null;
     state.sourceServing = null;
     state.targetServing = null;
     state.dualActiveStartSec = null;
-    prepStartTimeSec = null;
+    state.rlf = initialRlf();
+    resetTriggerState();
     emit({
       tick: input.tick,
       timeSec: input.timeSec,
@@ -434,53 +543,75 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
     return { type: 'release', reason };
   }
 
-  // -- public interface ----------------------------------------------------
-
   return {
     tick(input: HandoverTickInput): HandoverDecision {
-      const eligible = filterCandidates(input.candidates, config.minElevationDeg);
+      if (input.servingSinrDb !== null) {
+        servingEmaSinrDb = servingEmaSinrDb === null
+          ? input.servingSinrDb
+          : config.sinrEmaAlpha * input.servingSinrDb + (1 - config.sinrEmaAlpha) * servingEmaSinrDb;
+      } else {
+        servingEmaSinrDb = null;
+      }
+
+      const smoothedInput: HandoverTickInput = { ...input, servingSinrDb: servingEmaSinrDb };
+      const eligible = smoothCandidates(filterCandidates(input.candidates, config.minElevationDeg));
 
       switch (state.dapsPhase) {
         case 'idle':
-          return tickIdle(input, eligible);
+          return tryAttach(smoothedInput, eligible);
 
         case 'single-active':
-          if (input.servingSinrDb === null) {
-            return doRelease(input, 'serving SINR lost');
+          if (rlfTick(smoothedInput.servingSinrDb, smoothedInput.timeSec, smoothedInput.tick)) {
+            return doRelease(smoothedInput, 'RLF declared (T310 expired)');
           }
-          if (input.servingElevationDeg != null && input.servingElevationDeg < config.minElevationDeg) {
-            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}°`);
+          if (
+            smoothedInput.servingElevationDeg != null
+            && smoothedInput.servingElevationDeg < config.minElevationDeg
+          ) {
+            return doRelease(
+              smoothedInput,
+              `serving elevation ${smoothedInput.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}°`,
+            );
           }
-          return tickSingleActive(input, eligible);
+          if (state.rlf.phase === 'out-of-sync') {
+            return { type: 'none', reason: 'RLF T310 running, DAPS evaluation suspended' };
+          }
+          return tickSingleActive(smoothedInput, eligible);
 
         case 'prepared':
-          if (input.servingSinrDb === null) {
-            return doRelease(input, 'serving SINR lost during preparation');
+          if (rlfTick(smoothedInput.servingSinrDb, smoothedInput.timeSec, smoothedInput.tick)) {
+            return doRelease(smoothedInput, 'RLF declared during DAPS preparation (T310 expired)');
           }
-          if (input.servingElevationDeg != null && input.servingElevationDeg < config.minElevationDeg) {
-            return doRelease(input, `serving elevation ${input.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}° during preparation`);
+          if (
+            smoothedInput.servingElevationDeg != null
+            && smoothedInput.servingElevationDeg < config.minElevationDeg
+          ) {
+            return doRelease(
+              smoothedInput,
+              `serving elevation ${smoothedInput.servingElevationDeg.toFixed(1)}° < ${config.minElevationDeg}° during preparation`,
+            );
           }
-          return tickPrepared(input, eligible);
+          if (state.rlf.phase === 'out-of-sync') {
+            return { type: 'none', reason: 'RLF T310 running, DAPS preparation suspended' };
+          }
+          return tickPrepared(smoothedInput, eligible);
 
         case 'dual-active':
-          if (input.servingSinrDb === null) {
-            // Source lost — try path-switch if target is alive
-            const targetCandidate = eligible.find(
-              (c) =>
-                state.targetServing &&
-                c.satId === state.targetServing.satId &&
-                c.beamId === state.targetServing.beamId,
-            );
-            if (targetCandidate && targetCandidate.sinrDb >= config.pathSwitchThresholdDb) {
+          if (smoothedInput.servingSinrDb === null) {
+            const targetCandidate = eligible.find((candidate) => (
+              state.targetServing
+              && candidate.satId === state.targetServing.satId
+            ));
+            if (targetCandidate && canPathSwitch(targetCandidate.sinrDb)) {
+              state.targetServing!.beamId = targetCandidate.beamId;
               state.targetServing!.sinrDb = targetCandidate.sinrDb;
-              return doPathSwitch(input);
+              return doPathSwitch(smoothedInput);
             }
-            return doRelease(input, 'both links lost during dual-active');
+            return doRelease(smoothedInput, 'both links lost during dual-active');
           }
-          return tickDualActive(input, eligible);
+          return tickDualActive(smoothedInput, eligible);
 
         case 'path-switched':
-          // Should not linger here — completion is immediate
           state.dapsPhase = 'single-active';
           syncPhase();
           return { type: 'none', reason: 'path-switch completed' };
@@ -506,7 +637,9 @@ export function createDapsManager(userConfig?: Partial<DapsConfig>): HandoverMan
     reset(): void {
       state = initialDapsState(config);
       previousServingSatId = null;
-      prepStartTimeSec = null;
+      preparationStartSec = null;
+      servingEmaSinrDb = null;
+      candidateEma.clear();
     },
   };
 }

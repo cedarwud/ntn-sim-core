@@ -169,6 +169,7 @@ const coveredByRuntime = [
   { id: 'VAL-BH-001',     phase: 5, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-EE-002',     phase: 5, note: 'covered by validate-runtime.mjs' },
   { id: 'VAL-DAPS-002',   phase: 6, note: 'covered by validate-runtime.mjs' },
+  { id: 'VAL-DAPS-003',   phase: 6, note: 'covered by validate-daps-trigger.ts' },
 ];
 
 const coveredByBrowser = [

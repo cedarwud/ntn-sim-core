@@ -176,6 +176,21 @@ export const HANDOVER_PARAMETER_REGISTRY: ParameterEntry[] = [
   },
   {
     spec: {
+      id: 'PARAM-HO-DAPS-PREP-ELEV-DEG',
+      parameterPath: 'handover.daps_prepare_elevation_deg',
+      semanticName: 'DAPS TTT Elevation Accelerant Threshold',
+      unit: 'deg',
+      allowedRange: { min: 10, max: 90 },
+      isDerived: false,
+      dependencyRule: 'only active when handover.type = daps',
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-HO-DAPS-PREP-ELEV-DEG', profileId: 'case9-daps-baseline', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-HO-DAPS-PREP-ELEV', sourceNote: 'TTT accelerant 30°: low elevation → shorter TTT (50–100%); not a trigger gate', exposureMode: 'Advanced' },
+    ],
+  },
+  {
+    spec: {
       id: 'PARAM-HO-MC-MAX-DUAL-SEC',
       parameterPath: 'handover.mc_max_dual_sec',
       semanticName: 'MC-HO Maximum Dual-Connectivity Duration',

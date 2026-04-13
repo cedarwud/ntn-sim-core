@@ -4,7 +4,7 @@
 >
 > **Authority:** This document is subordinate to `simulator-parameter-spec.md` (the canonical parameter authority) and `ntn-sim-core-sdd.md` (the design contract). It translates the spec's Mode Classification (§0) into concrete UI rules.
 >
-> **Last updated:** 2026-04-01 (T1 real-trace truth-path wording sync)
+> **Last updated:** 2026-04-11 (HO Slow playback control + continuity truth exposure sync)
 
 ---
 
@@ -47,22 +47,19 @@ The profile selector is the primary user-facing parameter control. It exposes co
 
 **Tier groups (ordered):**
 
-#### Realistic (first-screen default)
+#### Realistic
 
-| Profile ID | Label | Key parameters |
-|---|---|---|
-| `realistic-first-screen` | Realistic — Ka 20 GHz, A3 HO (spec §10) | 600 km, Ka 20 GHz, A3 HO, FR3, 19 beams, NF=9 dB |
-
-This is the **default profile** when no `?profile=` URL param is set. All user-facing parameters are paper-backed or standard-backed. No Advanced entries. One Internal-only entry (`ASSUME-CUR-002`: `noise_temperature_k = 290 K`) is present in the profile for audit traceability but is not exposed as a UI control — it is a fixed engineering constant per spec R7. Safe for thesis baseline tables.
+No active profile currently ships in the `Realistic` selector tier. Paper-safe baseline values still inform individual parameter bindings, but the active interactive catalog is presently split between `Advanced` baselines/showcases and `Sensitivity` reproductions.
 
 #### Advanced
 
 | Profile ID | Label | Key notes |
 |---|---|---|
 | `case9-access-baseline` | Advanced — Case-9 Access (S-band A4) | S-band 2 GHz, A4 HO, PAP-2022-A4EVENT-CORE |
+| `realistic-first-screen` | Advanced — Ka 20 GHz, SINR-offset HO (donor params from leo-beam-sim) | 600 km, Ka 20 GHz, FR3, 19 beams, legacy Ka showcase |
 | `hobs-multibeam-baseline` | Advanced — HOBS Multi-Beam (Ka 28 GHz) | Ka 28 GHz, 19 beams FRF=3, energy L1 |
 | `bh-resource-baseline` | Advanced — BH Resource (Ka 20 GHz) | 780 km, earth-fixed BH, 12 cells |
-| `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO |
+| `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO, interactive default |
 | `real-trace-validation` | Advanced — Real-Trace (OMM/TLE) | Real Starlink OMM/TLE ingest, SGP4-sampled cache-backed validation-sized envelope |
 | `meo-constellation-baseline` | Advanced — MEO Constellation | 8062 km MEO, Ka 20 GHz |
 | `geo-relay-baseline` | Advanced — GEO Relay | 35786 km GEO, Ku 12 GHz |
@@ -103,6 +100,7 @@ These are **visualization-layer controls** only. They do not affect simulation p
 | Control | Function | Mode |
 |---|---|---|
 | Speed (1x/5x/10x/20x) | Simulation playback speed | Visual |
+| HO Slow | Auto-clamp playback to 1x while runtime truth exposes a prepared or dual-active handover | Visual |
 | Play/Pause | Pause/resume simulation tick | Visual |
 | Show Beams | Toggle beam cone visibility | Visual |
 | Show Labels | Toggle satellite ID labels | Visual |
@@ -118,8 +116,9 @@ These are **visualization-layer controls** only. They do not affect simulation p
 
 | Param | Default | Type | Notes |
 |---|---|---|---|
-| `?profile=` | `realistic-first-screen` | string | Profile ID from `DEFAULT_PROFILES` registry |
+| `?profile=` | `case9-daps-baseline` | string | Profile ID from `DEFAULT_PROFILES` registry |
 | `?speed=` | `5` | number | Playback multiplier |
+| `?hoSlow=0` | on | flag | Disable automatic slow-motion during prepared / dual-active handover truth |
 | `?replay=1` | off | flag | Enable deterministic replay |
 | `?replaySeekSec=` | null | number | Seek to time in replay |
 | `?validate=1` | off | flag | Show ValidationProbe overlay |
@@ -172,7 +171,7 @@ Any UI change that touches parameters must verify:
 
 1. **No derived quantity appears as a free slider** (see §4.2 list)
 2. **No Internal-only parameter appears in any exposed control** (see §4.1 list)
-3. **Profile selector default is `realistic-first-screen`** (use `?profile=` to override)
+3. **Profile selector default is `case9-daps-baseline`** (use `?profile=` to override)
 4. **HO override dropdown includes `a3-event`** (Realistic default mode)
 5. **Advanced HO options are labeled `[Adv]`** in the dropdown
 
@@ -182,7 +181,7 @@ Run `npm run validate:stage` after any UI-layer change to confirm build + lint p
 
 ## 6. Assumption-backed parameters in profiles
 
-Some profile fields are `assumption-backed` rather than `paper-backed`. These appear in profile `sourceMap` entries with `tier: 'assumption-backed'` and `specMode: 'Internal-only'` or `specMode: 'Advanced'`. They must not be promoted to the Realistic first-screen or presented in thesis tables as paper-backed defaults.
+Some profile fields are `assumption-backed` rather than `paper-backed`. These appear in profile `sourceMap` entries with `tier: 'assumption-backed'` and `specMode: 'Internal-only'` or `specMode: 'Advanced'`. They must not be promoted into a Realistic-tier profile or presented in thesis tables as paper-backed defaults.
 
 Current active assumptions (see `ntn-sim-core-assumption-policy.md` for full register):
 

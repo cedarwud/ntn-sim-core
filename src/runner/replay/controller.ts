@@ -136,6 +136,10 @@ export function createSnapshotReplayController(
       accumMs = 0;
     },
 
+    setPlaybackSpeed(playbackSpeed: number) {
+      speed = Math.max(0, playbackSpeed);
+    },
+
     /** Call each frame with wall-clock delta in ms to advance playback. */
     advance(deltaMs: number) {
       if (paused) return;

@@ -131,14 +131,15 @@ for (const [registryKey, profile] of Object.entries(DEFAULT_PROFILES)) {
     warn(pid, `beamSemantics="${semantics}" not in known set [${validSemantics.join(', ')}]`);
   }
 
-  // 6. BH profiles must have bh_strategy and bh_max_active_per_slot
-  if (semantics === 'earth-fixed-bh') {
+  // 6. Profiles with BH scheduling must have bh_strategy and bh_max_active_per_slot
+  const hasBhParams = profile.beam.bh_max_active_per_slot !== undefined;
+  if (semantics === 'earth-fixed-bh' || hasBhParams) {
     if (!profile.beam.bh_strategy) {
-      fail(pid, 'earth-fixed-bh profile missing beam.bh_strategy');
+      fail(pid, 'profile with BH scheduling missing beam.bh_strategy');
     }
     const maxActive = profile.beam.bh_max_active_per_slot;
     if (maxActive === undefined || maxActive < 1) {
-      fail(pid, `bh_max_active_per_slot=${maxActive} must be ≥ 1 for earth-fixed-bh profiles`);
+      fail(pid, `bh_max_active_per_slot=${maxActive} must be ≥ 1 for profiles with BH scheduling`);
     }
   }
 

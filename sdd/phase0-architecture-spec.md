@@ -10,6 +10,7 @@
 **Date (0C):** 2026-03-29 — migration plan, high-risk strategies, VAL-PLAT-001–012, phase dependency graph, SDD staleness inventory, MODQN/UI/estnet gating
 **Date (0C rev 1):** 2026-03-29 — two post-0C audit findings fixed: M1 §0B.2 target module map updated to show src/core/models/ as model-interface home (aligns with §0C.1 steps and §0C.3 acceptance criteria); M2 Phase 5 P5-7 and "Phase 5 complete" condition 6 updated to include composeProfile() shim deletion alongside sourceMap removal
 **Date (0B/0C patch — 2026-03-29):** Phase 1 audit sync: §0B.6 energy.layer2_overrides.* expanded to 8 specific keys (verified from types.ts:419), P count corrected 50→58; §0B.4 SourceTier short-form examples corrected to hyphenated forms + operative-schema authority note added; §0C.3 VAL-PLAT-003 namespace wording updated to match nested paper-sources.json structure
+**Date (0B/0C addendum — 2026-04-11):** `handover.daps_prepare_elevation_deg` promoted into the P-classified handover registry surface; Phase 1 / VAL-PLAT-001 coverage references synchronized 58→59
 **Depends on:** none
 
 ---
@@ -986,6 +987,7 @@ This is the field-level mapping required by §0A.7 before Phase 1 can start.
 | `handover.cho_filter_k` | P | |
 | `handover.daps_preparation_time_sec` | P | |
 | `handover.daps_max_dual_active_sec` | P | |
+| `handover.daps_prepare_elevation_deg` | P | DAPS TTT accelerant threshold; low elevation shortens TTT but does not gate preparation |
 | `handover.mc_max_dual_sec` | P | |
 | `handover.mc_packet_duplication` | P | boolean flag |
 | `handover.d2_serving_dist_km` | P | |

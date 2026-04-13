@@ -31,9 +31,7 @@ import { usePublishValidationSection } from '@/viz/validation/store';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
-
-// Default profile: Realistic first-screen preset (spec §10). Matches useSceneQueryState default.
-const DEFAULT_PROFILE_ID = 'realistic-first-screen';
+import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -45,6 +43,7 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 const LOW_SINR_THRESHOLD_DB = 5;
+const HANDOVER_FOCUS_SPEED = 1;
 
 // ---------------------------------------------------------------------------
 // Shared snapshot → validation / HUD helpers
@@ -58,7 +57,7 @@ function buildRuntimeSummary(
   replaySelection: string | null,
   replayWindowStartSec: number | null,
   replayWindowEndSec: number | null,
-  activeProfileId: string = DEFAULT_PROFILE_ID,
+  activeProfileId: string = DEFAULT_INTERACTIVE_PROFILE_ID,
 ) {
   const ue = snapshot?.ues[0];
   const lowSinrUeCount = snapshot?.ues.filter(
@@ -243,8 +242,8 @@ function ReplayLayer({ onStatsUpdate, onSnapshotUpdate, onExportKpiReady, speed,
 
 export function SceneShell() {
   const {
-    speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId,
-    setSpeed, togglePaused, toggleShowBeams, toggleShowLabels, toggleReplayMode, setProfileId,
+    speed, paused, hoSlowEnabled, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId,
+    setSpeed, togglePaused, toggleHoSlowEnabled, toggleShowBeams, toggleShowLabels, toggleReplayMode, setProfileId,
   } = useSceneQueryState();
   const [hudData, setHudData] = useState<SimHudProps | null>(null);
   const [liveSnapshot, setLiveSnapshot] = useState<SimulationSnapshot | null>(null);
@@ -258,6 +257,16 @@ export function SceneShell() {
   const setExportKpiFn = useCallback((fn: (() => KpiBundle | null) | null) => {
     exportKpiFnRef.current = fn;
   }, []);
+  const primaryUe = liveSnapshot?.ues[0];
+  const autoSlowActive = Boolean(
+    primaryUe?.targetSatId
+    || primaryUe?.secondarySatId
+    || primaryUe?.continuityState === 'prepared'
+    || primaryUe?.continuityState === 'dual-active',
+  );
+  const effectiveSpeed = hoSlowEnabled && autoSlowActive
+    ? Math.min(speed, HANDOVER_FOCUS_SPEED)
+    : speed;
 
   const handleExportKpi = useCallback(() => {
     const kpi = exportKpiFnRef.current?.();
@@ -275,7 +284,7 @@ export function SceneShell() {
     downloadFile(`kpi-${profileId}-${timestamp}.csv`, `${csvHeader}\n${csvRow}`, 'text/csv');
   }, [hudData?.profileId]);
 
-  const dataLayerProps: DataLayerProps = { onStatsUpdate: setHudData, onSnapshotUpdate: setLiveSnapshot, onExportKpiReady: setExportKpiFn, speed, paused, showBeams, showLabels, profileId, handoverTypeOverride: hoTypeOverride };
+  const dataLayerProps: DataLayerProps = { onStatsUpdate: setHudData, onSnapshotUpdate: setLiveSnapshot, onExportKpiReady: setExportKpiFn, speed: effectiveSpeed, paused, showBeams, showLabels, profileId, handoverTypeOverride: hoTypeOverride };
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: VISUAL_SCENE_CONFIG.background.gradient, overflow: 'hidden' }}>
@@ -299,8 +308,12 @@ export function SceneShell() {
       <ControlPanel
         speed={speed}
         onSpeedChange={setSpeed}
+        effectiveSpeed={effectiveSpeed}
         paused={paused}
         onPauseToggle={togglePaused}
+        hoSlowEnabled={hoSlowEnabled}
+        hoSlowActive={autoSlowActive}
+        onHoSlowToggle={toggleHoSlowEnabled}
         showBeams={showBeams}
         onShowBeamsToggle={toggleShowBeams}
         showLabels={showLabels}

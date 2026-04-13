@@ -4,6 +4,7 @@
 **Date (v1 — full spec):** 2026-03-29
 **Date (v1.1 — critical schema fixes):** 2026-03-29 — SourceTier vocabulary corrected; paper-sources.json nested-structure resolution; exposureMode fallback rule; energy.layer2_overrides.* expanded to 8 keys; coverage count 50→58; phase0 §0B.4/§0B.6/§0C.3 authority-synced
 **Date (v1.2 — count fix + authority sync):** 2026-03-29 — 57→58 corrected everywhere; phase0 operative-schema note added; OP-3 sourceTier short-form removed; Data Flow / §11 count references updated
+**Date (v1.3 — DAPS trigger registry sync):** 2026-04-11 — `handover.daps_prepare_elevation_deg` promoted into the canonical parameter registry and Phase 0 / VAL-PLAT-001 count references synchronized 58→59
 **Depends on:** Phase 0 complete (`phase0-architecture-spec.md §0C.7`)
 
 ---
@@ -308,7 +309,7 @@ All fields from `phase0-architecture-spec.md §0B.6` classified as `P` (paramete
 `channel.deployment_environment`, `channel.los_elevation_deg`, `channel.subcarrier_spacing_khz`
 
 **Handover:**
-`handover.trigger_threshold_db`, `handover.a3_offset_db`, `handover.ttt_ms`, `handover.hysteresis_db`, `handover.min_elevation_deg`, `handover.pingPongWindowSec`, `handover.cho_offset_db`, `handover.cho_alpha`, `handover.cho_filter_k`, `handover.daps_preparation_time_sec`, `handover.daps_max_dual_active_sec`, `handover.mc_max_dual_sec`, `handover.mc_packet_duplication`, `handover.d2_serving_dist_km`, `handover.d2_target_dist_km`, `handover.sinr_ema_alpha`, `handover.rlf_qout_db`, `handover.rlf_qin_db`, `handover.rlf_n310`, `handover.rlf_n311`, `handover.rlf_t310_ms`
+`handover.trigger_threshold_db`, `handover.a3_offset_db`, `handover.ttt_ms`, `handover.hysteresis_db`, `handover.min_elevation_deg`, `handover.pingPongWindowSec`, `handover.cho_offset_db`, `handover.cho_alpha`, `handover.cho_filter_k`, `handover.daps_preparation_time_sec`, `handover.daps_max_dual_active_sec`, `handover.daps_prepare_elevation_deg`, `handover.mc_max_dual_sec`, `handover.mc_packet_duplication`, `handover.d2_serving_dist_km`, `handover.d2_target_dist_km`, `handover.sinr_ema_alpha`, `handover.rlf_qout_db`, `handover.rlf_qin_db`, `handover.rlf_n310`, `handover.rlf_n311`, `handover.rlf_t310_ms`
 
 **Energy:**
 `energy.energy_per_handover_j`,
@@ -403,8 +404,8 @@ bindings rather than relying on `__universal__` metadata.
 
 **Expected output (pass):**
 ```
-VAL-PLAT-001: PASS — 58 parameter entries found; all P-classified paths covered
-VAL-PLAT-001: PASS — All 58 entries have at least one binding
+VAL-PLAT-001: PASS — 59 parameter entries found; all P-classified paths covered
+VAL-PLAT-001: PASS — All 59 entries have at least one binding
 VAL-PLAT-001: PASS — All profile-specific binding.defaultValue entries match DEFAULT_PROFILES
 ```
 

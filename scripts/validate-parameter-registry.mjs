@@ -4,7 +4,7 @@
  * Implements VAL-PLAT-001, VAL-PLAT-002, VAL-PLAT-003 from
  * sdd/phase1-parameter-registry-sdd.md §6.
  *
- * VAL-PLAT-001  Coverage + runtime parity — all 58 canonical parameterPaths
+ * VAL-PLAT-001  Coverage + runtime parity — all 59 canonical parameterPaths
  *               present, every entry has at least one binding, and every
  *               profile-specific binding.defaultValue matches DEFAULT_PROFILES
  *               at spec.parameterPath.
@@ -79,6 +79,7 @@ const CANONICAL_PATHS = new Set([
   'handover.cho_filter_k',
   'handover.daps_preparation_time_sec',
   'handover.daps_max_dual_active_sec',
+  'handover.daps_prepare_elevation_deg',
   'handover.mc_max_dual_sec',
   'handover.mc_packet_duplication',
   'handover.d2_serving_dist_km',

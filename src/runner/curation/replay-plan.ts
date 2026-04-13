@@ -16,6 +16,7 @@ import type { ReplayManifest } from '@/core/trace/types';
 import type { TrajectoryCache } from '@/core/orbit/types';
 import type { WindowSelectionConfig, SelectedWindow } from './window-selector';
 import { selectBestWindow, createReplayManifestFromWindow } from './window-selector';
+import { selectContinuityAwareWindow } from './continuity-window-selector';
 
 export interface ReplaySelectionPlan {
   selectionConfig: WindowSelectionConfig;
@@ -42,7 +43,17 @@ export function createReplaySelectionPlan(
   presentationMode: PresentationMode,
 ): ReplaySelectionPlan {
   const selectionConfig = buildReplaySelectionConfig(profile);
-  const selectedWindow = selectBestWindow(trajectoryCache, selectionConfig);
+  const selectedWindow = (
+    profile.handover.type === 'daps' || profile.handover.type === 'mc-ho'
+  )
+    ? (
+      selectContinuityAwareWindow(
+        profile,
+        trajectoryCache,
+        selectionConfig.windowDurationSec,
+      ) ?? selectBestWindow(trajectoryCache, selectionConfig)
+    )
+    : selectBestWindow(trajectoryCache, selectionConfig);
   const replayManifest = createReplayManifestFromWindow(runId, selectedWindow, presentationMode);
   return {
     selectionConfig,

@@ -56,11 +56,20 @@ export function createBaselineFromConfig(config: HandoverConfig): HandoverManage
       return createDapsManager({
         triggerThresholdDb: config.trigger_threshold_db,
         hysteresisDb: config.hysteresis_db,
+        tttSec: config.ttt_ms / 1000,
         preparationTimeSec: config.daps_preparation_time_sec ?? 0.5,
         maxDualActiveSec: config.daps_max_dual_active_sec ?? 2.0,
         pathSwitchThresholdDb: config.trigger_threshold_db,
         minElevationDeg: config.min_elevation_deg,
         packetDuplication: true,
+        pingPongWindowSec: config.pingPongWindowSec ?? 5,
+        prepareElevationDeg: config.daps_prepare_elevation_deg,
+        sinrEmaAlpha: config.sinr_ema_alpha ?? 1,
+        rlfQoutDb: config.rlf_qout_db ?? -8,
+        rlfQinDb: config.rlf_qin_db ?? -6,
+        rlfN310: config.rlf_n310 ?? 1,
+        rlfN311: config.rlf_n311 ?? 1,
+        rlfT310Sec: (config.rlf_t310_ms ?? 2000) / 1000,
       });
     case 'cho':
       return createChoManager(config);

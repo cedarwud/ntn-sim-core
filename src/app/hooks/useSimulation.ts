@@ -10,6 +10,7 @@
 import { useThree } from '@react-three/fiber';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 import { loadProfile, resolveProfile } from '@/core/profiles';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
@@ -23,7 +24,7 @@ import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 // ---------------------------------------------------------------------------
 
 export interface UseSimulationOptions {
-  profileId?: string;   // default: 'realistic-first-screen'
+  profileId?: string;   // default: continuity-first DAPS baseline
   speed?: number;       // playback speed multiplier, default 1
   paused?: boolean;
   /** Override handover algorithm at runtime without reloading the profile. */
@@ -72,7 +73,7 @@ export function useSimulation(
   options?: UseSimulationOptions,
 ): UseSimulationResult {
   const {
-    profileId = 'realistic-first-screen',
+    profileId = DEFAULT_INTERACTIVE_PROFILE_ID,
     speed = 1,
     paused = false,
     handoverTypeOverride = null,

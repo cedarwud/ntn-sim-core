@@ -476,6 +476,12 @@
         "src/core/config/parameter-registry.ts"
       ]
     },
+    "ASSUME-BH-DAPS-001": {
+      "description": "Beam hopping frame structure for earth-moving DAPS profile: bh_max_active_per_slot=7 (ceil(19/3)), bh_slots_per_frame=3, bh_frame_duration_sec=5, round-robin strategy; engineering choice to demonstrate beam scheduling combined with DAPS dual-active handover; no corpus paper combines beam hopping + DAPS",
+      "usedIn": [
+        "src/core/profiles/defaults-access.ts"
+      ]
+    },
     "ASSUME-HO-002": {
       "description": "Handover engineering parameters without paper-backed defaults: sinr_ema_alpha (SINR IIR filter coefficient), d2_serving_dist_km / d2_target_dist_km (D2 distance-based HO thresholds), pingPongWindowSec (ping-pong suppression window), cho_offset_db (CHO trigger offset). Values used in profiles are engineering choices; no single corpus paper provides these exact defaults. Must be declared as assumption-backed in any result that depends on these values.",
       "usedIn": [
@@ -498,6 +504,19 @@
       "description": "Ping-pong guard window 30s: blocks TTT start when best HO target is the previously-served satellite and last HO was within 30s. Standard stability mechanism in NTN handover literature (PAP-2021-SESSION-DURATION documents LEO dwell times of 40-180s). Engineering choice within ASSUME-HO-002 envelope.",
       "usedIn": [
         "src/core/profiles/defaults-access.ts"
+      ]
+    },
+    "ASSUME-HO-DAPS-OVERLAP": {
+      "description": "DAPS dual-active window extended to 3.0 s for the 1 s discrete runtime so prepared/dual-active execution can complete before fallback; keeps overlap visible without forcing long low-elevation source retention.",
+      "usedIn": [
+        "src/core/profiles/defaults-access.ts"
+      ]
+    },
+    "ASSUME-HO-DAPS-PREP-ELEV": {
+      "description": "DAPS TTT accelerant threshold 30°: when serving elevation drops below this value, effective TTT is scaled down (50–100%), accelerating handover completion at low elevation. NOT a trigger gate — handover preparation uses pure A3-style (candidate > serving + hysteresis) regardless of elevation. 10° remains the hard release floor.",
+      "usedIn": [
+        "src/core/profiles/defaults-access.ts",
+        "src/core/handover/daps.ts"
       ]
     },
     "ASSUME-UE-001": {

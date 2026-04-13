@@ -269,6 +269,7 @@ async function readVisualState(page: Page): Promise<VisualState | null> {
 
 async function gotoScenario(page: Page, params: Record<string, string>) {
   const url = new URL(activeBaseUrl);
+  url.searchParams.set('hoSlow', '0');
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }

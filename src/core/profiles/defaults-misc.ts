@@ -326,7 +326,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   models: {
     beamSemantics: 'earth-moving',
     antenna: { model: 'bessel-j1' },
-    beam: { layout: 'hexagonal' },
+    beam: { layout: 'hexagonal', bh_strategy: 'round-robin', bh_traffic_model: 'uniform' },
     channel: {
       tier0_fspl: true,
       tier1_large_scale: true,

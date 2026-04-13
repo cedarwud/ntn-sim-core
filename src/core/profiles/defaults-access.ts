@@ -72,7 +72,14 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
   beam: { num_beams: 19, frf: 1, interference_beams: 42 },
   channel: { deployment_environment: SUBURBAN },
-  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10, sinr_ema_alpha: 0.3, pingPongWindowSec: 30 },
+  handover: {
+    trigger_threshold_db: -6,
+    ttt_ms: 640,
+    hysteresis_db: 1,
+    min_elevation_deg: 10,
+    sinr_ema_alpha: 0.3,
+    pingPongWindowSec: 30,
+  },
   energy: {},
   ueConfig: { speed_kmh: 0 },
   sourceMap: [
@@ -118,13 +125,13 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   scenario: {
     orbitMode: 'synthetic',
     observer: BEIJING_OBSERVER,
-    epochUtcMs: Date.UTC(2026, 0, 1, 0, 8, 0),
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 20, 0),
     ueTopology: { count: 10, distribution: 'uniform' },
   },
   models: {
     beamSemantics: 'earth-moving',
     antenna: { model: 'rpsat-3gpp' },
-    beam: { layout: 'hexagonal' },
+    beam: { layout: 'hexagonal', bh_strategy: 'round-robin', bh_traffic_model: 'uniform' },
     channel: {
       tier0_fspl: true,
       tier1_large_scale: true,
@@ -156,9 +163,19 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
     implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
   },
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
-  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  beam: { num_beams: 19, frf: 1, interference_beams: 42, bh_max_active_per_slot: 7, bh_frame_duration_sec: 5, bh_slots_per_frame: 3 },
   channel: { deployment_environment: SUBURBAN },
-  handover: { trigger_threshold_db: -6, ttt_ms: 640, hysteresis_db: 1, min_elevation_deg: 10, sinr_ema_alpha: 0.3, pingPongWindowSec: 30 },
+  handover: {
+    trigger_threshold_db: -6,
+    ttt_ms: 640,
+    hysteresis_db: 1,
+    min_elevation_deg: 10,
+    daps_preparation_time_sec: 0,
+    daps_max_dual_active_sec: 3.0,
+    daps_prepare_elevation_deg: 30,
+    sinr_ema_alpha: 0.3,
+    pingPongWindowSec: 30,
+  },
   energy: {},
   ueConfig: { speed_kmh: 0 },
   sourceMap: [
@@ -168,9 +185,12 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
-    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted to expose dual-active inside the deterministic replay window' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted so live playback reaches prepared/dual-active continuity earlier while replay uses continuity-aware window selection' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS-OVERLAP', parameterPath: 'handover.daps_max_dual_active_sec', specMode: 'Advanced', note: 'DAPS dual-active window extended to 3.0 s for the 1 s discrete runtime so prepared/dual-active execution can complete before fallback; keeps overlap visible without forcing long low-elevation source retention' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-SINR-EMA', parameterPath: 'handover.sinr_ema_alpha', specMode: 'Advanced', note: 'SINR EMA α=0.3 with stepSec=1s: time-constant ≈2.6s, stabilizes serving SINR estimates for DAPS dual-active window evaluation' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-PP-GUARD', parameterPath: 'handover.pingPongWindowSec', specMode: 'Advanced', note: 'Ping-pong guard 30s: blocks oscillating handovers back to recently-served satellite' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS-PREP-ELEV', parameterPath: 'handover.daps_prepare_elevation_deg', specMode: 'Advanced', note: 'DAPS TTT accelerant 30°: when serving elevation drops below this threshold, effective TTT is scaled down (50–100%), accelerating handover completion at low elevation; 10° remains the hard release floor; handover trigger is purely A3-style (candidate > serving + hysteresis) regardless of elevation' },
+    { tier: 'assumption-backed', id: 'ASSUME-BH-DAPS-001', parameterPath: 'beam.bh_max_active_per_slot', specMode: 'Advanced', note: 'BH frame for earth-moving DAPS: bh_max_active_per_slot=7 (ceil(19/3)), bh_slots_per_frame=3, bh_frame_duration_sec=5, round-robin; no corpus paper combines BH + DAPS' },
   ],
 };
 

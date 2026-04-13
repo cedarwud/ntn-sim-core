@@ -8,12 +8,17 @@
 import React, { useCallback } from 'react';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import { getProfileList } from '@/core/contracts/exposure-v1';
+import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
 export interface ControlPanelProps {
   speed: number;
   onSpeedChange: (speed: number) => void;
+  effectiveSpeed?: number;
   paused: boolean;
   onPauseToggle: () => void;
+  hoSlowEnabled?: boolean;
+  hoSlowActive?: boolean;
+  onHoSlowToggle?: () => void;
   showBeams: boolean;
   onShowBeamsToggle: () => void;
   showLabels: boolean;
@@ -54,6 +59,9 @@ const profileEntries = getProfileList().map((e) => ({
   label: e.label,
   tier: e.tier,
 }));
+const profileTiers = (['Realistic', 'Advanced', 'Sensitivity'] as const).filter((tier) => (
+  profileEntries.some((entry) => entry.tier === tier)
+));
 
 const SPEEDS = [1, 5, 10, 20] as const;
 
@@ -136,8 +144,12 @@ const checkboxLabelStyle: React.CSSProperties = {
 export const ControlPanel = React.memo(function ControlPanel({
   speed,
   onSpeedChange,
+  effectiveSpeed = speed,
   paused,
   onPauseToggle,
+  hoSlowEnabled = true,
+  hoSlowActive = false,
+  onHoSlowToggle,
   showBeams,
   onShowBeamsToggle,
   showLabels,
@@ -191,12 +203,12 @@ export const ControlPanel = React.memo(function ControlPanel({
           <span style={labelStyle}>Profile:</span>
           <select
             data-testid="profile-select"
-            value={profileId ?? 'realistic-first-screen'}
+            value={profileId ?? DEFAULT_INTERACTIVE_PROFILE_ID}
             onChange={handleProfileChange}
             style={{ ...selectStyle, maxWidth: 220 }}
             title="Select simulation scenario. Realistic = paper/standard-backed defaults. Advanced = valid secondary settings. Sensitivity = reproduction / sweep targets."
           >
-            {(['Realistic', 'Advanced', 'Sensitivity'] as const).map((tier) => (
+            {profileTiers.map((tier) => (
               <optgroup key={tier} label={`── ${tier} ──`}>
                 {profileEntries.filter((o) => o.tier === tier).map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -208,9 +220,10 @@ export const ControlPanel = React.memo(function ControlPanel({
       )}
 
       {/* HO Strategy override
-          Realistic: A3 (profile default for realistic-first-screen), A4
-          Advanced:  CHO, Timer-CHO, MC-HO, DAPS, Hard-HO
-          Per spec H8: A3/A4 = Realistic; CHO/Timer-CHO/MC-HO/DAPS = Advanced */}
+          Realistic: A3, A4
+          Advanced:  SINR-Offset, CHO, Timer-CHO, MC-HO, DAPS, Hard-HO
+          The shipped UI default profile is DAPS-driven, but the override taxonomy
+          still follows spec H8 for the individual HO families. */}
       {onHoTypeOverrideChange && (
         <div style={rowStyle}>
           <span style={labelStyle}>HO:</span>
@@ -251,6 +264,11 @@ export const ControlPanel = React.memo(function ControlPanel({
             {s}x
           </button>
         ))}
+        {effectiveSpeed !== speed && (
+          <span style={{ color: '#ffd166', fontSize: 12 }}>
+            active {effectiveSpeed}x
+          </span>
+        )}
       </div>
 
       {/* Play / Pause */}
@@ -258,6 +276,17 @@ export const ControlPanel = React.memo(function ControlPanel({
         <button style={btnBase} onClick={onPauseToggle}>
           {paused ? '\u25B6 Play' : '\u23F8 Pause'}
         </button>
+        {onHoSlowToggle && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-ho-slow"
+              type="checkbox"
+              checked={hoSlowEnabled}
+              onChange={onHoSlowToggle}
+            />
+            HO Slow{hoSlowActive ? ' On' : ''}
+          </label>
+        )}
       </div>
 
       {/* Toggles */}

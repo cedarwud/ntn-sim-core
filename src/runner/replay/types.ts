@@ -53,6 +53,8 @@ export interface ReplayController {
   step(): void;
   /** Jump to a specific simulation time. */
   seek(timeSec: number): void;
+  /** Update playback speed without rebuilding the controller. */
+  setPlaybackSpeed(playbackSpeed: number): void;
   /** Get the simulation snapshot at the current playback position. */
   getSnapshot(): SimulationSnapshot;
   /** Get the current playback state. */

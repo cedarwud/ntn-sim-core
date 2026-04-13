@@ -8,18 +8,19 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
 /**
- * Default profile: Realistic first-screen preset per simulator-parameter-spec.md §10.
- * All user-facing parameters are paper-backed or standard-backed; no Advanced entries.
- * One Internal-only entry (ASSUME-CUR-002: noise_temperature_k=290K) is present for audit
- * traceability but is not exposed as a UI control (spec R7 fixed engineering constant).
+ * Default profile: continuity-first interactive DAPS baseline.
+ * The stricter paper-safe baseline profiles remain available in the selector,
+ * but the shipped UI default prioritizes stable SINR-driven continuity truth.
  */
-const DEFAULT_PROFILE_ID = 'realistic-first-screen';
+const DEFAULT_PROFILE_ID = DEFAULT_INTERACTIVE_PROFILE_ID;
 
 export interface SceneQueryState {
   speed: number;
   paused: boolean;
+  hoSlowEnabled: boolean;
   showBeams: boolean;
   showLabels: boolean;
   replayMode: boolean;
@@ -30,7 +31,7 @@ export interface SceneQueryState {
 
 function readQueryState(): SceneQueryState {
   if (typeof window === 'undefined') {
-    return { speed: 5, paused: false, showBeams: true, showLabels: true, replayMode: false, replaySeekSec: null, validationMode: false, profileId: DEFAULT_PROFILE_ID };
+    return { speed: 5, paused: false, hoSlowEnabled: true, showBeams: true, showLabels: true, replayMode: false, replaySeekSec: null, validationMode: false, profileId: DEFAULT_PROFILE_ID };
   }
   const p = new URLSearchParams(window.location.search);
   const speed = Number(p.get('speed'));
@@ -38,6 +39,7 @@ function readQueryState(): SceneQueryState {
   return {
     speed: Number.isFinite(speed) && speed > 0 ? speed : 5,
     paused: p.get('paused') === '1',
+    hoSlowEnabled: p.get('hoSlow') !== '0',
     showBeams: p.get('showBeams') !== '0',
     showLabels: p.get('showLabels') !== '0',
     replayMode: p.get('replay') === '1',
@@ -52,6 +54,7 @@ function syncQueryState(s: SceneQueryState) {
   const p = new URLSearchParams(window.location.search);
   p.set('speed', String(s.speed));
   if (s.paused) p.set('paused', '1'); else p.delete('paused');
+  if (!s.hoSlowEnabled) p.set('hoSlow', '0'); else p.delete('hoSlow');
   if (!s.showBeams) p.set('showBeams', '0'); else p.delete('showBeams');
   if (!s.showLabels) p.set('showLabels', '0'); else p.delete('showLabels');
   if (s.replayMode) p.set('replay', '1'); else p.delete('replay');
@@ -64,6 +67,7 @@ function syncQueryState(s: SceneQueryState) {
 export interface UseSceneQueryStateResult {
   speed: number;
   paused: boolean;
+  hoSlowEnabled: boolean;
   showBeams: boolean;
   showLabels: boolean;
   replayMode: boolean;
@@ -72,6 +76,7 @@ export interface UseSceneQueryStateResult {
   profileId: string;
   setSpeed: (speed: number) => void;
   togglePaused: () => void;
+  toggleHoSlowEnabled: () => void;
   toggleShowBeams: () => void;
   toggleShowLabels: () => void;
   toggleReplayMode: () => void;
@@ -84,6 +89,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
 
   const [speed, setSpeedRaw] = useState(bootstrap.speed);
   const [paused, setPaused] = useState(bootstrap.paused);
+  const [hoSlowEnabled, setHoSlowEnabled] = useState(bootstrap.hoSlowEnabled);
   const [showBeams, setShowBeams] = useState(bootstrap.showBeams);
   const [showLabels, setShowLabels] = useState(bootstrap.showLabels);
   const [replayMode, setReplayMode] = useState(bootstrap.replayMode);
@@ -92,11 +98,12 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
   const validationMode = bootstrap.validationMode;
 
   useEffect(() => {
-    syncQueryState({ speed, paused, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId });
-  }, [paused, profileId, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
+    syncQueryState({ speed, paused, hoSlowEnabled, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId });
+  }, [hoSlowEnabled, paused, profileId, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
 
   const setSpeed = useCallback((s: number) => setSpeedRaw(s), []);
   const togglePaused = useCallback(() => setPaused((p) => !p), []);
+  const toggleHoSlowEnabled = useCallback(() => setHoSlowEnabled((enabled) => !enabled), []);
   const toggleShowBeams = useCallback(() => setShowBeams((b) => !b), []);
   const toggleShowLabels = useCallback(() => setShowLabels((l) => !l), []);
   const toggleReplayMode = useCallback(() => setReplayMode((r) => !r), []);
@@ -105,6 +112,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
   return {
     speed,
     paused,
+    hoSlowEnabled,
     showBeams,
     showLabels,
     replayMode,
@@ -113,6 +121,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
     profileId,
     setSpeed,
     togglePaused,
+    toggleHoSlowEnabled,
     toggleShowBeams,
     toggleShowLabels,
     toggleReplayMode,

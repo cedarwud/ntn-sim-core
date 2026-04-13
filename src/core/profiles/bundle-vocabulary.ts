@@ -164,6 +164,7 @@ export interface ProfileBundle {
     hysteresis_db: number;
     min_elevation_deg: number;
     pingPongWindowSec?: number;
+    daps_prepare_elevation_deg?: number;
     cho_offset_db?: number;
     cho_alpha?: number;
     cho_filter_k?: number;

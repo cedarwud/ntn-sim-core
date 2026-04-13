@@ -89,6 +89,7 @@ export function materializeRuntimeProfile(
       min_elevation_deg: bundle.handover.min_elevation_deg,
       ...(bundle.handover.a3_offset_db !== undefined && { a3_offset_db: bundle.handover.a3_offset_db }),
       ...(bundle.handover.pingPongWindowSec !== undefined && { pingPongWindowSec: bundle.handover.pingPongWindowSec }),
+      ...(bundle.handover.daps_prepare_elevation_deg !== undefined && { daps_prepare_elevation_deg: bundle.handover.daps_prepare_elevation_deg }),
       ...(bundle.handover.cho_offset_db !== undefined && { cho_offset_db: bundle.handover.cho_offset_db }),
       ...(bundle.handover.cho_alpha !== undefined && { cho_alpha: bundle.handover.cho_alpha }),
       ...(bundle.handover.cho_filter_k !== undefined && { cho_filter_k: bundle.handover.cho_filter_k }),
