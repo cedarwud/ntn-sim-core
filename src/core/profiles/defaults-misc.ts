@@ -315,7 +315,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   id: 'realistic-first-screen',
   family: 'realistic-first-screen',
   version: '0.1.0',
-  exposurePreset: { tier: 'Advanced', label: 'Advanced — Ka 20 GHz, SINR-offset HO (donor params from leo-beam-sim)' },
+  exposurePreset: { tier: 'Advanced', label: 'Advanced — Ka 20 GHz donor/demo screen (legacy UE-anchored)' },
 
   scenario: {
     orbitMode: 'synthetic',
@@ -326,7 +326,12 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
   models: {
     beamSemantics: 'earth-moving',
     antenna: { model: 'bessel-j1' },
-    beam: { layout: 'hexagonal', bh_strategy: 'round-robin', bh_traffic_model: 'uniform' },
+    beam: {
+      layout: 'hexagonal',
+      tracking_mode: 'ue-anchored-steering',
+      bh_strategy: 'round-robin',
+      bh_traffic_model: 'uniform',
+    },
     channel: {
       tier0_fspl: true,
       tier1_large_scale: true,
@@ -410,6 +415,7 @@ export const REALISTIC_FIRST_SCREEN_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'antenna.beam_diameter_km', note: 'beam_diameter=50km from θ_3dB=arctan(25/600)=2.386° formula', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2025-TIMERCHO-CORE', parameterPath: 'beam.num_beams', note: '19 beams at 600km', specMode: 'Realistic' },
     { tier: 'paper-backed', id: 'PAP-2025-JCAP-LEO', parameterPath: 'beam.frf', note: 'FR3 frequency reuse (PAP-2025-JCAP-LEO)', specMode: 'Realistic' },
+    { tier: 'assumption-backed', id: 'LEO-BEAM-SIM-REF', parameterPath: 'beam.tracking_mode', note: 'legacy ue-anchored-steering retained intentionally for the donor/demo first-screen profile; this profile is not the research default after the bounded-steering slice', specMode: 'Internal-only' },
     // --- Channel ---
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: '3gpp-baseline (tiers 0,1,3; tier4 is Advanced R3)', specMode: 'Realistic' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban environment (TR 38.811)', specMode: 'Realistic' },

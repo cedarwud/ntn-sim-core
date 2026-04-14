@@ -24,6 +24,7 @@ export interface PathLossInput {
   environment: DeploymentEnvironment;
   isLos: boolean;                  // engine decides: elevationDeg >= los_elevation_deg threshold
   txEirpDbm: number;
+  rxAntennaGainDb?: number;
   implementationLossDb: number;
   rngNext: (() => number) | null;
   tiers: {
@@ -86,6 +87,7 @@ export class ThreegppBaselinePathLoss implements PathLossModel {
       distanceKm: input.distanceKm,
       frequencyGhz: input.frequencyGhz,
       txEirpDbm: input.txEirpDbm,
+      rxAntennaGainDb: input.rxAntennaGainDb,
       elevationDeg: input.elevationDeg,
       environment: input.environment,
       largeScaleModel: input.bandConfig.largescaleModel,

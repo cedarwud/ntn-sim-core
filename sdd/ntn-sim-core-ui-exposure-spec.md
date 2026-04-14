@@ -4,7 +4,7 @@
 >
 > **Authority:** This document is subordinate to `simulator-parameter-spec.md` (the canonical parameter authority) and `ntn-sim-core-sdd.md` (the design contract). It translates the spec's Mode Classification (§0) into concrete UI rules.
 >
-> **Last updated:** 2026-04-11 (HO Slow playback control + continuity truth exposure sync)
+> **Last updated:** 2026-04-14 (earth-moving bounded-steering wording sync)
 
 ---
 
@@ -55,11 +55,11 @@ No active profile currently ships in the `Realistic` selector tier. Paper-safe b
 
 | Profile ID | Label | Key notes |
 |---|---|---|
-| `case9-access-baseline` | Advanced — Case-9 Access (S-band A4) | S-band 2 GHz, A4 HO, PAP-2022-A4EVENT-CORE |
-| `realistic-first-screen` | Advanced — Ka 20 GHz, SINR-offset HO (donor params from leo-beam-sim) | 600 km, Ka 20 GHz, FR3, 19 beams, legacy Ka showcase |
-| `hobs-multibeam-baseline` | Advanced — HOBS Multi-Beam (Ka 28 GHz) | Ka 28 GHz, 19 beams FRF=3, energy L1 |
+| `case9-access-baseline` | Advanced — Case-9 Access (S-band A4) | S-band 2 GHz, A4 HO, research-facing bounded-steering access baseline |
+| `realistic-first-screen` | Advanced — Ka 20 GHz donor/demo screen (legacy UE-anchored) | 600 km, Ka 20 GHz, FR3, 19 beams, legacy Ka showcase retained for donor/demo continuity rather than research default |
+| `hobs-multibeam-baseline` | Advanced — HOBS Multi-Beam (Ka 28 GHz) | Ka 28 GHz, 37 beams, HOBS Eq. (3)/(4), energy L1, bounded-steering multibeam truth |
 | `bh-resource-baseline` | Advanced — BH Resource (Ka 20 GHz) | 780 km, earth-fixed BH, 12 cells |
-| `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO, interactive default |
+| `case9-daps-baseline` | Advanced — DAPS Dual-Active | DAPS protocol, dual-active HO, bounded-steering access truth, interactive default |
 | `real-trace-validation` | Advanced — Real-Trace (OMM/TLE) | Real Starlink OMM/TLE ingest, SGP4-sampled cache-backed validation-sized envelope |
 | `meo-constellation-baseline` | Advanced — MEO Constellation | 8062 km MEO, Ka 20 GHz |
 | `geo-relay-baseline` | Advanced — GEO Relay | 35786 km GEO, Ku 12 GHz |
@@ -69,11 +69,17 @@ No active profile currently ships in the `Realistic` selector tier. Paper-safe b
 | Profile ID | Label | Purpose |
 |---|---|---|
 | `sinr-elevation-reproduction` | Sensitivity — SINR-Elevation Repro | PAP-2022-SINR-ELEVATION RT-1 |
-| `hobs-reproduction` | Sensitivity — HOBS Repro | PAP-2024-HOBS RT-2 |
+| `hobs-reproduction` | Sensitivity — HOBS Repro | PAP-2024-HOBS RT-2 with the same bounded-steering beam semantics as the research baseline |
 | `timer-cho-reproduction` | Sensitivity — Timer-CHO Repro | PAP-2025-TIMERCHO-CORE RT-3 |
 | `bh-pf-baseline` | Sensitivity — BH Proportional-Fair | PF scheduler baseline comparison |
 | `bh-sinr-greedy-baseline` | Sensitivity — BH SINR-Greedy | Channel-aware upper-bound baseline |
 | `bh-resource-energy-proof` | Sensitivity — BH Energy Proof | Layer 2 proof / browser validation |
+
+Research-facing `earth-moving` profiles now use an authored tracking split rather than one implicit steering rule:
+
+1. `case9-access-baseline`, `case9-daps-baseline`, `hobs-multibeam-baseline`, and `hobs-reproduction` use `nadir-relative-bounded-steering`.
+2. `realistic-first-screen` intentionally keeps legacy `ue-anchored-steering` and should be read as donor/demo-oriented.
+3. The steering clamp is profile-authored as `beam.steering_bound_km`; it is not a free UI control.
 
 **Note:** Profiles NOT listed above (e.g. `bh-resource-energy-proof` sub-variants) are accessible via `?profile=<id>` URL param for validation/automation but are not shown in the profile selector dropdown.
 
@@ -103,14 +109,15 @@ These are **visualization-layer controls** only. They do not affect simulation p
 | HO Slow | Auto-clamp playback to 1x while runtime truth exposes a prepared or dual-active handover | Visual |
 | Play/Pause | Pause/resume simulation tick | Visual |
 | Show Beams | Toggle beam cone visibility | Visual |
-| Show Labels | Toggle satellite ID labels | Visual |
+| Show Labels | Toggle satellite ID labels (default off for first-screen clarity) | Visual |
 | SINR Chart | Toggle SINR time-series overlay | Visual |
 | HO Log | Toggle handover event log | Visual |
 | SINR CDF | Toggle SINR CDF plot | Visual |
 | Elev Scatter | Toggle SINR vs elevation scatter | Visual |
 | Replay | Toggle deterministic replay mode | Visual |
+| Parameters | Toggle the secondary registry-backed profile panel | Visual |
 | Export KPI | Download JSON + CSV of current run KPIs | Output |
-| Batch KPI | Run all profiles and compare | Advanced |
+| Baseline Viewer | Open the single-run baseline result viewer | Advanced |
 
 ### 3.4 URL Query Parameters
 
@@ -124,7 +131,7 @@ These are **visualization-layer controls** only. They do not affect simulation p
 | `?validate=1` | off | flag | Show ValidationProbe overlay |
 | `?paused=1` | off | flag | Start paused |
 | `?showBeams=0` | on | flag | Hide beams on load |
-| `?showLabels=0` | on | flag | Hide labels on load |
+| `?showLabels=1` | off | flag | Enable satellite labels on load |
 
 ---
 
@@ -193,9 +200,9 @@ Current active assumptions (see `ntn-sim-core-assumption-policy.md` for full reg
 | `ASSUME-ENERGY-001` | `activeBeamPowerW/idlePowerW = 20/5 W` | Internal-only |
 | `ASSUME-ATM-001` | Atmospheric loss ITU-R simplified | Advanced |
 | `ASSUME-SR-001` | Shadowed-Rician fading parameters | Advanced |
-| `ASSUME-HOBS-EIRP-001` | HOBS EIRP density 46 dBW/MHz | Advanced |
+| `ASSUME-ORB-001` | HOBS synthetic Walker shell closure (`15 x 11 = 165`, `i = 53°`, `F = 7`) | Advanced |
 | `ASSUME-BH-CONST-001` | BH constellation 324 sats | Advanced |
-| `ASSUME-HOBS-FRF-001` | HOBS FRF=3 | Advanced |
+| `ASSUME-ORB-REPRO-RT2` | RT-2 synthetic HOBS orbit closure | Advanced |
 
 ---
 

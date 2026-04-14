@@ -128,8 +128,8 @@ Current packaged targets are:
 | Target ID | Paper Reference | Comparison Mode | Current Label | Current Note |
 |---|---|---|---|---|
 | `anchor-envelope` | `Table I / Table II / §IV` | paper-backed parameter envelope | `range-faithful` | shipped profile + frozen manifest align on the paper-backed anchor rows; current artifact still discloses the `2 x 2` proxy and validation-sized execution subset |
-| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `trend-faithful` | shipped scalar reward decreases as user count increases |
-| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `trend-faithful` | shipped scalar reward increases over the selected current-family sweep; the frozen `4`-satellite anchor remains covered by the envelope target |
+| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `qualitative-only` | current shipped smoke-sized parity artifact does not keep a stable decreasing user-count trend, so this target stays below trend-faithful until stronger evidence is re-established |
+| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `qualitative-only` | current shipped smoke-sized parity artifact does not keep a stable increasing satellite-count trend, so this target stays below trend-faithful even though the frozen `4`-satellite anchor remains covered by the envelope target |
 | `weighted-reward-user-speed` | `Fig. 5(b)` | held-out scalar reward trend over `30 / 90 / 150 km/h` | `qualitative-only` | current shipped proxy artifact does not show a stable decreasing speed trend, so this target stays below trend-faithful |
 | `baseline-comparator-ranking` | `Fig. 3(b) / Fig. 4(b) / Fig. 5(b)` | qualitative comparator note | `qualitative-only` | shipped truth currently executes only `MODQN`; `RSS_max` / `DQN_throughput` / `DQN_scalar` are not re-run on this surface |
 
@@ -218,7 +218,7 @@ Existing gates that must stay green:
 This line should also prepare a narrower parity gate:
 
 1. `VAL-MODQN-004`
-   - verifies that the current anchor parity bundle exists, uses shipped result truth, labels targets as trend-faithful / range-faithful / qualitative-only, and preserves the disclosed proxy ceiling
+   - verifies that the current anchor parity bundle exists, uses shipped result truth, preserves the current range-faithful vs qualitative-only labels, and preserves the disclosed proxy ceiling
 
 Current gate implementation:
 

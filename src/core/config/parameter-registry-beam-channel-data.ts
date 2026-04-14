@@ -18,7 +18,8 @@ export const BEAM_AND_CHANNEL_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'case9-access-baseline', defaultValue: 19, sourceTier: 'paper-backed', sourceId: 'PAP-2025-TIMERCHO-CORE', sourceNote: '19 beams earth-moving 600 km', exposureMode: 'Realistic' },
-      { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'hobs-multibeam-baseline', defaultValue: 19, sourceTier: 'paper-backed', sourceId: 'PAP-2025-TIMERCHO-CORE', sourceNote: '19 beams (HOBS profile)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'hobs-multibeam-baseline', defaultValue: 37, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: '37 beams per satellite (Table I)', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'hobs-reproduction', defaultValue: 37, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: '37 beams per satellite (Table I)', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'modqn-paper-baseline', defaultValue: 7, sourceTier: 'paper-backed', sourceId: 'PAP-2024-MORL-MULTIBEAM', sourceNote: '7 beams per satellite', exposureMode: 'Realistic' },
       { parameterId: 'PARAM-BEAM-NUM-BEAMS', profileId: 'bh-resource-baseline', defaultValue: 12, sourceTier: 'paper-backed', sourceId: 'PAP-2026-BHFREQREUSE', sourceNote: '12 beams BH+FRF co-scheduling', exposureMode: 'Realistic' },
     ],
@@ -35,7 +36,8 @@ export const BEAM_AND_CHANNEL_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-BEAM-FRF', profileId: 'case9-access-baseline', defaultValue: 1, sourceTier: 'standard-backed', sourceId: '3GPP-NTN-ACCESS', sourceNote: 'FRF-1 baseline access profile', exposureMode: 'Realistic' },
-      { parameterId: 'PARAM-BEAM-FRF', profileId: 'hobs-multibeam-baseline', defaultValue: 3, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'FRF=3 (Table I)', exposureMode: 'Realistic' },
+      { parameterId: 'PARAM-BEAM-FRF', profileId: 'hobs-multibeam-baseline', defaultValue: 3, sourceTier: 'paper-backed', sourceId: 'PAP-2025-JCAP-LEO', sourceNote: 'FR3 frequency reuse used to keep the HOBS-family profile on a paper-backed reuse setting when HOBS itself does not disclose FRF', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-BEAM-FRF', profileId: 'hobs-reproduction', defaultValue: 3, sourceTier: 'paper-backed', sourceId: 'PAP-2025-JCAP-LEO', sourceNote: 'FR3 frequency reuse used to keep the HOBS-family profile on a paper-backed reuse setting when HOBS itself does not disclose FRF', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-BEAM-FRF', profileId: 'modqn-paper-baseline', defaultValue: 1, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-BEAM', sourceNote: 'FRF=1 proxy because the paper models SNR without inter-beam interference', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-BEAM-FRF', profileId: 'bh-resource-baseline', defaultValue: 3, sourceTier: 'paper-backed', sourceId: 'PAP-2026-BHFREQREUSE', sourceNote: 'FRF=3 BH+FRF co-scheduling', exposureMode: 'Realistic' },
       { parameterId: 'PARAM-BEAM-FRF', profileId: 'realistic-first-screen', defaultValue: 3, sourceTier: 'paper-backed', sourceId: 'PAP-2025-JCAP-LEO', sourceNote: 'FR3 frequency reuse (PAP-2025-JCAP-LEO)', exposureMode: 'Realistic' },

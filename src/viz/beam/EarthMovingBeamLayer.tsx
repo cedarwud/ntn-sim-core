@@ -8,7 +8,7 @@
  * VISUAL-ONLY: Does NOT affect physics, SINR, or KPI.
  */
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -109,13 +109,6 @@ function getBeamStyle(beam: SatelliteBeamSnapshot): BeamStyle {
 }
 
 function selectRenderableBeams(beams: SatelliteBeamSnapshot[], isCandidate?: boolean): SatelliteBeamSnapshot[] {
-  // Tier 2 background candidates: show only the center beam at very low opacity.
-  // This gives a faint "preview" cone before handover is triggered.
-  if (isCandidate) {
-    const center = beams.find((b) => b.role === 'neutral' || b.role === 'inactive') ?? beams[0];
-    return center ? [center] : [];
-  }
-
   const renderable = beams.filter(
     (beam) =>
       beam.isActive ||
@@ -125,6 +118,13 @@ function selectRenderableBeams(beams: SatelliteBeamSnapshot[], isCandidate?: boo
       beam.role === 'post-ho',
   );
   renderable.sort(rankBeamForRendering);
+
+  if (isCandidate) {
+    // Background candidates stay faint, but they still render the tracked beam
+    // lattice instead of collapsing back to a single center-beam placeholder.
+    return renderable;
+  }
+
   return renderable;
 }
 
@@ -292,6 +292,14 @@ const BeamCone = React.memo(function BeamCone({
           : '';
   const label = `B${beamIndex}${roleBadge}${!beam.isActive ? ' off' : ''}`;
   const sinrLabel = sinrDb != null && Number.isFinite(sinrDb) ? `${sinrDb.toFixed(1)} dB` : null;
+
+  useEffect(() => () => {
+    coneGeo.dispose();
+  }, [coneGeo]);
+
+  useEffect(() => () => {
+    discGeo.dispose();
+  }, [discGeo]);
 
   return (
     <group>

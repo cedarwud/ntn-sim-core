@@ -166,21 +166,29 @@ export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
       if (ue.secondarySatId) relevantSatIds.add(ue.secondarySatId);
     }
 
-    return snapshot.satellites
+    const visibleBeamSats = snapshot.satellites
       .filter(
         (sat) =>
           sat.isVisible &&
           sat.elevationDeg > MIN_ELEVATION_DEG &&
-          sat.beams?.some(
-            (b) => b.role === 'serving' || b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho',
-          ),
+          (sat.beams?.length ?? 0) > 0,
       )
       .sort((a, b) => {
         const aPriority = relevantSatIds.has(a.id) ? 1 : 0;
         const bPriority = relevantSatIds.has(b.id) ? 1 : 0;
         return bPriority - aPriority || b.elevationDeg - a.elevationDeg;
-      })
-      .slice(0, MAX_LABEL_SATS);
+      });
+
+    const roleQualified = visibleBeamSats.filter((sat) =>
+      sat.beams?.some(
+        (b) => b.role === 'serving' || b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho',
+      ),
+    );
+
+    // The bounded-steering slice can expose candidate-only beam truth before the
+    // primary UE actually attaches. In that state we still label the visible
+    // tracked-beam satellite so the renderer remains explainable.
+    return (roleQualified.length > 0 ? roleQualified : visibleBeamSats).slice(0, MAX_LABEL_SATS);
   }, [hasBeams, snapshot, visible]);
 
   const primaryUe = snapshot?.ues[0] ?? null;

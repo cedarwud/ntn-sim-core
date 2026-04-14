@@ -1,8 +1,9 @@
 /**
  * SINR vs Elevation Scatter Plot Overlay.
  *
- * Accumulates (elevationDeg, sinrDb) pairs from the primary UE's serving
- * satellite over the entire run and renders a scatter plot.
+ * Maintains a bounded reservoir sample of (elevationDeg, sinrDb) pairs from
+ * the primary UE's serving satellite and renders a scatter plot without
+ * letting browser memory grow unbounded over long runs.
  *
  * Standard paper figure showing the positive correlation between satellite
  * elevation angle and received SINR.
@@ -24,6 +25,8 @@ interface SinrElevationScatterProps {
   height?: number;  // default 200
   yMin?: number;    // dB, default -20
   yMax?: number;    // dB, default 30
+  /** Reservoir cap used to keep the overlay memory-bounded. */
+  maxPoints?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -36,6 +39,7 @@ const PAD_TOP = 22;
 const PAD_BOTTOM = 28;
 const X_MIN_EL = 0;
 const X_MAX_EL = 90;
+const DEFAULT_MAX_POINTS = 5_000;
 
 // ---------------------------------------------------------------------------
 // SINR color
@@ -70,6 +74,24 @@ function linearRegression(pts: { x: number; y: number }[]): { slope: number; int
 
 interface ScatterPoint { elevDeg: number; sinrDb: number }
 
+function appendReservoirPoint(
+  points: ScatterPoint[],
+  totalSeenRef: React.MutableRefObject<number>,
+  value: ScatterPoint,
+  maxPoints: number,
+) {
+  totalSeenRef.current += 1;
+  if (points.length < maxPoints) {
+    points.push(value);
+    return;
+  }
+
+  const replacementIndex = Math.floor(Math.random() * totalSeenRef.current);
+  if (replacementIndex < maxPoints) {
+    points[replacementIndex] = value;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -81,26 +103,37 @@ const SinrElevationScatter: React.FC<SinrElevationScatterProps> = React.memo(({
   height = 200,
   yMin = -20,
   yMax = 30,
+  maxPoints = DEFAULT_MAX_POINTS,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ptsRef = useRef<ScatterPoint[]>([]);
+  const totalPointsRef = useRef(0);
   const [count, setCount] = useState(0);
+  const [storedCount, setStoredCount] = useState(0);
   const [resetKey, setResetKey] = useState(0);
 
   // Collect one data point per tick from primary UE's serving satellite
   useEffect(() => {
-    if (!snapshot) return;
+    if (!visible || !snapshot) return;
     const ue = snapshot.ues[0];
     if (!ue || ue.sinrDb === null || !ue.servingSatId) return;
     const sat = snapshot.satellites.find((s) => s.id === ue.servingSatId);
     if (!sat) return;
-    ptsRef.current.push({ elevDeg: sat.elevationDeg, sinrDb: ue.sinrDb });
-    setCount(ptsRef.current.length);
-  }, [snapshot]);
+    appendReservoirPoint(
+      ptsRef.current,
+      totalPointsRef,
+      { elevDeg: sat.elevationDeg, sinrDb: ue.sinrDb },
+      maxPoints,
+    );
+    setCount(totalPointsRef.current);
+    setStoredCount(ptsRef.current.length);
+  }, [maxPoints, snapshot, visible]);
 
   const handleReset = useCallback(() => {
     ptsRef.current = [];
+    totalPointsRef.current = 0;
     setCount(0);
+    setStoredCount(0);
     setResetKey((k) => k + 1);
   }, []);
 
@@ -172,7 +205,7 @@ const SinrElevationScatter: React.FC<SinrElevationScatterProps> = React.memo(({
     ctx.fillText('SINR vs Elevation', PAD_LEFT, 4);
     ctx.textAlign = 'right';
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.fillText(`n=${count}`, w - PAD_RIGHT - 4, 4);
+    ctx.fillText(`sampled=${storedCount}/${count}`, w - PAD_RIGHT - 4, 4);
 
     if (pts.length === 0) return;
 
@@ -222,7 +255,7 @@ const SinrElevationScatter: React.FC<SinrElevationScatterProps> = React.memo(({
         );
       }
     }
-  }, [snapshot, visible, width, height, yMin, yMax, count, resetKey]);
+  }, [snapshot, visible, width, height, yMin, yMax, count, storedCount, resetKey]);
 
   if (!visible) return null;
 

@@ -5,7 +5,6 @@ import { computeInterruptionMs } from './handover-step';
 import {
   buildSortedUeCandidates,
   computeSharedServingUeSinr,
-  resolveSharedServingPrimarySinr,
 } from './channel-step';
 
 /**
@@ -47,19 +46,18 @@ export function runKpiStep(
     }
   } else {
     const isServed = representativeServing !== null;
-    const sharedServing = resolveSharedServingPrimarySinr(state, satSinrs, representativeServing);
 
     for (const ue of uePositions) {
       kpiAcc.recordServiceState(ue.id, isServed, timeSec);
-      if (!sharedServing) continue;
+      if (!representativeServing) continue;
 
       const ueSinr = computeSharedServingUeSinr(
         state,
         ue,
-        sharedServing.primarySinrDb,
-        sharedServing.servingEntry,
+        satSinrs,
+        representativeServing,
       );
-      kpiAcc.recordSinr(ue.id, ueSinr.sinrDb, timeSec);
+      if (ueSinr) kpiAcc.recordSinr(ue.id, ueSinr.sinrDb, timeSec);
     }
   }
 

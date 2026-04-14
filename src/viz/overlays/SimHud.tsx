@@ -19,6 +19,11 @@ export interface SimHudProps {
   replaySelection?: string | null;
   replayWindowStartSec?: number | null;
   replayWindowEndSec?: number | null;
+  modeLabel?: string;
+  truthSourceLabel?: string | null;
+  bundleSlotIndex?: number | null;
+  bundleSlotCount?: number | null;
+  statusLabel?: string | null;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -67,6 +72,11 @@ export const SimHud = React.memo(function SimHud({
   replaySelection,
   replayWindowStartSec,
   replayWindowEndSec,
+  modeLabel,
+  truthSourceLabel,
+  bundleSlotIndex,
+  bundleSlotCount,
+  statusLabel,
 }: SimHudProps) {
   if (!isReady) return null;
 
@@ -77,6 +87,24 @@ export const SimHud = React.memo(function SimHud({
         <span style={{ color: '#888', fontWeight: 400 }}>| {profileId}</span>
       </div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
+      {modeLabel && (
+        <div>
+          <span style={labelStyle}>Mode: </span>
+          {modeLabel}
+        </div>
+      )}
+      {truthSourceLabel && (
+        <div>
+          <span style={labelStyle}>Truth: </span>
+          {truthSourceLabel}
+        </div>
+      )}
+      {bundleSlotIndex !== undefined && bundleSlotIndex !== null && bundleSlotCount !== undefined && bundleSlotCount !== null && (
+        <div>
+          <span style={labelStyle}>Bundle Slot: </span>
+          {bundleSlotIndex} / {bundleSlotCount}
+        </div>
+      )}
       <div>
         <span style={labelStyle}>Time: </span>
         {simTimeSec.toFixed(1)}s / {totalDurationSec}s
@@ -93,6 +121,12 @@ export const SimHud = React.memo(function SimHud({
         <span style={labelStyle}>Handovers: </span>
         {handoverCount}
       </div>
+      {statusLabel && (
+        <div>
+          <span style={labelStyle}>Status: </span>
+          {statusLabel}
+        </div>
+      )}
       {replaySelection && (
         <>
           <div>

@@ -59,10 +59,13 @@
     "PAP-2024-HOBS": {
       "title": "Handover Optimization for Beam-Switching in LEO Networks (HOBS)",
       "year": 2024,
-      "topic": "Walker(55°,72,6,F=1), 550km, Ka-band 28GHz, 100MHz BW, 37 beams, FRF=3, Pmax=50dBm, gamma_thr=10dB",
+      "topic": "SINR Eq.(4) with intra/inter-LEO interference split, Ka-band 28GHz, 100MHz BW, 165 LEOs, 37 beams, Pmax=50dBm, G0=40dBi, theta3dB=0.058rad, gamma_thr=10dB, gamma_os=6dB",
       "usedIn": [
-        "src/core/profiles/defaults.ts",
-        "src/core/config/parameter-registry.ts"
+        "src/core/channel/sinr.ts",
+        "src/core/channel/beam-gain.ts",
+        "src/core/profiles/defaults-hobs.ts",
+        "src/core/config/parameter-registry-foundation-data.ts",
+        "src/core/config/parameter-registry-beam-channel-data.ts"
       ]
     },
     "PAP-2024-MADRL-CORE": {
@@ -316,16 +319,19 @@
     },
     "STD-3GPP-38811-TABLE-4.4-1": {
       "id": "3GPP TR 38.811",
-      "title": "Study on New Radio (NR) to support non-terrestrial networks — UE noise figure table",
+      "title": "Study on New Radio (NR) to support non-terrestrial networks — UE RF characteristics table",
       "version": "15.x",
       "relevantSections": [
+        "Table 4.4-1: handheld/IoT UE Tx/Rx antenna gain = 0 dBi",
         "Table 4.4-1: handheld UE NF = 9 dB; laptop/VSAT NF = 5 dB"
       ],
       "usedIn": [
         "src/core/profiles/defaults.ts",
-        "src/core/config/parameter-registry.ts"
+        "src/core/config/parameter-registry.ts",
+        "src/core/profiles/defaults-hobs.ts",
+        "src/core/config/parameter-registry-foundation-data.ts"
       ],
-      "note": "Handheld profiles (S-band case 9) use NF=9 dB; Ka-band VSAT-like profiles use NF=5 dB"
+      "note": "Used for UE RF receive-side anchors: handheld/omnidirectional antenna gain = 0 dBi, handheld NF = 9 dB, and VSAT/laptop NF = 5 dB"
     },
     "3GPP-NTN-ACCESS": {
       "id": "3GPP TR 38.811 / TS 38.821",
@@ -349,7 +355,8 @@
     "ASSUME-ORB-001": {
       "description": "Walker constellation: circular orbit, equal spacing, phasing factor F per 3GPP TR 38.821 §5.2",
       "usedIn": [
-        "src/core/config/parameter-registry.ts"
+        "src/core/config/parameter-registry.ts",
+        "src/core/profiles/defaults-hobs.ts"
       ]
     },
     "ASSUME-ORB-002": {
@@ -375,6 +382,14 @@
       "description": "FRF group assignment is deterministic (beam index mod FRF); no dynamic frequency planning",
       "usedIn": [
         "src/core/config/parameter-registry.ts"
+      ]
+    },
+    "ASSUME-BEAM-TRACK-001": {
+      "description": "Earth-moving bounded steering slice: research-facing access/HOBS profiles shift each satellite's beam lattice from nadir toward the UE only within an authored ground-plane clamp. The first landing authors the clamp as steering_bound_km and uses a 4 x beam-diameter envelope (200 km for case-9 access, 255.487 km for HOBS) so candidate generation no longer defaults every visible satellite to the center beam while avoiding a pure nadir-only outage cliff.",
+      "usedIn": [
+        "src/core/engine/beam-tracking.ts",
+        "src/core/profiles/defaults-access.ts",
+        "src/core/profiles/defaults-hobs.ts"
       ]
     },
     "ASSUME-HO-001": "Hard-HO / A3 / A4 / D2 / CHO interruption is approximated by RTT = 2 x one-way propagation delay; DAPS and MC-HO use 0 ms interruption because the dual-active path is maintained during execution",
@@ -448,7 +463,7 @@
       ]
     },
     "ASSUME-ORB-REPRO-RT1": "RT-1 (PAP-2022-SINR-ELEVATION) reproduction: Walker F=1 phasing used; paper does not specify exact epoch or phasing factor",
-    "ASSUME-ORB-REPRO-RT2": "RT-2 (PAP-2024-HOBS) reproduction: Walker F=1 phasing used; paper does not specify exact epoch",
+    "ASSUME-ORB-REPRO-RT2": "RT-2 (PAP-2024-HOBS) reproduction: 15x11 synthetic Walker shell with 53deg inclination and F=7 is used to realize the paper-backed 165-LEO count; the paper does not specify inclination, plane split, phasing, or epoch",
     "ASSUME-ORB-REPRO-RT3": "RT-3 (PAP-2025-TIMERCHO-CORE) reproduction: Walker 24×22 used as Starlink-like proxy; paper does not mandate exact constellation layout",
     "ASSUME-TIMERCHO-GEOM": "Timer-CHO geometry: α×TTT approximation used for remaining time estimate; full ToS_remain model (requires per-beam radius and satellite velocity) is beyond current HO manager scope",
     "ASSUME-HO-TTT-NTN": {

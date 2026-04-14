@@ -17,6 +17,7 @@ import type { TrajectoryCache } from '@/core/orbit/types';
 import type { WindowSelectionConfig, SelectedWindow } from './window-selector';
 import { selectBestWindow, createReplayManifestFromWindow } from './window-selector';
 import { selectContinuityAwareWindow } from './continuity-window-selector';
+import { selectBeamTruthAwareWindow } from './beam-truth-window-selector';
 
 export interface ReplaySelectionPlan {
   selectionConfig: WindowSelectionConfig;
@@ -43,6 +44,11 @@ export function createReplaySelectionPlan(
   presentationMode: PresentationMode,
 ): ReplaySelectionPlan {
   const selectionConfig = buildReplaySelectionConfig(profile);
+  const useBeamTruthAwareSelection =
+    profile.beamSemantics === 'earth-moving' &&
+    profile.beam.tracking_mode === 'nadir-relative-bounded-steering' &&
+    profile.handover.type !== 'daps' &&
+    profile.handover.type !== 'mc-ho';
   const selectedWindow = (
     profile.handover.type === 'daps' || profile.handover.type === 'mc-ho'
   )
@@ -53,7 +59,17 @@ export function createReplaySelectionPlan(
         selectionConfig.windowDurationSec,
       ) ?? selectBestWindow(trajectoryCache, selectionConfig)
     )
-    : selectBestWindow(trajectoryCache, selectionConfig);
+    : (
+      useBeamTruthAwareSelection
+        ? (
+          selectBeamTruthAwareWindow(
+            profile,
+            trajectoryCache,
+            selectionConfig.windowDurationSec,
+          ) ?? selectBestWindow(trajectoryCache, selectionConfig)
+        )
+        : selectBestWindow(trajectoryCache, selectionConfig)
+    );
   const replayManifest = createReplayManifestFromWindow(runId, selectedWindow, presentationMode);
   return {
     selectionConfig,

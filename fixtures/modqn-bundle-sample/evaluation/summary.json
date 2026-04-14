@@ -1,0 +1,16 @@
+{
+  "bundle_schema_version": "phase-03a-replay-bundle-v1",
+  "training_summary": {
+    "total_episodes": 1,
+    "best_eval_episode": 1
+  },
+  "best_eval_summary": {
+    "mean_r1": 0.42,
+    "mean_total_handovers": 1.0
+  },
+  "replay_timeline": {
+    "slotCount": 2,
+    "rowCount": 2,
+    "handoverEventCount": 1
+  }
+}

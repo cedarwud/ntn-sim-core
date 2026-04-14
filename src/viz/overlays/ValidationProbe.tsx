@@ -71,6 +71,10 @@ export const ValidationProbe = React.memo(function ValidationProbe({
         data-replay-selection={runtime?.replaySelection ?? ''}
         data-replay-window-start-sec={runtime?.replayWindowStartSec ?? ''}
         data-replay-window-end-sec={runtime?.replayWindowEndSec ?? ''}
+        data-truth-source-kind={runtime?.truthSourceKind ?? ''}
+        data-truth-source-label={runtime?.truthSourceLabel ?? ''}
+        data-bundle-slot-index={runtime?.bundleSlotIndex ?? ''}
+        data-bundle-slot-count={runtime?.bundleSlotCount ?? ''}
         data-visible-satellite-ids={stringify(runtime?.visibleSatelliteIds ?? [])}
       >
         runtime={stringify(runtime ?? null)}

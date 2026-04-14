@@ -16,6 +16,16 @@ import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile'
  * but the shipped UI default prioritizes stable SINR-driven continuity truth.
  */
 const DEFAULT_PROFILE_ID = DEFAULT_INTERACTIVE_PROFILE_ID;
+export type SceneMode = 'native-live' | 'native-replay' | 'modqn-bundle';
+
+const DEFAULT_SCENE_MODE: SceneMode = 'native-live';
+
+function parseSceneMode(mode: string | null, replayFlag: string | null): SceneMode {
+  if (mode === 'native-live' || mode === 'native-replay' || mode === 'modqn-bundle') {
+    return mode;
+  }
+  return replayFlag === '1' ? 'native-replay' : DEFAULT_SCENE_MODE;
+}
 
 export interface SceneQueryState {
   speed: number;
@@ -23,7 +33,7 @@ export interface SceneQueryState {
   hoSlowEnabled: boolean;
   showBeams: boolean;
   showLabels: boolean;
-  replayMode: boolean;
+  sceneMode: SceneMode;
   replaySeekSec: number | null;
   validationMode: boolean;
   profileId: string;
@@ -31,18 +41,29 @@ export interface SceneQueryState {
 
 function readQueryState(): SceneQueryState {
   if (typeof window === 'undefined') {
-    return { speed: 5, paused: false, hoSlowEnabled: true, showBeams: true, showLabels: true, replayMode: false, replaySeekSec: null, validationMode: false, profileId: DEFAULT_PROFILE_ID };
+    return {
+      speed: 5,
+      paused: false,
+      hoSlowEnabled: true,
+      showBeams: true,
+      showLabels: false,
+      sceneMode: DEFAULT_SCENE_MODE,
+      replaySeekSec: null,
+      validationMode: false,
+      profileId: DEFAULT_PROFILE_ID,
+    };
   }
   const p = new URLSearchParams(window.location.search);
   const speed = Number(p.get('speed'));
   const seek = Number(p.get('replaySeekSec'));
+  const labels = p.get('showLabels');
   return {
     speed: Number.isFinite(speed) && speed > 0 ? speed : 5,
     paused: p.get('paused') === '1',
     hoSlowEnabled: p.get('hoSlow') !== '0',
     showBeams: p.get('showBeams') !== '0',
-    showLabels: p.get('showLabels') !== '0',
-    replayMode: p.get('replay') === '1',
+    showLabels: labels === '1',
+    sceneMode: parseSceneMode(p.get('mode'), p.get('replay')),
     replaySeekSec: Number.isFinite(seek) && seek > 0 ? seek : null,
     validationMode: p.get('validate') === '1',
     profileId: p.get('profile') ?? DEFAULT_PROFILE_ID,
@@ -56,8 +77,9 @@ function syncQueryState(s: SceneQueryState) {
   if (s.paused) p.set('paused', '1'); else p.delete('paused');
   if (!s.hoSlowEnabled) p.set('hoSlow', '0'); else p.delete('hoSlow');
   if (!s.showBeams) p.set('showBeams', '0'); else p.delete('showBeams');
-  if (!s.showLabels) p.set('showLabels', '0'); else p.delete('showLabels');
-  if (s.replayMode) p.set('replay', '1'); else p.delete('replay');
+  if (s.showLabels) p.set('showLabels', '1'); else p.delete('showLabels');
+  if (s.sceneMode !== DEFAULT_SCENE_MODE) p.set('mode', s.sceneMode); else p.delete('mode');
+  if (s.sceneMode === 'native-replay') p.set('replay', '1'); else p.delete('replay');
   if (s.replaySeekSec !== null && Number.isFinite(s.replaySeekSec)) p.set('replaySeekSec', String(s.replaySeekSec)); else p.delete('replaySeekSec');
   if (s.validationMode) p.set('validate', '1'); else p.delete('validate');
   if (s.profileId && s.profileId !== DEFAULT_PROFILE_ID) p.set('profile', s.profileId); else p.delete('profile');
@@ -71,6 +93,7 @@ export interface UseSceneQueryStateResult {
   showBeams: boolean;
   showLabels: boolean;
   replayMode: boolean;
+  sceneMode: SceneMode;
   replaySeekSec: number | null;
   validationMode: boolean;
   profileId: string;
@@ -80,6 +103,7 @@ export interface UseSceneQueryStateResult {
   toggleShowBeams: () => void;
   toggleShowLabels: () => void;
   toggleReplayMode: () => void;
+  setSceneMode: (mode: SceneMode) => void;
   /** Change the active profile and sync to URL. */
   setProfileId: (id: string) => void;
 }
@@ -92,21 +116,34 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
   const [hoSlowEnabled, setHoSlowEnabled] = useState(bootstrap.hoSlowEnabled);
   const [showBeams, setShowBeams] = useState(bootstrap.showBeams);
   const [showLabels, setShowLabels] = useState(bootstrap.showLabels);
-  const [replayMode, setReplayMode] = useState(bootstrap.replayMode);
+  const [sceneMode, setSceneModeRaw] = useState<SceneMode>(bootstrap.sceneMode);
   const [replaySeekSec] = useState(bootstrap.replaySeekSec);
   const [profileId, setProfileIdRaw] = useState(bootstrap.profileId);
   const validationMode = bootstrap.validationMode;
 
   useEffect(() => {
-    syncQueryState({ speed, paused, hoSlowEnabled, showBeams, showLabels, replayMode, replaySeekSec, validationMode, profileId });
-  }, [hoSlowEnabled, paused, profileId, replayMode, replaySeekSec, showBeams, showLabels, speed, validationMode]);
+    syncQueryState({
+      speed,
+      paused,
+      hoSlowEnabled,
+      showBeams,
+      showLabels,
+      sceneMode,
+      replaySeekSec,
+      validationMode,
+      profileId,
+    });
+  }, [hoSlowEnabled, paused, profileId, replaySeekSec, sceneMode, showBeams, showLabels, speed, validationMode]);
 
   const setSpeed = useCallback((s: number) => setSpeedRaw(s), []);
   const togglePaused = useCallback(() => setPaused((p) => !p), []);
   const toggleHoSlowEnabled = useCallback(() => setHoSlowEnabled((enabled) => !enabled), []);
   const toggleShowBeams = useCallback(() => setShowBeams((b) => !b), []);
   const toggleShowLabels = useCallback(() => setShowLabels((l) => !l), []);
-  const toggleReplayMode = useCallback(() => setReplayMode((r) => !r), []);
+  const toggleReplayMode = useCallback(() => {
+    setSceneModeRaw((mode) => (mode === 'native-replay' ? 'native-live' : 'native-replay'));
+  }, []);
+  const setSceneMode = useCallback((mode: SceneMode) => setSceneModeRaw(mode), []);
   const setProfileId = useCallback((id: string) => setProfileIdRaw(id), []);
 
   return {
@@ -115,7 +152,8 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
     hoSlowEnabled,
     showBeams,
     showLabels,
-    replayMode,
+    replayMode: sceneMode === 'native-replay',
+    sceneMode,
     replaySeekSec,
     validationMode,
     profileId,
@@ -125,6 +163,7 @@ export function useSceneQueryState(): UseSceneQueryStateResult {
     toggleShowBeams,
     toggleShowLabels,
     toggleReplayMode,
+    setSceneMode,
     setProfileId,
   };
 }

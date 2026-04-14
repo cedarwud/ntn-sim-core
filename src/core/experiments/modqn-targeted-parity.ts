@@ -382,6 +382,10 @@ function buildVerdict(targets: readonly ModqnAnchorParityBundle['targets'][numbe
     const qualitativeTitles = qualitativeTargets.map((target) => target.title).join('; ');
     return `The current anchor bundle supports a range-faithful paper-envelope statement plus trend-faithful MODQN sweep language for ${trendTitles}. ${qualitativeTitles ? `The remaining targets stay qualitative-only: ${qualitativeTitles}.` : ''}`.trim();
   }
+  if (hasRangeFaithful) {
+    const qualitativeTitles = qualitativeTargets.map((target) => target.title).join('; ');
+    return `The current anchor bundle supports a range-faithful paper-envelope statement. The remaining targets stay qualitative-only${qualitativeTitles ? `: ${qualitativeTitles}.` : '.'}`.trim();
+  }
   if (trendFaithfulTargets.length > 0) {
     return 'The current anchor bundle supports trend-faithful MODQN sweep language under the disclosed proxy ceiling.';
   }
@@ -427,7 +431,7 @@ export function runModqnAnchorParityBundle(
     figures: projectModqnAnchorParityFigures(targets),
     disclosureNotes,
     verdict: buildVerdict(targets),
-    claimCeiling: 'Use range-faithful wording only for the paper-backed anchor envelope; use trend-faithful wording only for shipped MODQN sweep trends that stay consistent under the disclosed proxy ceiling; keep comparator ranking qualitative-only until a separately promoted comparator path exists.',
+    claimCeiling: 'Use range-faithful wording only for the paper-backed anchor envelope; current sweep and comparator targets stay qualitative-only unless a shipped MODQN sweep re-establishes a consistent trend under the disclosed proxy ceiling.',
     generatedAt: new Date().toISOString(),
   };
 }

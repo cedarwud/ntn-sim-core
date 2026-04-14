@@ -14,7 +14,7 @@
  * VISUAL-ONLY: Does NOT affect physics, SINR, or KPI.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
@@ -68,16 +68,20 @@ const HexCellMesh = React.memo(function HexCellMesh({
     return geo;
   }, [cell.cx, cell.cz]);
 
-  const borderGeo = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(createHexBorderGeometry(cell.cx, cell.cz, CELL_RADIUS_WU), 3),
-    );
-    return geo;
+  const borderPoints = useMemo<[number, number, number][]>(() => {
+    const positions = createHexBorderGeometry(cell.cx, cell.cz, CELL_RADIUS_WU);
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i < positions.length; i += 3) {
+      pts.push([positions[i], positions[i + 1], positions[i + 2]]);
+    }
+    return pts;
   }, [cell.cx, cell.cz]);
 
   const p = cellPalette(state);
+
+  useEffect(() => () => {
+    fillGeo.dispose();
+  }, [fillGeo]);
 
   return (
     <group>
@@ -92,14 +96,7 @@ const HexCellMesh = React.memo(function HexCellMesh({
         />
       </mesh>
       <Line
-        points={(() => {
-          const positions = borderGeo.getAttribute('position');
-          const pts: [number, number, number][] = [];
-          for (let i = 0; i < positions.count; i++) {
-            pts.push([positions.getX(i), positions.getY(i), positions.getZ(i)]);
-          }
-          return pts;
-        })()}
+        points={borderPoints}
         color={p.border}
         lineWidth={p.borderWidth}
         transparent

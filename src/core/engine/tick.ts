@@ -2,13 +2,16 @@ import type { SimEngineState, UeRuntimePosition } from './state';
 import type { SimulationSnapshot } from '../common/types';
 import { runOrbitStep } from './orbit-step';
 import { runSchedulerStep } from './scheduler-step';
-import { computeBundleSinrSingleBeam, computeBundleSinrMultiBeam } from './channel-step';
+import {
+  computeBundleSinrSingleBeam,
+  computeBundleSinrMultiBeam,
+} from './channel-sinr-helpers';
 import { runHandoverStep } from './handover-step';
 import { runKpiStep } from './kpi-step';
 import { runEnergyStep } from './energy-step';
 import { runPolicyStep } from './policy-step';
 import { runSnapshotStep } from './snapshot-step';
-import { selectBeamForUe } from '../beam/selection';
+import { evaluateTrackedBeamSelection } from './beam-tracking';
 import type { TrajectorySample } from '../orbit/types';
 import type { BeamSelectionResult } from '../beam/types';
 
@@ -22,12 +25,18 @@ interface SatSinrEntry {
   sinrDb: number;
   bestBeamId: string;
   referenceOffAxisAngleDeg: number;
+  serviceEligible: boolean;
+  beamCenterOffsetEastKm: number;
+  beamCenterOffsetNorthKm: number;
 }
 
 interface SatSelectionEntry {
   satId: string;
   sample: TrajectorySample;
   selection: BeamSelectionResult;
+  serviceEligible: boolean;
+  beamCenterOffsetEastKm: number;
+  beamCenterOffsetNorthKm: number;
 }
 
 export function executeTick(
@@ -82,22 +91,37 @@ export function executeTick(
         sinrDb: isNaN(sinrDb) ? -100 : sinrDb,
         bestBeamId: `${satId}-b0`,
         referenceOffAxisAngleDeg: 0,
+        serviceEligible: true,
+        beamCenterOffsetEastKm: 0,
+        beamCenterOffsetNorthKm: 0,
       });
     }
   } else {
     const allActiveSelections: SatSelectionEntry[] = [];
+    const primaryUe = state.uePositions[0];
     for (const { satId, sample } of activeSatSamples) {
       const layout = state.beamLayouts.get(satId);
       const activeBeams = state.lastBhSlotDecision?.activeBeamsPerSat.get(satId);
 
       let selection: BeamSelectionResult;
+      let serviceEligible = false;
+      let beamCenterOffsetEastKm = 0;
+      let beamCenterOffsetNorthKm = 0;
       if (layout) {
-        // Steerable-beam model: the satellite steers its beam lattice center
-        // toward the UE, so beam selection uses (0,0) offset (UE at lattice
-        // origin). This is physically correct for earth-moving profiles where
-        // beams track the UE. For earth-fixed-bh profiles, beams are fixed
-        // to ground cells and ue-nadir-offset.ts should be used instead.
-        selection = selectBeamForUe(layout, 0, 0, state.profile.antenna, activeBeams);
+        const trackedSelection = evaluateTrackedBeamSelection(
+          state.profile,
+          layout,
+          sample,
+          {
+            latitudeDeg: primaryUe?.latitudeDeg ?? state.profile.observer.latitudeDeg,
+            longitudeDeg: primaryUe?.longitudeDeg ?? state.profile.observer.longitudeDeg,
+          },
+          activeBeams,
+        );
+        selection = trackedSelection.selection;
+        serviceEligible = trackedSelection.serviceEligible;
+        beamCenterOffsetEastKm = trackedSelection.beamCenterOffsetEastKm;
+        beamCenterOffsetNorthKm = trackedSelection.beamCenterOffsetNorthKm;
       } else {
         selection = {
           bestBeamId: `${satId}-b0`,
@@ -106,7 +130,14 @@ export function executeTick(
           allBeams: [],
         };
       }
-      allActiveSelections.push({ satId, sample, selection });
+      allActiveSelections.push({
+        satId,
+        sample,
+        selection,
+        serviceEligible,
+        beamCenterOffsetEastKm,
+        beamCenterOffsetNorthKm,
+      });
     }
 
     // Pre-sort by elevation descending so each serving satellite can cheaply find its
@@ -120,7 +151,14 @@ export function executeTick(
     );
 
     for (const entry of allActiveSelections) {
-      const { satId, sample, selection } = entry;
+      const {
+        satId,
+        sample,
+        selection,
+        serviceEligible,
+        beamCenterOffsetEastKm,
+        beamCenterOffsetNorthKm,
+      } = entry;
       if (!visibleSatSet.has(satId)) continue;
 
       const activeBeams = state.lastBhSlotDecision?.activeBeamsPerSat.get(satId);
@@ -133,7 +171,9 @@ export function executeTick(
         if (otherActiveSats.length >= MAX_SINR_INTERFERERS) break;
       }
       
-      const sinrDb = computeBundleSinrMultiBeam(state, satId, sample, selection, otherActiveSats);
+      const sinrDb = serviceEligible
+        ? computeBundleSinrMultiBeam(state, satId, sample, selection, otherActiveSats)
+        : -100;
       
       satSinrs.push({
         satId,
@@ -141,6 +181,9 @@ export function executeTick(
         sinrDb: isNaN(sinrDb) ? -100 : sinrDb,
         bestBeamId: selection.bestBeamId,
         referenceOffAxisAngleDeg: selection.offAxisAngleDeg,
+        serviceEligible,
+        beamCenterOffsetEastKm,
+        beamCenterOffsetNorthKm,
       });
     }
   }

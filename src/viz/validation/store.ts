@@ -3,7 +3,7 @@ import React from 'react';
 import type { BeamRole, ContinuityState } from '@/core/contracts/runtime-v1';
 
 export interface ValidationRuntimeSummary {
-  mode: 'live' | 'replay';
+  mode: 'live' | 'replay' | 'modqn-bundle';
   profileId: string;
   showBeams: boolean;
   showLabels: boolean;
@@ -23,6 +23,10 @@ export interface ValidationRuntimeSummary {
   replaySelection: string | null;
   replayWindowStartSec: number | null;
   replayWindowEndSec: number | null;
+  truthSourceKind?: 'native-live' | 'native-replay' | 'modqn-bundle';
+  truthSourceLabel?: string | null;
+  bundleSlotIndex?: number | null;
+  bundleSlotCount?: number | null;
 }
 
 export interface OrbitParitySatelliteSample {
@@ -38,7 +42,7 @@ export interface OrbitParitySatelliteSample {
 
 export interface OrbitParitySummary {
   present: boolean;
-  mode: 'live' | 'replay';
+  mode: 'live' | 'replay' | 'modqn-bundle';
   profileId: string;
   timeSec: number | null;
   sampleCount: number;

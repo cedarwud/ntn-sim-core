@@ -13,7 +13,11 @@
 import { createActiveBeamManager } from '../src/core/beam/active-beam-manager';
 import { generateHexagonalBeamLayout } from '../src/core/beam/layout';
 import { selectBeamForUe } from '../src/core/beam/selection';
-import { HOBS_MULTIBEAM_BASELINE } from '../src/core/profiles/defaults';
+import {
+  CASE9_ACCESS_BASELINE,
+  HOBS_MULTIBEAM_BASELINE,
+} from '../src/core/profiles/defaults';
+import { evaluateTrackedBeamSelection } from '../src/core/engine/beam-tracking';
 
 let failures = 0;
 
@@ -29,6 +33,20 @@ function fail(label: string, detail = '') {
 function checkBool(label: string, condition: boolean, detail = '') {
   if (condition) pass(label, detail);
   else fail(label, detail);
+}
+
+function offsetToLatLon(
+  eastKm: number,
+  northKm: number,
+  originLatDeg: number = 0,
+  originLonDeg: number = 0,
+) {
+  const kmPerDeg = 111.32;
+  const lonScale = kmPerDeg * Math.max(0.01, Math.cos(originLatDeg * Math.PI / 180));
+  return {
+    latitudeDeg: originLatDeg + (northKm / kmPerDeg),
+    longitudeDeg: originLonDeg + (eastKm / lonScale),
+  };
 }
 
 const SLOT_COUNT = 6;
@@ -133,6 +151,62 @@ checkBool(
   'at least one UE loses service when its beam is inactive',
   hasOpenVsGatedGap,
   `${gatedRunA.totalServiceableSamples} gated samples vs ${allActiveRun.totalServiceableSamples} all-active samples`,
+);
+
+console.log('\n=== VAL-MB-001b: Earth-Moving Bounded Steering ===\n');
+
+const case9Layout = generateHexagonalBeamLayout({
+  satId: 'val-case9-bound',
+  numBeams: CASE9_ACCESS_BASELINE.beam.num_beams,
+  beamDiameterKm: CASE9_ACCESS_BASELINE.antenna.beam_diameter_km,
+  altitudeKm: CASE9_ACCESS_BASELINE.orbital.altitude_km,
+  frf: CASE9_ACCESS_BASELINE.beam.frf,
+});
+
+const case9Clamped = evaluateTrackedBeamSelection(
+  CASE9_ACCESS_BASELINE,
+  case9Layout,
+  { latDeg: 0, lonDeg: 0 },
+  offsetToLatLon(350, 0),
+);
+checkBool(
+  'case9 bounded steering clamps the lattice center to the authored ground-plane bound',
+  Math.abs(
+    Math.hypot(case9Clamped.beamCenterOffsetEastKm, case9Clamped.beamCenterOffsetNorthKm)
+      - (CASE9_ACCESS_BASELINE.beam.steering_bound_km ?? 0),
+  ) <= 1e-6,
+  `${Math.hypot(case9Clamped.beamCenterOffsetEastKm, case9Clamped.beamCenterOffsetNorthKm).toFixed(3)} km`,
+);
+
+checkBool(
+  'case9 off-nadir UE no longer defaults to the center beam under bounded steering',
+  case9Clamped.selection.bestBeamId !== 'val-case9-bound-b0',
+  case9Clamped.selection.bestBeamId,
+);
+
+const case9OutOfReach = evaluateTrackedBeamSelection(
+  CASE9_ACCESS_BASELINE,
+  case9Layout,
+  { latDeg: 0, lonDeg: 0 },
+  offsetToLatLon(450, 0),
+);
+checkBool(
+  'case9 bounded steering marks far-out UE as ineligible once the reachable cluster is exceeded',
+  case9OutOfReach.serviceEligible === false,
+  `residual=${Math.hypot(case9OutOfReach.residualOffsetEastKm, case9OutOfReach.residualOffsetNorthKm).toFixed(3)} km`,
+);
+
+const hobsLayout = createLayout();
+const hobsOutOfReach = evaluateTrackedBeamSelection(
+  HOBS_MULTIBEAM_BASELINE,
+  hobsLayout,
+  { latDeg: 0, lonDeg: 0 },
+  offsetToLatLon(700, 0),
+);
+checkBool(
+  'HOBS bounded steering also produces an explicit out-of-reach ineligible state',
+  hobsOutOfReach.serviceEligible === false,
+  `residual=${Math.hypot(hobsOutOfReach.residualOffsetEastKm, hobsOutOfReach.residualOffsetNorthKm).toFixed(3)} km`,
 );
 
 console.log('\n════════════════════════════════════════════');

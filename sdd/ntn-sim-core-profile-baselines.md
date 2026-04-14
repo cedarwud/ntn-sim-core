@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.2.4
-**Date:** 2026-04-02
-**Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults and makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit. See `sdd/phase3-scenario-profile-experiment-split.md §8.1–§8.3` for the authoring vocabulary split and `sdd/phase5-cleanup-and-modularization-sdd.md §6` for the retirement/materialization closure.
+**Version:** 1.2.5
+**Date:** 2026-04-14
+**Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults, makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit, and lands the first narrow `earth-moving` bounded-steering slice for research-facing access / HOBS families.
 
 ---
 
@@ -29,6 +29,13 @@ The intent is to be concrete enough for implementation and review, without prete
 | `hobs-multibeam-baseline` | multi-beam interference, beam switching, and energy layer 1 | synthetic | earth-moving multi-beam | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN`, `PAP-2024-MADRL-CORE` |
 | `bh-resource-baseline` | beam hopping, active-beam scheduling, and resource control | synthetic | earth-fixed / BH-slot | `PAP-2026-BHFREQREUSE`, `PAP-2025-EEBH-UPLINK`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-MAAC-BHPOWER` |
 | `real-trace-validation` | external-validity checks under real constellation motion | real-trace | inherited from validated profile family | `PAP-2025-DAPS-CORE`, `PAP-2025-SMASH-MADQL`, local `tle_data/` |
+
+Research-facing `earth-moving` no longer means one implicit steering model across every profile. The current authored split is:
+
+1. `case9-access-baseline`, `case9-daps-baseline`, `hobs-multibeam-baseline`, and `hobs-reproduction` use `nadir-relative-bounded-steering`.
+2. The steering clamp is authored as `beam.steering_bound_km` in ground-plane kilometers.
+3. `realistic-first-screen` intentionally retains legacy `ue-anchored-steering` as a donor/demo-oriented showcase surface, not as the research default.
+4. `modqn-paper-baseline` and `bh-resource-*` remain outside this slice's semantic rewrite boundary.
 
 ### 2.1 `modqn-paper-baseline`
 
@@ -59,7 +66,7 @@ The intent is to be concrete enough for implementation and review, without prete
 |---|---|---|---|---|
 | orbit mode | synthetic | synthetic only | `PAP-2022-A4EVENT-CORE`, `PAP-2025-TIMERCHO-CORE` | real-trace belongs to `real-trace-validation`, not this profile |
 | altitude | `600 km` | fixed at `600 km` for baseline reproduction | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2025-TIMERCHO-CORE` | one of the most stable cross-paper access baselines |
-| beam semantics | earth-moving | earth-moving only | 3GPP-style access baselines | do not mix with BH-slot semantics |
+| beam semantics | earth-moving (`nadir-relative-bounded-steering`) | earth-moving only | 3GPP-style access baselines | research-facing access runtime clamps steering in the ground plane; do not mix with BH-slot semantics |
 | carrier frequency | `2 GHz` | `2 GHz` baseline anchor | `PAP-2022-SINR-ELEVATION` | S-band baseline |
 | bandwidth | `20 MHz` | `20-30 MHz`, must be profile-declared | `beamHO-bench` baseline, `PAP-2022-SINR-ELEVATION`, `PAP-2021-SHADOWED-RICIAN` | papers in this family are not perfectly identical |
 | beams per satellite | `19 serving beams` | `19 serving beams`, with interference set tracked separately | `PAP-2022-SINR-ELEVATION`, `PAP-2025-TIMERCHO-CORE` | several papers model `19 serving + 42 interference` |
@@ -69,6 +76,12 @@ The intent is to be concrete enough for implementation and review, without prete
 | EIRP density | `34 dBW/MHz` | fixed baseline anchor | `PAP-2022-SINR-ELEVATION` | use as profile source of truth |
 | beam gain model | 3GPP RPsat normalized | 3GPP RPsat family | `PAP-2022-SINR-ELEVATION` | see Section 8 |
 | UE count | `100` | `100-190`, must be declared in run metadata | `beamHO-bench` baseline, `PAP-2022-SINR-ELEVATION` | `190` corresponds to `10 UE/beam` style experiments |
+
+Current authored tracking rule:
+
+1. `case9-access-baseline` uses `beam.tracking_mode = 'nadir-relative-bounded-steering'`.
+2. The first bounded-steering landing authors `beam.steering_bound_km = 200`, which is `4 x 50 km` beam diameter.
+3. A satellite is service-eligible only when the bounded lattice shift plus the selected beam footprint can still reach the UE.
 
 ### 4.2 Representation Rule
 
@@ -89,16 +102,24 @@ The intent is to be concrete enough for implementation and review, without prete
 |---|---|---|---|---|
 | orbit mode | synthetic | synthetic only in first baseline | `PAP-2024-HOBS` | real-trace cross-checks happen through `real-trace-validation` |
 | altitude | `550 km` | fixed at `550 km` | `PAP-2024-HOBS` | direct HOBS anchor |
-| constellation size | `165 satellites` equivalent | profile-declared synthetic reproduction of the HOBS constellation scale | `PAP-2024-HOBS` | exact orbit generator may differ but must be declared |
+| constellation size | `165 satellites` | profile-declared synthetic reproduction of the HOBS constellation scale | `PAP-2024-HOBS` | runtime closes this through a disclosed `15 x 11` Walker proxy because HOBS Table I gives the total count but not the plane split |
 | carrier frequency | `28 GHz` | fixed HOBS baseline | `PAP-2024-HOBS` | do not silently downgrade to 20 GHz |
 | bandwidth | `100 MHz` | fixed HOBS baseline | `PAP-2024-HOBS` | must remain explicit in source trace |
-| EIRP density | `46 dBW/MHz` | Ka-band adjusted | `PAP-2024-HOBS` | Ka-band requires +12 dB vs S-band to partially compensate ~22 dB additional FSPL (2026-03-23 correction from 34→46) |
-| max transmit power | `50 dBm` total satellite TX budget | fixed HOBS baseline unless sensitivity-tagged | `PAP-2024-HOBS` | aggregate satellite power-budget anchor only; do not reinterpret as per-beam TX power for Energy Layer 1 or SINR |
-| beams per satellite | `19` | FRF=3, 2-ring hexagonal | `PAP-2024-HOBS` | changed from 37 (FRF=1) to 19 (FRF=3) after engine validation: 37-beam FRF=1 produces catastrophic co-channel interference (-20 dB mean SINR); 19-beam FRF=3 is standard multi-beam configuration (2026-03-23 correction) |
-| frequency reuse factor | `3` | 3-color hexagonal | `PAP-2024-HOBS` | changed from FRF=1 to FRF=3 for physically meaningful SINR (2026-03-23 correction) |
-| beam gain model | Bessel J1 family | Bessel-based family, exact variant profile-declared | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN` | see Section 8 |
+| EIRP density | `40 dBW/MHz` | derived reporting quantity only | `PAP-2024-HOBS` | derived from Table I values `Pmax=50 dBm`, `G0=40 dBi`, `B=100 MHz`; runtime SINR path uses `tx_power_per_beam_dbm` directly |
+| max transmit power | `50 dBm` | fixed HOBS baseline unless sensitivity-tagged | `PAP-2024-HOBS` | Eq. (4) uses beam transmit power directly; the simulator maps this to `tx_power_per_beam_dbm = 50 dBm` for the HOBS-family profiles |
+| UE receive antenna gain (`G^R`) | `0 dBi` | explicit runtime receive-side gain term | `STD-3GPP-38811-TABLE-4.4-1` | HOBS Eq. (4) keeps `G^R` symbolic; runtime pins the numeric term to 0 dBi omnidirectional UE gain and source-traces it separately instead of leaving it implicit |
+| beams per satellite | `37` | fixed HOBS baseline | `PAP-2024-HOBS` | direct Table I anchor |
+| frequency reuse factor | `3` | 3-color hexagonal | `PAP-2025-JCAP-LEO` | HOBS Table I does not disclose FRF; FR3 is imported from a separate paper-backed multi-beam reuse source and must not be mislabeled as a HOBS-provided value |
+| beam gain model | Bessel J1+J3 | fixed HOBS Eq. (3)/(A1) pattern | `PAP-2024-HOBS` | simulator antenna model is `bessel-j1j3` for the HOBS family |
 | power control | HOBS-style DPC family | profile-declared DPC or fixed-power variant | `PAP-2024-HOBS` | implementation must document exact rule used |
+| SINR runtime truth | `S / (I^a + I^b + N)` | per-UE full recompute for shared-serving and independent-HO paths | `PAP-2024-HOBS` | runtime no longer uses the old representative-SINR plus beam-delta proxy for non-primary UE SINR |
 | energy metric | system EE = throughput / power | HOBS-style EE family | `PAP-2024-HOBS` | see Section 9 |
+
+Current authored tracking rule:
+
+1. `hobs-multibeam-baseline` and `hobs-reproduction` use `beam.tracking_mode = 'nadir-relative-bounded-steering'`.
+2. The first bounded-steering landing authors `beam.steering_bound_km ≈ 255.5`, which is `4 x` the HOBS beam diameter derived from Table I.
+3. The first landing changes serving/candidate derivation only; it does not rewrite the broader HO-family FSM structure.
 
 ### 5.2 Scope Rule
 

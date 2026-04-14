@@ -71,4 +71,5 @@ export interface SimEngineState {
   deploymentEnvironment: string;
   largeScaleModel: string;
   implementationLossDb: number;
+  ueAntennaGainDb: number;
 }

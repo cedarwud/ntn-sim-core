@@ -35,6 +35,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
     distanceKm,
     frequencyGhz,
     txEirpDbm,
+    rxAntennaGainDb = 0,
     elevationDeg,
     environment,
     largeScaleModel,
@@ -138,7 +139,7 @@ export function computeLinkBudget(opts: LinkBudgetOptions): ChannelResult {
   const totalPathLossDb = fsplDb + implementationDb + shadowFadingDb + clutterLossDb + atmosphericDb + scanLossDb - beamGainDb - smallScaleFadingDb;
 
   // Received power
-  const rxPowerDbm = txEirpDbm - totalPathLossDb;
+  const rxPowerDbm = txEirpDbm + rxAntennaGainDb - totalPathLossDb;
 
   return {
     fsplDb,

@@ -14,6 +14,9 @@ import type { OrbitType, GeoStationaryConfig } from '../orbit/types';
 export type LargeScaleModel = '3gpp-baseline' | '3gpp-extended';
 export type DeploymentEnvironment = 'rural' | 'suburban' | 'dense-urban';
 export type UeDistribution = 'uniform' | 'clustered' | 'hotspot';
+export type EarthMovingBeamTrackingMode =
+  | 'ue-anchored-steering'
+  | 'nadir-relative-bounded-steering';
 export type HandoverType =
   | 'hard-ho'
   | 'a3-event'
@@ -58,10 +61,11 @@ export interface RfConfig {
   noise_temperature_k: number;
   noise_figure_db?: number;
   implementation_loss_db?: number;
+  ue_antenna_gain_dbi?: number;
 }
 
 export interface AntennaConfig {
-  model: 'rpsat-3gpp' | 'bessel-j1' | 'itu-r' | 'flat-debug';
+  model: 'rpsat-3gpp' | 'bessel-j1' | 'bessel-j1j3' | 'itu-r' | 'flat-debug';
   peak_gain_dbi: number;
   beam_diameter_km: number;
 }
@@ -69,6 +73,8 @@ export interface AntennaConfig {
 export interface BeamConfig {
   num_beams: number;
   layout: 'hexagonal' | 'circular' | 'custom';
+  tracking_mode?: EarthMovingBeamTrackingMode;
+  steering_bound_km?: number;
   frf: number;
   interference_beams: number;
   bh_max_active_per_slot?: number;

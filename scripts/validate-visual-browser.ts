@@ -143,13 +143,8 @@ function validateMovingBeamGeometry(state: VisualState | null) {
 
   const anchoredSamples = geometrySamples.filter((sample) => sample.isUeAnchored);
   check(
-    'VAL-BEAM-001 UE-anchored beams remain pinned to the UE origin',
-    anchoredSamples.length > 0
-      && anchoredSamples.every(
-        (sample) =>
-          Math.abs(sample.groundX) <= GEOMETRY_TOLERANCE_WORLD
-          && Math.abs(sample.groundZ) <= GEOMETRY_TOLERANCE_WORLD,
-      ),
+    'VAL-BEAM-001 bounded-steering profiles do not pin beams back to the UE origin',
+    anchoredSamples.length === 0,
     `anchoredSamples=${anchoredSamples.length}`,
   );
 
@@ -193,19 +188,12 @@ function validateMovingBeamGeometry(state: VisualState | null) {
       : null;
 
     for (const sample of satSamples) {
-      // Current moving-beam contract:
-      //   UE-anchored roles -> observer origin
-      //   other beams       -> satellite-relative lattice on the ground plane
-      const expectedGroundX = sample.isUeAnchored
-        ? 0
-        : expectedScale != null
-          ? sample.satX + sample.offsetEastKm * expectedScale
-          : sample.satX;
-      const expectedGroundZ = sample.isUeAnchored
-        ? 0
-        : expectedScale != null
-          ? sample.satZ - sample.offsetNorthKm * expectedScale
-          : sample.satZ;
+      const expectedGroundX = expectedScale != null
+        ? sample.satX + sample.offsetEastKm * expectedScale
+        : sample.satX;
+      const expectedGroundZ = expectedScale != null
+        ? sample.satZ - sample.offsetNorthKm * expectedScale
+        : sample.satZ;
 
       comparableSamples += 1;
       maxDelta = Math.max(
@@ -217,7 +205,7 @@ function validateMovingBeamGeometry(state: VisualState | null) {
   }
 
   check(
-    'VAL-BEAM-001 moving-beam projection matches the geometry contract',
+    'VAL-BEAM-001 moving-beam projection matches the tracked-lattice geometry contract',
     comparableSamples > 0 && maxDelta <= GEOMETRY_TOLERANCE_WORLD,
     `samples=${comparableSamples}, maxDelta=${maxDelta.toExponential(3)}`,
   );
@@ -333,6 +321,18 @@ async function waitForState(
   throw new Error(`state predicate not satisfied within ${timeoutMs}ms`);
 }
 
+function replayTruthExpectsVisibleLinks(state: VisualState | null): boolean {
+  const primary = state?.runtime?.primaryUe;
+  if (!primary || !state?.runtime) return false;
+
+  const visibleSatIds = new Set(state.runtime.visibleSatelliteIds ?? []);
+  return Boolean(
+    (primary.servingSatId && visibleSatIds.has(primary.servingSatId)) ||
+    (primary.targetSatId && visibleSatIds.has(primary.targetSatId)) ||
+    (primary.secondarySatId && visibleSatIds.has(primary.secondarySatId)),
+  );
+}
+
 async function validateHobsLive(page: Page) {
   console.log('\n=== Browser Visual Validation: HOBS Live ===\n');
 
@@ -416,8 +416,7 @@ async function validateReplay(page: Page) {
       current?.runtime?.profileId === 'hobs-multibeam-baseline' &&
       current.runtime.mode === 'replay' &&
       current.runtime.replayWindowStartSec !== null &&
-      Boolean(current.beamInfoOverlay?.present) &&
-      Boolean(current.handoverLinkOverlay?.present),
+      Boolean(current.beamInfoOverlay?.present),
     60000,
   );
 
@@ -436,9 +435,11 @@ async function validateReplay(page: Page) {
   );
 
   check(
-    'VAL-FV-008 handover/service links are still present in replay',
-    Boolean(state?.handoverLinkOverlay?.present && state.handoverLinkOverlay.styleKeys.length > 0),
-    `${state?.handoverLinkOverlay?.styleKeys.join(',') ?? 'none'}`,
+    'VAL-FV-008 handover/service links stay truth-aligned in replay',
+    replayTruthExpectsVisibleLinks(state)
+      ? Boolean(state?.handoverLinkOverlay?.present && state.handoverLinkOverlay.styleKeys.length > 0)
+      : !state?.handoverLinkOverlay?.present,
+    `truthExpected=${replayTruthExpectsVisibleLinks(state)}, styles=${state?.handoverLinkOverlay?.styleKeys.join(',') ?? 'none'}`,
   );
 }
 
@@ -484,23 +485,21 @@ async function validateDapsDualActive(page: Page) {
   );
 }
 
-async function validateBhExplainability(page: Page) {
-  console.log('\n=== Browser Visual Validation: BH Explainability Proof ===\n');
+async function validateLowSinrExplainability(page: Page) {
+  console.log('\n=== Browser Visual Validation: Low-SINR Explainability ===\n');
 
   await gotoScenario(page, {
     validate: '1',
-    profile: 'bh-resource-energy-proof',
-    speed: '10',
+    profile: 'case9-access-baseline',
+    speed: '50',
     showBeams: '1',
     showLabels: '1',
   });
 
-  await page.waitForSelector('[data-testid="bh-explainability-panel"]', { timeout: 15000 });
-
   const lowSinrState = await waitForState(
     page,
     (current) =>
-      current?.runtime?.profileId === 'bh-resource-energy-proof' &&
+      current?.runtime?.profileId === 'case9-access-baseline' &&
       current.runtime.mode === 'live' &&
       (current.runtime.lowSinrUeCount ?? 0) > 0 &&
       Boolean(current.beamInfoOverlay?.present),
@@ -512,6 +511,20 @@ async function validateBhExplainability(page: Page) {
     Boolean(lowSinrState?.beamInfoOverlay?.present) && (lowSinrState?.runtime?.lowSinrUeCount ?? 0) > 0,
     `${lowSinrState?.runtime?.lowSinrUeCount ?? 'null'} low-SINR UE(s)`,
   );
+}
+
+async function validateBhExplainability(page: Page) {
+  console.log('\n=== Browser Visual Validation: BH Explainability Proof ===\n');
+
+  await gotoScenario(page, {
+    validate: '1',
+    profile: 'bh-resource-energy-proof',
+    speed: '10',
+    showBeams: '1',
+    showLabels: '1',
+  });
+
+  await page.waitForSelector('[data-testid="ho-explainability-panel"]', { timeout: 15000 });
 
   const inactiveObservedState = await waitForState(
     page,
@@ -617,6 +630,7 @@ async function main() {
     await validateHobsLive(page);
     await validateReplay(page);
     await validateDapsDualActive(page);
+    await validateLowSinrExplainability(page);
     await validateBhExplainability(page);
     await validateDapsReplay(page);
 

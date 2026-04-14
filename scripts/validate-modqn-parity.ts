@@ -48,8 +48,8 @@ function main() {
   const comparisonRowById = new Map(bundle.comparisonRows.map((row) => [row.targetId, row]));
   const figureByTargetId = new Map(bundle.figures.map((figure) => [figure.id.replace(/-figure$/, ''), figure]));
   check('anchor-envelope is range-faithful', targetById.get('anchor-envelope')?.parityLabel === 'range-faithful', targetById.get('anchor-envelope')?.parityLabel ?? 'missing');
-  check('user-count sweep is trend-faithful', targetById.get('weighted-reward-user-count')?.parityLabel === 'trend-faithful', targetById.get('weighted-reward-user-count')?.parityLabel ?? 'missing');
-  check('satellite-count sweep is trend-faithful', targetById.get('weighted-reward-satellite-count')?.parityLabel === 'trend-faithful', targetById.get('weighted-reward-satellite-count')?.parityLabel ?? 'missing');
+  check('user-count sweep stays qualitative-only under current shipped truth', targetById.get('weighted-reward-user-count')?.parityLabel === 'qualitative-only', targetById.get('weighted-reward-user-count')?.parityLabel ?? 'missing');
+  check('satellite-count sweep stays qualitative-only under current shipped truth', targetById.get('weighted-reward-satellite-count')?.parityLabel === 'qualitative-only', targetById.get('weighted-reward-satellite-count')?.parityLabel ?? 'missing');
   check('user-speed sweep stays qualitative-only under current proxy ceiling', targetById.get('weighted-reward-user-speed')?.parityLabel === 'qualitative-only', targetById.get('weighted-reward-user-speed')?.parityLabel ?? 'missing');
   check('comparator ranking stays qualitative-only', targetById.get('baseline-comparator-ranking')?.parityLabel === 'qualitative-only', targetById.get('baseline-comparator-ranking')?.parityLabel ?? 'missing');
   for (const target of bundle.targets) {
@@ -119,7 +119,12 @@ function main() {
     String(bundle.figures.length),
   );
   check('markdown export contains anchor ids', markdown.includes('PAP-2024-MORL-MULTIBEAM') && markdown.includes('modqn-paper-baseline'), 'anchor ids present');
-  check('markdown export contains parity labels', markdown.includes('trend-faithful') && markdown.includes('range-faithful') && markdown.includes('qualitative-only'), 'labels present');
+  const expectedParityLabels = Array.from(new Set(bundle.targets.map((target) => target.parityLabel)));
+  check(
+    'markdown export contains current target parity labels',
+    expectedParityLabels.every((label) => markdown.includes(label)),
+    expectedParityLabels.join(', '),
+  );
   check('markdown export carries comparison modes', markdown.includes('paper-parameter-envelope') && markdown.includes('held-out-scalar-reward-trend'), 'comparison modes present');
   check('markdown export carries deviation notes section', markdown.includes('Deviation notes:'), 'deviation notes present');
   check('claim ceiling stays explicit', bundle.claimCeiling.toLowerCase().includes('range-faithful') && bundle.claimCeiling.toLowerCase().includes('qualitative-only'), bundle.claimCeiling);

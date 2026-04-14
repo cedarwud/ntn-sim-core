@@ -24,3 +24,5 @@ export {
   createReplaySelectionPlan,
 } from './replay-plan';
 export type { ReplaySelectionPlan } from './replay-plan';
+
+export { selectBeamTruthAwareWindow } from './beam-truth-window-selector';

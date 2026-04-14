@@ -4,7 +4,6 @@ import type { TrajectorySample } from '../orbit/types';
 import {
   buildSortedUeCandidates,
   computeSharedServingUeSinr,
-  resolveSharedServingPrimarySinr,
 } from './channel-step';
 import type { ServingState } from '../handover/types';
 
@@ -27,10 +26,6 @@ export function runPolicyStep(
   representativeServing: { satId: string; beamId: string } | null
 ) {
   const { isMultiBeam, beamLayouts, lastBhSlotDecision, energyL2Manager, uePositions, independentHandover, hoManagers, hoManager, bundle } = state;
-  const sharedServing = independentHandover
-    ? null
-    : resolveSharedServingPrimarySinr(state, satSinrs, representativeServing);
-
   // 1. Build observation
   const satelliteObs: SatelliteObservation[] = satSinrs.map((s) => {
     const activeBeams = lastBhSlotDecision?.activeBeamsPerSat.get(s.satId);
@@ -64,13 +59,14 @@ export function runPolicyStep(
       }
     } else {
       ueServing = representativeServing;
-      if (ueServing && sharedServing) {
-        ueSinr = computeSharedServingUeSinr(
+      if (ueServing) {
+        const sharedSinr = computeSharedServingUeSinr(
           state,
           ue,
-          sharedServing.primarySinrDb,
-          sharedServing.servingEntry,
-        ).sinrDb;
+          satSinrs,
+          ueServing,
+        );
+        if (sharedSinr) ueSinr = sharedSinr.sinrDb;
       }
     }
 

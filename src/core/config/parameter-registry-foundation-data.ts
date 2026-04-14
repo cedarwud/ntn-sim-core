@@ -38,6 +38,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-ORB-INCLINATION-DEG', profileId: '__universal__', defaultValue: 53, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker constellation inclination; value varies per family', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-INCLINATION-DEG', profileId: 'hobs-multibeam-baseline', defaultValue: 53, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'HOBS synthetic Walker proxy uses 53° because the paper does not disclose inclination', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-INCLINATION-DEG', profileId: 'hobs-reproduction', defaultValue: 53, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-REPRO-RT2', sourceNote: 'RT-2 synthetic Walker proxy uses 53° because the paper does not disclose inclination', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-ORB-INCLINATION-DEG', profileId: 'modqn-paper-baseline', defaultValue: 53, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-ORBIT', sourceNote: 'runtime 2x2 Walker proxy uses 53° inclination because the paper does not disclose the STK shell layout', exposureMode: 'Advanced' },
     ],
   },
@@ -53,7 +55,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'case9-access-baseline', defaultValue: 72, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker 72x22=1584 Starlink shell-1 at 600 km/53°', exposureMode: 'Advanced' },
-      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-multibeam-baseline', defaultValue: 72, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-002', sourceNote: 'Walker 72x22=1584 sats; HOBS baseline constellation', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-multibeam-baseline', defaultValue: 15, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Synthetic HOBS Walker proxy uses 15 planes so the simulator realizes the paper-backed 165-LEO total as 15x11', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'hobs-reproduction', defaultValue: 15, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-REPRO-RT2', sourceNote: 'RT-2 synthetic Walker proxy uses 15 planes so the simulator realizes the paper-backed 165-LEO total as 15x11', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-ORB-NUM-PLANES', profileId: 'modqn-paper-baseline', defaultValue: 2, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-ORBIT', sourceNote: '2 planes in the disclosed 4-satellite proxy shell', exposureMode: 'Advanced' },
     ],
   },
@@ -69,6 +72,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-ORB-SATS-PER-PLANE', profileId: '__universal__', defaultValue: 22, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Walker sats per plane; value varies per family', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-SATS-PER-PLANE', profileId: 'hobs-multibeam-baseline', defaultValue: 11, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-001', sourceNote: 'Synthetic HOBS Walker proxy uses 11 satellites per plane so the simulator realizes the paper-backed 165-LEO total as 15x11', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ORB-SATS-PER-PLANE', profileId: 'hobs-reproduction', defaultValue: 11, sourceTier: 'assumption-backed', sourceId: 'ASSUME-ORB-REPRO-RT2', sourceNote: 'RT-2 synthetic Walker proxy uses 11 satellites per plane so the simulator realizes the paper-backed 165-LEO total as 15x11', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-ORB-SATS-PER-PLANE', profileId: 'modqn-paper-baseline', defaultValue: 2, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-ORBIT', sourceNote: '2 satellites per plane in the disclosed 4-satellite proxy shell', exposureMode: 'Advanced' },
     ],
   },
@@ -146,6 +151,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ', profileId: 'case9-access-baseline', defaultValue: 34, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SINR-ELEVATION', sourceNote: '34 dBW/MHz EIRP density', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ', profileId: 'hobs-multibeam-baseline', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'derived reporting quantity from Pmax=50 dBm, G0=40 dBi, B=100 MHz => 40 dBW/MHz', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ', profileId: 'hobs-reproduction', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'derived reporting quantity from Pmax=50 dBm, G0=40 dBi, B=100 MHz => 40 dBW/MHz', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-RF-EIRP-DENSITY-DBW-MHZ', profileId: 'modqn-paper-baseline', defaultValue: 26, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-BEAM', sourceNote: 'derived spectral density from the disclosed runtime beam-gain placeholder plus 2 W per-link power', exposureMode: 'Advanced' },
     ],
   },
@@ -160,6 +167,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
       vocabularyLayer: 'model-bundle',
     },
     bindings: [
+      { parameterId: 'PARAM-RF-TX-POWER-BEAM-DBM', profileId: 'hobs-multibeam-baseline', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'beam-level Pmax = 50 dBm from Table I', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-TX-POWER-BEAM-DBM', profileId: 'hobs-reproduction', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'beam-level Pmax = 50 dBm from Table I', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-RF-TX-POWER-BEAM-DBM', profileId: 'modqn-paper-baseline', defaultValue: 33.0103, sourceTier: 'paper-backed', sourceId: 'PAP-2024-MORL-MULTIBEAM', sourceNote: '2 W transmit power per beam-user link = 33.01 dBm', exposureMode: 'Realistic' },
       { parameterId: 'PARAM-RF-TX-POWER-BEAM-DBM', profileId: 'realistic-first-screen', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2025-MAAC-BHPOWER', sourceNote: 'P1 = 10 dBW = 40 dBm ([S10])', exposureMode: 'Realistic' },
     ],
@@ -175,6 +184,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
       vocabularyLayer: 'model-bundle',
     },
     bindings: [
+      { parameterId: 'PARAM-RF-MAX-TX-POWER-DBM', profileId: 'hobs-multibeam-baseline', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'Pmax = 50 dBm retained as the HOBS-family power anchor', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-MAX-TX-POWER-DBM', profileId: 'hobs-reproduction', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'Pmax = 50 dBm retained as the HOBS-family power anchor', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-RF-MAX-TX-POWER-DBM', profileId: 'realistic-first-screen', defaultValue: 43, sourceTier: 'paper-backed', sourceId: 'PAP-2025-MAAC-BHPOWER', sourceNote: 'P2 = 13 dBW ≈ 43 dBm ([S10])', exposureMode: 'Realistic' },
     ],
   },
@@ -204,6 +215,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-RF-NOISE-FIGURE-DB', profileId: '__universal__', defaultValue: 7, sourceTier: 'standard-backed', sourceId: 'STD-3GPP-38821', sourceNote: '7 dB NR typical UE (TR 38.821)', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-NOISE-FIGURE-DB', profileId: 'hobs-multibeam-baseline', defaultValue: 0, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'runtime representation of paper noise PSD -174 dBm/Hz at T0=290K', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-NOISE-FIGURE-DB', profileId: 'hobs-reproduction', defaultValue: 0, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'runtime representation of paper noise PSD -174 dBm/Hz at T0=290K', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-RF-NOISE-FIGURE-DB', profileId: 'modqn-paper-baseline', defaultValue: 0, sourceTier: 'paper-backed', sourceId: 'PAP-2024-MORL-MULTIBEAM', sourceNote: 'paper gives thermal-noise PSD -174 dBm/Hz; runtime represents that as NF = 0 dB at T0', exposureMode: 'Realistic' },
     ],
   },
@@ -224,6 +237,21 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
   },
   {
     spec: {
+      id: 'PARAM-RF-UE-ANT-GAIN-DBI',
+      parameterPath: 'rf.ue_antenna_gain_dbi',
+      semanticName: 'UE Receive Antenna Gain (G^R)',
+      unit: 'dBi',
+      allowedRange: { min: -20, max: 30 },
+      isDerived: false,
+      vocabularyLayer: 'model-bundle',
+    },
+    bindings: [
+      { parameterId: 'PARAM-RF-UE-ANT-GAIN-DBI', profileId: 'hobs-multibeam-baseline', defaultValue: 0, sourceTier: 'standard-backed', sourceId: 'STD-3GPP-38811-TABLE-4.4-1', sourceNote: 'runtime HOBS receive-side gain term G^R uses 0 dBi omnidirectional UE gain from TR 38.811 Table 4.4-1', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-RF-UE-ANT-GAIN-DBI', profileId: 'hobs-reproduction', defaultValue: 0, sourceTier: 'standard-backed', sourceId: 'STD-3GPP-38811-TABLE-4.4-1', sourceNote: 'runtime HOBS receive-side gain term G^R uses 0 dBi omnidirectional UE gain from TR 38.811 Table 4.4-1', exposureMode: 'Sensitivity' },
+    ],
+  },
+  {
+    spec: {
       id: 'PARAM-ANT-PEAK-GAIN-DBI',
       parameterPath: 'antenna.peak_gain_dbi',
       semanticName: 'Peak Antenna Gain',
@@ -234,7 +262,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'case9-access-baseline', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '30 dBi peak gain RPsat S-band; representative value', exposureMode: 'Advanced' },
-      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'hobs-multibeam-baseline', defaultValue: 38, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '38 dBi representative Ka-band multi-beam', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'hobs-multibeam-baseline', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'maximum antenna gain G0 = 40 dBi (Table I)', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'hobs-reproduction', defaultValue: 40, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'maximum antenna gain G0 = 40 dBi (Table I)', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'modqn-paper-baseline', defaultValue: 60, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-BEAM', sourceNote: 'runtime Ka-band beam-gain placeholder for the paper baseline; paper does not specify antenna gain', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-ANT-PEAK-GAIN-DBI', profileId: 'bh-resource-baseline', defaultValue: 35, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-002', sourceNote: '35 dBi representative Ka/Ku-band BH', exposureMode: 'Advanced' },
     ],
@@ -251,7 +280,8 @@ export const FOUNDATION_PARAMETER_REGISTRY: ParameterEntry[] = [
     },
     bindings: [
       { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'realistic-first-screen', defaultValue: 50, sourceTier: 'paper-backed', sourceId: 'PAP-2022-SENSORS-BH', sourceNote: 'θ_3dB=arctan(25/600)=2.386° → 50 km diameter', exposureMode: 'Realistic' },
-      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'hobs-multibeam-baseline', defaultValue: 25, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-001', sourceNote: '25 km beam diameter representative Ka-band', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'hobs-multibeam-baseline', defaultValue: 63.87163746358206, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'derived from θ3dB=0.058 rad at h=550 km => D=2h·tan(θ3dB)=63.87 km', exposureMode: 'Advanced' },
+      { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'hobs-reproduction', defaultValue: 63.87163746358206, sourceTier: 'paper-backed', sourceId: 'PAP-2024-HOBS', sourceNote: 'derived from θ3dB=0.058 rad at h=550 km => D=2h·tan(θ3dB)=63.87 km', exposureMode: 'Sensitivity' },
       { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'modqn-paper-baseline', defaultValue: 90, sourceTier: 'assumption-backed', sourceId: 'ASSUME-MODQN-BEAM', sourceNote: 'runtime 7-beam hexagonal proxy footprint for the paper baseline', exposureMode: 'Advanced' },
       { parameterId: 'PARAM-ANT-BEAM-DIAM-KM', profileId: 'bh-resource-baseline', defaultValue: 30, sourceTier: 'assumption-backed', sourceId: 'ASSUME-BEAM-002', sourceNote: '30 km representative Ka/Ku-band BH', exposureMode: 'Advanced' },
     ],

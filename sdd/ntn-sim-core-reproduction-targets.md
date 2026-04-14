@@ -41,8 +41,8 @@ This section records the current shipped parity package for the frozen anchor ba
 | Target ID | Paper Reference | Comparison Mode | Current Label | Current Evidence |
 |---|---|---|---|---|
 | `anchor-envelope` | `Table I / Table II / §IV` | paper-backed parameter envelope | `range-faithful` | shipped profile + frozen manifest align on the paper-backed anchor rows; current artifact still discloses the `2 x 2` proxy and validation-sized execution subset |
-| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `trend-faithful` | shipped held-out scalar reward decreases `318.39 → 302.79 → 81.85` |
-| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `trend-faithful` | shipped held-out scalar reward increases `6.08 → 169.19 → 207.09`; the frozen `4`-satellite anchor remains covered by the envelope target |
+| `weighted-reward-user-count` | `Fig. 3(b)` | held-out scalar reward trend over `40 / 100 / 200` users | `qualitative-only` | current shipped smoke-sized parity artifact no longer keeps a stable decreasing user-count trend (`-87.81 → -100.26 → 298.79`), so this target stays below trend-faithful until stronger evidence is re-established |
+| `weighted-reward-satellite-count` | `Fig. 4(b)` | held-out scalar reward trend over `2 / 6 / 8` synthetic proxy satellites | `qualitative-only` | current shipped smoke-sized parity artifact no longer keeps a stable increasing satellite-count trend (`146.51 → -91.20 → 101.46`), so this target stays below trend-faithful even though the frozen `4`-satellite anchor remains covered by the envelope target |
 | `weighted-reward-user-speed` | `Fig. 5(b)` | held-out scalar reward trend over `30 / 90 / 150 km/h` | `qualitative-only` | shipped proxy artifact stays effectively flat/mixed rather than showing a stable decreasing speed trend |
 | `baseline-comparator-ranking` | `Fig. 3(b) / Fig. 4(b) / Fig. 5(b)` | qualitative comparator note | `qualitative-only` | shipped truth currently executes only `MODQN`; comparator baselines are not rerun on this surface |
 
@@ -102,13 +102,21 @@ Use dedicated profile `sinr-elevation-reproduction`.
 
 | Parameter | Value | Source |
 |---|---|---|
-| Constellation | Walker(55°, 72, 6, F=1) | Paper §IV |
-| Altitude | 550 km | Paper §IV |
-| Frequency | 28 GHz (Ka-band) | Paper §IV |
+| Constellation scale | 165 LEOs | Paper Table I |
+| Orbit closure | synthetic `15 x 11` Walker proxy, `i = 53°`, `F = 7` | Assumption-backed (`ASSUME-ORB-REPRO-RT2`), because HOBS does not publish plane split / inclination / phasing / epoch |
+| Altitude | 550 km | Paper Table I |
+| Frequency | 28 GHz (Ka-band) | Paper Table I |
 | Bandwidth | 100 MHz | Paper Table I |
+| Beam transmit power | 50 dBm | Paper Table I (`Pmax`) |
+| Noise PSD anchor | `-174 dBm/Hz` | Paper Table I |
+| UE receive antenna gain (`G^R`) | `0 dBi` | `STD-3GPP-38811-TABLE-4.4-1`; HOBS keeps `G^R` symbolic, so runtime uses the standard omnidirectional UE anchor explicitly |
+| Peak antenna gain | 40 dBi | Paper Table I (`G0`) |
+| 3 dB beamwidth | 0.058 rad | Paper Table I (`θ3dB`) |
 | Beams per satellite | 37 | Paper Table I |
-| FRF | 3 | Paper §IV |
-| Beam gain | Bessel-J1 | Paper §III |
+| FRF | 3 | `PAP-2025-JCAP-LEO`; HOBS does not disclose FRF explicitly |
+| Beam gain | Bessel-J1+J3 | Paper Eq. (3) / Eq. (A1) |
+| Handover SINR threshold | 10 dB | Paper Table I (`γthr`) |
+| Handover offset | 6 dB | Paper Table I (`γos`) |
 | Active power per beam | 20 W | Assumption-backed (`ASSUME-ENERGY-001`), not directly confirmed from HOBS |
 | Idle power | 5 W | Assumption-backed (`ASSUME-ENERGY-001`), not directly confirmed from HOBS |
 | Shadow fading | Ka-band suburban | 3GPP TR 38.811 |
@@ -118,7 +126,12 @@ Use dedicated profile `sinr-elevation-reproduction`.
 
 Use dedicated profile `hobs-reproduction`.
 - Derived from `hobs-multibeam-baseline`
-- Locks 550 km orbit, 28 GHz, 100 MHz (Table I), 37 beams (Table I) with FRF=3, and EE Layer 1 for the comparison bundle
+- Locks the HOBS Table I RF/antenna/HO anchors (`550 km`, `28 GHz`, `100 MHz`, `Pmax=50 dBm`, `G0=40 dBi`, `θ3dB=0.058 rad`, `37` beams, `γthr=10 dB`, `γos=6 dB`)
+- Uses HOBS Eq. (3) `bessel-j1j3` antenna gain and Eq. (4) SINR decomposition in the runtime path
+- Makes the receive-side `G^R` term explicit in runtime as `rf.ue_antenna_gain_dbi = 0 dBi`, source-traced to `TR 38.811 Table 4.4-1`
+- Recomputes shared-serving / non-primary UE SINR through the same full runtime path instead of reusing the representative UE SINR plus a beam-gain offset
+- Uses `FRF=3` only as a cross-paper reuse setting from `PAP-2025-JCAP-LEO` because HOBS itself does not state FRF
+- Uses a disclosed synthetic `15 x 11 = 165` Walker proxy because the paper gives the constellation scale but not the plane-by-plane shell layout
 - Latest historical result bundle is archived at `archive/ntn-sim-core-sdd-history-2026-03-29/ntn-sim-core-reproduction-results.md`
 
 ### 4.3 Comparison Metric

@@ -171,6 +171,14 @@ export function validateProfile(config: ProfileConfig): ValidationResult {
     warnings.push('Multi-beam profile has tier3_beam_gain disabled — beam gain is mandatory for multi-beam/BH studies');
   }
 
+  if (config.beam?.tracking_mode === 'nadir-relative-bounded-steering') {
+    if (config.beam.steering_bound_km === undefined) {
+      errors.push('beam.steering_bound_km is required when beam.tracking_mode="nadir-relative-bounded-steering"');
+    } else if (!Number.isFinite(config.beam.steering_bound_km) || config.beam.steering_bound_km < 0) {
+      errors.push('beam.steering_bound_km must be a finite non-negative number');
+    }
+  }
+
   // Ka-band profiles should have tier4_atmospheric
   if (config.rf && config.rf.frequency_ghz >= 26 && config.channel && !config.channel.tier4_atmospheric) {
     warnings.push('Ka-band frequency detected but tier4_atmospheric is disabled');

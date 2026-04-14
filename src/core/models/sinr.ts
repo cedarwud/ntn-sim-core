@@ -7,7 +7,9 @@ import { computeSinr } from '../channel/sinr';
 export interface SinrInput {
   servingRxPowerDbm: number;
   noisePowerDbm: number;
-  interferingRxPowersDbm: number[];
+  associationActive?: boolean;
+  intraInterferingRxPowersDbm?: number[];
+  interInterferingRxPowersDbm?: number[];
   dopplerIciDegradationDb: number;
 }
 
@@ -22,9 +24,11 @@ export class StandardSinrModel implements SinrModel {
 
   computeDb(input: SinrInput): number {
     const result = computeSinr({
+      associationActive: input.associationActive,
       servingRxPowerDbm: input.servingRxPowerDbm,
       noisePowerDbm: input.noisePowerDbm,
-      interferingRxPowersDbm: input.interferingRxPowersDbm || [],
+      intraInterferingRxPowersDbm: input.intraInterferingRxPowersDbm || [],
+      interInterferingRxPowersDbm: input.interInterferingRxPowersDbm || [],
     });
     // Apply Doppler ICI degradation
     return result.sinrDb - (input.dopplerIciDegradationDb || 0);

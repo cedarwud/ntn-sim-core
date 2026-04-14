@@ -84,6 +84,10 @@ These files remain the shipped downstream authority for the completed baseline s
    - shipped TP1 paper-evidence surface; records the landed current-anchor parity bundle, `VAL-MODQN-004`, and the current target labels (`range-faithful` / `trend-faithful` / `qualitative-only`) without reopening runtime architecture
 10. `ee-power-realism-hardening-outline.md`
    - shipped EP1 paper-safety surface; records the landed active-TX EE vs broader communication-power proxy split, the artifact `eePowerDisclosure` surface, and the minimum sensitivity/disclosure bar without reopening backend/protocol realism or downstream architecture
+11. `modqn-bundle-replay-consumer-sdd.md`
+   - active Phase 03A Slice B consumer authority for the frozen MODQN replay-bundle adapter under `src/adapters/modqn-bundle/`
+12. `modqn-bundle-replay-ui-sdd.md`
+   - active Phase 03A Slice C/D consumer authority for native-vs-bundle truth-source switching, slot stepping, and bundle metadata/provenance UI
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
@@ -104,6 +108,8 @@ These files are not valid implementation authority for the current baseline entr
    - completed preflight decision record for the promoted T1 truth-path correction surface; not implementation authority itself
 4. `real-trace-scalability-preflight-note.md`
    - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused after T1 closure unless it is separately re-promoted
+5. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
+   - proposed narrow beam / serving semantics correction surface; not implementation authority until explicitly promoted with matching `todo/` handoff docs
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 

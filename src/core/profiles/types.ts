@@ -21,6 +21,7 @@ export type LargeScaleModel = Schema.LargeScaleModel;
 export type DeploymentEnvironment = Schema.DeploymentEnvironment;
 export type HandoverType = Schema.HandoverType;
 export type UeDistribution = Schema.UeDistribution;
+export type EarthMovingBeamTrackingMode = Schema.EarthMovingBeamTrackingMode;
 
 export type ProfileFamily = Vocab.ProfileFamily;
 export type ScenarioConfig = Vocab.ScenarioConfig;

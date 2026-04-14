@@ -26,21 +26,34 @@ function linearToDbm(linear: number): number {
  * Orchestrator-friendly SINR computation.
  */
 export function computeSinr(opts: {
+  associationActive?: boolean;
   servingRxPowerDbm: number;
   noisePowerDbm: number;
-  interferingRxPowersDbm: number[];
+  intraInterferingRxPowersDbm?: number[];
+  interInterferingRxPowersDbm?: number[];
 }): SinrResult {
-  const { servingRxPowerDbm, noisePowerDbm, interferingRxPowersDbm } = opts;
+  const {
+    associationActive = true,
+    servingRxPowerDbm,
+    noisePowerDbm,
+    intraInterferingRxPowersDbm = [],
+    interInterferingRxPowersDbm = [],
+  } = opts;
 
-  const signalLinear = dbmToLinear(servingRxPowerDbm);
+  const signalLinear = associationActive ? dbmToLinear(servingRxPowerDbm) : 0;
   const noiseLinear = dbmToLinear(noisePowerDbm);
 
-  let interferenceLinear = 0;
-  for (const pDbm of interferingRxPowersDbm) {
-    const pLin = dbmToLinear(pDbm);
-    interferenceLinear += pLin;
+  let intraInterferenceLinear = 0;
+  for (const pDbm of intraInterferingRxPowersDbm) {
+    intraInterferenceLinear += dbmToLinear(pDbm);
   }
 
+  let interInterferenceLinear = 0;
+  for (const pDbm of interInterferingRxPowersDbm) {
+    interInterferenceLinear += dbmToLinear(pDbm);
+  }
+
+  const interferenceLinear = intraInterferenceLinear + interInterferenceLinear;
   const denominator = interferenceLinear + noiseLinear;
   const sinrLinear = denominator > 0 ? signalLinear / denominator : 0;
   const sinrDb = sinrLinear > 1e-20 ? 10 * Math.log10(sinrLinear) : -100;

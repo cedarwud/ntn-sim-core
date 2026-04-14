@@ -10,6 +10,8 @@ import type { HandoverType } from '@/core/contracts/exposure-v1';
 import { getProfileList } from '@/core/contracts/exposure-v1';
 import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
+export type ControlPanelSceneMode = 'native-live' | 'native-replay' | 'modqn-bundle';
+
 export interface ControlPanelProps {
   speed: number;
   onSpeedChange: (speed: number) => void;
@@ -25,6 +27,8 @@ export interface ControlPanelProps {
   onShowLabelsToggle: () => void;
   replayMode?: boolean;
   onReplayToggle?: () => void;
+  sceneMode?: ControlPanelSceneMode;
+  onSceneModeChange?: (mode: ControlPanelSceneMode) => void;
   showSinrChart?: boolean;
   onShowSinrChartToggle?: () => void;
   showHoLog?: boolean;
@@ -33,6 +37,10 @@ export interface ControlPanelProps {
   onShowSinrCdfToggle?: () => void;
   showElevScatter?: boolean;
   onShowElevScatterToggle?: () => void;
+  showParameters?: boolean;
+  onShowParametersToggle?: () => void;
+  showBundleMetadata?: boolean;
+  onShowBundleMetadataToggle?: () => void;
   onExportKpi?: () => void;
   onOpenBaselineResults?: () => void;
   hoTypeOverride?: HandoverType | null;
@@ -41,6 +49,11 @@ export interface ControlPanelProps {
   profileId?: string;
   /** Callback to switch profile (profile change reloads the simulation). */
   onProfileChange?: (profileId: string) => void;
+  bundleSourceLabel?: string;
+  bundleCurrentSlotIndex?: number | null;
+  bundleSlotCount?: number;
+  onBundleStepBackward?: () => void;
+  onBundleStepForward?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,8 +167,10 @@ export const ControlPanel = React.memo(function ControlPanel({
   onShowBeamsToggle,
   showLabels,
   onShowLabelsToggle,
-  replayMode = false,
+  replayMode,
   onReplayToggle,
+  sceneMode,
+  onSceneModeChange,
   showSinrChart = true,
   onShowSinrChartToggle,
   showHoLog = false,
@@ -164,13 +179,26 @@ export const ControlPanel = React.memo(function ControlPanel({
   onShowSinrCdfToggle,
   showElevScatter = false,
   onShowElevScatterToggle,
+  showParameters = false,
+  onShowParametersToggle,
+  showBundleMetadata = true,
+  onShowBundleMetadataToggle,
   onExportKpi,
   onOpenBaselineResults,
   hoTypeOverride = null,
   onHoTypeOverrideChange,
   profileId,
   onProfileChange,
+  bundleSourceLabel,
+  bundleCurrentSlotIndex,
+  bundleSlotCount,
+  onBundleStepBackward,
+  onBundleStepForward,
 }: ControlPanelProps) {
+  const resolvedSceneMode = sceneMode ?? (replayMode ? 'native-replay' : 'native-live');
+  const isBundleMode = resolvedSceneMode === 'modqn-bundle';
+  const isNativeReplayMode = resolvedSceneMode === 'native-replay';
+
   const handleHoTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     onHoTypeOverrideChange?.(val === '' ? null : val as HandoverType);
@@ -179,6 +207,10 @@ export const ControlPanel = React.memo(function ControlPanel({
   const handleProfileChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     onProfileChange?.(e.target.value);
   }, [onProfileChange]);
+
+  const handleSceneModeChange = useCallback((mode: ControlPanelSceneMode) => {
+    onSceneModeChange?.(mode);
+  }, [onSceneModeChange]);
 
   const selectStyle: React.CSSProperties = {
     background: '#222',
@@ -197,8 +229,50 @@ export const ControlPanel = React.memo(function ControlPanel({
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
+      {(onSceneModeChange || onReplayToggle) && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Mode:</span>
+          {onSceneModeChange ? (
+            <>
+              <button
+                data-testid="mode-native-live"
+                style={resolvedSceneMode === 'native-live' ? btnActive : btnBase}
+                onClick={() => handleSceneModeChange('native-live')}
+              >
+                Native Live
+              </button>
+              <button
+                data-testid="mode-native-replay"
+                style={resolvedSceneMode === 'native-replay' ? btnActive : btnBase}
+                onClick={() => handleSceneModeChange('native-replay')}
+                title="Pre-record entire run with native simulator truth, then replay deterministically"
+              >
+                Native Replay
+              </button>
+              <button
+                data-testid="mode-modqn-bundle"
+                style={resolvedSceneMode === 'modqn-bundle' ? btnActive : btnBase}
+                onClick={() => handleSceneModeChange('modqn-bundle')}
+                title="Replay the frozen MODQN bundle as the primary serving/handover truth source"
+              >
+                MODQN Bundle
+              </button>
+            </>
+          ) : (
+            <button
+              data-testid="toggle-replay-mode"
+              style={isNativeReplayMode ? btnActive : btnBase}
+              onClick={onReplayToggle}
+              title="Toggle native replay mode"
+            >
+              {isNativeReplayMode ? 'Native Replay' : 'Native Live'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Profile selector (spec §10 Realistic/Advanced/Sensitivity tiers) */}
-      {onProfileChange && (
+      {onProfileChange && !isBundleMode && (
         <div style={rowStyle}>
           <span style={labelStyle}>Profile:</span>
           <select
@@ -224,7 +298,7 @@ export const ControlPanel = React.memo(function ControlPanel({
           Advanced:  SINR-Offset, CHO, Timer-CHO, MC-HO, DAPS, Hard-HO
           The shipped UI default profile is DAPS-driven, but the override taxonomy
           still follows spec H8 for the individual HO families. */}
-      {onHoTypeOverrideChange && (
+      {onHoTypeOverrideChange && !isBundleMode && (
         <div style={rowStyle}>
           <span style={labelStyle}>HO:</span>
           <select
@@ -276,7 +350,7 @@ export const ControlPanel = React.memo(function ControlPanel({
         <button style={btnBase} onClick={onPauseToggle}>
           {paused ? '\u25B6 Play' : '\u23F8 Pause'}
         </button>
-        {onHoSlowToggle && (
+        {onHoSlowToggle && !isBundleMode && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-ho-slow"
@@ -309,7 +383,7 @@ export const ControlPanel = React.memo(function ControlPanel({
           />
           Show Labels
         </label>
-        {onShowSinrChartToggle && (
+        {!isBundleMode && onShowSinrChartToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-sinr-chart"
@@ -331,7 +405,7 @@ export const ControlPanel = React.memo(function ControlPanel({
             HO Log
           </label>
         )}
-        {onShowSinrCdfToggle && (
+        {!isBundleMode && onShowSinrCdfToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-sinr-cdf"
@@ -342,7 +416,7 @@ export const ControlPanel = React.memo(function ControlPanel({
             SINR CDF
           </label>
         )}
-        {onShowElevScatterToggle && (
+        {!isBundleMode && onShowElevScatterToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-elev-scatter"
@@ -355,24 +429,63 @@ export const ControlPanel = React.memo(function ControlPanel({
         )}
       </div>
 
-      {/* Replay mode */}
-      {onReplayToggle && (
+      {isBundleMode && (bundleSourceLabel || onBundleStepBackward || onBundleStepForward) && (
         <div style={rowStyle}>
-          <button
-            data-testid="toggle-replay-mode"
-            style={replayMode ? btnActive : btnBase}
-            onClick={onReplayToggle}
-            title="Pre-record entire run then replay (deterministic)"
+          <span style={labelStyle}>Bundle:</span>
+          <span
+            data-testid="bundle-source-label"
+            style={{ color: '#8fdcff', maxWidth: 128, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            title={bundleSourceLabel}
           >
-            {replayMode ? '⏺ Replay ON' : '⏺ Replay OFF'}
+            {bundleSourceLabel ?? 'sample-bundle-v1'}
+          </span>
+          <button
+            data-testid="bundle-step-backward"
+            style={btnBase}
+            onClick={onBundleStepBackward}
+            disabled={!onBundleStepBackward}
+          >
+            ◀ Slot
+          </button>
+          <span data-testid="bundle-slot-indicator" style={{ color: '#c9d6e2' }}>
+            {bundleCurrentSlotIndex ?? '—'} / {bundleSlotCount ?? '—'}
+          </span>
+          <button
+            data-testid="bundle-step-forward"
+            style={btnBase}
+            onClick={onBundleStepForward}
+            disabled={!onBundleStepForward}
+          >
+            Slot ▶
           </button>
         </div>
       )}
 
       {/* KPI Export + baseline viewer */}
-      {(onExportKpi || onOpenBaselineResults) && (
+      {(onExportKpi || onOpenBaselineResults || onShowBundleMetadataToggle || onShowParametersToggle) && (
         <div style={rowStyle}>
-          {onExportKpi && (
+          {isBundleMode ? (
+            onShowBundleMetadataToggle && (
+              <button
+                data-testid="toggle-bundle-metadata-panel"
+                style={showBundleMetadata ? btnActive : btnSecondaryStyle}
+                onClick={onShowBundleMetadataToggle}
+                title="Show or hide bundle assumptions, provenance, and training/evaluation disclosure"
+              >
+                Bundle Meta
+              </button>
+            )
+          ) : onShowParametersToggle && (
+            <button
+              data-testid="toggle-parameters-panel"
+              style={showParameters ? btnActive : btnSecondaryStyle}
+              onClick={onShowParametersToggle}
+              title="Show or hide the registry-backed profile parameter panel"
+            >
+              Parameters
+            </button>
+          )}
+          {!isBundleMode && onExportKpi && (
             <button
               data-testid="export-kpi"
               style={btnBase}
@@ -382,7 +495,7 @@ export const ControlPanel = React.memo(function ControlPanel({
               Export KPI
             </button>
           )}
-          {onOpenBaselineResults && (
+          {!isBundleMode && onOpenBaselineResults && (
             <button
               data-testid="open-baseline-results"
               style={profileId === 'modqn-paper-baseline' ? { ...btnSecondaryStyle, borderColor: '#00d4ff', color: '#00d4ff' } : btnSecondaryStyle}
@@ -394,6 +507,17 @@ export const ControlPanel = React.memo(function ControlPanel({
           )}
         </div>
       )}
+
+      <div style={{ ...rowStyle, marginBottom: 0 }}>
+        <span style={labelStyle}>Truth:</span>
+        <span data-testid="truth-source-note" style={{ color: '#a7b6c7', fontSize: 12 }}>
+          {isBundleMode
+            ? 'Bundle serving / handover truth from producer export'
+            : isNativeReplayMode
+              ? 'Native simulator truth recorded into replay window'
+              : 'Native simulator truth from live engine'}
+        </span>
+      </div>
     </div>
   );
 });

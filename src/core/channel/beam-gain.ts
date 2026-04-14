@@ -32,13 +32,88 @@ function besselJ1(x: number): number {
   return x < 0 ? -result : result;
 }
 
+/**
+ * First-kind Bessel function J0(x) approximation.
+ *
+ * Coefficients follow the same Cephes-style split used by the J1 helper so we
+ * can evaluate the HOBS J1+J3 antenna pattern without introducing a new
+ * runtime dependency.
+ */
+function besselJ0(x: number): number {
+  const ax = Math.abs(x);
+
+  if (ax < 8.0) {
+    const y = x * x;
+    const ans1 = 57568490574.0
+      + y * (-13362590354.0
+      + y * (651619640.7
+      + y * (-11214424.18
+      + y * (77392.33017
+      + y * (-184.9052456)))));
+    const ans2 = 57568490411.0
+      + y * (1029532985.0
+      + y * (9494680.718
+      + y * (59272.64853
+      + y * (267.8532712
+      + y * 1.0))));
+    return ans1 / ans2;
+  }
+
+  const z = 8.0 / ax;
+  const y = z * z;
+  const xx = ax - 0.785398164;
+  const ans1 = 1.0
+    + y * (-0.1098628627e-2
+    + y * (0.2734510407e-4
+    + y * (-0.2073370639e-5
+    + y * 0.2093887211e-6)));
+  const ans2 = -0.1562499995e-1
+    + y * (0.1430488765e-3
+    + y * (-0.6911147651e-5
+    + y * (0.7621095161e-6
+    - y * 0.934945152e-7)));
+  return Math.sqrt(0.636619772 / ax) *
+    (Math.cos(xx) * ans1 - z * Math.sin(xx) * ans2);
+}
+
+function besselJ3(x: number): number {
+  const ax = Math.abs(x);
+  if (ax < 8.0) {
+    const halfX = x / 2;
+    let term = (halfX * halfX * halfX) / 6;
+    let sum = term;
+
+    // Power-series form is numerically stable near boresight, where the
+    // recurrence relation suffers from cancellation and can explode the HOBS
+    // J1+J3 pattern by tens of dB.
+    for (let m = 0; m < 20; m += 1) {
+      term *= -((halfX * halfX) / ((m + 1) * (m + 4)));
+      sum += term;
+      if (Math.abs(term) < 1e-16) break;
+    }
+    return sum;
+  }
+
+  const j0 = besselJ0(x);
+  const j1 = besselJ1(x);
+  const j2 = (2 * j1 / x) - j0;
+  return (4 * j2 / x) - j1;
+}
+
+function resolveTheta3dbRad(input: Pick<BeamGainInput, 'beamDiameterKm' | 'altitudeKm' | 'slantRangeKm'>): number {
+  const { beamDiameterKm, altitudeKm, slantRangeKm } = input;
+  const rangeForTheta = slantRangeKm ?? altitudeKm;
+  return Math.atan(beamDiameterKm / (2 * rangeForTheta));
+}
+
 export function computeBeamGain(input: BeamGainInput): number {
   const { offAxisAngleDeg, model, peakGainDbi, beamDiameterKm, altitudeKm, slantRangeKm } = input;
 
   if (model === 'flat-debug') return peakGainDbi;
 
-  const rangeForTheta = slantRangeKm ?? altitudeKm;
-  const theta3dbRad = Math.atan(beamDiameterKm / (2 * rangeForTheta));
+  const theta3dbRad = model === 'bessel-j1j3'
+    ? Math.atan(beamDiameterKm / (2 * altitudeKm))
+    : resolveTheta3dbRad({ beamDiameterKm, altitudeKm, slantRangeKm });
   const theta3dbDeg = theta3dbRad * (180 / Math.PI);
 
   if (model === 'rpsat-3gpp' || model === 'itu-r') {
@@ -56,8 +131,24 @@ export function computeBeamGain(input: BeamGainInput): number {
     if (Math.abs(sinTheta) < 1e-12) return 0;
 
     const u = 2.07123 * sinTheta / (sinTheta3db || 0.001);
+    const safeU = Math.abs(u) > 1e-12 ? u : (u < 0 ? -1e-12 : 1e-12);
     const j1u = besselJ1(u);
-    const pattern = (2 * j1u / (u || 0.001)) ** 2;
+    const pattern = (2 * j1u / safeU) ** 2;
+    return pattern > 1e-30 ? 10 * Math.log10(pattern) : -300;
+  }
+
+  if (model === 'bessel-j1j3') {
+    const offAxisRad = offAxisAngleDeg * (Math.PI / 180);
+    const sinTheta = Math.sin(offAxisRad);
+    const sinTheta3db = Math.sin(theta3dbRad);
+
+    if (Math.abs(sinTheta) < 1e-12) return 0;
+
+    const u = 2.07123 * sinTheta / (sinTheta3db || 0.001);
+    const safeU = Math.abs(u) > 1e-12 ? u : (u < 0 ? -1e-12 : 1e-12);
+    const j1u = besselJ1(u);
+    const j3u = besselJ3(u);
+    const pattern = (j1u / (2 * safeU) + 36 * j3u / (safeU ** 3)) ** 2;
     return pattern > 1e-30 ? 10 * Math.log10(pattern) : -300;
   }
 

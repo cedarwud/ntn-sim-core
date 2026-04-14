@@ -4,7 +4,7 @@
  * Implements VAL-PLAT-001, VAL-PLAT-002, VAL-PLAT-003 from
  * sdd/phase1-parameter-registry-sdd.md §6.
  *
- * VAL-PLAT-001  Coverage + runtime parity — all 59 canonical parameterPaths
+ * VAL-PLAT-001  Coverage + runtime parity — all canonical parameterPaths
  *               present, every entry has at least one binding, and every
  *               profile-specific binding.defaultValue matches DEFAULT_PROFILES
  *               at spec.parameterPath.
@@ -55,6 +55,7 @@ const CANONICAL_PATHS = new Set([
   'rf.noise_temperature_k',
   'rf.noise_figure_db',
   'rf.implementation_loss_db',
+  'rf.ue_antenna_gain_dbi',
   'antenna.peak_gain_dbi',
   'antenna.beam_diameter_km',
   'beam.num_beams',

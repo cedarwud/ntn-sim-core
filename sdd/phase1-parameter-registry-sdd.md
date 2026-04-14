@@ -404,8 +404,8 @@ bindings rather than relying on `__universal__` metadata.
 
 **Expected output (pass):**
 ```
-VAL-PLAT-001: PASS — 59 parameter entries found; all P-classified paths covered
-VAL-PLAT-001: PASS — All 59 entries have at least one binding
+VAL-PLAT-001: PASS — 60 parameter entries found; all P-classified paths covered
+VAL-PLAT-001: PASS — All 60 entries have at least one binding
 VAL-PLAT-001: PASS — All profile-specific binding.defaultValue entries match DEFAULT_PROFILES
 ```
 

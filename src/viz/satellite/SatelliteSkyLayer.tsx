@@ -13,7 +13,7 @@
  * leo-beam-sim's MAX_DISPLAY_SATS=12 approach).
  */
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Text, useGLTF } from '@react-three/drei';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
@@ -173,22 +173,46 @@ const SatelliteMarker = React.memo(function SatelliteMarker({
 
   const opacity = elevationOpacity(sat.elevationDeg);
   const shortId = sat.id.replace(/.*-shell-/, '');
+  const materialsRef = useRef<Array<THREE.Material & { opacity: number; transparent: boolean; color?: THREE.Color }>>([]);
 
   const clonedScene = useMemo(() => {
     const cloned = SkeletonUtils.clone(sourceScene);
+    const materials: Array<THREE.Material & { opacity: number; transparent: boolean; color?: THREE.Color }> = [];
     cloned.traverse((obj: THREE.Object3D) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh;
-        const oldMat = mesh.material as THREE.Material;
-        const newMat = oldMat.clone();
-        (newMat as THREE.MeshStandardMaterial).color = new THREE.Color(SAT_COLOR);
-        (newMat as THREE.MeshStandardMaterial).transparent = true;
-        (newMat as THREE.MeshStandardMaterial).opacity = opacity;
-        mesh.material = newMat;
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map((material) => {
+            const next = material.clone() as THREE.Material & { opacity: number; transparent: boolean; color?: THREE.Color };
+            materials.push(next);
+            return next;
+          });
+        } else if (mesh.material) {
+          const next = mesh.material.clone() as THREE.Material & { opacity: number; transparent: boolean; color?: THREE.Color };
+          materials.push(next);
+          mesh.material = next;
+        }
       }
     });
+    materialsRef.current = materials;
     return cloned;
-  }, [sourceScene, opacity]);
+  }, [sourceScene]);
+
+  useEffect(() => {
+    for (const material of materialsRef.current) {
+      if (material.color) material.color.set(SAT_COLOR);
+      material.transparent = true;
+      material.opacity = opacity;
+      material.needsUpdate = true;
+    }
+  }, [opacity]);
+
+  useEffect(() => () => {
+    for (const material of materialsRef.current) {
+      material.dispose();
+    }
+    materialsRef.current = [];
+  }, []);
 
   return (
     <group position={position}>

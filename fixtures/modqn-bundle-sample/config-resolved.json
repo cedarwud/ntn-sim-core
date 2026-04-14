@@ -1,0 +1,20 @@
+{
+  "paper": {
+    "paper_id": "PAP-2024-MORL-MULTIBEAM",
+    "title": "Fixture stub"
+  },
+  "baseline": {
+    "satellites": 2,
+    "beams_per_satellite": 2,
+    "users": 1,
+    "altitude_km": 550.0,
+    "user_speed_kmh": 0.0,
+    "carrier_frequency_ghz": 20.0,
+    "bandwidth_mhz": 400.0,
+    "tx_power_w": 20.0,
+    "slot_duration_s": 1.0,
+    "episode_duration_s": 2.0,
+    "episodes": 1
+  },
+  "resolved_assumptions": {}
+}

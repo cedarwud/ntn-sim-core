@@ -33,3 +33,14 @@ export {
 } from './kpi-bundle-projectors';
 export type { ModqnComparisonRow } from './modqn-view-model';
 export { ModqnViewModel } from './modqn-view-model';
+export {
+  ModqnBundleReplayViewModel,
+  advanceBundleReplayFrameIndex,
+} from './modqn-bundle-replay-view-model';
+export type {
+  ModqnBundleSummaryView,
+  ModqnTrainingEvalSummaryView,
+  ModqnAssumptionView,
+  ModqnProvenanceLegendEntry,
+  ModqnProvenanceFieldView,
+} from './modqn-bundle-replay-view-model';

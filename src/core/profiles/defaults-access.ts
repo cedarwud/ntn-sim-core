@@ -19,6 +19,8 @@ import {
   BASELINE_LARGE_SCALE,
 } from './observers';
 
+const CASE9_BOUNDED_STEERING_KM = 4 * 50;
+
 // ---------------------------------------------------------------------------
 // 1. case9-access-baseline (profile-baselines §4)
 // ---------------------------------------------------------------------------
@@ -38,7 +40,10 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
   models: {
     beamSemantics: 'earth-moving',
     antenna: { model: 'rpsat-3gpp' },
-    beam: { layout: 'hexagonal' },
+    beam: {
+      layout: 'hexagonal',
+      tracking_mode: 'nadir-relative-bounded-steering',
+    },
     channel: {
       tier0_fspl: true,
       tier1_large_scale: true,
@@ -70,7 +75,12 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
     implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
   },
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
-  beam: { num_beams: 19, frf: 1, interference_beams: 42 },
+  beam: {
+    num_beams: 19,
+    steering_bound_km: CASE9_BOUNDED_STEERING_KM,
+    frf: 1,
+    interference_beams: 42,
+  },
   channel: { deployment_environment: SUBURBAN },
   handover: {
     trigger_threshold_db: -6,
@@ -95,6 +105,8 @@ export const CASE9_ACCESS_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2024-MCCHO-CORE', note: 'access handover baseline' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.tier1_large_scale', note: 'channel tiers 0-2, NTN channel model' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', parameterPath: 'rf.noise_figure_db', note: 'noise_figure_db=9 dB (handheld UE, S-band case 9)' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.tracking_mode', specMode: 'Advanced', note: 'research-facing earth-moving access profiles now use nadir-relative-bounded-steering instead of legacy UE-anchored steering' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.steering_bound_km', specMode: 'Advanced', note: 'bounded steering radius = 200 km ground-plane clamp (= 4 x 50 km beam diameter) for the first narrow earth-moving correction slice' },
     { tier: 'assumption-backed', id: 'ASSUME-ORB-001', parameterPath: 'orbital.num_planes', specMode: 'Advanced', note: 'Walker 72x22=1584 Starlink shell-1 nominal at 600km/53°, F=P/2=36 (PAP-2021-SESSION-DURATION); paper does not mandate exact constellation' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', parameterPath: 'rf.noise_temperature_k', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7: Internal-only fixed engineering constant; must NOT be exposed as UI slider' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-TTT-NTN', parameterPath: 'handover.ttt_ms', specMode: 'Advanced', note: 'TTT=640ms: NTN-extended assumption (not in spec H2 paper-backed presets of 0/40/256ms); conservative NTN value accounting for propagation delay; spec mode Advanced, not Realistic' },
@@ -131,7 +143,12 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
   models: {
     beamSemantics: 'earth-moving',
     antenna: { model: 'rpsat-3gpp' },
-    beam: { layout: 'hexagonal', bh_strategy: 'round-robin', bh_traffic_model: 'uniform' },
+    beam: {
+      layout: 'hexagonal',
+      tracking_mode: 'nadir-relative-bounded-steering',
+      bh_strategy: 'round-robin',
+      bh_traffic_model: 'uniform',
+    },
     channel: {
       tier0_fspl: true,
       tier1_large_scale: true,
@@ -163,7 +180,15 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
     implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
   },
   antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
-  beam: { num_beams: 19, frf: 1, interference_beams: 42, bh_max_active_per_slot: 7, bh_frame_duration_sec: 5, bh_slots_per_frame: 3 },
+  beam: {
+    num_beams: 19,
+    steering_bound_km: CASE9_BOUNDED_STEERING_KM,
+    frf: 1,
+    interference_beams: 42,
+    bh_max_active_per_slot: 7,
+    bh_frame_duration_sec: 5,
+    bh_slots_per_frame: 3,
+  },
   channel: { deployment_environment: SUBURBAN },
   handover: {
     trigger_threshold_db: -6,
@@ -184,6 +209,8 @@ export const CASE9_DAPS_BASELINE_BUNDLE: ProfileBundle = {
     { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
     { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
     { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.tracking_mode', specMode: 'Advanced', note: 'DAPS baseline now uses the same nadir-relative-bounded-steering access truth as case9-access-baseline' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.steering_bound_km', specMode: 'Advanced', note: 'bounded steering radius = 200 km ground-plane clamp (= 4 x 50 km beam diameter) for the first narrow earth-moving correction slice' },
     { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'DAPS profile matches case9-access-baseline constellation; ueCount=10 for clearer dual-active visualization and epoch is shifted so live playback reaches prepared/dual-active continuity earlier while replay uses continuity-aware window selection' },
     { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS-OVERLAP', parameterPath: 'handover.daps_max_dual_active_sec', specMode: 'Advanced', note: 'DAPS dual-active window extended to 3.0 s for the 1 s discrete runtime so prepared/dual-active execution can complete before fallback; keeps overlap visible without forcing long low-elevation source retention' },

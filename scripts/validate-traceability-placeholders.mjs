@@ -70,12 +70,22 @@ const accessSrc = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-ac
 const hobsSrc   = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-hobs.ts'), 'utf8');
 const miscSrc   = readFileSync(path.join(rootDir, 'src/core/profiles/defaults-misc.ts'), 'utf8');
 
-// Count parameterPath occurrences in each baseline block.
-// We split by baseline export to scope the count.
+function extractExportBlock(src, exportName) {
+  const marker = `export const ${exportName}`;
+  const start = src.indexOf(marker);
+  if (start < 0) return '';
+
+  const nextExport = src.indexOf('\nexport const ', start + marker.length);
+  return nextExport < 0 ? src.slice(start) : src.slice(start, nextExport);
+}
+
+// Count parameterPath occurrences in each baseline bundle block so the
+// provenance gate follows the authored sourceMap instead of later runtime
+// exports or incidental string matches inside the file body.
 const baselineBlocks = {
-  'case9-access-baseline': accessSrc.match(/CASE9_ACCESS_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
-  'hobs-multibeam-baseline': hobsSrc.match(/HOBS_MULTIBEAM_BASELINE[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
-  'realistic-first-screen': miscSrc.match(/REALISTIC_FIRST_SCREEN[\s\S]*?(?=^export const |\Z)/m)?.[0] ?? '',
+  'case9-access-baseline': extractExportBlock(accessSrc, 'CASE9_ACCESS_BASELINE_BUNDLE'),
+  'hobs-multibeam-baseline': extractExportBlock(hobsSrc, 'HOBS_MULTIBEAM_BASELINE_BUNDLE'),
+  'realistic-first-screen': extractExportBlock(miscSrc, 'REALISTIC_FIRST_SCREEN_BUNDLE'),
 };
 
 // For the energy_per_handover_j future-proofing check, scan all family files.

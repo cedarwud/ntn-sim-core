@@ -76,6 +76,7 @@ function spawnPreview() {
   const port = Number(new URL(activeBaseUrl).port);
   const child = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
     cwd: ROOT,
+    detached: true,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
@@ -95,6 +96,51 @@ function spawnPreview() {
   return child;
 }
 
+function waitForChildClose(child: ReturnType<typeof spawn>, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const onClose = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.off('close', onClose);
+      resolve(false);
+    }, timeoutMs);
+
+    child.once('close', onClose);
+  });
+}
+
+async function terminatePreview(child: ReturnType<typeof spawn>) {
+  const pid = child.pid;
+  if (!pid) return;
+
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    return;
+  }
+
+  const exitedAfterTerm = await waitForChildClose(child, 1_000);
+  if (exitedAfterTerm) return;
+
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    return;
+  }
+
+  await waitForChildClose(child, 1_000);
+}
+
 async function waitForServer(url: string, timeoutMs = 20000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -109,7 +155,7 @@ async function waitForServer(url: string, timeoutMs = 20000) {
   throw new Error(`vite preview did not become ready within ${timeoutMs}ms`);
 }
 
-async function resolvePreviewPort(preferredPort = DEFAULT_PREVIEW_PORT): Promise<number> {
+async function resolvePreviewPort(preferredPort = 0): Promise<number> {
   const tryPort = (port: number) => new Promise<number>((resolvePort, reject) => {
     const server = createServer();
     server.unref();
@@ -323,7 +369,7 @@ async function main() {
     }
   } finally {
     await browser?.close();
-    preview.kill('SIGTERM');
+    await terminatePreview(preview);
   }
 
   console.log(`\nOrbit parity failures: ${failures}`);

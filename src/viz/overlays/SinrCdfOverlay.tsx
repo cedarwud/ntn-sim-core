@@ -1,13 +1,14 @@
 /**
  * SINR CDF Overlay — cumulative distribution function of SINR samples.
  *
- * Collects all SINR samples across the run and renders an empirical CDF.
+ * Maintains a bounded reservoir sample of SINR observations and renders an
+ * empirical CDF without allowing browser memory to grow unbounded.
  * Standard paper figure: X = SINR (dB), Y = P(SINR ≤ x).
  *
  * Features:
  *   - Color gradient matching SINR quality thresholds
  *   - Percentile markers (5th, 50th, 95th)
- *   - Sample count display
+ *   - Sampled / total observation count display
  *   - Reset button to clear accumulated samples
  *
  * This file must not import Three.js or R3F code.
@@ -31,6 +32,8 @@ interface SinrCdfOverlayProps {
   xMin?: number;
   /** X-axis max (dB). Default 30. */
   xMax?: number;
+  /** Reservoir cap used to keep the overlay memory-bounded. */
+  maxSamples?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,6 +44,7 @@ const PAD_LEFT = 44;
 const PAD_RIGHT = 12;
 const PAD_TOP = 22;
 const PAD_BOTTOM = 28;
+const DEFAULT_MAX_SAMPLES = 20_000;
 
 // ---------------------------------------------------------------------------
 // SINR color thresholds
@@ -82,6 +86,24 @@ function percentile(sorted: Float32Array, p: number): number {
   return sorted[idx];
 }
 
+function appendReservoirSample(
+  reservoir: number[],
+  totalSeenRef: React.MutableRefObject<number>,
+  value: number,
+  maxSamples: number,
+) {
+  totalSeenRef.current += 1;
+  if (reservoir.length < maxSamples) {
+    reservoir.push(value);
+    return;
+  }
+
+  const replacementIndex = Math.floor(Math.random() * totalSeenRef.current);
+  if (replacementIndex < maxSamples) {
+    reservoir[replacementIndex] = value;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -93,28 +115,32 @@ const SinrCdfOverlay: React.FC<SinrCdfOverlayProps> = React.memo(({
   height = 200,
   xMin = -20,
   xMax = 30,
+  maxSamples = DEFAULT_MAX_SAMPLES,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const samplesRef = useRef<number[]>([]);
+  const totalSamplesRef = useRef(0);
   const [sampleCount, setSampleCount] = useState(0);
+  const [storedCount, setStoredCount] = useState(0);
   const [resetKey, setResetKey] = useState(0);
 
   // Collect SINR sample from each snapshot
   useEffect(() => {
-    if (!snapshot) return;
+    if (!visible || !snapshot) return;
     for (const ue of snapshot.ues) {
       if (ue.sinrDb !== null) {
-        samplesRef.current.push(ue.sinrDb);
+        appendReservoirSample(samplesRef.current, totalSamplesRef, ue.sinrDb, maxSamples);
       }
     }
-    // Also collect primary UE if snapshot has ues[0]
-    // (already covered above)
-    setSampleCount(samplesRef.current.length);
-  }, [snapshot]);
+    setSampleCount(totalSamplesRef.current);
+    setStoredCount(samplesRef.current.length);
+  }, [maxSamples, snapshot, visible]);
 
   const handleReset = useCallback(() => {
     samplesRef.current = [];
+    totalSamplesRef.current = 0;
     setSampleCount(0);
+    setStoredCount(0);
     setResetKey((k) => k + 1);
   }, []);
 
@@ -188,7 +214,7 @@ const SinrCdfOverlay: React.FC<SinrCdfOverlayProps> = React.memo(({
     ctx.fillText('SINR CDF', PAD_LEFT, 4);
     ctx.textAlign = 'right';
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.fillText(`n=${sampleCount}`, w - PAD_RIGHT - 4, 4);
+    ctx.fillText(`sampled=${storedCount}/${sampleCount}`, w - PAD_RIGHT - 4, 4);
 
     if (samplesRef.current.length < 2) return;
 
@@ -250,7 +276,7 @@ const SinrCdfOverlay: React.FC<SinrCdfOverlayProps> = React.memo(({
     drawPercentileMarker(p50, 'P50', 0.50);
     drawPercentileMarker(p95, 'P95', 0.95);
 
-  }, [snapshot, visible, width, height, xMin, xMax, sampleCount, resetKey]);
+  }, [snapshot, visible, width, height, xMin, xMax, sampleCount, storedCount, resetKey]);
 
   if (!visible) return null;
 

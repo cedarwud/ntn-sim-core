@@ -49,6 +49,7 @@ export function materializeRuntimeProfile(
       noise_temperature_k: bundle.rf.noise_temperature_k,
       ...(bundle.rf.noise_figure_db !== undefined && { noise_figure_db: bundle.rf.noise_figure_db }),
       ...(bundle.rf.implementation_loss_db !== undefined && { implementation_loss_db: bundle.rf.implementation_loss_db }),
+      ...(bundle.rf.ue_antenna_gain_dbi !== undefined && { ue_antenna_gain_dbi: bundle.rf.ue_antenna_gain_dbi }),
     },
     antenna: {
       model: bundle.models.antenna.model,
@@ -58,6 +59,8 @@ export function materializeRuntimeProfile(
     beam: {
       num_beams: bundle.beam.num_beams,
       layout: bundle.models.beam.layout,
+      ...(bundle.models.beam.tracking_mode !== undefined && { tracking_mode: bundle.models.beam.tracking_mode }),
+      ...(bundle.beam.steering_bound_km !== undefined && { steering_bound_km: bundle.beam.steering_bound_km }),
       frf: bundle.beam.frf,
       interference_beams: bundle.beam.interference_beams,
       ...(bundle.beam.bh_max_active_per_slot !== undefined && { bh_max_active_per_slot: bundle.beam.bh_max_active_per_slot }),

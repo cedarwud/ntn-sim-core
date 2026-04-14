@@ -35,7 +35,7 @@ export interface SinrResult {
 /** Input parameters for beam-gain model computation. */
 export interface BeamGainInput {
   offAxisAngleDeg: number;
-  model: 'rpsat-3gpp' | 'bessel-j1' | 'itu-r' | 'flat-debug';
+  model: 'rpsat-3gpp' | 'bessel-j1' | 'bessel-j1j3' | 'itu-r' | 'flat-debug';
   peakGainDbi: number;
   beamDiameterKm: number;
   altitudeKm: number;
@@ -79,6 +79,7 @@ export interface LinkBudgetOptions {
   distanceKm: number;
   frequencyGhz: number;
   txEirpDbm: number;
+  rxAntennaGainDb?: number;
   elevationDeg: number;
   environment: DeploymentEnvironment;
   largeScaleModel?: LargeScaleModel;

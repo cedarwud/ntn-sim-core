@@ -280,9 +280,10 @@ export function createHandoverManager(config: HandoverConfig): HandoverManager {
 
   function tryAttach(input: HandoverTickInput, eligible: HandoverCandidate[]): HandoverDecision {
     const best = eligible[0];
-    // Attach requires Q_in (higher bar) to prevent rapid attach/release cycling
-    // when SINR hovers near Q_out. Guard band = Q_in - Q_out (default 2 dB).
-    const attachThreshold = Math.max(config.trigger_threshold_db, rlfQin);
+    // Idle attach uses the radio-link viability floor (Q_in), not the A4 trigger
+    // threshold. The trigger threshold still governs serving-path release/HO once
+    // attached; using it here can leave strict-threshold profiles permanently idle.
+    const attachThreshold = rlfQin;
     if (!best || best.sinrDb < attachThreshold) {
       return { type: 'none', reason: 'no candidate above attach threshold' };
     }

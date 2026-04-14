@@ -1,0 +1,16 @@
+{
+  "bundleSchemaVersion": "phase-03a-replay-bundle-v1",
+  "classificationLegend": {
+    "paper-backed": "Directly supported by the paper or its authority snapshot.",
+    "artifact-derived": "Computed from exported checkpoint and run artifact."
+  },
+  "fieldCount": 1,
+  "producerVersion": "fixture-0.0.0",
+  "fields": {
+    "manifest.replayTruthMode": {
+      "primaryClassification": "artifact-derived",
+      "source": "fixture",
+      "note": "Fixture stub for consumer adapter test."
+    }
+  }
+}

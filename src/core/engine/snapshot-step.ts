@@ -5,7 +5,6 @@ import type { ServingState } from '../handover/types';
 import {
   buildSortedUeCandidates,
   computeSharedServingUeSinr,
-  resolveSharedServingPrimarySinr,
 } from './channel-step';
 
 /**
@@ -100,6 +99,9 @@ export function runSnapshotStep(
     sinrDb: number;
     bestBeamId: string;
     referenceOffAxisAngleDeg: number;
+    serviceEligible?: boolean;
+    beamCenterOffsetEastKm?: number;
+    beamCenterOffsetNorthKm?: number;
   }>,
   tickHoLog: HoLogEntry[],
   representativeServing: { satId: string; beamId: string } | null
@@ -118,7 +120,7 @@ export function runSnapshotStep(
   const secondaryServing = mainContinuity.secondary;
   const sharedServing = independentHandover
     ? null
-    : resolveSharedServingPrimarySinr(state, satSinrs, representativeServing);
+    : representativeServing;
 
   const satellites: SatelliteState[] = satSamples.map((s) => {
     const base: SatelliteState = {
@@ -134,8 +136,11 @@ export function runSnapshotStep(
 
     if (isMultiBeam) {
       const layout = beamLayouts.get(s.satId);
-      if (layout) {
+      const satTruth = satSinrs.find((entry) => entry.satId === s.satId);
+      if (layout && satTruth?.serviceEligible !== false) {
         const activeBeamIds = lastBhSlotDecision?.activeBeamsPerSat.get(s.satId);
+        const beamCenterOffsetEastKm = satTruth?.beamCenterOffsetEastKm ?? 0;
+        const beamCenterOffsetNorthKm = satTruth?.beamCenterOffsetNorthKm ?? 0;
         base.beams = layout.beams.map((b) => {
           const isServingBeam = s.satId === servingSatId && b.beamId === servingBeamId;
           const isTargetBeam = preparedTarget && s.satId === preparedTarget.satId && b.beamId === preparedTarget.beamId;
@@ -151,8 +156,12 @@ export function runSnapshotStep(
 
           return {
             beamId: b.beamId,
-            offsetEastKm: b.offsetEastKm,
-            offsetNorthKm: b.offsetNorthKm,
+            // Snapshot beam offsets stay expressed relative to satellite nadir.
+            // The first bounded-steering slice publishes the tracked lattice shift
+            // here so the renderer follows the same per-satellite beam truth used
+            // by serving/candidate generation without changing the frozen contract.
+            offsetEastKm: b.offsetEastKm + beamCenterOffsetEastKm,
+            offsetNorthKm: b.offsetNorthKm + beamCenterOffsetNorthKm,
             isActive,
             reuseGroup: b.reuseGroup,
             role,
@@ -186,12 +195,8 @@ export function runSnapshotStep(
       ueSecondary = mainContinuity.secondary;
       ueContinuityState = mainContinuity.continuityState;
       if (ueServing && sharedServing) {
-        ueSinr = computeSharedServingUeSinr(
-          state,
-          ue,
-          sharedServing.primarySinrDb,
-          sharedServing.servingEntry,
-        ).sinrDb;
+        ueSinr =
+          computeSharedServingUeSinr(state, ue, satSinrs, sharedServing)?.sinrDb ?? null;
       }
     }
 
@@ -247,7 +252,9 @@ export function runSnapshotStep(
   let hoExplanation: HoExplanation | undefined;
   const triggerState = mainManager.getTriggerState?.();
   if (mainHoState.serving) {
-    const servingEntry = satSinrs.find((s) => s.satId === mainHoState.serving!.satId);
+    const servingEntry = satSinrs.find(
+      (s) => s.satId === mainHoState.serving!.satId && s.serviceEligible !== false,
+    );
     const servingSample = satSamples.find((s) => s.satId === mainHoState.serving!.satId);
     const servingSinrDb = servingEntry?.sinrDb ?? null;
 
@@ -257,7 +264,9 @@ export function runSnapshotStep(
     let ptSatId = triggerState?.pendingTargetSatId ?? null;
     let ptBeamId = triggerState?.pendingTargetBeamId ?? null;
     if (ptSatId) {
-      const targetEntry = satSinrs.find((s) => s.satId === ptSatId);
+      const targetEntry = satSinrs.find(
+        (s) => s.satId === ptSatId && s.serviceEligible !== false,
+      );
       const targetSample = satSamples.find((s) => s.satId === ptSatId);
       pendingTargetSinrDb = targetEntry?.sinrDb ?? null;
       pendingTargetElevationDeg = targetSample?.sample.elevationDeg ?? null;
@@ -266,7 +275,12 @@ export function runSnapshotStep(
       // No pending target — show the best eligible non-serving candidate
       const minElev = profile.handover.min_elevation_deg ?? 10;
       const bestCandidate = satSinrs
-        .filter((s) => s.satId !== mainHoState.serving!.satId && s.sample.elevationDeg >= minElev)
+        .filter(
+          (s) =>
+            s.serviceEligible !== false
+            && s.satId !== mainHoState.serving!.satId
+            && s.sample.elevationDeg >= minElev,
+        )
         .sort((a, b) => b.sinrDb - a.sinrDb)[0];
       if (bestCandidate) {
         ptSatId = bestCandidate.satId;

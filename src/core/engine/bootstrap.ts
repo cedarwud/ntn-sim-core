@@ -48,6 +48,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
   const deploymentEnvironment = profile.channel.deployment_environment ?? 'suburban';
   const largeScaleModel = profile.channel.large_scale_model ?? (profile.channel.tier4_atmospheric ? '3gpp-extended' : '3gpp-baseline');
   const implementationLossDb = profile.rf.implementation_loss_db ?? 0;
+  const ueAntennaGainDb = profile.rf.ue_antenna_gain_dbi ?? 0;
 
   let rng = createRng(profile.seed);
   let hoManager = bundle.handover.createManager(profile.handover);
@@ -149,6 +150,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
     deploymentEnvironment,
     largeScaleModel,
     implementationLossDb,
+    ueAntennaGainDb,
   };
 }
 

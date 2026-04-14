@@ -8,10 +8,10 @@ export interface ParameterPanelProps {
 
 const containerStyle: React.CSSProperties = {
   position: 'absolute',
-  top: 16,
-  right: 16,
-  width: 320,
-  maxHeight: '60vh',
+  left: 16,
+  bottom: 198,
+  width: 'min(360px, calc(100vw - 32px))',
+  maxHeight: 'min(44vh, 420px)',
   backgroundColor: 'rgba(26, 26, 46, 0.85)',
   border: '1px solid #444',
   borderRadius: 6,
@@ -90,7 +90,7 @@ export const ParameterPanel: React.FC<ParameterPanelProps> = ({ profileId, visib
     <div style={containerStyle} data-testid="parameter-panel">
       <div style={titleStyle}>Profile Parameters</div>
       <div style={{ fontSize: 10, color: '#666', marginBottom: 8 }}>
-        Read-only registry-backed exposure. Internal-only fields stay hidden.
+        Secondary panel. Registry-backed, read-only exposure. Internal-only fields stay hidden.
       </div>
 
       {(['Realistic', 'Advanced', 'Sensitivity'] as const).map(tier => {

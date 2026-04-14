@@ -313,13 +313,38 @@ function buildSmokeProfile(): ProfileConfig {
   return CASE9_ACCESS_BASELINE;
 }
 
+function findActionableSmokeTarget(args: {
+  engine: ReturnType<typeof createSimEngine>;
+  profile: ProfileConfig;
+  maxTicks?: number;
+}) {
+  const { engine, profile, maxTicks = 300 } = args;
+  for (let tick = 0; tick < maxTicks; tick += 1) {
+    const snapshot = engine.tick(tick, tick);
+    const observation = engine.getObservation();
+    const servingSatId = snapshot.ues[0]?.servingSatId ?? null;
+    const target = observation?.satellites.find((sat) => (
+      sat.satId !== servingSatId
+      && sat.elevationDeg >= profile.handover.min_elevation_deg
+      && sat.sinrDb > -99
+    ));
+    if (servingSatId && target) {
+      return {
+        tick,
+        servingSatId,
+        targetSatId: target.satId,
+      };
+    }
+  }
+  return null;
+}
+
 function validatePolicyQueueSmoke() {
   console.log('\n== VAL-MODQN-001E: pendingPolicyAction runtime smoke ==');
 
   const profile = buildSmokeProfile();
   const elements = resolveProfileOrbitElements(profile);
   const trajectoryCache = buildProfileTrajectoryCache(profile, elements);
-  let firstQueuedTargetSatId: string | null = null;
   let lastQueuedTargetSatId: string | null = null;
 
   const policy: Policy = {
@@ -329,11 +354,9 @@ function validatePolicyQueueSmoke() {
       const target = obs.satellites.find((sat) => (
         sat.elevationDeg >= profile.handover.min_elevation_deg
         && sat.satId !== servingSatId
+        && sat.sinrDb > -99
       ));
       lastQueuedTargetSatId = target?.satId ?? null;
-      if (firstQueuedTargetSatId === null) {
-        firstQueuedTargetSatId = lastQueuedTargetSatId;
-      }
       return lastQueuedTargetSatId
         ? {
             satelliteActions: [],
@@ -348,14 +371,29 @@ function validatePolicyQueueSmoke() {
   };
 
   const engine = createSimEngine({ profile, trajectoryCache, policy });
-  const snapshot0 = engine.tick(0, 0);
-  const initialServing = snapshot0.ues[0]?.servingSatId ?? null;
-  const snapshot1 = engine.tick(1, 1);
-  const nextServing = snapshot1.ues[0]?.servingSatId ?? null;
+  const actionable = findActionableSmokeTarget({ engine, profile });
+  const initialServing = actionable?.servingSatId ?? null;
+  const queuedTargetSatId = lastQueuedTargetSatId ?? actionable?.targetSatId ?? null;
+  const snapshotAfterQueuedAction = actionable
+    ? engine.tick(actionable.tick + 1, actionable.tick + 1)
+    : null;
+  const nextServing = snapshotAfterQueuedAction?.ues[0]?.servingSatId ?? null;
 
-  check('policy smoke target discovered', firstQueuedTargetSatId !== null, String(firstQueuedTargetSatId));
-  check('policy smoke target differs from initial serving', firstQueuedTargetSatId !== initialServing, `serving=${initialServing}, target=${firstQueuedTargetSatId}`);
-  check('policy smoke consumed queued action', nextServing === firstQueuedTargetSatId, `serving=${nextServing}, target=${firstQueuedTargetSatId}`);
+  check(
+    'policy smoke target discovered',
+    queuedTargetSatId !== null,
+    `${String(queuedTargetSatId)} @ tick ${actionable?.tick ?? 'none'}`,
+  );
+  check(
+    'policy smoke target differs from initial serving',
+    queuedTargetSatId !== initialServing,
+    `serving=${initialServing}, target=${queuedTargetSatId}`,
+  );
+  check(
+    'policy smoke consumed queued action',
+    nextServing === queuedTargetSatId,
+    `serving=${nextServing}, target=${queuedTargetSatId}`,
+  );
 }
 
 function validateExternalOverrideSmoke() {
@@ -365,16 +403,16 @@ function validateExternalOverrideSmoke() {
   const elements = resolveProfileOrbitElements(profile);
   const trajectoryCache = buildProfileTrajectoryCache(profile, elements);
   const engine = createSimEngine({ profile, trajectoryCache });
-  const snapshot0 = engine.tick(0, 0);
-  const initialServing = snapshot0.ues[0]?.servingSatId ?? null;
-  const target = snapshot0.satellites.find((sat) => (
-    sat.isVisible
-    && sat.elevationDeg >= profile.handover.min_elevation_deg
-    && sat.id !== initialServing
-  ));
+  const actionable = findActionableSmokeTarget({ engine, profile });
+  const initialServing = actionable?.servingSatId ?? null;
+  const targetSatId = actionable?.targetSatId ?? null;
 
-  check('external smoke target discovered', Boolean(target), target?.id ?? 'none');
-  if (!target) {
+  check(
+    'external smoke target discovered',
+    Boolean(targetSatId),
+    `${targetSatId ?? 'none'} @ tick ${actionable?.tick ?? 'none'}`,
+  );
+  if (!targetSatId || !actionable) {
     return;
   }
 
@@ -382,12 +420,16 @@ function validateExternalOverrideSmoke() {
     satelliteActions: [],
     handoverAction: {
       mode: 'trigger',
-      targetSatId: target.id,
+      targetSatId,
     },
   });
-  const snapshot1 = engine.tick(1, 1);
+  const snapshot1 = engine.tick(actionable.tick + 1, actionable.tick + 1);
   const nextServing = snapshot1.ues[0]?.servingSatId ?? null;
-  check('external smoke consumed queued action', nextServing === target.id, `serving=${nextServing}, target=${target.id}`);
+  check(
+    'external smoke consumed queued action',
+    nextServing === targetSatId && targetSatId !== initialServing,
+    `serving=${nextServing}, target=${targetSatId}`,
+  );
 }
 
 function validateModqnRuntimeViability() {

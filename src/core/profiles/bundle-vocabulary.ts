@@ -11,6 +11,7 @@ import type {
   LargeScaleModel,
   DeploymentEnvironment,
   UeDistribution,
+  EarthMovingBeamTrackingMode,
 } from './runtime-schema';
 
 /**
@@ -56,10 +57,11 @@ export interface ScenarioConfig {
 export interface ModelBundleSelection {
   beamSemantics: BeamSemantics;
   antenna: {
-    model: 'rpsat-3gpp' | 'bessel-j1' | 'itu-r' | 'flat-debug';
+    model: 'rpsat-3gpp' | 'bessel-j1' | 'bessel-j1j3' | 'itu-r' | 'flat-debug';
   };
   beam: {
     layout: 'hexagonal' | 'circular' | 'custom';
+    tracking_mode?: EarthMovingBeamTrackingMode;
     bh_strategy?: 'round-robin' | 'max-demand' | 'power-aware' | 'deterministic-fixed' | 'proportional-fair' | 'sinr-greedy';
     bh_traffic_model?: 'poisson' | 'full-buffer' | 'hotspot' | 'uniform';
   };
@@ -137,6 +139,7 @@ export interface ProfileBundle {
     noise_temperature_k: number;
     noise_figure_db?: number;
     implementation_loss_db?: number;
+    ue_antenna_gain_dbi?: number;
   };
   antenna: {
     peak_gain_dbi: number;
@@ -144,6 +147,7 @@ export interface ProfileBundle {
   };
   beam: {
     num_beams: number;
+    steering_bound_km?: number;
     frf: number;
     interference_beams: number;
     bh_max_active_per_slot?: number;

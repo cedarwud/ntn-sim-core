@@ -28,7 +28,7 @@ export interface BeamGainInput {
 // ---------------------------------------------------------------------------
 
 export interface BeamGainModel {
-  readonly familyId: 'rpsat-3gpp' | 'bessel-j1' | 'itu-r' | 'flat-debug' | string;
+  readonly familyId: 'rpsat-3gpp' | 'bessel-j1' | 'bessel-j1j3' | 'itu-r' | 'flat-debug' | string;
   /** Returns beam gain in dBi at the given off-axis angle. */
   computeGainDb(input: BeamGainInput): number;
 }

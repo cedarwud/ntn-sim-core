@@ -148,10 +148,11 @@ npm run preview
 - downstream architecture 已完成 Group 2，`src/core/algorithms/`、`src/core/experiments/`、`src/viz/view-models/` 的最小骨架已落地
 - `MODQN` baseline reproduction 已完成 through `M3`
 - `UI` baseline viewer path 已完成 through `U1/U2`
+- Phase 03A 的 MODQN bundle replay consumer path 已完成 through Slice B/C/D：`src/adapters/modqn-bundle/` 是唯一跨 repo seam，UI 現在可在 `native-live` / `native-replay` / `modqn-bundle` 間切換真值來源，並以獨立 metadata panel 揭露 assumptions / provenance / training-eval disclosure
 - real-trace truth-path correction (`T1`) 已完成；`real-trace scalability` 仍 blocked
 - `PM1` paper-mode / claim-mode hardening 已完成；`TP1` 也已完成並落地 current-anchor parity bundle 與 `validate:modqn:parity`
 - `EP1` `EE / power` realism hardening 也已完成並成為 shipped reference surface
-- 目前 current-anchor parity evidence 的狀態是：anchor envelope `range-faithful`、user-count / satellite-count sweeps `trend-faithful`、user-speed 與 comparator ranking `qualitative-only`
+- 目前 current-anchor parity evidence 的狀態是：anchor envelope `range-faithful`；user-count / satellite-count / user-speed sweeps 與 comparator ranking 目前都應視為 `qualitative-only`
 - main-result / robustness / sensitivity / appendix 與 `EE / power` headline-claim 限制，仍應以 PM1 authority 為準，不要自行混寫
 - `EP1` 把 `EE / power` 的公式語義、來源分層、assumption disclosure、與 minimum sensitivity bar 收斂成更安全的 paper-ready surface，不是重開更重的 backend realism
 - standalone ESTNET visualization / acceptance work now lives in [`../estnet-visual-simulator/`](../estnet-visual-simulator/)；只有明確的 simulator-side contract/export 需求才應回到 `ntn-sim-core`
@@ -171,7 +172,17 @@ npm run preview
 | `npm run validate:structure` | 驗證 preflight 目錄骨架與舊結構是否已清除 |
 | `npm run validate:trace` | 驗證 SDD / traceability placeholder 文件與目錄是否存在 |
 | `npm run validate:profiles` | 驗證 profile layout（asset/observer/visual 分離）+ Phase 3 VAL-PLAT-006/007（型別 export / no-circular-import / authored-materialization parity） |
+| `npm run validate:modqn:bundle` | 驗證 Phase 03A Slice B 的 MODQN replay bundle consumer adapter contract |
+| `npm run validate:modqn:bundle-ui` | 驗證 Phase 03A Slice C/D 的 truth-source mode switch、slot stepping、shared presentation 與 metadata/provenance UI |
 | `npm run validate:stage` | 執行 lint + build + preflight validation scripts |
+
+若要直接進入 producer-backed bundle replay mode，可用：
+
+```text
+http://localhost:4173/?mode=modqn-bundle
+```
+
+這個 mode 會把 serving / beam / handover presentation 的主要真值切到已凍結的 MODQN bundle，而不是 native simulator runtime。
 
 ## 專案結構
 
@@ -436,7 +447,17 @@ Moved to:
 | `npm run validate:structure` | Validate the preflight directory skeleton and ensure legacy paths are gone |
 | `npm run validate:trace` | Validate SDD / traceability placeholder docs and directories |
 | `npm run validate:profiles` | Validate profile layout (asset/observer/visual separation) + Phase 3 VAL-PLAT-006/007 (type exports / no-circular-import / authored-materialization parity) |
+| `npm run validate:modqn:bundle` | Validate the Phase 03A Slice B MODQN replay-bundle consumer adapter contract |
+| `npm run validate:modqn:bundle-ui` | Validate the Phase 03A Slice C/D truth-source mode switch, slot stepping, shared presentation path, and metadata/provenance disclosure UI |
 | `npm run validate:stage` | Run lint + build + the preflight validation scripts |
+
+To enter the producer-backed bundle replay mode directly, open:
+
+```text
+http://localhost:4173/?mode=modqn-bundle
+```
+
+That mode switches the primary serving / beam / handover truth source to the frozen MODQN bundle instead of the native simulator runtime. If a bundle is structurally loadable but still missing replay-presentation essentials such as `manifest.coordinateFrame.groundPoint`, the UI rejects it explicitly rather than guessing geometry anchors on the consumer side.
 
 ## Project Structure
 

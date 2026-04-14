@@ -8,7 +8,8 @@ import { buildSortedUeCandidates } from './channel-step';
 /**
  * Phase 5 Core Structural Split: Handover step.
  * Ownership: Handover manager ticks and multi-UE dispatch.
- * Fix: Ensure HandoverManager sees ALL satellites in satSinrs as potential candidates.
+ * Fix: handover managers consume per-satellite candidates from the current
+ * tracked-beam truth instead of the old UE-at-origin shortcut.
  */
 
 export interface HandoverStepResult {
@@ -47,6 +48,7 @@ export function runHandoverStep(
     sinrDb: number;
     bestBeamId: string;
     referenceOffAxisAngleDeg: number;
+    serviceEligible?: boolean;
   }>
 ): HandoverStepResult {
   const { independentHandover, hoManager, hoManagers, uePositions } = state;
@@ -96,7 +98,9 @@ export function runHandoverStep(
     }
   } else {
     // Phase A path
-    const candidates: HandoverCandidate[] = satSinrs.map((s) => ({
+    const candidates: HandoverCandidate[] = satSinrs
+      .filter((s) => s.serviceEligible !== false)
+      .map((s) => ({
       satId: s.satId,
       sinrDb: s.sinrDb,
       beamId: s.bestBeamId,
