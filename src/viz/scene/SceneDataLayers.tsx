@@ -143,8 +143,10 @@ export function LiveLayer({
   const result = useSimulation({ profileId, speed, paused, handoverTypeOverride });
 
   const summary = useMemo(
-    () => buildRuntimeSummary(result.snapshot, 'live', showBeams, showLabels, null, null, null, profileId),
-    [result.snapshot, showBeams, showLabels, profileId],
+    () => buildRuntimeSummary(result.snapshot, 'live', showBeams, showLabels, null, null, null, profileId, {
+      handoverCount: result.handoverCount,
+    }),
+    [profileId, result.handoverCount, result.snapshot, showBeams, showLabels],
   );
   const orbitParity = useMemo(
     () => buildOrbitParitySummary(result.snapshot, 'live', profileId),
@@ -232,6 +234,9 @@ export function ReplayLayer({
       result.replayManifest?.windowStartSec ?? null,
       result.replayManifest?.windowEndSec ?? null,
       profileId,
+      {
+        handoverCount: 0,
+      },
     ),
     [result.snapshot, result.selectionReason, result.replayManifest, showBeams, showLabels, profileId],
   );
@@ -301,7 +306,23 @@ export function BundleReplayLayer({
   onSnapshotUpdate: (snapshot: SimulationSnapshot | null) => void;
   onExportKpiReady: (fn: (() => KpiBundle | null) | null) => void;
   onViewModelUpdate: (viewModel: ModqnBundleReplayViewModel | null) => void;
-  onControlsUpdate: (controls: { stepBackward: () => void; stepForward: () => void } | null) => void;
+  onControlsUpdate: (controls: {
+    error: string | null;
+    isLoading: boolean;
+    loadExternalDirectory: (selectedFiles: FileList | File[]) => Promise<void>;
+    loadState:
+      | 'boot-loading-sample'
+      | 'boot-load-failed'
+      | 'ready-sample'
+      | 'loading-external-directory'
+      | 'ready-external-directory'
+      | 'resetting-to-sample';
+    resetToSample: () => Promise<void>;
+    sourceKind: 'sample' | 'external-directory';
+    sourceLabel: string;
+    stepBackward: () => void;
+    stepForward: () => void;
+  } | null) => void;
   onPresentationFrameUpdate?: (frame: BeamPresentationFrame | null) => void;
   speed: number;
   paused: boolean;
@@ -312,6 +333,14 @@ export function BundleReplayLayer({
   const bundleSummary = useMemo(
     () => result.viewModel?.getBundleSummary() ?? null,
     [result.viewModel],
+  );
+  const replayTruth = useMemo(
+    () => result.viewModel?.getReplayTruth(result.currentFrameIndex) ?? null,
+    [result.currentFrameIndex, result.viewModel],
+  );
+  const truthSnapshot = useMemo(
+    () => result.viewModel?.projectFrame(result.currentFrameIndex) ?? null,
+    [result.currentFrameIndex, result.viewModel],
   );
 
   useEffect(() => {
@@ -328,15 +357,33 @@ export function BundleReplayLayer({
 
   useEffect(() => {
     onControlsUpdate({
+      error: result.error,
+      isLoading: result.isLoading,
+      loadExternalDirectory: result.loadExternalDirectory,
+      loadState: result.loadState,
+      resetToSample: result.resetToSample,
+      sourceKind: result.sourceKind,
+      sourceLabel: result.sourceLabel,
       stepBackward: result.stepBackward,
       stepForward: result.stepForward,
     });
     return () => onControlsUpdate(null);
-  }, [onControlsUpdate, result.stepBackward, result.stepForward]);
+  }, [
+    onControlsUpdate,
+    result.error,
+    result.isLoading,
+    result.loadExternalDirectory,
+    result.loadState,
+    result.resetToSample,
+    result.sourceKind,
+    result.sourceLabel,
+    result.stepBackward,
+    result.stepForward,
+  ]);
 
   const summary = useMemo(
     () => buildRuntimeSummary(
-      result.snapshot,
+      truthSnapshot,
       'modqn-bundle',
       showBeams,
       showLabels,
@@ -349,25 +396,30 @@ export function BundleReplayLayer({
         truthSourceLabel: result.sourceLabel,
         bundleSlotIndex: result.currentSlotIndex,
         bundleSlotCount: result.slotCount,
+        handoverCount: replayTruth?.cumulativeHandovers ?? result.handoverCount,
+        bundleHandoverKind: replayTruth?.handoverKind ?? null,
       },
     ),
     [
       bundleSummary?.replayTruthMode,
+      replayTruth?.cumulativeHandovers,
+      replayTruth?.handoverKind,
       result.currentSlotIndex,
+      result.handoverCount,
       result.slotCount,
-      result.snapshot,
       result.sourceLabel,
       showBeams,
       showLabels,
+      truthSnapshot,
     ],
   );
   const orbitParity = useMemo(
-    () => buildOrbitParitySummary(result.snapshot, 'modqn-bundle', MODQN_BUNDLE_PROFILE_ID),
-    [result.snapshot],
+    () => buildOrbitParitySummary(truthSnapshot, 'modqn-bundle', MODQN_BUNDLE_PROFILE_ID),
+    [truthSnapshot],
   );
   const snapshotBeamTruth = useMemo(
-    () => buildSnapshotBeamTruthSummary(result.snapshot),
-    [result.snapshot],
+    () => buildSnapshotBeamTruthSummary(truthSnapshot),
+    [truthSnapshot],
   );
 
   usePublishValidationSection('runtime', summary);

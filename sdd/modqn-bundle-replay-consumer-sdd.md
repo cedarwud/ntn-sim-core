@@ -139,7 +139,7 @@ upcoming Slice C view-model / overlay code should consume. It contains:
 
 ## 6. Validation
 
-Slice B introduces one new validator gate with six sub-sections:
+Slice B introduces one new validator gate with seven sub-sections:
 
 | Section | Script Section | Coverage |
 |---|---|---|
@@ -149,6 +149,7 @@ Slice B introduces one new validator gate with six sub-sections:
 | `VAL-MODQN-BUNDLE-001D` | `validateMemoryReaderRoundTrip` | In-memory reader round trip with per-required-file and per-required-directory missing cases; aligns with `REQUIRED_BUNDLE_FILES` / `REQUIRED_BUNDLE_DIRECTORIES`. |
 | `VAL-MODQN-BUNDLE-001E` | `validateFixtureLoad` | On-disk hand-crafted fixture load against `fixtures/modqn-bundle-sample/` (2 sats × 2 beams × 1 user × 2 slots) with an explicit assertion that the checked-in minimal fixture still uses the legacy string-form `checkpointRule`, plus directory presence checks. |
 | `VAL-MODQN-BUNDLE-001F` | `validateProducerSampleBundle` | On-disk **producer** sample load against `fixtures/sample-bundle-v1/` (4 sats × 7 beams × 1 user × 10 slots, Phase 03A Slice A shape) — proves the adapter accepts the current producer output and surfaces all new optional fields (`checkpointRule` as object, `groundPoint`, `slotIndexSemantics`, `replaySeedSource`, `slotIndexOffset`, `sampleSubset`, `sampleNote`) plus the five-category `provenance-map.json` legend. |
+| `VAL-MODQN-BUNDLE-001G` | `validateLegacyDecisionMaskFallback` | Legacy-compatibility guard for structurally valid older bundles that omit optional decision-time masks: proves the consumer does not silently collapse visible/action counts to `0 / 0`, allows the bundle to remain readable through disclosed runtime-mask fallback, and keeps that fallback consumer-side rather than rewriting producer contract meaning. |
 
 Run via `npm run validate:modqn:bundle`. That command now prefixes the
 adapter validator with `npm run validate:modqn:fixture-sync`, which
@@ -162,11 +163,12 @@ still mirrors the producer fixture tree. The sync gate reports:
 5. unexpected consumer extra directories
 6. missing consumer support files (currently `evaluation/sweeps/.gitkeep`)
 
-The validator is not yet wired into `validate:stage` because Slice B is
-consumer-only and the fixture-sync check depends on the sibling
-`modqn-paper-reproduction` workspace repo; it should be reconsidered once
-Slice C wires the adapter into a UI path and the cross-repo gate policy is
-promoted explicitly.
+The validator is now wired into `validate:stage` through
+`npm run validate:modqn:bundle`. That stage path still front-loads the
+cross-repo fixture-sync check against the sibling
+`modqn-paper-reproduction` workspace repo before running the adapter gate
+itself, so reruns should continue to treat this validator as both a
+consumer-side contract gate and a producer-mirror drift check.
 
 ## 7. Sample Fixtures
 

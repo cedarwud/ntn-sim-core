@@ -11,6 +11,7 @@
  *   4. Fixture bundle load via Node fs reader
  *   5. In-memory reader round trip (including required-file / required-dir
  *      missing cases)
+ *   6. Optional decision-mask fallback stays readable for legal older bundles
  *
  * Governance:
  *   - Consumer SDD: sdd/modqn-bundle-replay-consumer-sdd.md
@@ -35,6 +36,7 @@ import {
   loadModqnReplayBundle,
   parseTimelineJsonl,
 } from '../src/adapters/modqn-bundle';
+import { ModqnBundleReplayViewModel } from '../src/viz/view-models/modqn-bundle-replay-view-model';
 import type {
   ModqnBundleFileReader,
   ModqnBundleManifest,
@@ -924,6 +926,38 @@ async function validateProducerSampleBundle() {
   }
 }
 
+async function validateOptionalDecisionMaskFallback() {
+  console.log('\n== VAL-MODQN-BUNDLE-001G: optional decision-mask fallback ==');
+
+  const bundle = await loadModqnReplayBundle(createMemoryFileReader(makeMemoryBundleFiles()));
+  const viewModel = new ModqnBundleReplayViewModel(bundle, 'memory-no-decision-mask');
+  const decisionStory = viewModel.getDecisionStory(0);
+  const trendPoint = viewModel.getReplayTrendSeries()[0];
+
+  check(
+    'older bundle without decision-time masks keeps exported visible/action counts readable',
+    decisionStory.visibleSatelliteCount === 1
+      && decisionStory.visibleBeamCount === 1
+      && decisionStory.validActionCount === 1,
+    JSON.stringify({
+      visibleSatelliteCount: decisionStory.visibleSatelliteCount,
+      visibleBeamCount: decisionStory.visibleBeamCount,
+      validActionCount: decisionStory.validActionCount,
+    }),
+  );
+  check(
+    'runtime-mask fallback is disclosed to downstream UI projectors',
+    decisionStory.maskSource === 'runtime-fallback'
+      && trendPoint?.maskSource === 'runtime-fallback'
+      && trendPoint?.validActionRatio === 1,
+    JSON.stringify({
+      decisionMaskSource: decisionStory.maskSource,
+      trendMaskSource: trendPoint?.maskSource ?? null,
+      validActionRatio: trendPoint?.validActionRatio ?? null,
+    }),
+  );
+}
+
 async function main() {
   await validateSchemaGuard();
   await validateTimelineParser();
@@ -931,6 +965,7 @@ async function main() {
   await validateMemoryReaderRoundTrip();
   await validateFixtureLoad();
   await validateProducerSampleBundle();
+  await validateOptionalDecisionMaskFallback();
 
   console.log('\n== Summary ==');
   if (failures.length > 0) {

@@ -2,7 +2,7 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-15, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), and the first landing of the truth-preserving showcase visual realignment follow-on. The SDD set is therefore split into:
+As of 2026-04-16, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), the first landing of the truth-preserving showcase visual realignment follow-on, the consumer-only MODQN external bundle loading follow-on, the consumer-only MODQN story dashboard / dynamic-chart follow-on, and the consumer-only MODQN replay-truth hardening / showcase acceptance follow-on. The next plausible MODQN bundle/dashboard line now has paired producer/consumer planning surfaces, but remains blocked from active implementation until the producer-side additive export slice lands. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
@@ -90,6 +90,12 @@ These files remain the shipped downstream authority for the completed baseline s
    - active Phase 03A Slice C/D consumer authority for native-vs-bundle truth-source switching, slot stepping, and bundle metadata/provenance UI
 13. `truth-preserving-showcase-visual-realignment-follow-on.md`
    - active narrow frontend showcase/readability authority for the landed `BeamPresentationFrame` scene grammar, dedicated `case9-daps-showcase` split, and associated browser gates
+14. `modqn-external-bundle-loading-follow-on.md`
+   - landed Slice 2 consumer-only external bundle loading record for browser-side `external-directory` selection, sample reset/error/source disclosure, and the expanded `VAL-MODQN-BUNDLE-002` browser gate
+15. `modqn-story-dashboard-follow-on.md`
+   - landed Slice 3 consumer-only story-dashboard / dynamic-chart record for the shared `bundle-story-dashboard` surface, additive replay-trend charts, and the new `VAL-MODQN-BUNDLE-003` browser gate
+16. `modqn-replay-truth-hardening-follow-on.md`
+   - landed Slice 4 consumer-only replay-truth hardening / showcase acceptance record for dashboard/HUD/probe truth alignment, scene beam/link replay-truth proof, non-trivial external bundle acceptance, and the passing `VAL-MODQN-BUNDLE-004` browser gate
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
@@ -112,6 +118,10 @@ These files are not valid implementation authority for the current baseline entr
    - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused after T1 closure unless it is separately re-promoted
 5. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
    - proposed narrow beam / serving semantics correction surface; not implementation authority until explicitly promoted with matching `todo/` handoff docs
+6. `modqn-producer-diagnostics-and-explainability-follow-on.md`
+   - standby cross-repo kickoff draft for future producer-owned policy diagnostics / explainability; not active until a paired `modqn-paper-reproduction` reopen slice and a paired `ntn-sim-core` execution surface are both promoted
+7. `modqn-producer-diagnostics-consumer-follow-on.md`
+   - paired consumer-side execution draft for future producer-owned diagnostics consumption; not active until the producer-side Phase 03B export slice lands in a reviewed artifact or fixture
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 

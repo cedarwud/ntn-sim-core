@@ -13,17 +13,20 @@ import { HandoverExplainabilityPanel } from '@/viz/overlays/HandoverExplainabili
 import { ModqnBaselineCompactPanel } from '@/viz/overlays/ModqnBaselineCompactPanel';
 import HoEventLogOverlay from '@/viz/overlays/HoEventLogOverlay';
 import { LoaderOverlay } from '@/viz/scene/LoaderOverlay';
-import type { SimHudProps } from '@/viz/overlays/SimHud';
+import { BundleTruthHud, SimHud, type SimHudProps } from '@/viz/overlays/SimHud';
 import { ModqnBundleMetadataPanel } from '@/viz/overlays/ModqnBundleMetadataPanel';
 import { ParameterPanel } from '@/viz/overlays/ParameterPanel';
-import { SimHud } from '@/viz/overlays/SimHud';
 import SinrCdfOverlay from '@/viz/overlays/SinrCdfOverlay';
 import SinrElevationScatter from '@/viz/overlays/SinrElevationScatter';
 import SinrTimeSeriesOverlay from '@/viz/overlays/SinrTimeSeriesOverlay';
 import { Starfield } from '@/viz/overlays/Starfield';
 import { ValidationProbe } from '@/viz/overlays/ValidationProbe';
 import type { BeamPresentationFrame } from '@/viz/presentation';
-import type { ModqnBundleReplayViewModel } from '@/viz/view-models/modqn-bundle-replay-view-model';
+import type {
+  ModqnBundleReplayViewModel,
+  ModqnDashboardKpiView,
+  ModqnReplayTrendPointView,
+} from '@/viz/view-models/modqn-bundle-replay-view-model';
 
 import { CameraRig } from './CameraRig';
 import { BundleReplayLayer, LiveLayer, ReplayLayer, type DataLayerProps } from './SceneDataLayers';
@@ -33,6 +36,24 @@ import { UAV } from './UAV';
 import { downloadKpiBundle } from './scene-runtime-summaries';
 
 const HANDOVER_FOCUS_SPEED = 1;
+
+type BundleReplayControls = {
+  error: string | null;
+  isLoading: boolean;
+  loadExternalDirectory: (selectedFiles: FileList | File[]) => Promise<void>;
+  loadState:
+    | 'boot-loading-sample'
+    | 'boot-load-failed'
+    | 'ready-sample'
+    | 'loading-external-directory'
+    | 'ready-external-directory'
+    | 'resetting-to-sample';
+  resetToSample: () => Promise<void>;
+  sourceKind: 'sample' | 'external-directory';
+  sourceLabel: string;
+  stepBackward: () => void;
+  stepForward: () => void;
+};
 
 export function SceneShell() {
   const {
@@ -58,7 +79,7 @@ export function SceneShell() {
   const [sceneSnapshot, setSceneSnapshot] = useState<SimulationSnapshot | null>(null);
   const [presentationFrame, setPresentationFrame] = useState<BeamPresentationFrame | null>(null);
   const [bundleViewModel, setBundleViewModel] = useState<ModqnBundleReplayViewModel | null>(null);
-  const [bundleControls, setBundleControls] = useState<{ stepBackward: () => void; stepForward: () => void } | null>(null);
+  const [bundleControls, setBundleControls] = useState<BundleReplayControls | null>(null);
   const [showSinrChart, setShowSinrChart] = useState(true);
   const [showHoLog, setShowHoLog] = useState(false);
   const [showSinrCdf, setShowSinrCdf] = useState(false);
@@ -117,6 +138,70 @@ export function SceneShell() {
     () => bundleViewModel?.getProvenanceFields() ?? [],
     [bundleViewModel],
   );
+  const bundleFrameIndex = useMemo(() => {
+    if (!bundleViewModel) return 0;
+    const slotIndex = hudData?.bundleSlotIndex;
+    if (slotIndex === null || slotIndex === undefined) return 0;
+    return Math.max(0, Math.min(slotIndex - 1, bundleViewModel.getFrameCount() - 1));
+  }, [bundleViewModel, hudData?.bundleSlotIndex]);
+  const bundleReplayTruth = useMemo(
+    () => bundleViewModel?.getReplayTruth(bundleFrameIndex) ?? null,
+    [bundleFrameIndex, bundleViewModel],
+  );
+  const bundleDashboardKpis = useMemo<ModqnDashboardKpiView | null>(
+    () => bundleViewModel?.getDashboardKpis(bundleFrameIndex) ?? null,
+    [bundleFrameIndex, bundleViewModel],
+  );
+  const bundleReplayTrendSeries = useMemo<ModqnReplayTrendPointView[]>(
+    () => bundleViewModel?.getReplayTrendSeries() ?? [],
+    [bundleViewModel],
+  );
+  const bundleSourceLabel = bundleControls?.sourceLabel
+    ?? hudData?.truthSourceLabel
+    ?? bundleSummary?.sourceLabel
+    ?? 'sample-bundle-v1';
+  const bundleCurrentSlotIndex = bundleReplayTruth?.currentSlotIndex ?? hudData?.bundleSlotIndex ?? null;
+  const bundleSlotCount = bundleReplayTruth?.slotCount ?? hudData?.bundleSlotCount ?? bundleSummary?.slotCount ?? null;
+  const bundleHandoverCount = bundleReplayTruth?.cumulativeHandovers ?? hudData?.handoverCount ?? 0;
+  const bundleContinuityNarrative = presentationFrame?.continuityNarrative ?? null;
+  const bundleCompactPanelProps = {
+    visible: true,
+    snapshot: sceneSnapshot,
+    bundleSummary,
+    trainingEvalSummary: bundleTrainingEvalSummary,
+    trainingEvidence: bundleTrainingEvidence,
+    decisionStory: bundleDecisionStory,
+    sourceLabel: bundleSourceLabel,
+    currentSlotIndex: bundleCurrentSlotIndex,
+    slotCount: bundleSlotCount,
+    handoverCount: bundleHandoverCount,
+    assumptionCount: bundleAssumptions.length,
+    dashboardKpis: bundleDashboardKpis,
+    provenanceLegend: bundleProvenanceLegend,
+    provenanceFields: bundleProvenanceFields,
+    replayTrendSeries: bundleReplayTrendSeries,
+  };
+  const bundleMetadataPanelProps = {
+    visible: showBundleMetadata,
+    bundleSummary,
+    trainingEvalSummary: bundleTrainingEvalSummary,
+    assumptions: bundleAssumptions,
+    provenanceLegend: bundleProvenanceLegend,
+    provenanceFields: bundleProvenanceFields,
+  };
+  const bundleControlPanelProps = {
+    bundleLoadError: bundleControls?.error ?? null,
+    bundleIsLoading: bundleControls?.isLoading ?? false,
+    bundleLoadState: bundleControls?.loadState ?? 'boot-loading-sample',
+    bundleSourceKind: bundleControls?.sourceKind ?? 'sample',
+    bundleSourceLabel,
+    bundleCurrentSlotIndex,
+    bundleSlotCount: bundleSlotCount ?? 0,
+    onLoadExternalBundleDirectory: bundleControls?.loadExternalDirectory,
+    onResetBundleSource: bundleControls?.resetToSample,
+    onBundleStepBackward: bundleControls?.stepBackward,
+    onBundleStepForward: bundleControls?.stepForward,
+  };
 
   const primaryUe = sceneSnapshot?.ues[0];
   const autoSlowActive = !isBundleMode && Boolean(
@@ -210,23 +295,18 @@ export function SceneShell() {
       <Starfield starCount={180} />
       {hudData && !isBundleMode && <SimHud {...hudData} />}
       {isBundleMode && (
-        <ModqnBaselineCompactPanel
-          visible
-          snapshot={sceneSnapshot}
-          continuityNarrative={presentationFrame?.continuityNarrative ?? null}
-          bundleSummary={bundleSummary}
-          trainingEvalSummary={bundleTrainingEvalSummary}
-          trainingEvidence={bundleTrainingEvidence}
-          decisionStory={bundleDecisionStory}
-          sourceLabel={hudData?.truthSourceLabel ?? bundleSummary?.sourceLabel ?? 'sample-bundle-v1'}
-          currentSlotIndex={hudData?.bundleSlotIndex ?? null}
-          slotCount={hudData?.bundleSlotCount ?? bundleSummary?.slotCount ?? null}
-          handoverCount={hudData?.handoverCount ?? 0}
-          assumptionCount={bundleAssumptions.length}
-          provenanceLegend={bundleProvenanceLegend}
-          provenanceFields={bundleProvenanceFields}
+        <BundleTruthHud
+          currentSlotIndex={bundleCurrentSlotIndex}
+          slotCount={bundleSlotCount}
+          sourceLabel={bundleSourceLabel}
+          servingSatId={bundleReplayTruth?.servingSatId ?? sceneSnapshot?.ues[0]?.servingSatId ?? null}
+          servingBeamId={bundleReplayTruth?.servingBeamId ?? sceneSnapshot?.ues[0]?.servingBeamId ?? null}
+          handoverCount={bundleHandoverCount}
+          handoverKind={bundleReplayTruth?.handoverKind ?? null}
+          continuityNarrative={bundleContinuityNarrative}
         />
       )}
+      {isBundleMode && <ModqnBaselineCompactPanel {...bundleCompactPanelProps} />}
       {!isBundleMode && (
         <HandoverExplainabilityPanel
           snapshot={sceneSnapshot}
@@ -253,16 +333,7 @@ export function SceneShell() {
           visible={showParameters && !showBaselineResults}
         />
       )}
-      {isBundleMode && (
-        <ModqnBundleMetadataPanel
-          visible={showBundleMetadata}
-          bundleSummary={bundleSummary}
-          trainingEvalSummary={bundleTrainingEvalSummary}
-          assumptions={bundleAssumptions}
-          provenanceLegend={bundleProvenanceLegend}
-          provenanceFields={bundleProvenanceFields}
-        />
-      )}
+      {isBundleMode && <ModqnBundleMetadataPanel {...bundleMetadataPanelProps} />}
       {!isBundleMode && showBaselineResults && (
         <BaselineResultPanel
           profileId={profileId}
@@ -303,11 +374,7 @@ export function SceneShell() {
         onHoTypeOverrideChange={setHoTypeOverride}
         profileId={profileId}
         onProfileChange={setProfileId}
-        bundleSourceLabel={hudData?.truthSourceLabel ?? bundleSummary?.sourceLabel ?? 'sample-bundle-v1'}
-        bundleCurrentSlotIndex={hudData?.bundleSlotIndex ?? null}
-        bundleSlotCount={hudData?.bundleSlotCount ?? bundleSummary?.slotCount ?? 0}
-        onBundleStepBackward={bundleControls?.stepBackward}
-        onBundleStepForward={bundleControls?.stepForward}
+        {...bundleControlPanelProps}
       />
       <Canvas
         frameloop="demand"

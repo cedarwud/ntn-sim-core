@@ -75,6 +75,7 @@ export interface ModqnDecisionStoryView {
   visibleBeamCount: number;
   validActionCount: number;
   totalActionCount: number;
+  maskSource: 'decision' | 'runtime-fallback';
   scalarReward: number;
   rewardVector: {
     throughput: number;
@@ -99,6 +100,46 @@ export interface ModqnTrainingEvidenceView {
   loadBalanceLossSeries: number[];
   trainingObjectivesFigureUrl: string | null;
   trainingScalarRewardFigureUrl: string | null;
+}
+
+export interface ModqnReplayTrendPointView {
+  frameIndex: number;
+  slotIndex: number;
+  timeSec: number;
+  scalarReward: number;
+  throughputMbps: number;
+  selectedBeamLoad: number;
+  visibleSatelliteCount: number;
+  validActionCount: number;
+  totalActionCount: number;
+  validActionRatio: number;
+  maskSource: 'decision' | 'runtime-fallback';
+  cumulativeHandovers: number;
+}
+
+export interface ModqnDashboardKpiView {
+  currentSlotIndex: number;
+  slotCount: number;
+  replayProgressFraction: number;
+  timelineSpanSec: number;
+  cumulativeHandovers: number;
+  currentScalarReward: number;
+  currentThroughputMbps: number;
+  currentActionCoverage: number;
+  meanScalarRewardToDate: number | null;
+  meanThroughputMbpsToDate: number | null;
+}
+
+export interface ModqnReplayTruthView {
+  currentSlotIndex: number;
+  slotCount: number;
+  servingSatId: string;
+  servingBeamId: string;
+  previousServingSatId: string | null;
+  previousServingBeamId: string | null;
+  handoverKind: string;
+  handoverOccurred: boolean;
+  cumulativeHandovers: number;
 }
 
 export interface ModqnAssumptionView {
@@ -168,6 +209,11 @@ function countDistinctSatIdsForMask(
 function countMask(mask: boolean[] | null): number {
   if (!mask) return 0;
   return mask.filter(Boolean).length;
+}
+
+function computeMean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function getUserBeamRole(
@@ -504,10 +550,13 @@ export class ModqnBundleReplayViewModel {
   public getDecisionStory(index: number): ModqnDecisionStoryView {
     const frame = this.getFrame(index);
     const primaryUser = getPrimaryUser(frame);
-    const decisionVisibilityMask =
-      primaryUser.decisionVisibilityMask ?? primaryUser.visibilityMask;
+    const decisionVisibilityMask = primaryUser.decisionVisibilityMask ?? primaryUser.visibilityMask;
     const decisionActionValidityMask =
       primaryUser.decisionActionValidityMask ?? primaryUser.actionValidityMask;
+    const maskSource = primaryUser.decisionVisibilityMask !== null
+      && primaryUser.decisionActionValidityMask !== null
+      ? 'decision'
+      : 'runtime-fallback';
 
     return {
       slotIndex: frame.slotIndex,
@@ -519,10 +568,11 @@ export class ModqnBundleReplayViewModel {
       selectedSatId: primaryUser.selectedServing.satId,
       selectedBeamId: primaryUser.selectedServing.beamId,
       selectedLocalBeamIndex: primaryUser.selectedServing.localBeamIndex,
-      visibleSatelliteCount: countDistinctSatIdsForMask(frame, decisionVisibilityMask),
-      visibleBeamCount: countMask(decisionVisibilityMask),
-      validActionCount: countMask(decisionActionValidityMask),
+      visibleSatelliteCount: countDistinctSatIdsForMask(frame, decisionVisibilityMask ?? null),
+      visibleBeamCount: countMask(decisionVisibilityMask ?? null),
+      validActionCount: countMask(decisionActionValidityMask ?? null),
       totalActionCount: frame.beamStates.length,
+      maskSource,
       scalarReward: primaryUser.scalarReward,
       rewardVector: {
         throughput: primaryUser.rewardVector.r1Throughput,
@@ -560,6 +610,82 @@ export class ModqnBundleReplayViewModel {
         .filter((value): value is number => value !== null && Number.isFinite(value)),
       trainingObjectivesFigureUrl: this.bundle.artifactUrls?.trainingObjectivesFigureUrl ?? null,
       trainingScalarRewardFigureUrl: this.bundle.artifactUrls?.trainingScalarRewardFigureUrl ?? null,
+    };
+  }
+
+  public getReplayTrendSeries(): ModqnReplayTrendPointView[] {
+    let cumulativeHandovers = 0;
+    return this.bundle.frames.map((frame, frameIndex) => {
+      const decisionStory = this.getDecisionStory(frameIndex);
+      if (decisionStory.handoverOccurred) {
+        cumulativeHandovers += 1;
+      }
+      return {
+        frameIndex,
+        slotIndex: decisionStory.slotIndex,
+        timeSec: decisionStory.timeSec,
+        scalarReward: decisionStory.scalarReward,
+        throughputMbps: decisionStory.userThroughputBps / 1_000_000,
+        selectedBeamLoad: decisionStory.selectedBeamLoad,
+        visibleSatelliteCount: decisionStory.visibleSatelliteCount,
+        validActionCount: decisionStory.validActionCount,
+        totalActionCount: decisionStory.totalActionCount,
+        validActionRatio: decisionStory.totalActionCount > 0
+          ? decisionStory.validActionCount / decisionStory.totalActionCount
+          : 0,
+        maskSource: decisionStory.maskSource,
+        cumulativeHandovers,
+      };
+    });
+  }
+
+  public getDashboardKpis(index: number): ModqnDashboardKpiView {
+    const series = this.getReplayTrendSeries();
+    const frameCount = series.length;
+    if (frameCount === 0) {
+      return {
+        currentSlotIndex: 0,
+        slotCount: 0,
+        replayProgressFraction: 0,
+        timelineSpanSec: 0,
+        cumulativeHandovers: 0,
+        currentScalarReward: 0,
+        currentThroughputMbps: 0,
+        currentActionCoverage: 0,
+        meanScalarRewardToDate: null,
+        meanThroughputMbpsToDate: null,
+      };
+    }
+
+    const clamped = Math.max(0, Math.min(index, frameCount - 1));
+    const current = series[clamped];
+    const visibleWindow = series.slice(0, clamped + 1);
+    return {
+      currentSlotIndex: current.slotIndex,
+      slotCount: frameCount,
+      replayProgressFraction: frameCount > 1 ? clamped / (frameCount - 1) : 1,
+      timelineSpanSec: Math.max(0, this.bundle.frames[frameCount - 1].timeSec - this.bundle.frames[0].timeSec),
+      cumulativeHandovers: current.cumulativeHandovers,
+      currentScalarReward: current.scalarReward,
+      currentThroughputMbps: current.throughputMbps,
+      currentActionCoverage: current.validActionRatio,
+      meanScalarRewardToDate: computeMean(visibleWindow.map((point) => point.scalarReward)),
+      meanThroughputMbpsToDate: computeMean(visibleWindow.map((point) => point.throughputMbps)),
+    };
+  }
+
+  public getReplayTruth(index: number): ModqnReplayTruthView {
+    const decisionStory = this.getDecisionStory(index);
+    return {
+      currentSlotIndex: decisionStory.slotIndex,
+      slotCount: this.getFrameCount(),
+      servingSatId: decisionStory.selectedSatId,
+      servingBeamId: decisionStory.selectedBeamId,
+      previousServingSatId: decisionStory.previousServingSatId,
+      previousServingBeamId: decisionStory.previousServingBeamId,
+      handoverKind: decisionStory.handoverKind,
+      handoverOccurred: decisionStory.handoverOccurred,
+      cumulativeHandovers: this.getCumulativeHandoverCount(index),
     };
   }
 

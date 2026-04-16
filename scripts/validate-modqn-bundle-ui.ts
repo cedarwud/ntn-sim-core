@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VAL-MODQN-BUNDLE-002: MODQN bundle replay UI validation.
+ * VAL-MODQN-BUNDLE-002 / 003 / 004: MODQN bundle replay UI validation.
  *
  * Covers:
  *   - 002A mode switch changes the active truth source, not just labels
@@ -8,15 +8,29 @@
  *   - 002C bundle-driven beam/link presentation loads through the shared viz path
  *   - 002D assumptions / provenance / training-eval disclosure is visible and
  *          not mislabeled as native simulator defaults
+ *   - 002E browser-side valid external-directory load succeeds
+ *   - 002F replay-incomplete external-directory load fails explicitly
+ *   - 002G invalid external-directory load does not poison the current valid truth
+ *   - 002H reset-to-sample restores the shipped baseline and revokes blob URLs
+ *   - 003A first-screen story-dashboard obligations remain visible
+ *   - 003B bundle-backed charts and KPI strip render from existing data
+ *   - 003C disclosure metadata panel remains distinct from the story layer
+ *   - 003D sample and external bundles both reach the same dashboard path
+ *   - 004A dashboard / HUD / probe serving-slot indicators stay aligned
+ *   - 004B handover narration and cumulative counts track exported replay truth
+ *   - 004C shared beam/link presentation stays bundle-truth-driven
+ *   - 004D a non-trivial external bundle variant drives distinct accepted truth
  *
  * Governance:
  *   - sdd/modqn-bundle-replay-ui-sdd.md
  *   - sdd/modqn-bundle-replay-consumer-sdd.md
+ *   - sdd/modqn-replay-truth-hardening-follow-on.md
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { chromium, type Browser, type Page } from 'playwright-core';
@@ -34,6 +48,8 @@ const BASE_PORT = 4173;
 const BASE_URL = `http://127.0.0.1:${BASE_PORT}`;
 const MODQN_BUNDLE_PROFILE_ID = 'modqn-bundle-replay';
 const SAMPLE_BUNDLE_ROOT = resolve(ROOT, 'fixtures/sample-bundle-v1');
+const EXTERNAL_SCALAR_FIGURE_ALT = 'Producer-exported MODQN scalar reward training figure';
+const EXTERNAL_OBJECTIVES_FIGURE_ALT = 'Producer-exported MODQN objective training figure';
 
 let failures = 0;
 
@@ -181,15 +197,480 @@ async function readSampleBundleFiles(): Promise<Record<string, string>> {
 }
 
 async function readFirstTimelineRow(): Promise<ModqnTimelineRow> {
+  const rows = await readSampleTimelineRows();
+  return rows[0];
+}
+
+async function readSampleTimelineRows(): Promise<ModqnTimelineRow[]> {
   const timelineText = await readFile(
     resolve(SAMPLE_BUNDLE_ROOT, 'timeline/step-trace.jsonl'),
     'utf8',
   );
-  const firstLine = timelineText.split('\n').find((line) => line.trim().length > 0);
-  if (!firstLine) {
+  const rows = timelineText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as ModqnTimelineRow);
+  if (rows.length === 0) {
     throw new Error('sample bundle timeline is empty');
   }
-  return JSON.parse(firstLine) as ModqnTimelineRow;
+  return rows;
+}
+
+async function createExternalBundleDirectory(
+  folderName: string,
+  mutate?: (bundleDir: string) => Promise<void>,
+): Promise<{ cleanup: () => Promise<void>; dir: string; sourceLabel: string }> {
+  const tempRoot = await mkdtemp(resolve(tmpdir(), 'modqn-bundle-ui-'));
+  const bundleDir = resolve(tempRoot, folderName);
+  await cp(SAMPLE_BUNDLE_ROOT, bundleDir, { recursive: true });
+  if (mutate) {
+    await mutate(bundleDir);
+  }
+  return {
+    cleanup: () => rm(tempRoot, { force: true, recursive: true }),
+    dir: bundleDir,
+    sourceLabel: basename(bundleDir),
+  };
+}
+
+async function createValidExternalBundleDirectory(options?: {
+  folderName?: string;
+  runId?: string;
+  sampleNote?: string;
+}) {
+  const {
+    folderName = 'slice2-valid-external-bundle',
+    runId = 'slice2-external-valid-run',
+    sampleNote = 'validator external-directory copy',
+  } = options ?? {};
+  return createExternalBundleDirectory(
+    folderName,
+    async (bundleDir) => {
+      const manifestPath = resolve(bundleDir, 'manifest.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+      manifest.runId = runId;
+      manifest.sampleNote = sampleNote;
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+    },
+  );
+}
+
+async function createReplayIncompleteExternalBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice2-replay-incomplete-bundle',
+    async (bundleDir) => {
+      const manifestPath = resolve(bundleDir, 'manifest.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+      const coordinateFrame = {
+        ...(manifest.coordinateFrame as Record<string, unknown>),
+      };
+      delete coordinateFrame.groundPoint;
+      manifest.coordinateFrame = coordinateFrame;
+      manifest.runId = 'slice2-replay-incomplete-run';
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+    },
+  );
+}
+
+async function createInvalidExternalBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice2-invalid-bundle',
+    async (bundleDir) => {
+      await writeFile(
+        resolve(bundleDir, 'manifest.json'),
+        '{"bundleSchemaVersion": ',
+        'utf8',
+      );
+    },
+  );
+}
+
+function updateBeamMask(
+  row: ModqnTimelineRow,
+  satId: string,
+  visible: boolean,
+) {
+  row.beamStates.forEach((beam, beamIndex) => {
+    if (beam.satId !== satId) return;
+    row.visibilityMask[beamIndex] = visible;
+    row.actionValidityMask[beamIndex] = visible;
+    if (row.decisionVisibilityMask) {
+      row.decisionVisibilityMask[beamIndex] = visible;
+    }
+    if (row.decisionActionValidityMask) {
+      row.decisionActionValidityMask[beamIndex] = visible;
+    }
+  });
+}
+
+function findBeamSelection(
+  row: ModqnTimelineRow,
+  satId: string,
+  localBeamIndex: number,
+) {
+  const beam = row.beamStates.find(
+    (candidate) => candidate.satId === satId && candidate.localBeamIndex === localBeamIndex,
+  );
+  if (!beam) {
+    throw new Error(`missing beam for ${satId} localBeamIndex=${localBeamIndex}`);
+  }
+  return {
+    beamId: beam.beamId,
+    beamIndex: beam.beamIndex,
+    satId: beam.satId,
+    satIndex: beam.satIndex,
+    localBeamIndex: beam.localBeamIndex,
+    validUnderDecisionMask: true,
+    validUnderPostStepMask: true,
+  };
+}
+
+function updateKpiOverlayForSelection(row: ModqnTimelineRow) {
+  const beamIndex = row.selectedServing.beamIndex;
+  row.kpiOverlay = {
+    ...row.kpiOverlay,
+    handoverOccurred: row.handoverEvent.kind !== 'none',
+    selectedBeamLoad: row.beamLoads[beamIndex] ?? row.kpiOverlay.selectedBeamLoad,
+    selectedBeamThroughputBps: row.beamThroughputs[beamIndex] ?? row.kpiOverlay.selectedBeamThroughputBps,
+  };
+}
+
+function mirrorSatelliteGeometry(
+  row: ModqnTimelineRow,
+  sourceSatId: string,
+  targetSatId: string,
+) {
+  const sourceSatellite = row.satelliteStates.find((sat) => sat.satId === sourceSatId);
+  const targetSatellite = row.satelliteStates.find((sat) => sat.satId === targetSatId);
+  if (!sourceSatellite || !targetSatellite) {
+    throw new Error(`missing satellite geometry for ${sourceSatId} -> ${targetSatId}`);
+  }
+
+  targetSatellite.positionEciKm = { ...sourceSatellite.positionEciKm };
+  targetSatellite.subSatellitePoint = { ...sourceSatellite.subSatellitePoint };
+
+  const sourceBeamsByLocalIndex = new Map(
+    row.beamStates
+      .filter((beam) => beam.satId === sourceSatId)
+      .map((beam) => [beam.localBeamIndex, beam] as const),
+  );
+
+  for (const beam of row.beamStates) {
+    if (beam.satId !== targetSatId) continue;
+    const sourceBeam = sourceBeamsByLocalIndex.get(beam.localBeamIndex);
+    if (!sourceBeam) continue;
+    beam.centerPosition = { ...sourceBeam.centerPosition };
+    beam.centerLocalTangentKm = { ...sourceBeam.centerLocalTangentKm };
+  }
+}
+
+async function createDistinctTruthExternalBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice4-distinct-truth-bundle',
+    async (bundleDir) => {
+      const manifestPath = resolve(bundleDir, 'manifest.json');
+      const timelinePath = resolve(bundleDir, 'timeline/step-trace.jsonl');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+      const rows = (await readFile(timelinePath, 'utf8'))
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as ModqnTimelineRow);
+
+      if (rows.length < 3) {
+        throw new Error('distinct-truth validator bundle expects at least 3 slots');
+      }
+
+      for (const row of rows) {
+        mirrorSatelliteGeometry(row, 'sat-0', 'sat-1');
+        updateBeamMask(row, 'sat-1', true);
+      }
+
+      rows[0].previousServing = findBeamSelection(rows[0], 'sat-0', 4);
+      rows[0].selectedServing = findBeamSelection(rows[0], 'sat-1', 2);
+      rows[0].handoverEvent = {
+        kind: 'inter-satellite-handover',
+        eventId: 'slice4-distinct-slot-1',
+      };
+      updateKpiOverlayForSelection(rows[0]);
+
+      rows[1].previousServing = findBeamSelection(rows[1], 'sat-1', 2);
+      rows[1].selectedServing = findBeamSelection(rows[1], 'sat-1', 5);
+      rows[1].handoverEvent = {
+        kind: 'intra-satellite-beam-switch',
+        eventId: 'slice4-distinct-slot-2',
+      };
+      updateKpiOverlayForSelection(rows[1]);
+
+      for (const row of rows.slice(2)) {
+        row.previousServing = findBeamSelection(row, 'sat-1', 5);
+        row.selectedServing = findBeamSelection(row, 'sat-1', 5);
+        row.handoverEvent = {
+          kind: 'none',
+          eventId: null,
+        };
+        updateKpiOverlayForSelection(row);
+      }
+
+      manifest.runId = 'slice4-distinct-truth-run';
+      manifest.sampleNote = 'validator non-trivial external truth variant';
+      const replaySummary = manifest.replaySummary !== null && typeof manifest.replaySummary === 'object'
+        ? manifest.replaySummary as Record<string, unknown>
+        : {};
+      replaySummary.handoverEventCount = rows.filter((row) => row.handoverEvent.kind !== 'none').length;
+      manifest.replaySummary = replaySummary;
+
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+      await writeFile(
+        timelinePath,
+        `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+    },
+  );
+}
+
+async function setExternalBundleDirectory(page: Page, bundleDir: string) {
+  await page.locator('[data-testid="external-bundle-input"]').setInputFiles(bundleDir);
+}
+
+async function waitForBundleSourceLabel(page: Page, expectedSourceLabel: string) {
+  await page.waitForFunction((label) => {
+    return document
+      .querySelector('[data-testid="bundle-source-label"]')
+      ?.textContent?.trim() === label;
+  }, expectedSourceLabel, { timeout: 30_000 });
+}
+
+async function waitForBundleLoadError(page: Page, previousText: string | null = null) {
+  await page.waitForFunction((previous) => {
+    const next = document
+      .querySelector('[data-testid="bundle-load-error"]')
+      ?.textContent
+      ?.trim();
+    if (!next) return false;
+    return previous === null ? true : next !== previous;
+  }, previousText, { timeout: 30_000 });
+}
+
+async function readTrainingFigureSrc(page: Page, altText: string): Promise<string> {
+  return (await page.getByAltText(altText).getAttribute('src')) ?? '';
+}
+
+function parseSlotText(value: string): { current: number; total: number } {
+  const match = value.match(/(\d+)\s*\/\s*(\d+)/);
+  if (!match) {
+    throw new Error(`could not parse slot indicator from "${value}"`);
+  }
+  return {
+    current: Number.parseInt(match[1], 10),
+    total: Number.parseInt(match[2], 10),
+  };
+}
+
+function parseInteger(value: string): number | null {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function countExpectedHandovers(rows: ModqnTimelineRow[], inclusiveFrameIndex: number): number {
+  return rows
+    .slice(0, inclusiveFrameIndex + 1)
+    .filter((row) => row.handoverEvent.kind !== 'none')
+    .length;
+}
+
+function formatHandoverKind(kind: string): string {
+  if (!kind) return 'Not specified';
+  return kind
+    .split(/[-_]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatReplayNarrativeLabel(kind: string): string {
+  switch (kind) {
+    case 'inter-satellite-handover':
+      return 'Inter-satellite handover';
+    case 'intra-satellite-beam-switch':
+      return 'Intra-satellite beam switch';
+    case 'none':
+    default:
+      return 'Stable serving';
+  }
+}
+
+async function readBundleTruthAlignment(page: Page) {
+  const dashboardSlot = parseSlotText(await getByTestIdText(page, 'bundle-dashboard-slot'));
+  const hudSlot = parseSlotText(await getByTestIdText(page, 'bundle-hud-slot'));
+  const probeSlotCurrent = parseInteger(
+    await getByTestIdAttr(page, 'validation-runtime', 'data-bundle-slot-index'),
+  );
+  const probeSlotTotal = parseInteger(
+    await getByTestIdAttr(page, 'validation-runtime', 'data-bundle-slot-count'),
+  );
+  const probeHandoverCount = parseInteger(
+    await getByTestIdAttr(page, 'validation-runtime', 'data-handover-count'),
+  );
+
+  return {
+    dashboardSlot,
+    hudSlot,
+    probeSlotCurrent,
+    probeSlotTotal,
+    dashboardServingSat: await getByTestIdText(page, 'bundle-dashboard-serving-sat'),
+    hudServingSat: await getByTestIdText(page, 'bundle-hud-serving-sat'),
+    probeServingSat: await getByTestIdAttr(page, 'validation-runtime', 'data-serving-sat-id'),
+    dashboardServingBeam: await getByTestIdText(page, 'bundle-dashboard-serving-beam'),
+    hudServingBeam: await getByTestIdText(page, 'bundle-hud-serving-beam'),
+    probeServingBeam: await getByTestIdAttr(page, 'validation-runtime', 'data-serving-beam-id'),
+    dashboardNarrativeLabel: await getByTestIdText(page, 'bundle-dashboard-narrative-label'),
+    hudNarrativeLabel: await getByTestIdText(page, 'bundle-hud-narrative-label'),
+    hudScenePhase: await getByTestIdAttr(page, 'bundle-hud-narrative-label', 'data-scene-phase'),
+    dashboardHandoverKind: await getByTestIdText(page, 'bundle-dashboard-handover-kind'),
+    hudHandoverKind: await getByTestIdText(page, 'bundle-hud-handover-kind'),
+    probeHandoverKind: await getByTestIdAttr(page, 'validation-runtime', 'data-bundle-handover-kind'),
+    dashboardHandoverCount: parseInteger(await getByTestIdText(page, 'bundle-dashboard-handover-count')),
+    hudHandoverCount: parseInteger(await getByTestIdText(page, 'bundle-hud-handover-count')),
+    probeHandoverCount,
+    presentationNarrativePhase: await getByTestIdAttr(
+      page,
+      'validation-presentation-frame',
+      'data-narrative-phase',
+    ),
+    primaryBeamBySatId: parseJsonAttr<Record<string, string>>(
+      await getByTestIdAttr(page, 'validation-presentation-frame', 'data-primary-beam-by-sat-id'),
+    ),
+    beamRoleByKey: parseJsonAttr<Record<string, string>>(
+      await getByTestIdAttr(page, 'validation-snapshot-beam-truth', 'data-beam-role-by-key'),
+    ),
+    beamActiveByKey: parseJsonAttr<Record<string, boolean>>(
+      await getByTestIdAttr(page, 'validation-snapshot-beam-truth', 'data-beam-active-by-key'),
+    ),
+    handoverStyleKeys: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'validation-handover-links', 'data-style-keys'),
+    ),
+    visibleSatelliteIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'validation-runtime', 'data-visible-satellite-ids'),
+    ),
+  };
+}
+
+function validateTruthSurfaceAgainstRow(
+  labelPrefix: string,
+  alignment: Awaited<ReturnType<typeof readBundleTruthAlignment>>,
+  expectedRow: ModqnTimelineRow,
+  expectedHandoverCount: number,
+) {
+  const expectedSlot = expectedRow.slotIndex;
+  const expectedTotalSlots = alignment.probeSlotTotal ?? alignment.dashboardSlot.total;
+  const expectedServingKey = `${expectedRow.selectedServing.satId}:${expectedRow.selectedServing.beamId}`;
+  const expectedPreviousKey = `${expectedRow.previousServing.satId}:${expectedRow.previousServing.beamId}`;
+  const expectedHandoverKind = formatHandoverKind(expectedRow.handoverEvent.kind);
+  const expectedNarrativeLabel = formatReplayNarrativeLabel(expectedRow.handoverEvent.kind);
+  const expectsHandoverNarrative = expectedRow.handoverEvent.kind !== 'none';
+
+  check(
+    `${labelPrefix} slot indicators aligned across dashboard / HUD / probe`,
+    alignment.dashboardSlot.current === expectedSlot
+      && alignment.hudSlot.current === expectedSlot
+      && alignment.probeSlotCurrent === expectedSlot
+      && alignment.dashboardSlot.total === expectedTotalSlots
+      && alignment.hudSlot.total === expectedTotalSlots,
+    JSON.stringify({
+      dashboard: alignment.dashboardSlot,
+      hud: alignment.hudSlot,
+      probe: {
+        current: alignment.probeSlotCurrent,
+        total: alignment.probeSlotTotal,
+      },
+    }),
+  );
+  check(
+    `${labelPrefix} serving satellite and beam stay aligned across dashboard / HUD / probe`,
+    alignment.dashboardServingSat === expectedRow.selectedServing.satId
+      && alignment.hudServingSat === expectedRow.selectedServing.satId
+      && alignment.probeServingSat === expectedRow.selectedServing.satId
+      && alignment.dashboardServingBeam === expectedRow.selectedServing.beamId
+      && alignment.hudServingBeam === expectedRow.selectedServing.beamId
+      && alignment.probeServingBeam === expectedRow.selectedServing.beamId,
+    JSON.stringify({
+      dashboard: {
+        sat: alignment.dashboardServingSat,
+        beam: alignment.dashboardServingBeam,
+      },
+      hud: {
+        sat: alignment.hudServingSat,
+        beam: alignment.hudServingBeam,
+      },
+      probe: {
+        sat: alignment.probeServingSat,
+        beam: alignment.probeServingBeam,
+      },
+    }),
+  );
+  check(
+    `${labelPrefix} handover narration and cumulative counts stay tied to exported replay truth`,
+    alignment.dashboardHandoverKind === expectedHandoverKind
+      && alignment.hudHandoverKind === expectedHandoverKind
+      && alignment.probeHandoverKind === expectedRow.handoverEvent.kind
+      && alignment.dashboardHandoverCount === expectedHandoverCount
+      && alignment.hudHandoverCount === expectedHandoverCount
+      && alignment.probeHandoverCount === expectedHandoverCount
+      && alignment.dashboardNarrativeLabel === expectedNarrativeLabel
+      && alignment.hudNarrativeLabel === expectedNarrativeLabel
+      && (expectsHandoverNarrative
+        ? alignment.presentationNarrativePhase.length > 0
+        : true),
+    JSON.stringify({
+      dashboard: {
+        kind: alignment.dashboardHandoverKind,
+        count: alignment.dashboardHandoverCount,
+        narrative: alignment.dashboardNarrativeLabel,
+      },
+      hud: {
+        kind: alignment.hudHandoverKind,
+        count: alignment.hudHandoverCount,
+        narrative: alignment.hudNarrativeLabel,
+        scenePhase: alignment.hudScenePhase,
+      },
+      probe: {
+        kind: alignment.probeHandoverKind,
+        count: alignment.probeHandoverCount,
+        phase: alignment.presentationNarrativePhase,
+      },
+    }),
+  );
+  check(
+    `${labelPrefix} shared beam/link presentation remains bundle-truth-driven`,
+    alignment.primaryBeamBySatId[expectedRow.selectedServing.satId] === expectedRow.selectedServing.beamId
+      && alignment.beamRoleByKey[expectedServingKey] === 'serving'
+      && alignment.beamActiveByKey[expectedServingKey] === true
+      && (!expectsHandoverNarrative
+        || (
+          alignment.beamRoleByKey[expectedPreviousKey] === 'post-ho'
+          && alignment.handoverStyleKeys.includes('postHo')
+        )),
+    JSON.stringify({
+      primaryBeamBySatId: alignment.primaryBeamBySatId,
+      servingRole: alignment.beamRoleByKey[expectedServingKey],
+      previousRole: alignment.beamRoleByKey[expectedPreviousKey],
+      handoverStyleKeys: alignment.handoverStyleKeys,
+    }),
+  );
+}
+
+async function canFetchObjectUrl(page: Page, objectUrl: string): Promise<boolean> {
+  return page.evaluate(async (url) => {
+    try {
+      const response = await fetch(url);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }, objectUrl);
 }
 
 async function validatePresentationGuard() {
@@ -389,6 +870,10 @@ async function validateBundleMode(page: Page) {
       && provenanceText.includes('must not relabel them as native defaults'),
     'assumption/provenance copy present',
   );
+  await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+  await page.waitForFunction(() => {
+    return document.querySelector('[data-testid="bundle-metadata-panel"]') === null;
+  }, undefined, { timeout: 15_000 });
 
   await page.locator('[data-testid="bundle-step-forward"]').click();
   await page.waitForFunction((previousSlot) => {
@@ -423,6 +908,100 @@ async function validateBundleMode(page: Page) {
     observedHandover,
     observedHandover ? 'handovers > 0 reached during slot stepping' : 'no handover observed within sample bundle window',
   );
+}
+
+async function validateStoryDashboard(page: Page) {
+  const validExternalBundle = await createValidExternalBundleDirectory({
+    folderName: 'slice3-valid-external-dashboard-bundle',
+    runId: 'slice3-external-dashboard-run',
+    sampleNote: 'validator story dashboard copy',
+  });
+
+  try {
+    console.log('\n== VAL-MODQN-BUNDLE-003A/B/C/D ==');
+
+    await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
+    const dashboardText = await getByTestIdText(page, 'bundle-story-dashboard');
+    const kpiStripText = await getByTestIdText(page, 'bundle-kpi-strip');
+    const trainingPanelText = await getByTestIdText(page, 'bundle-training-chart-panel');
+    const decisionPanelText = await getByTestIdText(page, 'bundle-decision-story-panel');
+    const dashboardTextLower = dashboardText.toLowerCase();
+    const kpiStripTextLower = kpiStripText.toLowerCase();
+    const trainingPanelTextLower = trainingPanelText.toLowerCase();
+    const decisionPanelTextLower = decisionPanelText.toLowerCase();
+    const trainingImageCount = await page.locator('[data-testid="bundle-training-chart-panel"] img').count();
+    const trainingSvgCount = await page.locator('[data-testid="bundle-training-chart-panel"] svg').count();
+    const decisionSvgCount = await page.locator('[data-testid="bundle-decision-story-panel"] svg').count();
+
+    check(
+      'VAL-MODQN-BUNDLE-003A first-screen story dashboard keeps the required bundle obligations visible',
+      dashboardTextLower.includes('truth source: modqn bundle')
+        && kpiStripTextLower.includes('paper / run / checkpoint')
+        && kpiStripTextLower.includes('source label')
+        && kpiStripTextLower.includes('replay truth mode')
+        && dashboardTextLower.includes('current slot / total slots')
+        && dashboardTextLower.includes('serving satellite')
+        && dashboardTextLower.includes('primary sinr')
+        && kpiStripTextLower.includes('cumulative handovers')
+        && kpiStripTextLower.includes('disclosure summary'),
+      dashboardText,
+    );
+    check(
+      'VAL-MODQN-BUNDLE-003B bundle-backed charts and KPI strip render from the existing projector data',
+      trainingPanelTextLower.includes('scalar reward track')
+        && trainingPanelTextLower.includes('three-objective training track')
+        && kpiStripTextLower.includes('current throughput')
+        && decisionPanelTextLower.includes('scalar reward across replay')
+        && decisionPanelTextLower.includes('valid action coverage')
+        && (trainingImageCount + trainingSvgCount) >= 1
+        && decisionSvgCount >= 3,
+      [
+        `trainingImageCount=${trainingImageCount}`,
+        `trainingSvgCount=${trainingSvgCount}`,
+        `decisionSvgCount=${decisionSvgCount}`,
+      ].join(', '),
+    );
+
+    const metadataPanelCountBefore = await page.locator('[data-testid="bundle-metadata-panel"]').count();
+    await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+    await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
+    const metadataPanelCountAfter = await page.locator('[data-testid="bundle-metadata-panel"]').count();
+    const dashboardContainsMetadata = await page.evaluate(() => {
+      const dashboard = document.querySelector('[data-testid="bundle-story-dashboard"]');
+      const metadata = document.querySelector('[data-testid="bundle-metadata-panel"]');
+      return Boolean(dashboard && metadata && dashboard.contains(metadata));
+    });
+    check(
+      'VAL-MODQN-BUNDLE-003C metadata/disclosure panel remains distinct from the story layer',
+      metadataPanelCountBefore === 0
+        && metadataPanelCountAfter === 1
+        && !dashboardContainsMetadata,
+      `before=${metadataPanelCountBefore}, after=${metadataPanelCountAfter}, contains=${dashboardContainsMetadata}`,
+    );
+    await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+    await page.waitForFunction(() => {
+      return document.querySelector('[data-testid="bundle-metadata-panel"]') === null;
+    }, undefined, { timeout: 15_000 });
+
+    await setExternalBundleDirectory(page, validExternalBundle.dir);
+    await waitForBundleSourceLabel(page, validExternalBundle.sourceLabel);
+    await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
+    const externalDashboardText = await getByTestIdText(page, 'bundle-story-dashboard');
+    const externalKpiStripText = await getByTestIdText(page, 'bundle-kpi-strip');
+    const externalDecisionSvgCount = await page.locator('[data-testid="bundle-decision-story-panel"] svg').count();
+    check(
+      'VAL-MODQN-BUNDLE-003D sample and external bundles both reach the same story-dashboard path',
+      externalDashboardText.includes('slice3-external-dashboard-run')
+        && externalKpiStripText.includes(validExternalBundle.sourceLabel)
+        && externalDecisionSvgCount >= 3,
+      `source=${validExternalBundle.sourceLabel}, decisionSvgCount=${externalDecisionSvgCount}`,
+    );
+
+    await page.locator('[data-testid="reset-bundle-source"]').click();
+    await waitForBundleSourceLabel(page, 'sample-bundle-v1');
+  } finally {
+    await validExternalBundle.cleanup();
+  }
 }
 
 async function validateModeSwitch(page: Page) {
@@ -482,8 +1061,217 @@ async function validateNativeUiStateRestoration(page: Page) {
   );
 }
 
+async function validateExternalBundleFlow(page: Page) {
+  const validBundle = await createValidExternalBundleDirectory();
+  const replayIncompleteBundle = await createReplayIncompleteExternalBundleDirectory();
+  const invalidBundle = await createInvalidExternalBundleDirectory();
+
+  try {
+    console.log('\n== VAL-MODQN-BUNDLE-002E/F/G/H ==');
+
+    await setExternalBundleDirectory(page, validBundle.dir);
+    await waitForBundleSourceLabel(page, validBundle.sourceLabel);
+    const runtimeTruthSourceLabel = await getByTestIdAttr(page, 'validation-runtime', 'data-truth-source-label');
+    const bundleSourceNote = await getByTestIdText(page, 'bundle-source-note');
+    const compactPanelText = await getByTestIdText(page, 'modqn-compact-panel');
+    const scalarFigureBlobUrl = await readTrainingFigureSrc(page, EXTERNAL_SCALAR_FIGURE_ALT);
+    const objectivesFigureBlobUrl = await readTrainingFigureSrc(page, EXTERNAL_OBJECTIVES_FIGURE_ALT);
+    const externalLoadErrorCount = await page.locator('[data-testid="bundle-load-error"]').count();
+
+    check(
+      'VAL-MODQN-BUNDLE-002E valid external-directory load updates source disclosure',
+      runtimeTruthSourceLabel === validBundle.sourceLabel
+        && bundleSourceNote.includes('external-directory')
+        && compactPanelText.includes('slice2-external-valid-run')
+        && externalLoadErrorCount === 0,
+      `source=${runtimeTruthSourceLabel}, note=${bundleSourceNote}`,
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002E external figures render through blob object URLs',
+      scalarFigureBlobUrl.startsWith('blob:')
+        && objectivesFigureBlobUrl.startsWith('blob:'),
+      `scalar=${scalarFigureBlobUrl}, objectives=${objectivesFigureBlobUrl}`,
+    );
+
+    await setExternalBundleDirectory(page, replayIncompleteBundle.dir);
+    await waitForBundleLoadError(page, null);
+    const replayIncompleteError = await getByTestIdText(page, 'bundle-load-error');
+    const sourceLabelAfterReplayIncomplete = await getByTestIdText(page, 'bundle-source-label');
+    const scalarFigureAfterReplayIncomplete = await readTrainingFigureSrc(page, EXTERNAL_SCALAR_FIGURE_ALT);
+    check(
+      'VAL-MODQN-BUNDLE-002F replay-incomplete external-directory bundle is rejected explicitly',
+      replayIncompleteError.includes('manifest.coordinateFrame.groundPoint'),
+      replayIncompleteError,
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002F replay-incomplete rejection keeps the last valid external truth active',
+      sourceLabelAfterReplayIncomplete === validBundle.sourceLabel
+        && scalarFigureAfterReplayIncomplete === scalarFigureBlobUrl,
+      `source=${sourceLabelAfterReplayIncomplete}, figure=${scalarFigureAfterReplayIncomplete}`,
+    );
+
+    await setExternalBundleDirectory(page, invalidBundle.dir);
+    await waitForBundleLoadError(page, replayIncompleteError);
+    const invalidLoadError = await getByTestIdText(page, 'bundle-load-error');
+    const sourceLabelAfterInvalid = await getByTestIdText(page, 'bundle-source-label');
+    const runtimeTruthSourceAfterInvalid = await getByTestIdAttr(page, 'validation-runtime', 'data-truth-source-label');
+    const objectivesFigureAfterInvalid = await readTrainingFigureSrc(page, EXTERNAL_OBJECTIVES_FIGURE_ALT);
+    check(
+      'VAL-MODQN-BUNDLE-002G invalid external-directory load fails loudly',
+      invalidLoadError.includes('manifest.json'),
+      invalidLoadError,
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002G invalid external-directory load does not poison the current valid truth',
+      sourceLabelAfterInvalid === validBundle.sourceLabel
+        && runtimeTruthSourceAfterInvalid === validBundle.sourceLabel
+        && objectivesFigureAfterInvalid === objectivesFigureBlobUrl,
+      [
+        `source=${sourceLabelAfterInvalid}`,
+        `runtime=${runtimeTruthSourceAfterInvalid}`,
+        `figure=${objectivesFigureAfterInvalid}`,
+      ].join(', '),
+    );
+
+    await page.locator('[data-testid="reset-bundle-source"]').click();
+    await waitForBundleSourceLabel(page, 'sample-bundle-v1');
+    await page.waitForFunction(() => {
+      return document.querySelector('[data-testid="bundle-load-error"]') === null;
+    }, undefined, { timeout: 30_000 });
+    const bundleSourceNoteAfterReset = await getByTestIdText(page, 'bundle-source-note');
+    const runtimeTruthSourceAfterReset = await getByTestIdAttr(page, 'validation-runtime', 'data-truth-source-label');
+    const scalarFigureAfterReset = await readTrainingFigureSrc(page, EXTERNAL_SCALAR_FIGURE_ALT);
+    const blobScalarFetchAfterReset = await canFetchObjectUrl(page, scalarFigureBlobUrl);
+    const blobObjectivesFetchAfterReset = await canFetchObjectUrl(page, objectivesFigureBlobUrl);
+
+    check(
+      'VAL-MODQN-BUNDLE-002H reset-to-sample restores the shipped bundle baseline',
+      runtimeTruthSourceAfterReset === 'sample-bundle-v1'
+        && bundleSourceNoteAfterReset.includes('sample baseline')
+        && !scalarFigureAfterReset.startsWith('blob:'),
+      `runtime=${runtimeTruthSourceAfterReset}, note=${bundleSourceNoteAfterReset}`,
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002H reset-to-sample revokes external figure object URLs',
+      !blobScalarFetchAfterReset && !blobObjectivesFetchAfterReset,
+      `scalarBlobFetch=${blobScalarFetchAfterReset}, objectivesBlobFetch=${blobObjectivesFetchAfterReset}`,
+    );
+  } finally {
+    await validBundle.cleanup();
+    await replayIncompleteBundle.cleanup();
+    await invalidBundle.cleanup();
+  }
+}
+
+async function validateReplayTruthHardening(page: Page) {
+  console.log('\n== VAL-MODQN-BUNDLE-004A/B/C/D ==');
+  const sampleRows = await readSampleTimelineRows();
+  const distinctExternalBundle = await createDistinctTruthExternalBundleDirectory();
+
+  try {
+    await page.goto(`${BASE_URL}/?mode=modqn-bundle&validate=1&paused=1&showBeams=1&showLabels=1`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
+    await page.waitForSelector('[data-testid="bundle-truth-hud"]');
+    await waitForPresent(page, 'validation-earth-moving');
+    await waitForPresent(page, 'validation-beam-info');
+    await waitForPresent(page, 'validation-handover-links');
+
+    const sampleSlot1 = await readBundleTruthAlignment(page);
+    validateTruthSurfaceAgainstRow(
+      'VAL-MODQN-BUNDLE-004A sample slot 1',
+      sampleSlot1,
+      sampleRows[0],
+      countExpectedHandovers(sampleRows, 0),
+    );
+
+    await page.locator('[data-testid="bundle-step-forward"]').click();
+    await page.waitForFunction(() => {
+      return document
+        .querySelector('[data-testid="validation-runtime"]')
+        ?.getAttribute('data-bundle-slot-index') === '2';
+    }, undefined, { timeout: 10_000 });
+    const sampleSlot2 = await readBundleTruthAlignment(page);
+    validateTruthSurfaceAgainstRow(
+      'VAL-MODQN-BUNDLE-004B sample slot 2',
+      sampleSlot2,
+      sampleRows[1],
+      countExpectedHandovers(sampleRows, 1),
+    );
+
+    await setExternalBundleDirectory(page, distinctExternalBundle.dir);
+    await waitForBundleSourceLabel(page, distinctExternalBundle.sourceLabel);
+    await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
+
+    const externalRows = (await readFile(
+      resolve(distinctExternalBundle.dir, 'timeline/step-trace.jsonl'),
+      'utf8',
+    ))
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as ModqnTimelineRow);
+
+    const externalSlot1 = await readBundleTruthAlignment(page);
+    validateTruthSurfaceAgainstRow(
+      'VAL-MODQN-BUNDLE-004D external slot 1',
+      externalSlot1,
+      externalRows[0],
+      countExpectedHandovers(externalRows, 0),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-004D non-trivial external bundle drives distinct accepted truth through the same path',
+      externalSlot1.dashboardServingSat === 'sat-1'
+        && externalSlot1.probeServingSat === 'sat-1'
+        && externalSlot1.dashboardServingBeam === 'sat-1-beam-2'
+        && externalSlot1.hudServingBeam === 'sat-1-beam-2'
+        && externalSlot1.visibleSatelliteIds.includes('sat-0')
+        && externalSlot1.visibleSatelliteIds.includes('sat-1'),
+      JSON.stringify({
+        servingSat: externalSlot1.probeServingSat,
+        servingBeam: externalSlot1.probeServingBeam,
+        visibleSatelliteIds: externalSlot1.visibleSatelliteIds,
+      }),
+    );
+
+    await page.locator('[data-testid="bundle-step-forward"]').click();
+    await page.waitForFunction(() => {
+      return document
+        .querySelector('[data-testid="validation-runtime"]')
+        ?.getAttribute('data-bundle-slot-index') === '2';
+    }, undefined, { timeout: 10_000 });
+    const externalSlot2 = await readBundleTruthAlignment(page);
+    validateTruthSurfaceAgainstRow(
+      'VAL-MODQN-BUNDLE-004D external slot 2',
+      externalSlot2,
+      externalRows[1],
+      countExpectedHandovers(externalRows, 1),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-004D external variant changes cumulative replay truth instead of falling back to sample/native assumptions',
+      externalSlot2.dashboardHandoverCount === 2
+        && externalSlot2.hudHandoverCount === 2
+        && externalSlot2.probeHandoverCount === 2
+        && externalSlot2.dashboardServingSat === 'sat-1'
+        && externalSlot2.probeServingSat === 'sat-1'
+        && externalSlot2.dashboardServingBeam === 'sat-1-beam-5',
+      JSON.stringify({
+        dashboardCount: externalSlot2.dashboardHandoverCount,
+        hudCount: externalSlot2.hudHandoverCount,
+        probeCount: externalSlot2.probeHandoverCount,
+        servingSat: externalSlot2.probeServingSat,
+        servingBeam: externalSlot2.probeServingBeam,
+      }),
+    );
+
+    await page.locator('[data-testid="reset-bundle-source"]').click();
+    await waitForBundleSourceLabel(page, 'sample-bundle-v1');
+  } finally {
+    await distinctExternalBundle.cleanup();
+  }
+}
+
 async function main() {
-  console.log('\n=== VAL-MODQN-BUNDLE-002: MODQN Bundle Replay UI ===\n');
+  console.log('\n=== VAL-MODQN-BUNDLE-002 / 003 / 004: MODQN Bundle Replay UI ===\n');
   let previewChild: ChildProcess | null = null;
   let browser: Browser | null = null;
 
@@ -504,6 +1292,9 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
 
     await validateBundleMode(page);
+    await validateStoryDashboard(page);
+    await validateReplayTruthHardening(page);
+    await validateExternalBundleFlow(page);
     await validateModeSwitch(page);
     await validateNativeUiStateRestoration(page);
   } finally {
@@ -514,11 +1305,11 @@ async function main() {
   }
 
   if (failures > 0) {
-    console.log(`\nEXIT 1 — VAL-MODQN-BUNDLE-002 failed with ${failures} issue(s)\n`);
+    console.log(`\nEXIT 1 — VAL-MODQN-BUNDLE-002 / 003 / 004 failed with ${failures} issue(s)\n`);
     process.exit(1);
   }
 
-  console.log('\nEXIT 0 — VAL-MODQN-BUNDLE-002 passed\n');
+  console.log('\nEXIT 0 — VAL-MODQN-BUNDLE-002 / 003 / 004 passed\n');
 }
 
 main().catch((error) => {

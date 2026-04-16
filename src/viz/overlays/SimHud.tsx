@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import type { ContinuityNarrativeState } from '@/viz/presentation';
 
 export interface SimHudProps {
   simTimeSec: number;
@@ -24,6 +25,17 @@ export interface SimHudProps {
   bundleSlotIndex?: number | null;
   bundleSlotCount?: number | null;
   statusLabel?: string | null;
+}
+
+export interface BundleTruthHudProps {
+  currentSlotIndex: number | null;
+  slotCount: number | null;
+  sourceLabel: string;
+  servingSatId: string | null;
+  servingBeamId: string | null;
+  handoverCount: number;
+  handoverKind: string | null;
+  continuityNarrative: ContinuityNarrativeState | null;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -59,6 +71,27 @@ const separatorStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   color: '#888',
 };
+
+function titleizeHyphenated(value: string | null | undefined): string {
+  if (!value) return 'Not specified';
+  return value
+    .split(/[-_]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatReplayTruthNarrative(handoverKind: string | null | undefined): string {
+  switch (handoverKind) {
+    case 'inter-satellite-handover':
+      return 'Inter-satellite handover';
+    case 'intra-satellite-beam-switch':
+      return 'Intra-satellite beam switch';
+    case 'none':
+    default:
+      return 'Stable serving';
+  }
+}
 
 export const SimHud = React.memo(function SimHud({
   simTimeSec,
@@ -139,6 +172,64 @@ export const SimHud = React.memo(function SimHud({
           </div>
         </>
       )}
+    </div>
+  );
+});
+
+export const BundleTruthHud = React.memo(function BundleTruthHud({
+  currentSlotIndex,
+  slotCount,
+  sourceLabel,
+  servingSatId,
+  servingBeamId,
+  handoverCount,
+  handoverKind,
+  continuityNarrative,
+}: BundleTruthHudProps) {
+  return (
+    <div style={containerStyle} data-testid="bundle-truth-hud">
+      <div style={titleStyle}>
+        BUNDLE TRUTH HUD{' '}
+        <span style={{ color: '#888', fontWeight: 400 }}>| {sourceLabel}</span>
+      </div>
+      <div style={separatorStyle}>{'─'.repeat(36)}</div>
+      <div>
+        <span style={labelStyle}>Truth: </span>
+        <span data-testid="bundle-hud-truth-source">MODQN bundle replay</span>
+      </div>
+      <div>
+        <span style={labelStyle}>Slot: </span>
+        <span data-testid="bundle-hud-slot">
+          {currentSlotIndex ?? '—'} / {slotCount ?? '—'}
+        </span>
+      </div>
+      <div>
+        <span style={labelStyle}>Serving Sat: </span>
+        <span data-testid="bundle-hud-serving-sat">{servingSatId ?? '—'}</span>
+      </div>
+      <div>
+        <span style={labelStyle}>Serving Beam: </span>
+        <span data-testid="bundle-hud-serving-beam">{servingBeamId ?? '—'}</span>
+      </div>
+      <div>
+        <span style={labelStyle}>Narrative: </span>
+        <span
+          data-testid="bundle-hud-narrative-label"
+          data-scene-phase={continuityNarrative?.phase ?? ''}
+        >
+          {formatReplayTruthNarrative(handoverKind)}
+        </span>
+      </div>
+      <div>
+        <span style={labelStyle}>Handover Kind: </span>
+        <span data-testid="bundle-hud-handover-kind">
+          {titleizeHyphenated(handoverKind)}
+        </span>
+      </div>
+      <div>
+        <span style={labelStyle}>Handovers: </span>
+        <span data-testid="bundle-hud-handover-count">{handoverCount}</span>
+      </div>
     </div>
   );
 });

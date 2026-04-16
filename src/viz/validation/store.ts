@@ -18,7 +18,9 @@ export interface ValidationRuntimeSummary {
   visibleSatelliteIds: string[];
   primaryUe: {
     servingSatId: string | null;
+    servingBeamId: string | null;
     targetSatId: string | null;
+    targetBeamId: string | null;
     secondarySatId: string | null;
     continuityState: ContinuityState | null;
     sinrDb: number | null;
@@ -33,6 +35,8 @@ export interface ValidationRuntimeSummary {
   truthSourceLabel?: string | null;
   bundleSlotIndex?: number | null;
   bundleSlotCount?: number | null;
+  handoverCount?: number | null;
+  bundleHandoverKind?: string | null;
 }
 
 export interface OrbitParitySatelliteSample {

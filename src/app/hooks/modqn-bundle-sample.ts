@@ -15,6 +15,8 @@ import timelineRaw from '../../../fixtures/sample-bundle-v1/timeline/step-trace.
 import trainingObjectivesFigureUrl from '../../../fixtures/sample-bundle-v1/figures/training-objectives.png';
 import trainingScalarRewardFigureUrl from '../../../fixtures/sample-bundle-v1/figures/training-scalar-reward.png';
 
+export const MODQN_SAMPLE_BUNDLE_SOURCE_LABEL = 'sample-bundle-v1';
+
 let sampleBundlePromise: Promise<ModqnReplayBundle> | null = null;
 
 export async function loadBundledModqnSampleBundle(): Promise<ModqnReplayBundle> {

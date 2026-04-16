@@ -5,12 +5,20 @@
  * so users can interact with controls.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import { getProfileList } from '@/core/contracts/exposure-v1';
 import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
 export type ControlPanelSceneMode = 'native-live' | 'native-replay' | 'modqn-bundle';
+export type ControlPanelBundleSourceKind = 'sample' | 'external-directory';
+export type ControlPanelBundleLoadState =
+  | 'boot-loading-sample'
+  | 'boot-load-failed'
+  | 'ready-sample'
+  | 'loading-external-directory'
+  | 'ready-external-directory'
+  | 'resetting-to-sample';
 
 export interface ControlPanelProps {
   speed: number;
@@ -49,9 +57,15 @@ export interface ControlPanelProps {
   profileId?: string;
   /** Callback to switch profile (profile change reloads the simulation). */
   onProfileChange?: (profileId: string) => void;
+  bundleSourceKind?: ControlPanelBundleSourceKind;
+  bundleLoadState?: ControlPanelBundleLoadState;
+  bundleIsLoading?: boolean;
+  bundleLoadError?: string | null;
   bundleSourceLabel?: string;
   bundleCurrentSlotIndex?: number | null;
   bundleSlotCount?: number;
+  onLoadExternalBundleDirectory?: (selectedFiles: FileList | File[]) => void | Promise<void>;
+  onResetBundleSource?: () => void | Promise<void>;
   onBundleStepBackward?: () => void;
   onBundleStepForward?: () => void;
 }
@@ -189,15 +203,29 @@ export const ControlPanel = React.memo(function ControlPanel({
   onHoTypeOverrideChange,
   profileId,
   onProfileChange,
+  bundleSourceKind = 'sample',
+  bundleLoadState = 'ready-sample',
+  bundleIsLoading = false,
+  bundleLoadError = null,
   bundleSourceLabel,
   bundleCurrentSlotIndex,
   bundleSlotCount,
+  onLoadExternalBundleDirectory,
+  onResetBundleSource,
   onBundleStepBackward,
   onBundleStepForward,
 }: ControlPanelProps) {
+  const bundleDirectoryInputRef = useRef<HTMLInputElement | null>(null);
   const resolvedSceneMode = sceneMode ?? (replayMode ? 'native-replay' : 'native-live');
   const isBundleMode = resolvedSceneMode === 'modqn-bundle';
   const isNativeReplayMode = resolvedSceneMode === 'native-replay';
+  const canResetBundleSource = Boolean(
+    onResetBundleSource
+    && (!bundleIsLoading && (bundleSourceKind === 'external-directory' || bundleLoadError)),
+  );
+  const bundleLoadErrorPrefix = bundleLoadState === 'boot-load-failed'
+    ? 'Bundle source is not ready.'
+    : 'The current valid replay bundle stayed active.';
   const resolvedContainerStyle: React.CSSProperties = isBundleMode
     ? {
         ...containerStyle,
@@ -222,6 +250,40 @@ export const ControlPanel = React.memo(function ControlPanel({
     onSceneModeChange?.(mode);
   }, [onSceneModeChange]);
 
+  const handleSelectBundleDirectory = useCallback(() => {
+    if (bundleIsLoading || !onLoadExternalBundleDirectory) return;
+    bundleDirectoryInputRef.current?.click();
+  }, [bundleIsLoading, onLoadExternalBundleDirectory]);
+
+  const handleBundleDirectoryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      void onLoadExternalBundleDirectory?.(files);
+    }
+    event.target.value = '';
+  }, [onLoadExternalBundleDirectory]);
+
+  const handleResetBundleSource = useCallback(() => {
+    if (!canResetBundleSource) return;
+    void onResetBundleSource?.();
+  }, [canResetBundleSource, onResetBundleSource]);
+
+  const bundleSourceDisclosure = useMemo(() => {
+    if (bundleLoadState === 'loading-external-directory') {
+      return 'Loading external-directory bundle. The current valid replay bundle stays active until validation succeeds.';
+    }
+    if (bundleLoadState === 'resetting-to-sample') {
+      return 'Resetting to the shipped sample bundle baseline.';
+    }
+    if (bundleLoadState === 'boot-load-failed') {
+      return 'Sample bundle boot failed before bundle-mode truth became ready.';
+    }
+    if (bundleSourceKind === 'external-directory') {
+      return `Current bundle source: external-directory (${bundleSourceLabel ?? 'local selection'}).`;
+    }
+    return 'Current bundle source: sample baseline. The shipped sample bundle remains the default boot path and reset target.';
+  }, [bundleLoadState, bundleSourceKind, bundleSourceLabel]);
+
   const selectStyle: React.CSSProperties = {
     background: '#222',
     color: '#e0e0e0',
@@ -233,9 +295,27 @@ export const ControlPanel = React.memo(function ControlPanel({
     cursor: 'pointer',
     outline: 'none',
   };
+  const bundleDirectoryInputProps = {
+    directory: '',
+    webkitdirectory: '',
+  } as React.InputHTMLAttributes<HTMLInputElement> & {
+    directory?: string;
+    webkitdirectory?: string;
+  };
 
   return (
     <div style={resolvedContainerStyle} data-testid="control-panel">
+      {isBundleMode && (
+        <input
+          data-testid="external-bundle-input"
+          type="file"
+          multiple
+          ref={bundleDirectoryInputRef}
+          style={{ display: 'none' }}
+          onChange={handleBundleDirectoryChange}
+          {...bundleDirectoryInputProps}
+        />
+      )}
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
@@ -470,6 +550,54 @@ export const ControlPanel = React.memo(function ControlPanel({
           >
             Slot ▶
           </button>
+        </div>
+      )}
+
+      {isBundleMode && (
+        <div style={{ ...rowStyle, flexWrap: 'wrap' }}>
+          <span style={labelStyle}>Source:</span>
+          <button
+            data-testid="load-external-bundle"
+            style={btnSecondaryStyle}
+            onClick={handleSelectBundleDirectory}
+            disabled={!onLoadExternalBundleDirectory || bundleIsLoading}
+            title="Select a local MODQN replay bundle directory from the browser"
+          >
+            Load Bundle...
+          </button>
+          <button
+            data-testid="reset-bundle-source"
+            style={btnSecondaryStyle}
+            onClick={handleResetBundleSource}
+            disabled={!canResetBundleSource}
+            title="Restore the shipped sample bundle baseline"
+          >
+            Reset To Sample
+          </button>
+          {bundleIsLoading && (
+            <span style={{ color: '#ffd166', fontSize: 12 }}>Loading…</span>
+          )}
+        </div>
+      )}
+
+      {isBundleMode && (
+        <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+          <span style={labelStyle}>State:</span>
+          <span data-testid="bundle-source-note" style={{ color: '#a7b6c7', fontSize: 12, maxWidth: 260 }}>
+            {bundleSourceDisclosure}
+          </span>
+        </div>
+      )}
+
+      {isBundleMode && bundleLoadError && (
+        <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+          <span style={labelStyle}>Error:</span>
+          <span
+            data-testid="bundle-load-error"
+            style={{ color: '#ff9f80', fontSize: 12, maxWidth: 260 }}
+          >
+            {bundleLoadErrorPrefix} {bundleLoadError}
+          </span>
         </div>
       )}
 

@@ -51,6 +51,8 @@ export function buildRuntimeSummary(
     truthSourceLabel?: string | null;
     bundleSlotIndex?: number | null;
     bundleSlotCount?: number | null;
+    handoverCount?: number | null;
+    bundleHandoverKind?: string | null;
   },
 ) {
   const ue = snapshot?.ues[0];
@@ -68,7 +70,9 @@ export function buildRuntimeSummary(
     visibleSatelliteIds: snapshot?.satellites.filter((sat) => sat.isVisible).map((sat) => sat.id) ?? [],
     primaryUe: {
       servingSatId: ue?.servingSatId ?? null,
+      servingBeamId: ue?.servingBeamId ?? null,
       targetSatId: ue?.targetSatId ?? null,
+      targetBeamId: ue?.targetBeamId ?? null,
       secondarySatId: ue?.secondarySatId ?? null,
       continuityState: ue?.continuityState ?? null,
       sinrDb: ue?.sinrDb ?? null,
@@ -83,6 +87,8 @@ export function buildRuntimeSummary(
     truthSourceLabel: extras?.truthSourceLabel ?? null,
     bundleSlotIndex: extras?.bundleSlotIndex ?? null,
     bundleSlotCount: extras?.bundleSlotCount ?? null,
+    handoverCount: extras?.handoverCount ?? null,
+    bundleHandoverKind: extras?.bundleHandoverKind ?? null,
   };
 }
 

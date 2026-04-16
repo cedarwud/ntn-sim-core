@@ -1,23 +1,21 @@
 import React, { useMemo } from 'react';
 
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
-import {
-  formatContinuityNarrativeLabel,
-  type ContinuityNarrativeState,
-} from '@/viz/presentation';
 import type {
   ModqnBundleSummaryView,
+  ModqnDashboardKpiView,
   ModqnDecisionStoryView,
   ModqnProvenanceFieldView,
   ModqnProvenanceLegendEntry,
+  ModqnReplayTrendPointView,
   ModqnTrainingEvidenceView,
   ModqnTrainingEvalSummaryView,
 } from '@/viz/view-models/modqn-bundle-replay-view-model';
+import { modqnBaselineCompactPanelStyles } from './modqn-baseline-compact.styles';
 
 export interface ModqnBaselineCompactPanelProps {
   visible: boolean;
   snapshot: SimulationSnapshot | null;
-  continuityNarrative: ContinuityNarrativeState | null;
   bundleSummary: ModqnBundleSummaryView | null;
   trainingEvalSummary: ModqnTrainingEvalSummaryView | null;
   trainingEvidence: ModqnTrainingEvidenceView | null;
@@ -27,8 +25,10 @@ export interface ModqnBaselineCompactPanelProps {
   slotCount: number | null;
   handoverCount: number;
   assumptionCount: number;
+  dashboardKpis: ModqnDashboardKpiView | null;
   provenanceLegend: ModqnProvenanceLegendEntry[];
   provenanceFields: ModqnProvenanceFieldView[];
+  replayTrendSeries: ModqnReplayTrendPointView[];
 }
 
 interface ObjectiveLaneModel {
@@ -47,546 +47,115 @@ interface ProofBadgeModel {
   value: string;
 }
 
-const containerStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 16,
-  right: 16,
-  zIndex: 11,
-  width: 'min(960px, calc(100vw - 32px))',
-  maxHeight: 'calc(100vh - 32px)',
-  padding: '22px 24px 18px',
-  borderRadius: 30,
-  border: '1px solid rgba(255, 255, 255, 0.2)',
-  background:
-    'linear-gradient(135deg, rgba(245, 245, 235, 0.95) 0%, rgba(239, 246, 255, 0.93) 55%, rgba(233, 244, 255, 0.95) 100%)',
-  boxShadow: '0 32px 80px rgba(7, 18, 28, 0.34)',
-  color: '#132231',
-  fontFamily: '"IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif',
-  overflowY: 'auto',
-  pointerEvents: 'auto',
-  overscrollBehavior: 'contain',
-  backdropFilter: 'blur(18px)',
-};
-
-const sectionStackStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 14,
-};
-
-const showcaseGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-  gap: 14,
-};
-
-const heroPanelStyle: React.CSSProperties = {
-  padding: '22px 22px 18px',
-  borderRadius: 24,
-  background:
-    'radial-gradient(circle at top right, rgba(255, 200, 107, 0.35) 0%, rgba(255, 200, 107, 0.04) 32%, rgba(255, 255, 255, 0.04) 100%), linear-gradient(160deg, rgba(11, 22, 37, 0.96) 0%, rgba(18, 35, 55, 0.94) 100%)',
-  color: '#f8fbff',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-};
-
-const goalPanelStyle: React.CSSProperties = {
-  padding: '20px 20px 18px',
-  borderRadius: 24,
-  background: 'rgba(255, 255, 255, 0.74)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const badgeRowStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  alignItems: 'center',
-};
-
-const brandBadgeStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  borderRadius: 999,
-  padding: '6px 12px',
-  background: 'rgba(255, 201, 111, 0.16)',
-  color: '#ffe6b5',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: 0.7,
-  textTransform: 'uppercase',
-};
-
-const secondaryBadgeStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  borderRadius: 999,
-  padding: '6px 12px',
-  background: 'rgba(109, 221, 255, 0.12)',
-  color: '#d7f6ff',
-  fontSize: 12,
-  fontWeight: 700,
-  letterSpacing: 0.5,
-  textTransform: 'uppercase',
-};
-
-const heroBrandStyle: React.CSSProperties = {
-  marginTop: 16,
-  fontSize: 48,
-  lineHeight: 0.95,
-  fontWeight: 900,
-  letterSpacing: -1.5,
-};
-
-const heroHeadlineStyle: React.CSSProperties = {
-  marginTop: 12,
-  fontSize: 28,
-  lineHeight: 1.08,
-  fontWeight: 800,
-  letterSpacing: -0.55,
-  maxWidth: 560,
-};
-
-const heroSublineStyle: React.CSSProperties = {
-  marginTop: 10,
-  color: '#dbe8f6',
-  fontSize: 16,
-  fontWeight: 700,
-  lineHeight: 1.35,
-};
-
-const heroBodyStyle: React.CSSProperties = {
-  marginTop: 8,
-  color: '#b8cadb',
-  fontSize: 15,
-  lineHeight: 1.45,
-  maxWidth: 620,
-};
-
-const guideRowStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 14,
-};
-
-const guidePillStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 12px',
-  borderRadius: 999,
-  background: 'rgba(255, 255, 255, 0.08)',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-};
-
-const guideIndexStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 22,
-  height: 22,
-  borderRadius: 999,
-  background: 'rgba(255, 201, 111, 0.22)',
-  color: '#ffe6b5',
-  fontSize: 11,
-  fontWeight: 900,
-};
-
-const guideLabelStyle: React.CSSProperties = {
-  color: '#e9f4ff',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: 0.25,
-};
-
-const heroSignalsStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: 10,
-  marginTop: 18,
-};
-
-const signalCardStyle: React.CSSProperties = {
-  padding: '12px 12px 11px',
-  borderRadius: 18,
-  background: 'rgba(255, 255, 255, 0.07)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-};
-
-const signalLabelStyle: React.CSSProperties = {
-  color: '#9bb6cc',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: 0.45,
-};
-
-const signalValueStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#ffffff',
-  fontSize: 24,
-  lineHeight: 1.05,
-  fontWeight: 800,
-  letterSpacing: -0.4,
-};
-
-const signalHintStyle: React.CSSProperties = {
-  marginTop: 5,
-  color: '#bed0df',
-  fontSize: 12,
-  lineHeight: 1.4,
-};
-
-const panelEyebrowStyle: React.CSSProperties = {
-  color: '#5f7e95',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: 0.7,
-  textTransform: 'uppercase',
-};
-
-const panelTitleStyle: React.CSSProperties = {
-  marginTop: 8,
-  color: '#132231',
-  fontSize: 28,
-  lineHeight: 1.08,
-  fontWeight: 850,
-  letterSpacing: -0.5,
-};
-
-const panelBodyStyle: React.CSSProperties = {
-  marginTop: 8,
-  color: '#4d6375',
-  fontSize: 14,
-  lineHeight: 1.45,
-};
-
-const goalMixStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  marginTop: 16,
-};
-
-const goalWeightBarStyle: React.CSSProperties = {
-  display: 'flex',
-  height: 14,
-  borderRadius: 999,
-  overflow: 'hidden',
-  background: 'rgba(19, 34, 49, 0.08)',
-};
-
-const goalLaneGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  marginTop: 10,
-};
-
-const goalLaneStyle: React.CSSProperties = {
-  padding: '12px 12px 10px',
-  borderRadius: 18,
-  background: 'rgba(255, 255, 255, 0.75)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const goalHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 10,
-  alignItems: 'baseline',
-};
-
-const goalTitleStyle: React.CSSProperties = {
-  color: '#172739',
-  fontSize: 16,
-  fontWeight: 800,
-  lineHeight: 1.2,
-};
-
-const goalWeightStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: 0.4,
-  textTransform: 'uppercase',
-};
-
-const goalSummaryStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#0e1d2d',
-  fontSize: 20,
-  fontWeight: 800,
-  lineHeight: 1.12,
-  letterSpacing: -0.35,
-};
-
-const goalDetailStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#4b6274',
-  fontSize: 13,
-  lineHeight: 1.4,
-};
-
-const goalTrackStyle: React.CSSProperties = {
-  marginTop: 10,
-  height: 8,
-  borderRadius: 999,
-  background: 'rgba(19, 34, 49, 0.08)',
-  overflow: 'hidden',
-};
-
-const proofBadgeWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 16,
-};
-
-const proofBadgeStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  borderRadius: 999,
-  padding: '8px 13px',
-  background: 'rgba(19, 34, 49, 0.05)',
-  color: '#183044',
-  fontSize: 13,
-  fontWeight: 700,
-};
-
-const evidencePanelStyle: React.CSSProperties = {
-  padding: '18px 18px 16px',
-  borderRadius: 24,
-  background: 'rgba(255, 255, 255, 0.8)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const evidenceGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-  gap: 12,
-  marginTop: 14,
-};
-
-const evidenceCardStyle: React.CSSProperties = {
-  padding: '14px 14px 12px',
-  borderRadius: 22,
-  background: 'rgba(247, 250, 252, 0.98)',
-  border: '1px solid rgba(19, 34, 49, 0.07)',
-};
-
-const evidenceCardTitleStyle: React.CSSProperties = {
-  color: '#132231',
-  fontSize: 17,
-  fontWeight: 800,
-  lineHeight: 1.2,
-};
-
-const evidenceCardBodyStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#4b6274',
-  fontSize: 14,
-  lineHeight: 1.45,
-};
-
-const evidenceFigureFrameStyle: React.CSSProperties = {
-  marginTop: 12,
-  borderRadius: 16,
-  overflow: 'hidden',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-  background: '#edf3f8',
-};
-
-const evidenceFigureImageStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
-  height: 220,
-  objectFit: 'cover',
-};
-
-const evidenceSparkFrameStyle: React.CSSProperties = {
-  marginTop: 12,
-  padding: '12px 12px 10px',
-  borderRadius: 16,
-  background: 'linear-gradient(180deg, rgba(244, 248, 252, 0.95) 0%, rgba(234, 242, 248, 0.98) 100%)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const evidenceStatGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 10,
-  marginTop: 12,
-};
-
-const evidenceStatStyle: React.CSSProperties = {
-  padding: '9px 10px 8px',
-  borderRadius: 14,
-  background: 'rgba(19, 34, 49, 0.05)',
-};
-
-const evidenceStatLabelStyle: React.CSSProperties = {
-  color: '#5f7e95',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: 0.4,
-  textTransform: 'uppercase',
-};
-
-const evidenceStatValueStyle: React.CSSProperties = {
-  marginTop: 4,
-  color: '#122131',
-  fontSize: 18,
-  fontWeight: 800,
-  lineHeight: 1.2,
-};
-
-const storyPanelStyle: React.CSSProperties = {
-  padding: '18px 18px 16px',
-  borderRadius: 24,
-  background: 'rgba(255, 255, 255, 0.7)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const storyHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'space-between',
-  gap: 10,
-  alignItems: 'baseline',
-};
-
-const storyPillStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  borderRadius: 999,
-  padding: '7px 11px',
-  background: 'rgba(19, 34, 49, 0.06)',
-  color: '#224055',
-  fontSize: 13,
-  fontWeight: 800,
-};
-
-const decisionFlowStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: 12,
-  marginTop: 14,
-};
-
-const flowCardStyle: React.CSSProperties = {
-  padding: '16px 16px 14px',
-  borderRadius: 20,
-  background: 'rgba(249, 251, 253, 0.92)',
-  border: '1px solid rgba(19, 34, 49, 0.08)',
-};
-
-const flowStepStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 34,
-  height: 34,
-  borderRadius: 999,
-  background: '#102033',
-  color: '#ffffff',
-  fontSize: 15,
-  fontWeight: 800,
-};
-
-const flowTitleStyle: React.CSSProperties = {
-  marginTop: 10,
-  color: '#132231',
-  fontSize: 16,
-  fontWeight: 800,
-};
-
-const flowValueStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#091623',
-  fontSize: 24,
-  lineHeight: 1.12,
-  fontWeight: 800,
-  letterSpacing: -0.35,
-};
-
-const flowBodyStyle: React.CSSProperties = {
-  marginTop: 8,
-  color: '#4b6274',
-  fontSize: 13,
-  lineHeight: 1.45,
-};
-
-const flowMiniGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 8,
-  marginTop: 12,
-};
-
-const flowMiniStyle: React.CSSProperties = {
-  padding: '9px 10px 8px',
-  borderRadius: 14,
-  background: 'rgba(19, 34, 49, 0.05)',
-};
-
-const flowMiniLabelStyle: React.CSSProperties = {
-  color: '#5e7b92',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: 0.4,
-};
-
-const flowMiniValueStyle: React.CSSProperties = {
-  marginTop: 5,
-  color: '#132231',
-  fontSize: 16,
-  fontWeight: 800,
-  lineHeight: 1.2,
-};
-
-const sourcePanelStyle: React.CSSProperties = {
-  marginTop: 14,
-  padding: '12px 14px 12px',
-  borderRadius: 22,
-  background: 'rgba(16, 32, 51, 0.92)',
-  color: '#eff6fc',
-};
-
-const sourceGridStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 10,
-};
-
-const sourceCardStyle: React.CSSProperties = {
-  padding: '10px 12px 9px',
-  borderRadius: 18,
-  background: 'rgba(255, 255, 255, 0.06)',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  minWidth: 160,
-  flex: '1 1 180px',
-};
-
-const sourceLabelStyle: React.CSSProperties = {
-  color: '#9fb9cf',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: 0.45,
-};
-
-const sourceValueStyle: React.CSSProperties = {
-  marginTop: 6,
-  color: '#ffffff',
-  fontSize: 14,
-  lineHeight: 1.25,
-  fontWeight: 800,
-  overflowWrap: 'anywhere',
-};
-
-const sourceHintStyle: React.CSSProperties = {
-  marginTop: 5,
-  color: '#bfd0df',
-  fontSize: 12,
-  lineHeight: 1.35,
-};
+interface FirstScreenKpiCardModel {
+  key: string;
+  label: string;
+  value: string;
+  detail: string;
+}
+
+interface NarrativeSummary {
+  headline: string;
+  description: string;
+}
+
+interface ReplayTrendCardModel {
+  key: string;
+  label: string;
+  value: string;
+  detail: string;
+  footer: string;
+  accent: string;
+  series: number[];
+  maskSource?: 'decision' | 'runtime-fallback';
+}
+
+interface ProvenanceSummary {
+  reproductionAssumptionFieldCount: number;
+  classifications: string[];
+}
+
+const {
+  badgeRowStyle,
+  brandBadgeStyle,
+  containerStyle,
+  decisionFlowStyle,
+  evidenceCardBodyStyle,
+  evidenceCardStyle,
+  evidenceCardTitleStyle,
+  evidenceFigureFrameStyle,
+  evidenceFigureImageStyle,
+  evidenceGridStyle,
+  evidencePanelStyle,
+  evidenceSparkFrameStyle,
+  evidenceStatGridStyle,
+  evidenceStatLabelStyle,
+  evidenceStatStyle,
+  evidenceStatValueStyle,
+  flowBodyStyle,
+  flowCardStyle,
+  flowMiniGridStyle,
+  flowMiniLabelStyle,
+  flowMiniStyle,
+  flowMiniValueStyle,
+  flowStepStyle,
+  flowTitleStyle,
+  flowValueStyle,
+  goalDetailStyle,
+  goalHeaderStyle,
+  goalLaneGridStyle,
+  goalLaneStyle,
+  goalMixStyle,
+  goalPanelStyle,
+  goalSummaryStyle,
+  goalTitleStyle,
+  goalTrackStyle,
+  goalWeightBarStyle,
+  goalWeightStyle,
+  guideIndexStyle,
+  guideLabelStyle,
+  guidePillStyle,
+  guideRowStyle,
+  heroBodyStyle,
+  heroBrandStyle,
+  heroHeadlineStyle,
+  heroPanelStyle,
+  heroSignalsStyle,
+  heroSublineStyle,
+  kpiCardStyle,
+  kpiDetailStyle,
+  kpiLabelStyle,
+  kpiStripStyle,
+  kpiValueStyle,
+  panelBodyStyle,
+  panelEyebrowStyle,
+  panelTitleStyle,
+  proofBadgeStyle,
+  proofBadgeWrapStyle,
+  replayChartCardStyle,
+  replayChartFooterStyle,
+  replayChartFrameStyle,
+  replayChartGridStyle,
+  replayChartLabelStyle,
+  replayChartMetaStyle,
+  replayChartValueStyle,
+  secondaryBadgeStyle,
+  sectionStackStyle,
+  showcaseGridStyle,
+  signalCardStyle,
+  signalHintStyle,
+  signalLabelStyle,
+  signalValueStyle,
+  sourceCardStyle,
+  sourceGridStyle,
+  sourceHintStyle,
+  sourceLabelStyle,
+  sourcePanelStyle,
+  sourceValueStyle,
+  storyHeaderStyle,
+  storyPanelStyle,
+  storyPillStyle,
+} = modqnBaselineCompactPanelStyles;
 
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -626,6 +195,16 @@ function formatSigned(value: number | null | undefined, digits = 2): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(digits)}`;
 }
 
+function formatPercentage(value: number | null | undefined, digits = 0): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatThroughputMbps(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  return `${value.toFixed(2)} Mbps`;
+}
+
 function titleizeHyphenated(value: string | null | undefined): string {
   if (!value) return 'Not specified';
   return value
@@ -635,31 +214,25 @@ function titleizeHyphenated(value: string | null | undefined): string {
     .join(' ');
 }
 
-function describeNarrative(narrative: ContinuityNarrativeState | null | undefined): {
-  headline: string;
-  description: string;
-} {
-  switch (narrative?.phase) {
-    case 'prepared':
+function describeReplayTruthNarrative(
+  decisionStory: ModqnDecisionStoryView | null,
+): NarrativeSummary {
+  switch (decisionStory?.handoverKind) {
+    case 'inter-satellite-handover':
       return {
-        headline: 'Preparing next path',
-        description: 'A target satellite is already visible before the serving switch happens.',
+        headline: 'Inter-satellite handover',
+        description: 'The exported replay slot switches the serving path to a different satellite.',
       };
-    case 'dual-active':
+    case 'intra-satellite-beam-switch':
       return {
-        headline: 'Switch in progress',
-        description: 'Old and new paths are both visible during the handover window.',
+        headline: 'Intra-satellite beam switch',
+        description: 'The exported replay slot keeps the satellite and changes only the serving beam.',
       };
-    case 'post-switch':
-      return {
-        headline: 'Just switched',
-        description: 'The new serving satellite is active and the old one is still shown briefly.',
-      };
-    case 'stable':
+    case 'none':
     default:
       return {
-        headline: 'Stable connection',
-        description: 'One serving satellite is carrying the active link right now.',
+        headline: 'Stable serving',
+        description: 'No handover is recorded in the current exported replay slot.',
       };
   }
 }
@@ -767,6 +340,58 @@ function buildProofBadges(
   ];
 }
 
+function buildFirstScreenKpiCards(
+  bundleSummary: ModqnBundleSummaryView | null,
+  sourceLabel: string,
+  handoverCount: number,
+  assumptionCount: number,
+  provenanceSummary: ProvenanceSummary,
+  dashboardKpis: ModqnDashboardKpiView | null,
+): FirstScreenKpiCardModel[] {
+  return [
+    {
+      key: 'paper-run-checkpoint',
+      label: 'Paper / Run / Checkpoint',
+      value: bundleSummary
+        ? `${bundleSummary.paperId} / ${bundleSummary.runId} / ${titleizeHyphenated(bundleSummary.checkpointKind)}`
+        : 'Loading…',
+      detail: 'Bundle identity shown on the first screen before any deeper disclosure is opened.',
+    },
+    {
+      key: 'source-label',
+      label: 'Source Label',
+      value: bundleSummary?.sourceLabel ?? sourceLabel,
+      detail: 'Sample and external bundles both pass through this same story-dashboard path.',
+    },
+    {
+      key: 'replay-truth-mode',
+      label: 'Replay Truth Mode',
+      value: titleizeHyphenated(bundleSummary?.replayTruthMode),
+      detail: 'Serving, beam, and handover truth remain bundle-owned rather than native recomputation.',
+    },
+    {
+      key: 'cumulative-handovers',
+      label: 'Cumulative Handovers',
+      value: formatCount(handoverCount),
+      detail: 'Counted up to the current replay slot from the exported frame sequence.',
+    },
+    {
+      key: 'disclosure-summary',
+      label: 'Disclosure Summary',
+      value: `${assumptionCount} assumptions / ${provenanceSummary.reproductionAssumptionFieldCount} reproduction-assumption fields`,
+      detail: provenanceSummary.classifications.join(', ') || 'Waiting for provenance classifications.',
+    },
+    {
+      key: 'current-throughput',
+      label: 'Current Throughput',
+      value: formatThroughputMbps(dashboardKpis?.currentThroughputMbps),
+      detail: dashboardKpis
+        ? `Mean to date ${formatThroughputMbps(dashboardKpis.meanThroughputMbpsToDate)}. Replay progress ${formatPercentage(dashboardKpis.replayProgressFraction)} over ${formatCount(dashboardKpis.slotCount)} slots.`
+        : 'Waiting for bundle-backed throughput KPIs.',
+    },
+  ];
+}
+
 function renderSourceCard(
   label: string,
   value: React.ReactNode,
@@ -810,6 +435,22 @@ function createSparklinePath(
   };
 }
 
+function buildAreaPath(
+  points: { x: number; y: number }[],
+  height: number,
+): string {
+  if (points.length < 2) return '';
+  const first = points[0];
+  const last = points[points.length - 1];
+  return [
+    `M ${first.x.toFixed(2)} ${height.toFixed(2)}`,
+    `L ${first.x.toFixed(2)} ${first.y.toFixed(2)}`,
+    ...points.slice(1).map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
+    `L ${last.x.toFixed(2)} ${height.toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
+
 function renderSparkline(
   series: number[],
   color: string,
@@ -845,10 +486,627 @@ function renderSparkline(
   );
 }
 
+function buildReplayTrendCards(
+  replayTrendSeries: ModqnReplayTrendPointView[],
+  currentFrameIndex: number,
+  dashboardKpis: ModqnDashboardKpiView | null,
+): ReplayTrendCardModel[] {
+  if (replayTrendSeries.length === 0) return [];
+  const safeIndex = Math.max(0, Math.min(currentFrameIndex, replayTrendSeries.length - 1));
+  const current = replayTrendSeries[safeIndex];
+  return [
+    {
+      key: 'scalar-reward',
+      label: 'Scalar Reward Across Replay',
+      value: formatSigned(current.scalarReward, 2),
+      detail: `Mean to this slot ${formatSigned(dashboardKpis?.meanScalarRewardToDate, 2)} across ${formatCount(current.slotIndex)} replayed slots.`,
+      footer: `Current point: slot ${current.slotIndex} at ${formatNumber(current.timeSec, 1)} s.`,
+      accent: '#ffb44c',
+      series: replayTrendSeries.map((point) => point.scalarReward),
+    },
+    {
+      key: 'throughput',
+      label: 'UE Throughput Across Replay',
+      value: formatThroughputMbps(current.throughputMbps),
+      detail: `Mean to this slot ${formatThroughputMbps(dashboardKpis?.meanThroughputMbpsToDate)} over ${formatNumber(dashboardKpis?.timelineSpanSec, 1)} s.`,
+      footer: 'Uses the exported bundle KPI overlay only; no native time-series is mixed in.',
+      accent: '#2ea7ff',
+      series: replayTrendSeries.map((point) => point.throughputMbps),
+    },
+    {
+      key: 'action-coverage',
+      label: 'Valid Action Coverage',
+      value: formatPercentage(current.validActionRatio),
+      detail: `${formatCount(current.validActionCount)} valid actions out of ${formatCount(current.totalActionCount)} total beam choices in the current slot.`,
+      footer: current.maskSource === 'runtime-fallback'
+        ? `Visible satellites ${formatCount(current.visibleSatelliteCount)}. Handovers to date ${formatCount(current.cumulativeHandovers)}. Decision-time masks were not exported for this bundle slot, so the UI falls back to exported runtime masks.`
+        : `Visible satellites ${formatCount(current.visibleSatelliteCount)}. Handovers to date ${formatCount(current.cumulativeHandovers)}.`,
+      accent: '#19c37d',
+      series: replayTrendSeries.map((point) => point.validActionRatio * 100),
+      maskSource: current.maskSource,
+    },
+  ];
+}
+
+function InlineReplayTrendCard({
+  accent,
+  currentFrameIndex,
+  detail,
+  footer,
+  label,
+  series,
+  value,
+}: ReplayTrendCardModel & { currentFrameIndex: number }) {
+  const width = 248;
+  const height = 86;
+  const { path, points } = createSparklinePath(series, width, height);
+  const areaPath = buildAreaPath(points, height);
+  const safeIndex = Math.max(0, Math.min(currentFrameIndex, Math.max(points.length - 1, 0)));
+  const currentPoint = points[safeIndex] ?? null;
+
+  return (
+    <div style={replayChartCardStyle}>
+      <div style={replayChartLabelStyle}>{label}</div>
+      <div style={replayChartValueStyle}>{value}</div>
+      <div style={replayChartMetaStyle}>{detail}</div>
+      <div style={replayChartFrameStyle}>
+        <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} aria-hidden="true">
+          <line
+            x1="0"
+            y1={height - 1}
+            x2={width}
+            y2={height - 1}
+            stroke="rgba(19, 34, 49, 0.12)"
+            strokeWidth="1"
+          />
+          {areaPath ? (
+            <path d={areaPath} fill={accent} opacity={0.16} />
+          ) : null}
+          {path ? (
+            <path
+              d={path}
+              fill="none"
+              stroke={accent}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+          {currentPoint ? (
+            <>
+              <line
+                x1={currentPoint.x}
+                y1="4"
+                x2={currentPoint.x}
+                y2={height - 1}
+                stroke={accent}
+                strokeDasharray="4 5"
+                strokeWidth="1.5"
+                opacity={0.45}
+              />
+              <circle
+                cx={currentPoint.x}
+                cy={currentPoint.y}
+                r="5"
+                fill="#ffffff"
+                stroke={accent}
+                strokeWidth="2.5"
+              />
+            </>
+          ) : null}
+        </svg>
+      </div>
+      <div style={replayChartFooterStyle}>{footer}</div>
+    </div>
+  );
+}
+
+function ModqnFirstScreenKpiStrip({
+  cards,
+}: {
+  cards: FirstScreenKpiCardModel[];
+}) {
+  return (
+    <section data-testid="bundle-kpi-strip" style={kpiStripStyle}>
+      {cards.map((card) => (
+        <div key={card.key} style={kpiCardStyle}>
+          <div style={kpiLabelStyle}>{card.label}</div>
+          <div style={kpiValueStyle}>{card.value}</div>
+          <div style={kpiDetailStyle}>{card.detail}</div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+interface ModqnHeroSectionProps {
+  decisionStory: ModqnDecisionStoryView | null;
+  narrativeSummary: NarrativeSummary;
+  servingSatId: string | null | undefined;
+  sinrDb: number | null | undefined;
+  currentSlotIndex: number | null;
+  slotCount: number | null;
+  handoverCount: number;
+}
+
+function ModqnHeroSection({
+  decisionStory,
+  narrativeSummary,
+  servingSatId,
+  sinrDb,
+  currentSlotIndex,
+  slotCount,
+  handoverCount,
+}: ModqnHeroSectionProps) {
+  return (
+    <section style={heroPanelStyle}>
+      <div style={badgeRowStyle}>
+        <span style={brandBadgeStyle}>MODQN Replay</span>
+        <span style={secondaryBadgeStyle}>Trained policy inside NTN-SIM-CORE</span>
+      </div>
+      <div style={heroBrandStyle}>MODQN</div>
+      <div style={heroHeadlineStyle}>{describeDecisionHeadline(decisionStory)}</div>
+      <div style={heroSublineStyle}>
+        Truth Source:{' '}
+        <span data-testid="bundle-dashboard-truth-source">MODQN Bundle</span>
+      </div>
+      <div style={heroBodyStyle}>
+        Saved MODQN bundle truth is being replayed inside the simulator. The frontend reads the
+        exported policy decisions and runtime snapshot truth instead of recomputing a native
+        policy path.
+      </div>
+
+      <div style={guideRowStyle}>
+        <div style={guidePillStyle}>
+          <span style={guideIndexStyle}>1</span>
+          <span style={guideLabelStyle}>Training Evidence</span>
+        </div>
+        <div style={guidePillStyle}>
+          <span style={guideIndexStyle}>2</span>
+          <span style={guideLabelStyle}>Three Objectives</span>
+        </div>
+        <div style={guidePillStyle}>
+          <span style={guideIndexStyle}>3</span>
+          <span style={guideLabelStyle}>Decision Now</span>
+        </div>
+      </div>
+
+      <div style={heroSignalsStyle}>
+        <div style={signalCardStyle}>
+          <div style={signalLabelStyle}>Serving Satellite</div>
+          <div style={signalValueStyle} data-testid="bundle-dashboard-serving-sat">
+            {servingSatId ?? '—'}
+          </div>
+          <div style={signalHintStyle}>The satellite currently carrying the active service path.</div>
+        </div>
+        <div style={signalCardStyle}>
+          <div style={signalLabelStyle}>Serving Beam</div>
+          <div style={signalValueStyle} data-testid="bundle-dashboard-serving-beam">
+            {decisionStory?.selectedBeamId ?? '—'}
+          </div>
+          <div style={signalHintStyle}>Read directly from the exported serving-beam decision.</div>
+        </div>
+          <div style={signalCardStyle}>
+            <div style={signalLabelStyle}>Handover Status</div>
+            <div
+              style={signalValueStyle}
+              data-testid="bundle-dashboard-narrative-label"
+            >
+              {narrativeSummary.headline}
+            </div>
+          <div style={signalHintStyle}>
+            {narrativeSummary.description}{' '}
+            Handover kind:{' '}
+            <span data-testid="bundle-dashboard-handover-kind">
+              {titleizeHyphenated(decisionStory?.handoverKind)}
+            </span>
+            .
+          </div>
+        </div>
+        <div style={signalCardStyle}>
+          <div style={signalLabelStyle}>Current Slot / Total Slots</div>
+          <div style={signalValueStyle} data-testid="bundle-dashboard-slot">
+            {currentSlotIndex ?? '—'} / {slotCount ?? '—'}
+          </div>
+          <div style={signalHintStyle}>The current moment inside the replayed bundle timeline.</div>
+        </div>
+        <div style={signalCardStyle}>
+          <div style={signalLabelStyle}>Cumulative Handovers</div>
+          <div style={signalValueStyle} data-testid="bundle-dashboard-handover-count">
+            {formatCount(handoverCount)}
+          </div>
+          <div style={signalHintStyle}>Counted from exported replay slots up to the current frame.</div>
+        </div>
+        <div style={signalCardStyle}>
+          <div style={signalLabelStyle}>Primary SINR</div>
+          <div style={signalValueStyle}>{formatPrimarySinrValue(sinrDb)}</div>
+          <div style={signalHintStyle}>{formatPrimarySinrHint(sinrDb)}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+interface ModqnTrainingEvidenceSectionProps {
+  trainingEvidence: ModqnTrainingEvidenceView | null;
+  trainingEvalSummary: ModqnTrainingEvalSummaryView | null;
+  proofBadges: ProofBadgeModel[];
+}
+
+function ModqnTrainingEvidenceSection({
+  trainingEvidence,
+  trainingEvalSummary,
+  proofBadges,
+}: ModqnTrainingEvidenceSectionProps) {
+  return (
+    <section style={evidencePanelStyle} data-testid="bundle-training-chart-panel">
+      <div style={panelEyebrowStyle}>Training Evidence</div>
+      <div style={{ ...panelTitleStyle, marginTop: 6, fontSize: 28 }}>
+        Proof that this checkpoint was trained before replay
+      </div>
+      <div style={panelBodyStyle}>
+        These figures and training rows came with the MODQN bundle. On trimmed samples you see a
+        checkpoint snapshot; richer bundles automatically expand into longer convergence stories.
+      </div>
+
+      <div style={evidenceGridStyle}>
+        <div style={evidenceCardStyle}>
+          <div style={evidenceCardTitleStyle}>Scalar reward track</div>
+          <div style={evidenceCardBodyStyle}>
+            The replayed checkpoint carries scalar-reward evidence from training and best-eval
+            summary statistics from the producer export.
+          </div>
+          {trainingEvidence?.trainingScalarRewardFigureUrl ? (
+            <div style={evidenceFigureFrameStyle}>
+              <img
+                src={trainingEvidence.trainingScalarRewardFigureUrl}
+                alt="Producer-exported MODQN scalar reward training figure"
+                style={evidenceFigureImageStyle}
+              />
+            </div>
+          ) : renderSparkline(
+            trainingEvidence?.scalarRewardSeries ?? [],
+            '#ffb44c',
+            'Scalar reward',
+          )}
+          <div style={evidenceStatGridStyle}>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Latest Episode</div>
+              <div style={evidenceStatValueStyle}>{formatCount(trainingEvidence?.latestEpisode)}</div>
+            </div>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Latest Reward</div>
+              <div style={evidenceStatValueStyle}>{formatSigned(trainingEvidence?.latestScalarReward, 2)}</div>
+            </div>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Best Eval Mean</div>
+              <div style={evidenceStatValueStyle}>{formatSigned(trainingEvalSummary?.bestEvalMeanScalarReward, 2)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={evidenceCardStyle}>
+          <div style={evidenceCardTitleStyle}>Three-objective training track</div>
+          <div style={evidenceCardBodyStyle}>
+            Throughput, handover discipline, and load-balance training traces are exported with the
+            bundle, so the audience can see the policy was optimized against all three goals.
+          </div>
+          {trainingEvidence?.trainingObjectivesFigureUrl ? (
+            <div style={evidenceFigureFrameStyle}>
+              <img
+                src={trainingEvidence.trainingObjectivesFigureUrl}
+                alt="Producer-exported MODQN objective training figure"
+                style={evidenceFigureImageStyle}
+              />
+            </div>
+          ) : (
+            <>
+              {renderSparkline(
+                trainingEvidence?.throughputLossSeries ?? [],
+                '#ffb44c',
+                'Throughput loss',
+              )}
+              {renderSparkline(
+                trainingEvidence?.handoverLossSeries ?? [],
+                '#2ea7ff',
+                'Handover loss',
+              )}
+              {renderSparkline(
+                trainingEvidence?.loadBalanceLossSeries ?? [],
+                '#19c37d',
+                'Load-balance loss',
+              )}
+            </>
+          )}
+          <div style={evidenceStatGridStyle}>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Exported Rows</div>
+              <div style={evidenceStatValueStyle}>{formatCount(trainingEvidence?.episodeCount)}</div>
+            </div>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Latest Epsilon</div>
+              <div style={evidenceStatValueStyle}>{formatNumber(trainingEvidence?.latestEpsilon, 2)}</div>
+            </div>
+            <div style={evidenceStatStyle}>
+              <div style={evidenceStatLabelStyle}>Best Eval Seeds</div>
+              <div style={evidenceStatValueStyle}>{formatCount(trainingEvalSummary?.bestEvalEvalSeedCount)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={proofBadgeWrapStyle}>
+        {proofBadges.map((badge) => (
+          <div key={badge.label} style={proofBadgeStyle}>
+            <span style={{ color: '#5a7388', fontWeight: 800 }}>{badge.label}</span>
+            <span>{badge.value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ModqnGoalSection({
+  objectiveLanes,
+}: {
+  objectiveLanes: ObjectiveLaneModel[];
+}) {
+  return (
+    <section style={goalPanelStyle}>
+      <div style={panelEyebrowStyle}>Three-Objective Policy</div>
+      <div style={panelTitleStyle}>One policy score, three optimization targets</div>
+      <div style={panelBodyStyle}>
+        The scalar reward blends throughput, handover discipline, and load balance. The color bar
+        below is the exported reward mix from the replay bundle.
+      </div>
+
+      <div style={goalMixStyle}>
+        <div style={goalWeightBarStyle}>
+          {objectiveLanes.map((lane) => (
+            <div
+              key={lane.key}
+              style={{
+                width: String(Math.max(clamp01(lane.weight) * 100, lane.weight > 0 ? 10 : 0)) + '%',
+                background: lane.accent,
+              }}
+            />
+          ))}
+        </div>
+
+        <div style={goalLaneGridStyle}>
+          {objectiveLanes.map((lane) => (
+            <div key={lane.key} style={goalLaneStyle}>
+              <div style={goalHeaderStyle}>
+                <div style={goalTitleStyle}>{lane.title}</div>
+                <div style={{ ...goalWeightStyle, color: lane.accent }}>{lane.weightLabel}</div>
+              </div>
+              <div style={goalSummaryStyle}>{lane.summary}</div>
+              <div style={goalDetailStyle}>{lane.detail}</div>
+              <div style={goalTrackStyle}>
+                <div
+                  style={{
+                    width: String(clamp01(lane.weight) * 100) + '%',
+                    height: '100%',
+                    borderRadius: 999,
+                    background: lane.accent,
+                  }}
+                />
+              </div>
+              <div style={{ ...goalDetailStyle, marginTop: 8 }}>{lane.benchmark}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+interface ModqnDecisionStorySectionProps {
+  currentSlotIndex: number | null;
+  slotCount: number | null;
+  bundleSummary: ModqnBundleSummaryView | null;
+  dashboardKpis: ModqnDashboardKpiView | null;
+  decisionStory: ModqnDecisionStoryView | null;
+  narrativeSummary: NarrativeSummary;
+  handoverCount: number;
+  replayTrendSeries: ModqnReplayTrendPointView[];
+}
+
+function ModqnDecisionStorySection({
+  currentSlotIndex,
+  slotCount,
+  bundleSummary,
+  dashboardKpis,
+  decisionStory,
+  narrativeSummary,
+  handoverCount,
+  replayTrendSeries,
+}: ModqnDecisionStorySectionProps) {
+  const currentFrameIndex = Math.max(
+    0,
+    Math.min(
+      (dashboardKpis?.currentSlotIndex ?? currentSlotIndex ?? 1) - 1,
+      Math.max(replayTrendSeries.length - 1, 0),
+    ),
+  );
+  const replayTrendCards = buildReplayTrendCards(
+    replayTrendSeries,
+    currentFrameIndex,
+    dashboardKpis,
+  );
+  return (
+    <section style={storyPanelStyle} data-testid="bundle-decision-story-panel">
+      <div style={storyHeaderStyle}>
+        <div>
+          <div style={panelEyebrowStyle}>Decision Now</div>
+          <div style={{ ...panelTitleStyle, marginTop: 6, fontSize: 28 }}>
+            What the policy saw, chose, and achieved in this slot
+          </div>
+        </div>
+        <div style={storyPillStyle}>
+          Current Slot / Total Slots {currentSlotIndex ?? '—'} / {slotCount ?? bundleSummary?.slotCount ?? '—'}
+        </div>
+      </div>
+
+      <div style={decisionFlowStyle}>
+        <div style={flowCardStyle}>
+          <div style={flowStepStyle}>1</div>
+          <div style={flowTitleStyle}>State</div>
+          <div style={flowValueStyle}>
+            {decisionStory
+              ? String(decisionStory.visibleSatelliteCount) + ' satellites / ' + String(decisionStory.validActionCount) + ' valid actions'
+              : 'Waiting for bundle state'}
+          </div>
+          <div style={flowBodyStyle}>
+            {decisionStory
+              ? 'Previous serving link: '
+                + (decisionStory.previousServingSatId ?? '—')
+                + ' / '
+                + (decisionStory.previousServingBeamId ?? '—')
+                + '.'
+                + (
+                  decisionStory.maskSource === 'runtime-fallback'
+                    ? ' Decision-time masks were not exported in this bundle slot, so visible/action counts fall back to exported runtime masks.'
+                    : ''
+                )
+              : 'The readable state slice will appear once the bundle frame is ready.'}
+          </div>
+          <div style={flowMiniGridStyle}>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Visible Beam Options</div>
+              <div style={flowMiniValueStyle}>{formatCount(decisionStory?.visibleBeamCount)}</div>
+            </div>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Replay Truth Mode</div>
+              <div style={flowMiniValueStyle}>
+                {titleizeHyphenated(bundleSummary?.replayTruthMode)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={flowCardStyle}>
+          <div style={flowStepStyle}>2</div>
+          <div style={flowTitleStyle}>Action</div>
+          <div style={flowValueStyle}>{describeActionSummary(decisionStory)}</div>
+          <div style={flowBodyStyle}>
+            {decisionStory
+              ? 'Selected beam ' + decisionStory.selectedBeamId + '. Handover type: ' + titleizeHyphenated(decisionStory.handoverKind) + '.'
+              : 'The chosen serving satellite and beam come directly from the bundle export.'}
+          </div>
+          <div style={flowMiniGridStyle}>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Selected Beam</div>
+              <div style={flowMiniValueStyle}>{decisionStory?.selectedBeamId ?? '—'}</div>
+            </div>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Local Beam Index</div>
+              <div style={flowMiniValueStyle}>{formatCount(decisionStory?.selectedLocalBeamIndex)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={flowCardStyle}>
+          <div style={flowStepStyle}>3</div>
+          <div style={flowTitleStyle}>Outcome</div>
+          <div style={flowValueStyle}>
+            Scalar reward {formatSigned(decisionStory?.scalarReward, 3)}
+          </div>
+          <div style={flowBodyStyle}>
+            Handover Narrative: {narrativeSummary.headline}. Cumulative Handovers {handoverCount}.
+          </div>
+          <div style={flowMiniGridStyle}>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Throughput Reward</div>
+              <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.throughput, 2)}</div>
+            </div>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>HO Reward</div>
+              <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.handover, 2)}</div>
+            </div>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Load Reward</div>
+              <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.loadBalance, 2)}</div>
+            </div>
+            <div style={flowMiniStyle}>
+              <div style={flowMiniLabelStyle}>Selected Beam Load</div>
+              <div style={flowMiniValueStyle}>{formatNumber(decisionStory?.selectedBeamLoad, 2)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {replayTrendCards.length > 0 ? (
+        <div style={replayChartGridStyle}>
+          {replayTrendCards.map(({ key, ...card }) => (
+            <InlineReplayTrendCard
+              key={key}
+              {...card}
+              currentFrameIndex={currentFrameIndex}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+interface ModqnSourceDisclosureSectionProps {
+  bundleSummary: ModqnBundleSummaryView | null;
+  sourceLabel: string;
+  handoverCount: number;
+  assumptionCount: number;
+  provenanceSummary: ProvenanceSummary;
+}
+
+function ModqnSourceDisclosureSection({
+  bundleSummary,
+  sourceLabel,
+  handoverCount,
+  assumptionCount,
+  provenanceSummary,
+}: ModqnSourceDisclosureSectionProps) {
+  return (
+    <section style={sourcePanelStyle}>
+      <div style={panelEyebrowStyle}>Source & Disclosure</div>
+      <div style={{ ...panelBodyStyle, marginTop: 6, color: '#c4d4e3' }}>
+        Full assumptions and provenance stay behind Disclosure. Use the dedicated
+        `Disclosure` toggle in the control panel when you need the longer metadata
+        surface; the first screen keeps only the proof that tells the audience where
+        this truth came from.
+      </div>
+      <div style={sourceGridStyle}>
+        {renderSourceCard(
+          'Paper / Run / Checkpoint',
+          bundleSummary
+            ? bundleSummary.paperId + ' / ' + bundleSummary.runId + ' / ' + titleizeHyphenated(bundleSummary.checkpointKind)
+            : 'Loading…',
+        )}
+        {renderSourceCard('Source Label', bundleSummary?.sourceLabel ?? sourceLabel)}
+        {renderSourceCard(
+          'Replay Truth Mode',
+          titleizeHyphenated(bundleSummary?.replayTruthMode),
+          bundleSummary?.replayTruthMode ?? 'loading…',
+        )}
+        {renderSourceCard(
+          'Cumulative Handovers',
+          handoverCount,
+          'Counted up to the current replay slot.',
+        )}
+        {renderSourceCard(
+          'Disclosure Summary',
+          String(assumptionCount) + ' assumptions / ' + String(provenanceSummary.reproductionAssumptionFieldCount) + ' reproduction-assumption fields',
+          provenanceSummary.classifications.join(', ') || 'loading…',
+        )}
+      </div>
+    </section>
+  );
+}
+
 export const ModqnBaselineCompactPanel = React.memo(function ModqnBaselineCompactPanel({
   visible,
   snapshot,
-  continuityNarrative,
   bundleSummary,
   trainingEvalSummary,
   trainingEvidence,
@@ -858,13 +1116,15 @@ export const ModqnBaselineCompactPanel = React.memo(function ModqnBaselineCompac
   slotCount,
   handoverCount,
   assumptionCount,
+  dashboardKpis,
   provenanceLegend,
   provenanceFields,
+  replayTrendSeries,
 }: ModqnBaselineCompactPanelProps) {
   const primaryUe = snapshot?.ues[0] ?? null;
   const narrativeSummary = useMemo(
-    () => describeNarrative(continuityNarrative),
-    [continuityNarrative],
+    () => describeReplayTruthNarrative(decisionStory),
+    [decisionStory],
   );
   const objectiveLanes = useMemo(
     () => buildObjectiveLanes(bundleSummary, trainingEvalSummary, decisionStory, narrativeSummary),
@@ -883,347 +1143,64 @@ export const ModqnBaselineCompactPanel = React.memo(function ModqnBaselineCompac
       classifications: provenanceLegend.map((entry) => entry.classification),
     };
   }, [provenanceFields, provenanceLegend]);
+  const firstScreenKpiCards = useMemo(
+    () => buildFirstScreenKpiCards(
+      bundleSummary,
+      sourceLabel,
+      handoverCount,
+      assumptionCount,
+      provenanceSummary,
+      dashboardKpis,
+    ),
+    [assumptionCount, bundleSummary, dashboardKpis, handoverCount, provenanceSummary, sourceLabel],
+  );
 
   if (!visible) return null;
 
   return (
-    <div style={containerStyle} data-testid="modqn-compact-panel">
-      <div style={sectionStackStyle}>
-        <section style={heroPanelStyle}>
-          <div style={badgeRowStyle}>
-            <span style={brandBadgeStyle}>MODQN Replay</span>
-            <span style={secondaryBadgeStyle}>Trained policy inside NTN-SIM-CORE</span>
-          </div>
-          <div style={heroBrandStyle}>MODQN</div>
-          <div style={heroHeadlineStyle}>{describeDecisionHeadline(decisionStory)}</div>
-          <div style={heroSublineStyle}>Truth Source: MODQN Bundle</div>
-          <div style={heroBodyStyle}>
-            Saved MODQN bundle truth is being replayed inside the simulator. The frontend reads the
-            exported policy decisions and runtime snapshot truth instead of recomputing a native
-            policy path.
-          </div>
+    <div data-testid="bundle-story-dashboard" style={containerStyle}>
+      <div data-testid="modqn-compact-panel">
+        <div style={sectionStackStyle}>
+          <ModqnHeroSection
+            decisionStory={decisionStory}
+            narrativeSummary={narrativeSummary}
+            servingSatId={decisionStory?.selectedSatId}
+            sinrDb={primaryUe?.sinrDb}
+            currentSlotIndex={currentSlotIndex}
+            slotCount={slotCount ?? bundleSummary?.slotCount ?? null}
+            handoverCount={handoverCount}
+          />
+          <ModqnFirstScreenKpiStrip cards={firstScreenKpiCards} />
 
-          <div style={guideRowStyle}>
-            <div style={guidePillStyle}>
-              <span style={guideIndexStyle}>1</span>
-              <span style={guideLabelStyle}>Training Evidence</span>
-            </div>
-            <div style={guidePillStyle}>
-              <span style={guideIndexStyle}>2</span>
-              <span style={guideLabelStyle}>Three Objectives</span>
-            </div>
-            <div style={guidePillStyle}>
-              <span style={guideIndexStyle}>3</span>
-              <span style={guideLabelStyle}>Decision Now</span>
-            </div>
+          <div style={showcaseGridStyle}>
+            <ModqnTrainingEvidenceSection
+              trainingEvidence={trainingEvidence}
+              trainingEvalSummary={trainingEvalSummary}
+              proofBadges={proofBadges}
+            />
+            <ModqnGoalSection objectiveLanes={objectiveLanes} />
           </div>
 
-          <div style={heroSignalsStyle}>
-            <div style={signalCardStyle}>
-              <div style={signalLabelStyle}>Serving Satellite</div>
-              <div style={signalValueStyle}>{primaryUe?.servingSatId ?? '—'}</div>
-              <div style={signalHintStyle}>The satellite currently carrying the active service path.</div>
-            </div>
-            <div style={signalCardStyle}>
-              <div style={signalLabelStyle}>Handover Status</div>
-              <div style={signalValueStyle}>{narrativeSummary.headline}</div>
-              <div style={signalHintStyle}>{narrativeSummary.description}</div>
-            </div>
-            <div style={signalCardStyle}>
-              <div style={signalLabelStyle}>Current Slot / Total Slots</div>
-              <div style={signalValueStyle}>
-                {currentSlotIndex ?? '—'} / {slotCount ?? bundleSummary?.slotCount ?? '—'}
-              </div>
-              <div style={signalHintStyle}>The current moment inside the replayed bundle timeline.</div>
-            </div>
-            <div style={signalCardStyle}>
-              <div style={signalLabelStyle}>Primary SINR</div>
-              <div style={signalValueStyle}>{formatPrimarySinrValue(primaryUe?.sinrDb)}</div>
-              <div style={signalHintStyle}>{formatPrimarySinrHint(primaryUe?.sinrDb)}</div>
-            </div>
-          </div>
-        </section>
-
-        <div style={showcaseGridStyle}>
-          <section style={evidencePanelStyle}>
-            <div style={panelEyebrowStyle}>Training Evidence</div>
-            <div style={{ ...panelTitleStyle, marginTop: 6, fontSize: 28 }}>
-              Proof that this checkpoint was trained before replay
-            </div>
-            <div style={panelBodyStyle}>
-              These figures and training rows came with the MODQN bundle. On trimmed samples you see a
-              checkpoint snapshot; richer bundles automatically expand into longer convergence stories.
-            </div>
-
-            <div style={evidenceGridStyle}>
-              <div style={evidenceCardStyle}>
-                <div style={evidenceCardTitleStyle}>Scalar reward track</div>
-                <div style={evidenceCardBodyStyle}>
-                  The replayed checkpoint carries scalar-reward evidence from training and best-eval
-                  summary statistics from the producer export.
-                </div>
-                {trainingEvidence?.trainingScalarRewardFigureUrl ? (
-                  <div style={evidenceFigureFrameStyle}>
-                    <img
-                      src={trainingEvidence.trainingScalarRewardFigureUrl}
-                      alt="Producer-exported MODQN scalar reward training figure"
-                      style={evidenceFigureImageStyle}
-                    />
-                  </div>
-                ) : renderSparkline(
-                  trainingEvidence?.scalarRewardSeries ?? [],
-                  '#ffb44c',
-                  'Scalar reward',
-                )}
-                <div style={evidenceStatGridStyle}>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Latest Episode</div>
-                    <div style={evidenceStatValueStyle}>{formatCount(trainingEvidence?.latestEpisode)}</div>
-                  </div>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Latest Reward</div>
-                    <div style={evidenceStatValueStyle}>{formatSigned(trainingEvidence?.latestScalarReward, 2)}</div>
-                  </div>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Best Eval Mean</div>
-                    <div style={evidenceStatValueStyle}>{formatSigned(trainingEvalSummary?.bestEvalMeanScalarReward, 2)}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={evidenceCardStyle}>
-                <div style={evidenceCardTitleStyle}>Three-objective training track</div>
-                <div style={evidenceCardBodyStyle}>
-                  Throughput, handover discipline, and load-balance training traces are exported with the
-                  bundle, so the audience can see the policy was optimized against all three goals.
-                </div>
-                {trainingEvidence?.trainingObjectivesFigureUrl ? (
-                  <div style={evidenceFigureFrameStyle}>
-                    <img
-                      src={trainingEvidence.trainingObjectivesFigureUrl}
-                      alt="Producer-exported MODQN objective training figure"
-                      style={evidenceFigureImageStyle}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    {renderSparkline(
-                      trainingEvidence?.throughputLossSeries ?? [],
-                      '#ffb44c',
-                      'Throughput loss',
-                    )}
-                    {renderSparkline(
-                      trainingEvidence?.handoverLossSeries ?? [],
-                      '#2ea7ff',
-                      'Handover loss',
-                    )}
-                    {renderSparkline(
-                      trainingEvidence?.loadBalanceLossSeries ?? [],
-                      '#19c37d',
-                      'Load-balance loss',
-                    )}
-                  </>
-                )}
-                <div style={evidenceStatGridStyle}>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Exported Rows</div>
-                    <div style={evidenceStatValueStyle}>{formatCount(trainingEvidence?.episodeCount)}</div>
-                  </div>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Latest Epsilon</div>
-                    <div style={evidenceStatValueStyle}>{formatNumber(trainingEvidence?.latestEpsilon, 2)}</div>
-                  </div>
-                  <div style={evidenceStatStyle}>
-                    <div style={evidenceStatLabelStyle}>Best Eval Seeds</div>
-                    <div style={evidenceStatValueStyle}>{formatCount(trainingEvalSummary?.bestEvalEvalSeedCount)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={proofBadgeWrapStyle}>
-              {proofBadges.map((badge) => (
-                <div key={badge.label} style={proofBadgeStyle}>
-                  <span style={{ color: '#5a7388', fontWeight: 800 }}>{badge.label}</span>
-                  <span>{badge.value}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section style={goalPanelStyle}>
-            <div style={panelEyebrowStyle}>Three-Objective Policy</div>
-            <div style={panelTitleStyle}>One policy score, three optimization targets</div>
-            <div style={panelBodyStyle}>
-              The scalar reward blends throughput, handover discipline, and load balance. The color bar
-              below is the exported reward mix from the replay bundle.
-            </div>
-
-            <div style={goalMixStyle}>
-              <div style={goalWeightBarStyle}>
-                {objectiveLanes.map((lane) => (
-                  <div
-                    key={lane.key}
-                    style={{
-                      width: String(Math.max(clamp01(lane.weight) * 100, lane.weight > 0 ? 10 : 0)) + '%',
-                      background: lane.accent,
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div style={goalLaneGridStyle}>
-                {objectiveLanes.map((lane) => (
-                  <div key={lane.key} style={goalLaneStyle}>
-                    <div style={goalHeaderStyle}>
-                      <div style={goalTitleStyle}>{lane.title}</div>
-                      <div style={{ ...goalWeightStyle, color: lane.accent }}>{lane.weightLabel}</div>
-                    </div>
-                    <div style={goalSummaryStyle}>{lane.summary}</div>
-                    <div style={goalDetailStyle}>{lane.detail}</div>
-                    <div style={goalTrackStyle}>
-                      <div
-                        style={{
-                          width: String(clamp01(lane.weight) * 100) + '%',
-                          height: '100%',
-                          borderRadius: 999,
-                          background: lane.accent,
-                        }}
-                      />
-                    </div>
-                    <div style={{ ...goalDetailStyle, marginTop: 8 }}>{lane.benchmark}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <ModqnDecisionStorySection
+            currentSlotIndex={currentSlotIndex}
+            slotCount={slotCount}
+            bundleSummary={bundleSummary}
+            dashboardKpis={dashboardKpis}
+            decisionStory={decisionStory}
+            narrativeSummary={narrativeSummary}
+            handoverCount={handoverCount}
+            replayTrendSeries={replayTrendSeries}
+          />
         </div>
 
-        <section style={storyPanelStyle}>
-          <div style={storyHeaderStyle}>
-            <div>
-              <div style={panelEyebrowStyle}>Decision Now</div>
-              <div style={{ ...panelTitleStyle, marginTop: 6, fontSize: 28 }}>
-                What the policy saw, chose, and achieved in this slot
-              </div>
-            </div>
-            <div style={storyPillStyle}>
-              Current Slot / Total Slots {currentSlotIndex ?? '—'} / {slotCount ?? bundleSummary?.slotCount ?? '—'}
-            </div>
-          </div>
-
-          <div style={decisionFlowStyle}>
-            <div style={flowCardStyle}>
-              <div style={flowStepStyle}>1</div>
-              <div style={flowTitleStyle}>State</div>
-              <div style={flowValueStyle}>
-                {decisionStory
-                  ? String(decisionStory.visibleSatelliteCount) + ' satellites / ' + String(decisionStory.validActionCount) + ' valid actions'
-                  : 'Waiting for bundle state'}
-              </div>
-              <div style={flowBodyStyle}>
-                {decisionStory
-                  ? 'Previous serving link: ' + (decisionStory.previousServingSatId ?? '—') + ' / ' + (decisionStory.previousServingBeamId ?? '—') + '.'
-                  : 'The readable state slice will appear once the bundle frame is ready.'}
-              </div>
-              <div style={flowMiniGridStyle}>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Visible Beam Options</div>
-                  <div style={flowMiniValueStyle}>{formatCount(decisionStory?.visibleBeamCount)}</div>
-                </div>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Replay Truth Mode</div>
-                  <div style={flowMiniValueStyle}>
-                    {titleizeHyphenated(bundleSummary?.replayTruthMode)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={flowCardStyle}>
-              <div style={flowStepStyle}>2</div>
-              <div style={flowTitleStyle}>Action</div>
-              <div style={flowValueStyle}>{describeActionSummary(decisionStory)}</div>
-              <div style={flowBodyStyle}>
-                {decisionStory
-                  ? 'Selected beam ' + decisionStory.selectedBeamId + '. Handover type: ' + titleizeHyphenated(decisionStory.handoverKind) + '.'
-                  : 'The chosen serving satellite and beam come directly from the bundle export.'}
-              </div>
-              <div style={flowMiniGridStyle}>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Selected Beam</div>
-                  <div style={flowMiniValueStyle}>{decisionStory?.selectedBeamId ?? '—'}</div>
-                </div>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Local Beam Index</div>
-                  <div style={flowMiniValueStyle}>{formatCount(decisionStory?.selectedLocalBeamIndex)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={flowCardStyle}>
-              <div style={flowStepStyle}>3</div>
-              <div style={flowTitleStyle}>Outcome</div>
-              <div style={flowValueStyle}>
-                Scalar reward {formatSigned(decisionStory?.scalarReward, 3)}
-              </div>
-              <div style={flowBodyStyle}>
-                Handover Narrative: {formatContinuityNarrativeLabel(continuityNarrative)}. Cumulative Handovers {handoverCount}.
-              </div>
-              <div style={flowMiniGridStyle}>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Throughput Reward</div>
-                  <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.throughput, 2)}</div>
-                </div>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>HO Reward</div>
-                  <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.handover, 2)}</div>
-                </div>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Load Reward</div>
-                  <div style={flowMiniValueStyle}>{formatSigned(decisionStory?.rewardVector.loadBalance, 2)}</div>
-                </div>
-                <div style={flowMiniStyle}>
-                  <div style={flowMiniLabelStyle}>Selected Beam Load</div>
-                  <div style={flowMiniValueStyle}>{formatNumber(decisionStory?.selectedBeamLoad, 2)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <ModqnSourceDisclosureSection
+          bundleSummary={bundleSummary}
+          sourceLabel={sourceLabel}
+          handoverCount={handoverCount}
+          assumptionCount={assumptionCount}
+          provenanceSummary={provenanceSummary}
+        />
       </div>
-
-      <section style={sourcePanelStyle}>
-        <div style={panelEyebrowStyle}>Source & Disclosure</div>
-        <div style={{ ...panelBodyStyle, marginTop: 6, color: '#c4d4e3' }}>
-          Full assumptions and provenance stay behind Disclosure. The first screen keeps only the proof
-          that tells the audience where this truth came from.
-        </div>
-        <div style={sourceGridStyle}>
-          {renderSourceCard(
-            'Paper / Run / Checkpoint',
-            bundleSummary
-              ? bundleSummary.paperId + ' / ' + bundleSummary.runId + ' / ' + titleizeHyphenated(bundleSummary.checkpointKind)
-              : 'Loading…',
-          )}
-          {renderSourceCard('Source Label', bundleSummary?.sourceLabel ?? sourceLabel)}
-          {renderSourceCard(
-            'Replay Truth Mode',
-            titleizeHyphenated(bundleSummary?.replayTruthMode),
-            bundleSummary?.replayTruthMode ?? 'loading…',
-          )}
-          {renderSourceCard(
-            'Cumulative Handovers',
-            handoverCount,
-            'Counted up to the current replay slot.',
-          )}
-          {renderSourceCard(
-            'Disclosure Summary',
-            String(assumptionCount) + ' assumptions / ' + String(provenanceSummary.reproductionAssumptionFieldCount) + ' reproduction-assumption fields',
-            provenanceSummary.classifications.join(', ') || 'loading…',
-          )}
-        </div>
-      </section>
     </div>
   );
 });
