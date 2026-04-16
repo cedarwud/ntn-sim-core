@@ -22,7 +22,7 @@ export interface PathLossInput {
   frequencyGhz: number;
   elevationDeg: number;
   environment: DeploymentEnvironment;
-  isLos: boolean;                  // engine decides: elevationDeg >= los_elevation_deg threshold
+  isLos: boolean;                  // engine decides LOS via profile-selected closure
   txEirpDbm: number;
   rxAntennaGainDb?: number;
   implementationLossDb: number;

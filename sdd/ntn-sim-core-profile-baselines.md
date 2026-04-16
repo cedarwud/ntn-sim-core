@@ -1,8 +1,8 @@
 # NTN Sim Core — Profile Baselines and Formula Families
 
-**Version:** 1.2.5
-**Date:** 2026-04-14
-**Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults, makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit, and lands the first narrow `earth-moving` bounded-steering slice for research-facing access / HOBS families.
+**Version:** 1.2.6
+**Date:** 2026-04-15
+**Status:** Active — Phase 5 complete: profiles remain authored as `ProfileBundle + ExperimentBundle` pairs, but runtime `ProfileConfig` is now produced by `runtime-materialization.ts` rather than the retired `composeProfile()` shim. Authoring surfaces now flow through `profile-authoring-registry.ts`, `profile-exposure-catalog.ts`, and `profile-provenance-view.ts`; `defaults-access.ts`, `defaults-hobs.ts`, `defaults-bh.ts`, and `defaults-misc.ts` remain the per-family authoring truth, while `defaults.ts` stays the thin `DEFAULT_PROFILES` barrel. Current closure hardening also aligns registry/runtime defaults, makes the `realistic-first-screen` aggregate TX cap (`rf.max_tx_power_dbm = 43`) explicit, lands the first narrow `earth-moving` bounded-steering slice for research-facing access / HOBS families, and splits DAPS into a benchmark-facing baseline plus a dedicated truth-preserving showcase sibling.
 
 ---
 
@@ -25,14 +25,17 @@ The intent is to be concrete enough for implementation and review, without prete
 | Profile ID | Primary Usage | Orbit Mode | Beam Semantics | Primary Source Anchors |
 |---|---|---|---|---|
 | `case9-access-baseline` | access/handover reproduction and early algorithm benchmarking | synthetic | earth-moving | `PAP-2022-A4EVENT-CORE`, `PAP-2022-SINR-ELEVATION`, `PAP-2025-TIMERCHO-CORE`, `PAP-2024-MCCHO-CORE` |
+| `case9-daps-baseline` | benchmark-facing DAPS dual-active access baseline | synthetic | earth-moving | `PAP-2025-DAPS-CORE`, `PAP-2022-A4EVENT-CORE`, `ASSUME-HO-DAPS`, `ASSUME-BH-DAPS-001` |
+| `case9-daps-showcase` | truth-preserving first-screen DAPS showcase | synthetic | earth-moving | `PAP-2025-DAPS-CORE`, `PAP-2022-A4EVENT-CORE`, `ASSUME-HO-DAPS`, `ASSUME-UE-001` |
 | `modqn-paper-baseline` | downstream MODQN contract/runtime baseline and M2 trainer preflight | synthetic | earth-moving multi-beam | `PAP-2024-MORL-MULTIBEAM`, `ASSUME-MODQN-ORBIT`, `ASSUME-MODQN-BEAM`, `ASSUME-MODQN-RUNTIME` |
 | `hobs-multibeam-baseline` | multi-beam interference, beam switching, and energy layer 1 | synthetic | earth-moving multi-beam | `PAP-2024-HOBS`, `PAP-2021-SHADOWED-RICIAN`, `PAP-2024-MADRL-CORE` |
+| `hobs-tr38811-research` | HOBS research path with TR 38.811 slant-range/LOS coupling and beam-associated DPC feedback | synthetic | earth-moving multi-beam | `PAP-2024-HOBS`, `STD-3GPP-38811`, `PAP-2022-SENSORS-BH` |
 | `bh-resource-baseline` | beam hopping, active-beam scheduling, and resource control | synthetic | earth-fixed / BH-slot | `PAP-2026-BHFREQREUSE`, `PAP-2025-EEBH-UPLINK`, `PAP-2025-DIST-BH-HETERO`, `PAP-2025-MAAC-BHPOWER` |
 | `real-trace-validation` | external-validity checks under real constellation motion | real-trace | inherited from validated profile family | `PAP-2025-DAPS-CORE`, `PAP-2025-SMASH-MADQL`, local `tle_data/` |
 
 Research-facing `earth-moving` no longer means one implicit steering model across every profile. The current authored split is:
 
-1. `case9-access-baseline`, `case9-daps-baseline`, `hobs-multibeam-baseline`, and `hobs-reproduction` use `nadir-relative-bounded-steering`.
+1. `case9-access-baseline`, `case9-daps-baseline`, `case9-daps-showcase`, `hobs-multibeam-baseline`, `hobs-reproduction`, and `hobs-tr38811-research` use `nadir-relative-bounded-steering`.
 2. The steering clamp is authored as `beam.steering_bound_km` in ground-plane kilometers.
 3. `realistic-first-screen` intentionally retains legacy `ue-anchored-steering` as a donor/demo-oriented showcase surface, not as the research default.
 4. `modqn-paper-baseline` and `bh-resource-*` remain outside this slice's semantic rewrite boundary.
@@ -92,6 +95,27 @@ Current authored tracking rule:
 2. The chosen representation must be written to the run manifest.
 3. The representation must not be mislabeled as a different paper's exact constellation.
 
+### 4.3 DAPS Baseline vs Showcase Split
+
+The DAPS family now has two distinct access surfaces:
+
+1. `case9-daps-baseline`
+   - benchmark-facing DAPS baseline
+   - keeps the BH-coupled, multi-UE continuity context
+   - remains the correct reference when a user wants the denser mixed-duty
+     access scene
+2. `case9-daps-showcase`
+   - truth-preserving showcase sibling
+   - same DAPS / SINR / bounded-steering family
+   - `1 UE`
+   - no BH overlay load
+   - curated epoch `2026-01-01T00:45:00Z`
+   - showcase-specific `hysteresis_db = 0`, `pingPongWindowSec = 15`
+   - interactive first-screen default
+
+This split is presentation-oriented. It does not authorize a second physics
+path, alternate SINR truth, or beam fake re-centering.
+
 ---
 
 ## 5. `hobs-multibeam-baseline`
@@ -117,7 +141,7 @@ Current authored tracking rule:
 
 Current authored tracking rule:
 
-1. `hobs-multibeam-baseline` and `hobs-reproduction` use `beam.tracking_mode = 'nadir-relative-bounded-steering'`.
+1. `hobs-multibeam-baseline`, `hobs-reproduction`, and `hobs-tr38811-research` use `beam.tracking_mode = 'nadir-relative-bounded-steering'`.
 2. The first bounded-steering landing authors `beam.steering_bound_km ≈ 255.5`, which is `4 x` the HOBS beam diameter derived from Table I.
 3. The first landing changes serving/candidate derivation only; it does not rewrite the broader HO-family FSM structure.
 
@@ -129,6 +153,18 @@ Current authored tracking rule:
    - interference-aware SINR
    - energy layer 1
 2. It should become the first non-toy profile whose outputs are strong enough for paper-quality beam/HO/EE comparisons.
+
+### 5.3 `hobs-tr38811-research`
+
+1. `hobs-tr38811-research` is the research-focused sibling of `hobs-reproduction`, not a replacement.
+2. It keeps the HOBS Eq. (4) outer SINR decomposition, but rewrites the large-scale distance path as `d(alpha)` using 3GPP TR 38.811 Eq. (6.6-3).
+3. It also upgrades the geometry/runtime path in three ways:
+   - per-UE topocentric elevation/slant range instead of observer-shared reuse
+   - uncapped inter-LEO interferer summation (`channel.max_interfering_sats = null`)
+   - beam-associated DPC power coupled back into the channel path when a beam has a UE candidate / forced-serving SINR proxy; unmatched beams fall back to fixed power
+4. LOS/NLOS selection no longer uses the legacy 20° shortcut in this profile; it follows TR 38.811 Table 6.6.1-1 with nearest-angle lookup and deterministic per-link sampling, so clutter activation is driven by the same standard-backed closure.
+5. This profile is the preferred surface when the paper claim needs an equation-traceable HOBS+TR 38.811 hybrid rather than the lighter `hobs-reproduction` baseline.
+6. It is still a disclosed simulator interpretation, not an exact HOBS replication, because the constellation closure, FRF, bounded-steering beam semantics, and unmatched-beam fixed-power fallback remain simulator-authored assumptions.
 
 ---
 

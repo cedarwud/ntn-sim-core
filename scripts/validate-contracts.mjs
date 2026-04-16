@@ -228,9 +228,10 @@ console.log('\n── VAL-PLAT-010: getProfileList() runtime check ──');
 
 const EXPECTED_IDS = new Set([
   'realistic-first-screen', 'case9-access-baseline',    'hobs-multibeam-baseline',
-  'bh-resource-baseline',   'case9-daps-baseline',      'real-trace-validation',
+  'bh-resource-baseline',   'case9-daps-baseline',      'case9-daps-showcase',
+  'real-trace-validation',
   'meo-constellation-baseline', 'geo-relay-baseline',   'sinr-elevation-reproduction',
-  'hobs-reproduction',      'timer-cho-reproduction',   'bh-pf-baseline',
+  'hobs-reproduction',      'hobs-tr38811-research',    'timer-cho-reproduction',   'bh-pf-baseline',
   'bh-sinr-greedy-baseline', 'bh-resource-energy-proof', 'modqn-paper-baseline',
 ]);
 const VALID_TIERS = new Set(['Realistic', 'Advanced', 'Sensitivity']);

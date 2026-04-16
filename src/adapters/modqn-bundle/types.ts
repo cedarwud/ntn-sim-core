@@ -280,6 +280,30 @@ export interface ModqnReplayFrame {
   users: ModqnReplayUserRecord[];
 }
 
+export interface ModqnTrainingEpisodeMetricRow {
+  episode: number;
+  epsilon: number | null;
+  r1Mean: number | null;
+  r2Mean: number | null;
+  r3Mean: number | null;
+  scalarReward: number | null;
+  totalHandovers: number | null;
+  replaySize: number | null;
+  losses: number[];
+}
+
+export interface ModqnTrainingLossCurveRow {
+  episode: number;
+  lossQ1: number | null;
+  lossQ2: number | null;
+  lossQ3: number | null;
+}
+
+export interface ModqnBundleArtifactUrls {
+  trainingObjectivesFigureUrl?: string | null;
+  trainingScalarRewardFigureUrl?: string | null;
+}
+
 /**
  * Top-level adapter surface exposed to UI / view-model code.
  *
@@ -292,6 +316,9 @@ export interface ModqnReplayBundle {
   assumptions: Record<string, unknown> | null;
   provenanceMap: Record<string, unknown> | null;
   evaluationSummary: Record<string, unknown> | null;
+  trainingEpisodeMetrics: ModqnTrainingEpisodeMetricRow[];
+  trainingLossCurves: ModqnTrainingLossCurveRow[];
+  artifactUrls?: ModqnBundleArtifactUrls | null;
   frames: ModqnReplayFrame[];
   frameBySlotIndex: ReadonlyMap<number, ModqnReplayFrame>;
   slotCount: number;

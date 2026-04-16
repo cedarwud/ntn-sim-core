@@ -1,7 +1,12 @@
 import type { SimEngineState } from './state';
 import type { TrajectorySample } from '../orbit/types';
 import { getOrCreateBeamLayout } from './bootstrap';
-import { DEFAULT_ENERGY_LAYER1_CONFIG } from '../energy/layer1';
+import type { SatSinrSeed } from './channel-step';
+import { buildBeamPowerSeeds } from './channel-step';
+import {
+  computeDpcAdjustedTxPowerDbm,
+  DEFAULT_ENERGY_LAYER1_CONFIG,
+} from '../energy/layer1';
 
 /**
  * Phase 5 Core Structural Split: Energy step.
@@ -13,7 +18,7 @@ export function runEnergyStep(
   timeSec: number,
   stepSec: number,
   satSamples: Array<{ satId: string; sample: TrajectorySample }>,
-  satSinrs: Array<{ satId: string; sinrDb: number; bestBeamId: string }>,
+  satSinrs: SatSinrSeed[],
   representativeServing: { satId: string; beamId: string } | null
 ) {
   const {
@@ -27,6 +32,11 @@ export function runEnergyStep(
   } = state;
 
   if (energyManager && isMultiBeam) {
+    const layer1Config = {
+      ...DEFAULT_ENERGY_LAYER1_CONFIG,
+      ...(profile.energy.layer1_overrides ?? {}),
+    };
+
     for (const { satId, sample } of satSamples) {
       const layout = getOrCreateBeamLayout(state, satId, sample.altKm);
       const allBeamIds = layout.beams.map((b) => b.beamId);
@@ -42,10 +52,26 @@ export function runEnergyStep(
       energyManager.updateBeamStates(satId, activeBeamIds, allBeamIds);
     }
 
+    state.beamTxPowerOverridesDbm.clear();
+    if (state.profile.channel.power_coupling_mode === 'beam-power-override') {
+      const beamPowerSeeds = buildBeamPowerSeeds(state, satSinrs, representativeServing);
+      for (const seed of beamPowerSeeds) {
+        const txPowerDbm = computeDpcAdjustedTxPowerDbm(
+          layer1Config.txPowerPerBeamDbm,
+          seed.sinrDb,
+          layer1Config,
+        );
+        state.beamTxPowerOverridesDbm.set(seed.beamId, txPowerDbm);
+      }
+    }
+
     if (representativeServing) {
       const servEntry = satSinrs.find((s) => s.satId === representativeServing.satId);
       if (servEntry) {
-        energyManager.applyDpc(servEntry.bestBeamId, servEntry.sinrDb);
+        const txPowerDbm = energyManager.applyDpc(servEntry.bestBeamId, servEntry.sinrDb);
+        if (state.profile.channel.power_coupling_mode === 'beam-power-override') {
+          state.beamTxPowerOverridesDbm.set(servEntry.bestBeamId, txPowerDbm);
+        }
       }
     }
 
@@ -63,11 +89,11 @@ export function runEnergyStep(
     if (bundle.power && bundle.ee) {
       const totalThroughputBps = Array.from(throughputs.values()).reduce((s, v) => s + v, 0);
       const txPowerPerBeamDbm =
-        profile.rf.tx_power_per_beam_dbm ?? DEFAULT_ENERGY_LAYER1_CONFIG.txPowerPerBeamDbm;
+        profile.rf.tx_power_per_beam_dbm ?? layer1Config.txPowerPerBeamDbm;
       const defaultActiveTxPowerW = Math.pow(10, (txPowerPerBeamDbm - 30) / 10);
       const activeBeamOverheadW = Math.max(
         0,
-        DEFAULT_ENERGY_LAYER1_CONFIG.activeBeamPowerW - defaultActiveTxPowerW,
+        layer1Config.activeBeamPowerW - defaultActiveTxPowerW,
       );
 
       const powerResult = bundle.power.compute({
@@ -76,8 +102,8 @@ export function runEnergyStep(
         idleBeamCount: legacyMetrics.idleBeamCount,
         offBeamCount: legacyMetrics.offBeamCount,
         activeBeamOverheadW,
-        idleBeamPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.idlePowerW,
-        offBeamPowerW: DEFAULT_ENERGY_LAYER1_CONFIG.offBeamPowerW,
+        idleBeamPowerW: layer1Config.idlePowerW,
+        offBeamPowerW: layer1Config.offBeamPowerW,
       });
 
       const eeBpj = bundle.ee.computeBitsPerJoule({

@@ -198,6 +198,16 @@ export const ControlPanel = React.memo(function ControlPanel({
   const resolvedSceneMode = sceneMode ?? (replayMode ? 'native-replay' : 'native-live');
   const isBundleMode = resolvedSceneMode === 'modqn-bundle';
   const isNativeReplayMode = resolvedSceneMode === 'native-replay';
+  const resolvedContainerStyle: React.CSSProperties = isBundleMode
+    ? {
+        ...containerStyle,
+        border: '1px solid rgba(255, 186, 74, 0.35)',
+        background: 'rgba(20, 22, 34, 0.92)',
+        minWidth: 0,
+        maxWidth: 360,
+        padding: '10px 14px',
+      }
+    : containerStyle;
 
   const handleHoTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -225,7 +235,7 @@ export const ControlPanel = React.memo(function ControlPanel({
   };
 
   return (
-    <div style={containerStyle} data-testid="control-panel">
+    <div style={resolvedContainerStyle} data-testid="control-panel">
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
@@ -255,7 +265,7 @@ export const ControlPanel = React.memo(function ControlPanel({
                 onClick={() => handleSceneModeChange('modqn-bundle')}
                 title="Replay the frozen MODQN bundle as the primary serving/handover truth source"
               >
-                MODQN Bundle
+                MODQN Replay
               </button>
             </>
           ) : (
@@ -364,7 +374,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       </div>
 
       {/* Toggles */}
-      <div style={{ ...rowStyle, gap: 16 }}>
+      <div style={{ ...rowStyle, gap: 16, flexWrap: 'wrap' }}>
         <label style={checkboxLabelStyle}>
           <input
             data-testid="toggle-show-beams"
@@ -374,15 +384,17 @@ export const ControlPanel = React.memo(function ControlPanel({
           />
           Show Beams
         </label>
-        <label style={checkboxLabelStyle}>
-          <input
-            data-testid="toggle-show-labels"
-            type="checkbox"
-            checked={showLabels}
-            onChange={onShowLabelsToggle}
-          />
-          Show Labels
-        </label>
+        {!isBundleMode && (
+          <label style={checkboxLabelStyle}>
+            <input
+              data-testid="toggle-show-labels"
+              type="checkbox"
+              checked={showLabels}
+              onChange={onShowLabelsToggle}
+            />
+            Show Labels
+          </label>
+        )}
         {!isBundleMode && onShowSinrChartToggle && (
           <label style={checkboxLabelStyle}>
             <input
@@ -394,7 +406,7 @@ export const ControlPanel = React.memo(function ControlPanel({
             SINR Chart
           </label>
         )}
-        {onShowHoLogToggle && (
+        {!isBundleMode && onShowHoLogToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-ho-log"
@@ -472,7 +484,7 @@ export const ControlPanel = React.memo(function ControlPanel({
                 onClick={onShowBundleMetadataToggle}
                 title="Show or hide bundle assumptions, provenance, and training/evaluation disclosure"
               >
-                Bundle Meta
+                Disclosure
               </button>
             )
           ) : onShowParametersToggle && (
@@ -512,7 +524,7 @@ export const ControlPanel = React.memo(function ControlPanel({
         <span style={labelStyle}>Truth:</span>
         <span data-testid="truth-source-note" style={{ color: '#a7b6c7', fontSize: 12 }}>
           {isBundleMode
-            ? 'Bundle serving / handover truth from producer export'
+            ? 'Now replaying a saved MODQN producer export bundle. Native simulator panels stay hidden unless you leave bundle mode.'
             : isNativeReplayMode
               ? 'Native simulator truth recorded into replay window'
               : 'Native simulator truth from live engine'}

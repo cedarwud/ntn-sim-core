@@ -11,10 +11,13 @@
  */
 
 import { createActiveBeamManager } from '../src/core/beam/active-beam-manager';
+import { createBhScheduler } from '../src/core/beam/scheduler';
 import { generateHexagonalBeamLayout } from '../src/core/beam/layout';
 import { selectBeamForUe } from '../src/core/beam/selection';
+import { bootstrapEngine } from '../src/core/engine/bootstrap';
 import {
   CASE9_ACCESS_BASELINE,
+  CASE9_DAPS_BASELINE,
   HOBS_MULTIBEAM_BASELINE,
 } from '../src/core/profiles/defaults';
 import { evaluateTrackedBeamSelection } from '../src/core/engine/beam-tracking';
@@ -60,6 +63,10 @@ function createLayout() {
     altitudeKm: HOBS_MULTIBEAM_BASELINE.orbital.altitude_km,
     frf: HOBS_MULTIBEAM_BASELINE.beam.frf,
   });
+}
+
+function collectBeamIds(layout = createLayout()) {
+  return layout.beams.map((beam) => beam.beamId);
 }
 
 function coverageThresholdDeg(beamDiameterKm: number, altitudeKm: number): number {
@@ -151,6 +158,59 @@ checkBool(
   'at least one UE loses service when its beam is inactive',
   hasOpenVsGatedGap,
   `${gatedRunA.totalServiceableSamples} gated samples vs ${allActiveRun.totalServiceableSamples} all-active samples`,
+);
+
+console.log('\n=== VAL-BH-001: Beam-Hopping Scheduler Wiring ===\n');
+
+const bhLayout = generateHexagonalBeamLayout({
+  satId: 'val-bh-001',
+  numBeams: CASE9_DAPS_BASELINE.beam.num_beams,
+  beamDiameterKm: CASE9_DAPS_BASELINE.antenna.beam_diameter_km,
+  altitudeKm: CASE9_DAPS_BASELINE.orbital.altitude_km,
+  frf: CASE9_DAPS_BASELINE.beam.frf,
+});
+const bhBeamIds = collectBeamIds(bhLayout);
+const bhScheduler = createBhScheduler({
+  strategy: 'round-robin',
+  maxActiveBeamsPerSlot: CASE9_DAPS_BASELINE.beam.bh_max_active_per_slot ?? 1,
+  frameDurationSec: CASE9_DAPS_BASELINE.beam.bh_frame_duration_sec ?? 5,
+  slotsPerFrame: CASE9_DAPS_BASELINE.beam.bh_slots_per_frame ?? 3,
+}, new Map([[bhLayout.satId, bhLayout]]));
+
+const slot0Decision = bhScheduler.getSlotDecision(0);
+const slot1Decision = bhScheduler.getSlotDecision(2);
+const slot2Decision = bhScheduler.getSlotDecision(4);
+
+checkBool(
+  'round-robin BH groups follow authored beam order instead of lexicographic beamId sorting',
+  JSON.stringify(slot0Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []) === JSON.stringify(bhBeamIds.slice(0, 7)),
+  `slot0=${(slot0Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []).join(',')}`,
+);
+
+checkBool(
+  'round-robin BH slot 1 advances to the next authored beam group',
+  JSON.stringify(slot1Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []) === JSON.stringify(bhBeamIds.slice(7, 14)),
+  `slot1=${(slot1Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []).join(',')}`,
+);
+
+checkBool(
+  'round-robin BH slot 2 wraps the authored beam order cleanly',
+  JSON.stringify(slot2Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []) === JSON.stringify([
+    ...bhBeamIds.slice(14),
+    ...bhBeamIds.slice(0, 2),
+  ]),
+  `slot2=${(slot2Decision.activeBeamsPerSat.get(bhLayout.satId) ?? []).join(',')}`,
+);
+
+const bootState = bootstrapEngine({
+  profile: CASE9_DAPS_BASELINE,
+  trajectoryCache: {} as any,
+});
+
+checkBool(
+  'bootstrap wires the authored BH slots-per-frame into the runtime scheduler',
+  JSON.stringify(bootState.bhScheduler?.getCurrentIndices(4)) === JSON.stringify({ frameIndex: 0, slotIndex: 2 }),
+  JSON.stringify(bootState.bhScheduler?.getCurrentIndices(4) ?? null),
 );
 
 console.log('\n=== VAL-MB-001b: Earth-Moving Bounded Steering ===\n');

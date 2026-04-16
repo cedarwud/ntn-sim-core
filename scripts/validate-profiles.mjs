@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
-const EXPECTED_PROFILE_COUNT = 15;
+const EXPECTED_PROFILE_COUNT = 17;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -174,6 +174,9 @@ if (!materializationCircular) {
 const { DEFAULT_PROFILES } = await import('../src/core/profiles/defaults.ts');
 const { PROFILE_AUTHORING_ENTRIES } = await import('../src/core/profiles/profile-authoring-registry.ts');
 const { materializeRuntimeProfile } = await import('../src/core/profiles/runtime-materialization.ts');
+const { createSimEngine } = await import('../src/core/engine.ts');
+const { buildInteractiveProfileRuntime } = await import('../src/core/orbit/profile-runtime.ts');
+const { loadProfile } = await import('../src/core/profiles/index.ts');
 
 /**
  * Recursive deep-equality comparison that returns a list of paths that differ.
@@ -274,6 +277,81 @@ for (const entry of PROFILE_AUTHORING_ENTRIES) {
 
 if (parityAllPass && profileIds.length === EXPECTED_PROFILE_COUNT && PROFILE_AUTHORING_ENTRIES.length === EXPECTED_PROFILE_COUNT) {
   console.log(`VAL-PLAT-007: PASS — runtime materialization parity verified for all ${EXPECTED_PROFILE_COUNT} profiles`);
+}
+
+// ---------------------------------------------------------------------------
+// Showcase continuity envelope checks
+// Authority: truth-preserving-showcase-visual-realignment-follow-on.md
+// ---------------------------------------------------------------------------
+
+const showcaseProfile = structuredClone(loadProfile('case9-daps-showcase'));
+const { trajectoryCache: showcaseTrajectoryCache } = await buildInteractiveProfileRuntime(showcaseProfile);
+const showcaseEngine = createSimEngine({
+  profile: showcaseProfile,
+  trajectoryCache: showcaseTrajectoryCache,
+});
+
+let firstShowcaseHoCompleteSec = null;
+let latestShowcaseCompletion = null;
+let immediateReturnViolation = null;
+let previousServingSatId = null;
+
+for (let tick = 0; tick <= 180; tick += 1) {
+  const snapshot = showcaseEngine.tick(tick, tick);
+  const primaryUe = snapshot.ues[0];
+
+  if (
+    primaryUe?.servingSatId
+    && previousServingSatId
+    && primaryUe.servingSatId !== previousServingSatId
+  ) {
+    if (firstShowcaseHoCompleteSec === null) firstShowcaseHoCompleteSec = tick;
+    latestShowcaseCompletion = {
+      timeSec: tick,
+      sourceSatId: previousServingSatId,
+      targetSatId: primaryUe.servingSatId,
+    };
+  }
+
+  previousServingSatId = primaryUe?.servingSatId ?? null;
+
+  if (
+    latestShowcaseCompletion
+    && primaryUe?.continuityState
+    && primaryUe.targetSatId === latestShowcaseCompletion.sourceSatId
+    && tick - latestShowcaseCompletion.timeSec <= (showcaseProfile.handover.pingPongWindowSec ?? 0)
+  ) {
+    immediateReturnViolation = {
+      timeSec: tick,
+      continuityState: primaryUe.continuityState,
+      targetSatId: primaryUe.targetSatId,
+      servingSatId: primaryUe.servingSatId,
+      lastHoTimeSec: latestShowcaseCompletion.timeSec,
+      lastHoSourceSatId: latestShowcaseCompletion.sourceSatId,
+      lastHoTargetSatId: latestShowcaseCompletion.targetSatId,
+    };
+    break;
+  }
+}
+
+if (firstShowcaseHoCompleteSec !== null && firstShowcaseHoCompleteSec <= 120) {
+  pass(`VAL-PLAT-007 — case9-daps-showcase reaches a truthful HO completion early (t=${firstShowcaseHoCompleteSec}s)`);
+} else {
+  fail(
+    'VAL-PLAT-007',
+    `case9-daps-showcase did not reach a HO completion within 120s (first=${firstShowcaseHoCompleteSec ?? 'none'})`,
+  );
+}
+
+if (!immediateReturnViolation) {
+  pass('VAL-PLAT-007 — case9-daps-showcase does not immediately reopen continuity back to the just-left source satellite');
+} else {
+  fail(
+    'VAL-PLAT-007',
+    'case9-daps-showcase reopened continuity back to the just-left source satellite inside the showcase ping-pong guard window:\n'
+      + `  lastHo:      t=${immediateReturnViolation.lastHoTimeSec}s ${immediateReturnViolation.lastHoSourceSatId} -> ${immediateReturnViolation.lastHoTargetSatId}\n`
+      + `  violation:   t=${immediateReturnViolation.timeSec}s continuity=${immediateReturnViolation.continuityState} serving=${immediateReturnViolation.servingSatId} target=${immediateReturnViolation.targetSatId}`,
+  );
 }
 
 // ---------------------------------------------------------------------------

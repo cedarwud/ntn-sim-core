@@ -14,6 +14,10 @@ import type { OrbitType, GeoStationaryConfig } from '../orbit/types';
 export type LargeScaleModel = '3gpp-baseline' | '3gpp-extended';
 export type DeploymentEnvironment = 'rural' | 'suburban' | 'dense-urban';
 export type UeDistribution = 'uniform' | 'clustered' | 'hotspot';
+export type SlantRangeMode = 'geometry' | 'tr38811-elevation';
+export type UeGeometryMode = 'observer-shared' | 'per-ue-topocentric';
+export type ChannelPowerCouplingMode = 'legacy-fixed-eirp' | 'beam-power-override';
+export type ChannelLosMode = 'threshold-elevation' | 'tr38811-probability';
 export type EarthMovingBeamTrackingMode =
   | 'ue-anchored-steering'
   | 'nadir-relative-bounded-steering';
@@ -96,8 +100,13 @@ export interface ChannelConfig {
   large_scale_model?: LargeScaleModel;
   deployment_environment?: DeploymentEnvironment;
   tier6_doppler?: boolean;
+  los_mode?: ChannelLosMode;
   subcarrier_spacing_khz?: number;
   los_elevation_deg?: number;
+  slant_range_mode?: SlantRangeMode;
+  ue_geometry_mode?: UeGeometryMode;
+  power_coupling_mode?: ChannelPowerCouplingMode;
+  max_interfering_sats?: number | null;
 }
 
 export interface HandoverConfig {
@@ -135,6 +144,14 @@ export interface EnergyConfig {
   layer1_enabled: boolean;
   layer2_enabled: boolean;
   energy_per_handover_j?: number;
+  layer1_overrides?: {
+    txPowerPerBeamDbm?: number;
+    activeBeamPowerW?: number;
+    idlePowerW?: number;
+    offBeamPowerW?: number;
+    dpcEnabled?: boolean;
+    dpcTargetSinrDb?: number;
+  };
   layer2_overrides?: {
     batteryCapacityWh?: number;
     initialSoc?: number;

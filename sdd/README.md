@@ -2,7 +2,7 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-02, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), and the `EE / power` realism hardening line (`EP1`). There is currently no separately promoted paper-oriented implementation line beyond these shipped surfaces. The SDD set is therefore split into:
+As of 2026-04-15, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), and the first landing of the truth-preserving showcase visual realignment follow-on. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
@@ -88,6 +88,8 @@ These files remain the shipped downstream authority for the completed baseline s
    - active Phase 03A Slice B consumer authority for the frozen MODQN replay-bundle adapter under `src/adapters/modqn-bundle/`
 12. `modqn-bundle-replay-ui-sdd.md`
    - active Phase 03A Slice C/D consumer authority for native-vs-bundle truth-source switching, slot stepping, and bundle metadata/provenance UI
+13. `truth-preserving-showcase-visual-realignment-follow-on.md`
+   - active narrow frontend showcase/readability authority for the landed `BeamPresentationFrame` scene grammar, dedicated `case9-daps-showcase` split, and associated browser gates
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 

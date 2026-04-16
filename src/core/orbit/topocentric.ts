@@ -20,7 +20,7 @@ const EPSILON = 1e-9;
 /**
  * Convert WGS84 geodetic coordinates to ECEF cartesian [km].
  */
-function geodeticToEcef(
+export function geodeticToEcefKm(
   latDeg: number,
   lonDeg: number,
   altKm: number,
@@ -56,7 +56,7 @@ export function createObserverContext(
     lonDeg,
     latRad,
     lonRad,
-    ecefKm: geodeticToEcef(latDeg, lonDeg, altKm),
+    ecefKm: geodeticToEcefKm(latDeg, lonDeg, altKm),
     sinLat: Math.sin(latRad),
     cosLat: Math.cos(latRad),
     sinLon: Math.sin(lonRad),

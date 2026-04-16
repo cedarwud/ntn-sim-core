@@ -1,6 +1,8 @@
 import type { TrajectorySample } from '../orbit/types';
 import type { BeamSelectionResult } from '../beam/types';
 import { computeOffAxisAngle } from '../channel/beam-gain';
+import type { LinkGeometry } from '../channel/slant-range';
+import { computeUeLinkGeometry } from '../channel/slant-range';
 import type { SimEngineState } from './state';
 import { getOrCreateBeamLayout } from './bootstrap';
 import {
@@ -45,6 +47,7 @@ interface UeSatEvaluation {
   sample: TrajectorySample;
   selection: BeamSelectionResult;
   serviceEligible: boolean;
+  linkGeometry?: LinkGeometry;
 }
 
 interface UeChannelCacheBucket {
@@ -110,12 +113,17 @@ function buildUeSatelliteEvaluation(
     return null;
   }
 
+  const linkGeometry = state.profile.channel.ue_geometry_mode === 'per-ue-topocentric'
+    ? computeUeLinkGeometry(satEntry.sample, ue)
+    : undefined;
+
   if (!state.isMultiBeam) {
     return {
       satId: satEntry.satId,
       sample: satEntry.sample,
       selection: computeSingleBeamSelection(state, ue, satEntry.satId, satEntry.sample),
       serviceEligible: true,
+      linkGeometry,
     };
   }
 
@@ -136,6 +144,7 @@ function buildUeSatelliteEvaluation(
     sample: satEntry.sample,
     selection: trackedSelection.selection,
     serviceEligible: trackedSelection.serviceEligible,
+    linkGeometry,
   };
 }
 
@@ -199,12 +208,22 @@ function getSharedServingSatelliteEvaluations(
         sample: satEntry.sample,
         selection: trackedSelection.selection,
         serviceEligible: trackedSelection.serviceEligible,
+        linkGeometry: state.profile.channel.ue_geometry_mode === 'per-ue-topocentric'
+          ? computeUeLinkGeometry(satEntry.sample, ue)
+          : undefined,
       };
     })
     .filter((entry): entry is UeSatEvaluation => entry !== null);
 
   bucket.sharedEvaluationsByUe.set(ue.id, evaluations);
   return evaluations;
+}
+
+function getInterfererCap(state: Pick<SimEngineState, 'profile'>): number | null {
+  const configured = state.profile.channel.max_interfering_sats;
+  if (configured === null) return null;
+  if (configured === undefined) return MAX_SINR_INTERFERERS;
+  return Math.max(0, Math.floor(configured));
 }
 
 function computeCandidateSinrFromEvaluations(
@@ -224,6 +243,10 @@ function computeCandidateSinrFromEvaluations(
     servingEvaluation.sample,
     state.isMultiBeam ? servingBeam.offAxisAngleDeg : 0,
     0.1,
+    {
+      beamId: servingBeamId,
+      linkGeometry: servingEvaluation.linkGeometry,
+    },
   );
 
   const intraInterferingRxPowersDbm: number[] = [];
@@ -240,14 +263,21 @@ function computeCandidateSinrFromEvaluations(
           servingEvaluation.sample,
           beam.offAxisAngleDeg,
           0.1,
+          {
+            beamId: beam.beamId,
+            linkGeometry: servingEvaluation.linkGeometry,
+          },
         );
         if (isFinite(iRxPowerDbm)) intraInterferingRxPowersDbm.push(iRxPowerDbm);
       }
 
-      const interEvaluations = allEvaluations
+      const sortedInterEvaluations = allEvaluations
         .filter((entry) => entry.satId !== servingEvaluation.satId)
-        .sort((a, b) => b.sample.elevationDeg - a.sample.elevationDeg)
-        .slice(0, MAX_SINR_INTERFERERS);
+        .sort((a, b) => b.sample.elevationDeg - a.sample.elevationDeg);
+      const interfererCap = getInterfererCap(state);
+      const interEvaluations = interfererCap === null
+        ? sortedInterEvaluations
+        : sortedInterEvaluations.slice(0, interfererCap);
       for (const other of interEvaluations) {
         const crossOffAxisDeg = computeOffAxisAngle(
           other.sample.latDeg,
@@ -261,6 +291,10 @@ function computeCandidateSinrFromEvaluations(
           other.sample,
           crossOffAxisDeg,
           -5,
+          {
+            beamId: other.selection.bestBeamId,
+            linkGeometry: other.linkGeometry,
+          },
         );
         if (isFinite(iRxPowerDbm)) interInterferingRxPowersDbm.push(iRxPowerDbm);
       }
@@ -273,13 +307,17 @@ function computeCandidateSinrFromEvaluations(
         other.sample,
         other.selection.offAxisAngleDeg,
         -5,
+        {
+          beamId: other.selection.bestBeamId,
+          linkGeometry: other.linkGeometry,
+        },
       );
       if (isFinite(iRxPowerDbm)) interInterferingRxPowersDbm.push(iRxPowerDbm);
     }
   }
 
   const dopplerLossDb = computeDopplerDegradationDb(
-    servingEvaluation.sample.elevationDeg,
+    servingEvaluation.linkGeometry?.elevationDeg ?? servingEvaluation.sample.elevationDeg,
     servingEvaluation.sample.altKm,
     state.profile.rf.frequency_ghz,
     state.profile.channel.tier6_doppler ?? false,
@@ -418,6 +456,59 @@ export interface UeServingCandidate {
   sample: TrajectorySample;
 }
 
+export interface BeamPowerSeed {
+  satId: string;
+  beamId: string;
+  sinrDb: number;
+  associatedUeId: string | null;
+  source: 'best-candidate' | 'forced-serving-lattice';
+}
+
+function getEvaluationsForBeamPowerSeeds(
+  state: SimEngineState,
+  ue: UeLike,
+  satSinrs: ReadonlyArray<SatSinrSeed>,
+): UeSatEvaluation[] {
+  return state.independentHandover
+    ? getUeSatelliteEvaluations(state, ue, satSinrs)
+    : getSharedServingSatelliteEvaluations(state, ue, satSinrs);
+}
+
+function beamPowerSeedPriority(seed: BeamPowerSeed): number {
+  switch (seed.source) {
+    case 'forced-serving-lattice':
+      return 2;
+    case 'best-candidate':
+    default:
+      return 1;
+  }
+}
+
+function upsertBeamPowerSeed(
+  seedMap: Map<string, BeamPowerSeed>,
+  seed: BeamPowerSeed,
+): void {
+  const key = `${seed.satId}|${seed.beamId}`;
+  const existing = seedMap.get(key);
+  if (!existing) {
+    seedMap.set(key, seed);
+    return;
+  }
+
+  const incomingPriority = beamPowerSeedPriority(seed);
+  const existingPriority = beamPowerSeedPriority(existing);
+  if (incomingPriority > existingPriority) {
+    seedMap.set(key, seed);
+    return;
+  }
+
+  if (incomingPriority === existingPriority && seed.sinrDb > existing.sinrDb) {
+    // One beam carries one proxy-associated UE. When multiple UEs map to the same
+    // beam, prefer the strongest candidate as the beam's representative served UE.
+    seedMap.set(key, seed);
+  }
+}
+
 export function buildSortedUeCandidates(
   state: SimEngineState,
   ue: UeLike,
@@ -436,6 +527,63 @@ export function buildSortedUeCandidates(
   }
 
   return buildNonPrimaryUeCandidates(state, ue, satSinrs);
+}
+
+export function buildBeamPowerSeeds(
+  state: SimEngineState,
+  satSinrs: SatSinrSeed[],
+  representativeServing: { satId: string; beamId: string } | null,
+): BeamPowerSeed[] {
+  const seedMap = new Map<string, BeamPowerSeed>();
+
+  for (const ue of state.uePositions) {
+    const candidates = buildSortedUeCandidates(state, ue, satSinrs);
+    for (const candidate of candidates) {
+      upsertBeamPowerSeed(seedMap, {
+        satId: candidate.satId,
+        beamId: candidate.beamId,
+        sinrDb: candidate.sinrDb,
+        associatedUeId: ue.id,
+        source: 'best-candidate',
+      });
+    }
+  }
+
+  if (!representativeServing) {
+    return Array.from(seedMap.values());
+  }
+
+  const primaryUe = state.uePositions.find((ue) => ue.id === PRIMARY_UE_ID) ?? state.uePositions[0];
+  if (!primaryUe) {
+    return Array.from(seedMap.values());
+  }
+
+  const evaluations = getEvaluationsForBeamPowerSeeds(state, primaryUe, satSinrs);
+  const servingEvaluation = evaluations.find((entry) => entry.satId === representativeServing.satId);
+  if (!servingEvaluation || !servingEvaluation.serviceEligible) {
+    return Array.from(seedMap.values());
+  }
+
+  for (const beam of servingEvaluation.selection.allBeams) {
+    const result = computeCandidateSinrFromEvaluations(
+      state,
+      primaryUe,
+      servingEvaluation,
+      evaluations,
+      beam.beamId,
+    );
+    if (!result) continue;
+
+    upsertBeamPowerSeed(seedMap, {
+      satId: servingEvaluation.satId,
+      beamId: beam.beamId,
+      sinrDb: result.sinrDb,
+      associatedUeId: primaryUe.id,
+      source: 'forced-serving-lattice',
+    });
+  }
+
+  return Array.from(seedMap.values());
 }
 
 export function computeSharedServingUeSinr(

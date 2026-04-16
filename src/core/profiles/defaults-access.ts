@@ -230,7 +230,107 @@ export const CASE9_DAPS_BASELINE: ProfileConfig =
   materializeRuntimeProfile(CASE9_DAPS_BASELINE_BUNDLE, CASE9_DAPS_DEFAULT_EXP);
 
 // ---------------------------------------------------------------------------
-// 3. sinr-elevation-reproduction (RT-1: PAP-2022-SINR-ELEVATION)
+// 3. case9-daps-showcase — truth-preserving DAPS showcase split
+// ---------------------------------------------------------------------------
+
+export const CASE9_DAPS_SHOWCASE_BUNDLE: ProfileBundle = {
+  id: 'case9-daps-showcase',
+  family: 'case9-daps-showcase',
+  version: '0.1.0',
+  exposurePreset: { tier: 'Advanced', label: 'Advanced — DAPS Showcase (truth-preserving)' },
+
+  scenario: {
+    orbitMode: 'synthetic',
+    observer: BEIJING_OBSERVER,
+    epochUtcMs: Date.UTC(2026, 0, 1, 0, 45, 0),
+    ueTopology: { count: 1, distribution: 'uniform' },
+  },
+  models: {
+    beamSemantics: 'earth-moving',
+    antenna: { model: 'rpsat-3gpp' },
+    beam: {
+      layout: 'hexagonal',
+      tracking_mode: 'nadir-relative-bounded-steering',
+    },
+    channel: {
+      tier0_fspl: true,
+      tier1_large_scale: true,
+      tier2_clutter: true,
+      tier3_beam_gain: true,
+      tier4_atmospheric: false,
+      tier5_fading: false,
+      large_scale_model: BASELINE_LARGE_SCALE,
+    },
+    handover: { type: 'daps' },
+    energy: { layer1_enabled: false, layer2_enabled: false },
+    ueConfig: {},
+  },
+  orbital: {
+    altitude_km: 600,
+    inclination_deg: 53,
+    num_planes: 72,
+    sats_per_plane: 22,
+    raan_spread_deg: 360,
+    phase_offset_deg: 0,
+  },
+  rf: {
+    frequency_ghz: 2.0,
+    bandwidth_mhz: 20,
+    eirp_density_dbw_per_mhz: 34,
+    max_tx_power_dbm: null,
+    noise_temperature_k: 290,
+    noise_figure_db: 9,
+    implementation_loss_db: DEFAULT_IMPLEMENTATION_LOSS_DB,
+  },
+  antenna: { peak_gain_dbi: 30, beam_diameter_km: 50 },
+  beam: {
+    num_beams: 19,
+    steering_bound_km: CASE9_BOUNDED_STEERING_KM,
+    frf: 1,
+    interference_beams: 42,
+  },
+  channel: { deployment_environment: SUBURBAN },
+  handover: {
+    trigger_threshold_db: -6,
+    ttt_ms: 640,
+    hysteresis_db: 0,
+    min_elevation_deg: 10,
+    daps_preparation_time_sec: 0,
+    daps_max_dual_active_sec: 3.0,
+    daps_prepare_elevation_deg: 30,
+    sinr_ema_alpha: 0.3,
+    pingPongWindowSec: 15,
+  },
+  energy: {},
+  ueConfig: { speed_kmh: 0 },
+  sourceMap: [
+    { tier: 'paper-backed', id: 'PAP-2025-DAPS-CORE', note: 'same DAPS runtime truth family as the benchmark-facing baseline' },
+    { tier: 'paper-backed', id: 'PAP-2022-A4EVENT-CORE', note: 'same 600 km access-shell orbit envelope as case9 access / DAPS baselines' },
+    { tier: 'paper-backed', id: 'PAP-2022-SENSORS-BH', parameterPath: 'rf.implementation_loss_db', note: 'implementation_loss_db=2.5 dB (0.5 dB feeder + 2.0 dB pointing)' },
+    { tier: 'standard-backed', id: '3GPP-NTN-ACCESS', parameterPath: 'channel.deployment_environment', note: 'suburban SF/CL lookup environment' },
+    { tier: 'standard-backed', id: 'STD-3GPP-38811-TABLE-4.4-1', note: 'noise_figure_db=9 dB (handheld UE, S-band)' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.tracking_mode', specMode: 'Advanced', note: 'showcase profile keeps the same bounded-steering truth as the benchmark-facing access / DAPS baselines' },
+    { tier: 'assumption-backed', id: 'ASSUME-BEAM-TRACK-001', parameterPath: 'beam.steering_bound_km', specMode: 'Advanced', note: 'bounded steering radius = 200 km ground-plane clamp (= 4 x 50 km beam diameter)' },
+    { tier: 'assumption-backed', id: 'ASSUME-CUR-002', specMode: 'Internal-only', note: 'noise_temperature_k=290K is T_ant (clear-sky conservative); spec R7 Internal-only fixed constant' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS', specMode: 'Advanced', note: 'truth-preserving showcase split: single-UE, no-BH DAPS profile with a measured epoch chosen so fresh-start live playback reaches a central high-elevation two-satellite beam scene quickly and shows denser early continuity / handover behavior without restoring fake beam recentering; benchmark-facing case9-daps-baseline remains unchanged' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS-OVERLAP', parameterPath: 'handover.daps_max_dual_active_sec', specMode: 'Advanced', note: 'dual-active overlap remains widened to 3.0 s so the 1 s discrete runtime can complete the path switch cleanly' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-SINR-EMA', parameterPath: 'handover.sinr_ema_alpha', specMode: 'Advanced', note: 'SINR EMA α=0.3 with stepSec=1s: stabilizes serving SINR estimates for DAPS continuity presentation without mutating engine truth' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-PP-GUARD', parameterPath: 'handover.pingPongWindowSec', specMode: 'Advanced', note: 'Showcase ping-pong guard 15s: still shorter than the benchmark-facing DAPS baseline, but long enough to suppress the visible post-switch return-to-source oscillation seen with the earlier 5s showcase tuning while keeping early continuity / path-switch behavior truth-driven' },
+    { tier: 'assumption-backed', id: 'ASSUME-HO-DAPS-PREP-ELEV', parameterPath: 'handover.daps_prepare_elevation_deg', specMode: 'Advanced', note: 'DAPS TTT accelerant 30° retained for the showcase profile; not a trigger gate' },
+    { tier: 'assumption-backed', id: 'ASSUME-UE-001', parameterPath: 'ueConfig.count', specMode: 'Advanced', note: 'single-UE showcase input improves first-screen readability without changing SINR / HO / beam-tracking truth paths' },
+  ],
+};
+
+export const CASE9_DAPS_SHOWCASE_DEFAULT_EXP: ExperimentBundle = {
+  seed: 42,
+  timeControl: { durationSec: 3600, stepSec: 1 },
+};
+
+export const CASE9_DAPS_SHOWCASE: ProfileConfig =
+  materializeRuntimeProfile(CASE9_DAPS_SHOWCASE_BUNDLE, CASE9_DAPS_SHOWCASE_DEFAULT_EXP);
+
+// ---------------------------------------------------------------------------
+// 4. sinr-elevation-reproduction (RT-1: PAP-2022-SINR-ELEVATION)
 // ---------------------------------------------------------------------------
 
 export const SINR_ELEVATION_REPRODUCTION_BUNDLE: ProfileBundle = {

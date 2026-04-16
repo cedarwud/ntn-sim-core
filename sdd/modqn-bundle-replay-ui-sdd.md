@@ -106,6 +106,34 @@ No native HO override, no native parameter panel, and no native replay
 selection metadata may be presented as the primary truth surface in this
 mode.
 
+### 4.3.1 Baseline Compact Mode
+
+The demo-facing default surface for `modqn-bundle` is a persistent compact
+consumer panel rather than the native HUD or the full disclosure panel.
+
+That compact panel must stay visibly distinct from native runtime mode and
+must expose at least:
+
+1. `Truth Source: MODQN Bundle`
+2. `Paper / Run / Checkpoint`
+3. `Source Label`
+4. `Current Slot / Total Slots`
+5. `Replay Truth Mode`
+6. `Serving Satellite`
+7. `Primary SINR`
+8. `Cumulative Handovers`
+9. a concise provenance / assumptions summary
+
+The compact panel exists to answer three demo questions immediately:
+
+1. is the frontend currently reading `modqn-bundle` truth or native truth,
+2. which serving satellite is active right now, and
+3. whether the displayed service / handover state comes from bundle replay
+   rather than frontend-side recomputation.
+
+If the producer bundle does not export serving SINR for the active slot, the
+consumer must disclose that explicitly instead of synthesizing a value.
+
 ## 5. Slice C Requirements
 
 Slice C lands only when all of the following are true:
@@ -147,6 +175,17 @@ the native parameter panel. If the native profile parameter panel remains
 available elsewhere, it must not appear as the primary explanatory surface
 for bundle truth.
 
+For the demo-facing compact mode specifically:
+
+1. the native parameter panel stays hidden by default,
+2. the native baseline result panel stays hidden by default,
+3. HO override controls stay hidden by default,
+4. large analysis panels such as SINR time series / CDF / elevation scatter
+   stay hidden by default, and
+5. detailed assumptions / provenance / training-eval disclosure remains
+   available behind an explicit secondary toggle rather than occupying the
+   primary first-screen surface.
+
 ### 6.2 Provenance Rule
 
 The provenance panel must surface at least:
@@ -187,8 +226,10 @@ Browser-visible smoke validation should also verify that:
 
 1. switching to `modqn-bundle` changes the truth source,
 2. slot stepping changes the rendered serving/beam path, and
-3. the metadata panel shows `reproduction-assumption` wording, and
-4. switching back to native mode restores native-only panel state.
+3. the compact panel is the default first-screen bundle surface,
+4. the full disclosure panel shows `reproduction-assumption` wording when
+   explicitly opened, and
+5. switching back to native mode restores native-only panel state.
 
 ## 8. Completion Boundary
 

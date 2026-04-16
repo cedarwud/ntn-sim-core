@@ -972,6 +972,7 @@ This is the field-level mapping required by §0A.7 before Phase 1 can start.
 | `channel.tier5_fading` | MB | |
 | `channel.tier6_doppler` | MB | |
 | `channel.large_scale_model` | MB | path loss family variant selection |
+| `channel.los_mode` | MB | LOS/NLOS closure selection (`threshold-elevation` or `tr38811-probability`) |
 | `channel.deployment_environment` | P | scenario-adjacent; classify as P with S dependency |
 | `channel.los_elevation_deg` | P | |
 | `channel.subcarrier_spacing_khz` | P | |

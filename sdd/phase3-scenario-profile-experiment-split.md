@@ -216,7 +216,7 @@ interface ModelBundleSelection {
     bh_traffic_model?: 'poisson' | 'full-buffer' | 'hotspot' | 'uniform';
   };
 
-  /** Channel model tier enable flags and path-loss family variant. */
+  /** Channel model tier enable flags and path-loss family / closure variants. */
   channel: {
     /**
      * Tier 0: FSPL — always enabled; not a configurable toggle.
@@ -232,6 +232,8 @@ interface ModelBundleSelection {
     tier6_doppler?: boolean;
     /** Path loss family variant used when tier1_large_scale = true. */
     large_scale_model?: LargeScaleModel;
+    /** LOS/NLOS closure family selected by the profile author. */
+    los_mode?: ChannelLosMode;
   };
 
   /** Handover algorithm family. */
@@ -599,6 +601,7 @@ Use this table in Group 2 to implement `composeProfile()` and `decomposeProfile(
 | `channel.tier5_fading` | `bundle.models.channel.tier5_fading` | MB |
 | `channel.tier6_doppler` | `bundle.models.channel.tier6_doppler` | MB |
 | `channel.large_scale_model` | `bundle.models.channel.large_scale_model` | MB |
+| `channel.los_mode` | `bundle.models.channel.los_mode` | MB |
 | `channel.deployment_environment` | `bundle.channel.deployment_environment` | P (scenario-adjacent) |
 | `channel.los_elevation_deg` | `bundle.channel.los_elevation_deg` | P |
 | `channel.subcarrier_spacing_khz` | `bundle.channel.subcarrier_spacing_khz` | P |
@@ -730,7 +733,7 @@ use the spread operator only when the source value is defined.
 | `rf` | Spread `bundle.rf` directly (all RfConfig fields are P). |
 | `antenna` | Set `model` from `bundle.models.antenna.model`; set `peak_gain_dbi`, `beam_diameter_km` from `bundle.antenna`. |
 | `beam` | Spread `bundle.beam.*` (P-params); set `layout` from `bundle.models.beam.layout`; conditionally set `bh_strategy` from `bundle.models.beam.bh_strategy`; conditionally set `bh_traffic_model` from `bundle.models.beam.bh_traffic_model`. |
-| `channel` | Spread `bundle.models.channel.*` (tier flags); spread `bundle.channel.*` (P-params: deployment_environment, los_elevation_deg, subcarrier_spacing_khz). `tier3_5_scan_loss` is absent from both sources (field deleted in P3-7). |
+| `channel` | Spread `bundle.models.channel.*` (tier flags plus closure/model selections such as `large_scale_model` and `los_mode`); spread `bundle.channel.*` (P-params: deployment_environment, los_elevation_deg, subcarrier_spacing_khz). `tier3_5_scan_loss` is absent from both sources (field deleted in P3-7). |
 | `handover` | Set `type` from `bundle.models.handover.type`; spread `bundle.handover.*` (all 21 P-params). |
 | `energy` | Set `layer1_enabled` from `bundle.models.energy.layer1_enabled`; set `layer2_enabled` from `bundle.models.energy.layer2_enabled`; spread `bundle.energy.*` (energy_per_handover_j, layer2_overrides). |
 | `ueConfig` | Set `count` from `bundle.scenario.ueTopology.count`; set `distribution` from `bundle.scenario.ueTopology.distribution`; set `speed_kmh` from `bundle.ueConfig.speed_kmh`; conditionally set `independentHandover` from `bundle.models.ueConfig.independentHandover`. |

@@ -245,8 +245,12 @@ async function waitForPresent(page: Page, testId: string) {
 }
 
 async function readHandovers(page: Page): Promise<number | null> {
-  const text = await getByTestIdText(page, 'sim-hud');
-  const match = text.match(/Handovers:\s+(\d+)/);
+  const compactPanel = page.locator('[data-testid="modqn-compact-panel"]');
+  const compactPanelCount = await compactPanel.count();
+  const text = compactPanelCount > 0
+    ? (await compactPanel.innerText()).trim()
+    : await getByTestIdText(page, 'sim-hud');
+  const match = text.match(/(?:Cumulative\s+)?Handovers(?:\s*:\s*|\s+)(\d+)/);
   return match ? Number.parseInt(match[1], 10) : null;
 }
 
@@ -259,10 +263,9 @@ async function validateBundleMode(page: Page) {
       .map((beam) => beam.satId),
   )].sort();
 
-  await page.goto(`${BASE_URL}/?mode=modqn-bundle&validate=1&paused=1`, { waitUntil: 'load' });
+  await page.goto(`${BASE_URL}/?mode=modqn-bundle&validate=1&paused=1&showBeams=1&showLabels=1`, { waitUntil: 'load' });
   await page.waitForSelector('[data-testid="control-panel"]');
-  await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
-  await page.waitForSelector('[data-testid="sim-hud"]');
+  await page.waitForSelector('[data-testid="modqn-compact-panel"]');
   await waitForRuntimeMode(page, 'modqn-bundle');
   await waitForPresent(page, 'validation-earth-moving');
   await waitForPresent(page, 'validation-beam-info');
@@ -277,9 +280,9 @@ async function validateBundleMode(page: Page) {
   );
   const bundleSlotIndicator = await getByTestIdText(page, 'bundle-slot-indicator');
   const truthNote = await getByTestIdText(page, 'truth-source-note');
-  const metadataText = await getByTestIdText(page, 'bundle-metadata-panel');
-  const assumptionsText = await getByTestIdText(page, 'bundle-assumptions-panel');
-  const provenanceText = await getByTestIdText(page, 'bundle-provenance-panel');
+  const compactPanelText = await getByTestIdText(page, 'modqn-compact-panel');
+  const metadataPanelCountBeforeDisclosure = await page.locator('[data-testid="bundle-metadata-panel"]').count();
+  const simHudCount = await page.locator('[data-testid="sim-hud"]').count();
   const parameterPanelCount = await page.locator('[data-testid="parameter-panel"]').count();
   const runtimeServingSatId = await getByTestIdAttr(page, 'validation-runtime', 'data-serving-sat-id');
   const runtimeTargetSatId = await getByTestIdAttr(page, 'validation-runtime', 'data-target-sat-id');
@@ -305,6 +308,14 @@ async function validateBundleMode(page: Page) {
     `sourceLabel=${runtimeTruthSourceLabel}`,
   );
   check(
+    'VAL-MODQN-BUNDLE-002A compact mode is the persistent bundle-first surface',
+    compactPanelText.includes('Truth Source: MODQN Bundle')
+      && compactPanelText.includes('Replay Truth Mode')
+      && compactPanelText.includes('Serving Satellite')
+      && compactPanelText.includes('Cumulative Handovers'),
+    compactPanelText,
+  );
+  check(
     'VAL-MODQN-BUNDLE-002C bundle truth reaches shared beam/link presenters',
     true,
     [
@@ -316,8 +327,16 @@ async function validateBundleMode(page: Page) {
   check(
     'VAL-MODQN-BUNDLE-002C runtime truth matches bundle slot-1 serving / visibility surfaces',
     runtimeServingSatId === firstTimelineRow.selectedServing.satId
-      && runtimeTargetSatId === firstTimelineRow.previousServing.satId
-      && runtimeContinuityState === (firstTimelineRow.handoverEvent.kind !== 'none' ? 'post-ho' : '')
+      && runtimeTargetSatId === (
+        firstTimelineRow.handoverEvent.kind !== 'none'
+          ? firstTimelineRow.previousServing.satId
+          : ''
+      )
+      && runtimeContinuityState === (
+        firstTimelineRow.handoverEvent.kind !== 'none'
+          ? 'post-ho'
+          : ''
+      )
       && JSON.stringify([...runtimeVisibleSatelliteIds].sort()) === JSON.stringify(expectedVisibleSatIds),
     [
       `serving=${runtimeServingSatId}`,
@@ -344,19 +363,31 @@ async function validateBundleMode(page: Page) {
     JSON.stringify(handoverStyleKeys),
   );
   check(
-    'VAL-MODQN-BUNDLE-002D metadata panel rejects native-default wording',
-    metadataText.includes('not native simulator defaults') && parameterPanelCount === 0,
-    `parameterPanelCount=${parameterPanelCount}`,
-  );
-  check(
-    'VAL-MODQN-BUNDLE-002D assumptions/provenance disclosure is explicit',
-    assumptionsText.includes('reproduction-assumption') && provenanceText.includes('must not relabel them as native defaults'),
-    'assumption/provenance copy present',
+    'VAL-MODQN-BUNDLE-002D compact mode hides native-first panels by default',
+    metadataPanelCountBeforeDisclosure === 0 && simHudCount === 0 && parameterPanelCount === 0,
+    `metadataPanel=${metadataPanelCountBeforeDisclosure}, simHud=${simHudCount}, parameterPanel=${parameterPanelCount}`,
   );
   check(
     'VAL-MODQN-BUNDLE-002B bundle slot indicator is initialized from replay state',
     Number.isFinite(slotBefore) && slotBefore >= 1 && bundleSlotIndicator.includes('/'),
     `slotBefore=${slotBefore}, indicator=${bundleSlotIndicator}`,
+  );
+
+  await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+  await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
+  const metadataText = await getByTestIdText(page, 'bundle-metadata-panel');
+  const assumptionsText = await getByTestIdText(page, 'bundle-assumptions-panel');
+  const provenanceText = await getByTestIdText(page, 'bundle-provenance-panel');
+  check(
+    'VAL-MODQN-BUNDLE-002D disclosure panel rejects native-default wording',
+    metadataText.includes('not native simulator defaults'),
+    metadataText,
+  );
+  check(
+    'VAL-MODQN-BUNDLE-002D assumptions/provenance disclosure is explicit',
+    assumptionsText.includes('reproduction-assumption')
+      && provenanceText.includes('must not relabel them as native defaults'),
+    'assumption/provenance copy present',
   );
 
   await page.locator('[data-testid="bundle-step-forward"]').click();
@@ -414,7 +445,7 @@ async function validateModeSwitch(page: Page) {
   );
 
   await page.locator('[data-testid="mode-modqn-bundle"]').click();
-  await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
+  await page.waitForSelector('[data-testid="modqn-compact-panel"]');
   await waitForRuntimeMode(page, 'modqn-bundle');
   const runtimeProfileAfterRestore = await getByTestIdAttr(page, 'validation-runtime', 'data-profile-id');
   check(
@@ -433,7 +464,7 @@ async function validateNativeUiStateRestoration(page: Page) {
   await page.waitForSelector('[data-testid="sinr-elevation-scatter"]');
 
   await page.locator('[data-testid="mode-modqn-bundle"]').click();
-  await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
+  await page.waitForSelector('[data-testid="modqn-compact-panel"]');
   await waitForRuntimeMode(page, 'modqn-bundle');
   await page.waitForFunction(() => {
     return document.querySelector('[data-testid="parameter-panel"]') === null

@@ -2,7 +2,8 @@
  * Shared BH cell analysis for earth-fixed visualization and explainability.
  *
  * VISUAL-ONLY / TRUTH-DRIVEN:
- *   - reads snapshot.satellites + snapshot.bhSlot truth only
+ *   - reads snapshot.satellites + snapshot.bhSlot truth
+ *   - may constrain analysis to the shared presentation-frame beam picks
  *   - does not affect scheduler, SINR, or KPI results
  *
  * Governance:
@@ -12,9 +13,9 @@
 
 import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot } from '@/core/contracts/runtime-v1';
 import {
-  projectToSkyDome,
-  DEFAULT_SKY_PROJECTION,
-} from '@/viz/satellite/observer-sky-projection';
+  computeMovingBeamGroundTarget,
+  resolveMovingBeamProjection,
+} from './moving-beam-geometry';
 
 export const GRID_RADIUS_WU = 280;
 export const CELL_RADIUS_WU = 45;
@@ -125,10 +126,15 @@ interface CellCoverage {
   hasInactiveCandidate: boolean;
 }
 
+export interface BhCellAnalysisOptions {
+  relevantSatIds?: ReadonlySet<string>;
+  analyzedBeamIdsBySatId?: Record<string, readonly string[]>;
+}
+
 export function analyzeBhCells(
   snapshot: SimulationSnapshot | null,
   cells: HexCell[],
-  relevantSatIds?: Set<string>,
+  options?: BhCellAnalysisOptions,
 ): BhCellAnalysis {
   if (!snapshot?.bhSlot) {
     return {
@@ -152,13 +158,19 @@ export function analyzeBhCells(
     if (!sat.isVisible || sat.elevationDeg < MIN_ELEVATION_DEG || !sat.beams || sat.beams.length === 0) {
       continue;
     }
-    if (relevantSatIds && !relevantSatIds.has(sat.id)) continue;
+    if (options?.relevantSatIds && !options.relevantSatIds.has(sat.id)) continue;
+
+    const selectedBeamIds = options?.analyzedBeamIdsBySatId?.[sat.id];
+    const beams = selectedBeamIds
+      ? sat.beams.filter((beam) => selectedBeamIds.includes(beam.beamId))
+      : sat.beams;
+    if (beams.length === 0) continue;
 
     const isBlocked = blockedSet.has(sat.id);
     const activeBeamIds = new Set(bhSlot.activeBeamsBySat[sat.id] ?? []);
-    const kmToWorld = beamKmToWorld(sat.beams);
+    const kmToWorld = beamKmToWorld(beams);
 
-    for (const beam of sat.beams) {
+    for (const beam of beams) {
       const { x, z } = beamGroundPosition(beam.offsetEastKm, beam.offsetNorthKm, kmToWorld);
       const isActive = activeBeamIds.has(beam.beamId);
 
@@ -237,26 +249,20 @@ export function createHexBorderGeometry(cx: number, cz: number, radius: number) 
  *
  * Hex cell placement is derived from beam offsets but the cell radius (CELL_RADIUS_WU)
  * is independent from the beam coverage radius (BEAM_FOOTPRINT_RADIUS_WU).
- *
- * UE-anchored beams (role serving/prepared/secondary/post-ho) project to the
- * observer origin (0, 0) — matching EarthMovingBeamLayer's isUeAnchoredMovingBeam.
+ * Uses the same truth-driven ground target projection as EarthMovingBeamLayer,
+ * so BH analysis never re-centers serving or prepared beams back to the UE.
  */
 export function generateSatRelativeHexCells(
   sat: SatelliteState,
   beams: readonly SatelliteBeamSnapshot[],
 ): SatRelativeHexCell[] {
-  const satDomePos = projectToSkyDome(sat.azimuthDeg, sat.elevationDeg, DEFAULT_SKY_PROJECTION);
-  const kmToWorld = beamKmToWorld(beams);
+  const projection = resolveMovingBeamProjection(sat, beams);
 
   return beams.map((beam, i) => {
-    const isUeAnchored =
-      beam.role === 'serving' ||
-      beam.role === 'prepared' ||
-      beam.role === 'secondary' ||
-      beam.role === 'post-ho';
+    const target = computeMovingBeamGroundTarget(projection, beam, false);
     return {
-      cx: isUeAnchored ? 0 : satDomePos[0] + beam.offsetEastKm * kmToWorld,
-      cz: isUeAnchored ? 0 : satDomePos[2] - beam.offsetNorthKm * kmToWorld,
+      cx: target.groundX,
+      cz: target.groundZ,
       reuseGroup: beam.reuseGroup,
       beamId: beam.beamId,
       beamIndex: i,

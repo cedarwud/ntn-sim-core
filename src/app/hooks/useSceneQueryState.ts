@@ -11,18 +11,27 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
 /**
- * Default profile: continuity-first interactive DAPS baseline.
- * The stricter paper-safe baseline profiles remain available in the selector,
- * but the shipped UI default prioritizes stable SINR-driven continuity truth.
+ * Default profile: continuity-first interactive DAPS showcase.
+ * Beam visuals now start disabled by default so the first screen keeps the
+ * service / candidate link narrative readable while SINR / handover truth
+ * continues to run underneath.
  */
 const DEFAULT_PROFILE_ID = DEFAULT_INTERACTIVE_PROFILE_ID;
 export type SceneMode = 'native-live' | 'native-replay' | 'modqn-bundle';
 
-const DEFAULT_SCENE_MODE: SceneMode = 'native-live';
+const DEFAULT_SCENE_MODE: SceneMode = 'modqn-bundle';
 
-function parseSceneMode(mode: string | null, replayFlag: string | null): SceneMode {
+function parseSceneMode(
+  mode: string | null,
+  replayFlag: string | null,
+  profileId: string | null,
+  validationFlag: string | null,
+): SceneMode {
   if (mode === 'native-live' || mode === 'native-replay' || mode === 'modqn-bundle') {
     return mode;
+  }
+  if (validationFlag === '1' || profileId !== null) {
+    return replayFlag === '1' ? 'native-replay' : 'native-live';
   }
   return replayFlag === '1' ? 'native-replay' : DEFAULT_SCENE_MODE;
 }
@@ -45,7 +54,7 @@ function readQueryState(): SceneQueryState {
       speed: 5,
       paused: false,
       hoSlowEnabled: true,
-      showBeams: true,
+      showBeams: false,
       showLabels: false,
       sceneMode: DEFAULT_SCENE_MODE,
       replaySeekSec: null,
@@ -57,13 +66,19 @@ function readQueryState(): SceneQueryState {
   const speed = Number(p.get('speed'));
   const seek = Number(p.get('replaySeekSec'));
   const labels = p.get('showLabels');
+  const showBeamsParam = p.get('showBeams');
   return {
     speed: Number.isFinite(speed) && speed > 0 ? speed : 5,
     paused: p.get('paused') === '1',
     hoSlowEnabled: p.get('hoSlow') !== '0',
-    showBeams: p.get('showBeams') !== '0',
+    showBeams: showBeamsParam === '1',
     showLabels: labels === '1',
-    sceneMode: parseSceneMode(p.get('mode'), p.get('replay')),
+    sceneMode: parseSceneMode(
+      p.get('mode'),
+      p.get('replay'),
+      p.get('profile'),
+      p.get('validate'),
+    ),
     replaySeekSec: Number.isFinite(seek) && seek > 0 ? seek : null,
     validationMode: p.get('validate') === '1',
     profileId: p.get('profile') ?? DEFAULT_PROFILE_ID,
@@ -76,7 +91,7 @@ function syncQueryState(s: SceneQueryState) {
   p.set('speed', String(s.speed));
   if (s.paused) p.set('paused', '1'); else p.delete('paused');
   if (!s.hoSlowEnabled) p.set('hoSlow', '0'); else p.delete('hoSlow');
-  if (!s.showBeams) p.set('showBeams', '0'); else p.delete('showBeams');
+  if (s.showBeams) p.set('showBeams', '1'); else p.delete('showBeams');
   if (s.showLabels) p.set('showLabels', '1'); else p.delete('showLabels');
   if (s.sceneMode !== DEFAULT_SCENE_MODE) p.set('mode', s.sceneMode); else p.delete('mode');
   if (s.sceneMode === 'native-replay') p.set('replay', '1'); else p.delete('replay');

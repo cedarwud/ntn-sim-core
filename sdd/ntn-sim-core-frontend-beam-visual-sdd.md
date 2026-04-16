@@ -1,8 +1,8 @@
 # NTN Sim Core — Frontend Beam Visual SDD
 
-**Version:** 0.3.2  
-**Date:** 2026-03-25  
-**Status:** Active Companion Spec — current frontend beam/overlay package landed for the present SDD set
+**Version:** 0.3.4  
+**Date:** 2026-04-16  
+**Status:** Active Companion Spec — current frontend beam/overlay package landed for the present SDD set, including the shared presentation-frame/showcase readability slice and centralized continuity narrative state
 
 ---
 
@@ -72,6 +72,13 @@ This companion SDD closes that gap.
 8. Any SINR, beam label, or service-loss overlay must read from `SimulationSnapshot` / replay truth, not from frontend-side recomputation.
 9. Any handover/service link overlay must read from snapshot/trace truth and must not invent intermediate states that do not exist in the engine or event log.
 10. Benchmark and paper claims remain anchored to headless/exported artifacts; overlays are evidence and explainers, not authoritative result generators.
+11. The first landing does not permit frontend-only beam fake re-centering onto
+    the UE; earth-moving beam ground targets must stay on the truth geometry
+    path unless a future explicitly disclosed visual-projection contract
+    supersedes this rule.
+12. Presentation cleanup may introduce a shared continuity narrative state,
+    but that state must remain a consumer-side reading aid over published
+    truth rather than a second handover algorithm.
 
 ---
 
@@ -136,7 +143,10 @@ Responsibilities:
 
 1. render fixed cell grid for `bh-resource-baseline`;
 2. show scheduler truth, not decorative animation;
-3. expose service / interference / energy-blocked distinctions.
+3. expose service / interference / energy-blocked distinctions;
+4. when a shared `BeamPresentationFrame` is active, consume the same frame-level
+   primary/context beam picks as `EarthMovingBeamLayer` rather than silently
+   reopening raw per-satellite beam analysis.
 
 ### 6.3 Beam Information Overlay
 
@@ -211,11 +221,67 @@ If this contract is missing, the phase is not visually complete even if the core
 ### 7.1 Overlay Authority Policy
 
 1. `BeamInfoOverlay` and `HandoverLinkOverlay` are `visual-only` but must be `truth-driven`.
+
+### 7.2 Truth vs Presentation Split
+
+Frontend handover readability now follows an explicit split:
+
+1. truth comes only from:
+   - native runtime `SimulationSnapshot`, or
+   - bundle-projected `SimulationSnapshot` from the MODQN consumer path
+2. presentation comes from shared consumer-side contracts such as:
+   - `BeamPresentationFrame`
+   - `ContinuityNarrativeState`
+
+The presentation layer may:
+
+1. hold very short truthful prepared / dual-active / post-switch states long
+   enough to remain readable,
+2. keep serving / target / post-HO markers, links, and beam accents aligned
+   to one shared narrative frame, and
+3. suppress immediate post-switch visual ping-pong back toward the recent
+   source satellite during the presentation cooldown window.
+
+The presentation layer must not:
+
+1. recompute SINR,
+2. invent serving or target satellites that were never published, or
+3. rewrite the engine's handover decision semantics.
 2. They may map engine values into labels, colors, bands, and line styles.
 3. They must not:
    - recompute SINR or HO decisions as an alternate authoritative path;
    - override engine state for readability;
    - create paper-facing numbers that are unavailable in headless artifacts.
+
+### 7.2 Shared Presentation Frame
+
+The current frontend package now requires a shared intermediate presentation
+model between `SimulationSnapshot` truth and the final render layers.
+
+Required target:
+
+1. `src/viz/presentation/beam-presentation-frame.ts`
+2. `src/viz/presentation/useBeamPresentationFrame.ts`
+
+Responsibilities:
+
+1. compute one truth-driven `BeamPresentationFrame` per scene update
+2. own:
+   - `displaySatIds`
+   - `eventSatIds`
+   - `beamSatIds`
+   - `primaryBeamBySatId`
+   - `contextBeamIdsBySatId`
+   - `markerRoleBySatId`
+   - `beamRoleAccentByBeamId`
+   - `focusMode`
+3. ensure `SatelliteSkyLayer`, `EarthMovingBeamLayer`, `EarthFixedCellLayer`,
+   `BeamInfoOverlay`, and `HandoverLinkOverlay` consume the same scene grammar
+   rather than each re-deriving its own satellite/beam heuristics
+4. ensure BH cell analysis follows the same frame-level beam picks as the
+   moving-beam renderer unless an explicit documented exception says otherwise
+5. keep the scene readable without changing authoritative SINR, HO, or
+   bounded-steering outcomes
 
 ---
 
@@ -279,7 +345,10 @@ Phase 6 is not visually complete unless:
 
 1. DAPS/DC-like dual-active continuity is readable in the frontend;
 2. continuity links or equivalent path explainers distinguish source, target, and dual-active semantics;
-3. no DAPS-specific overlay invents state that is absent from the replay/snapshot truth.
+3. no DAPS-specific overlay invents state that is absent from the replay/snapshot truth;
+4. first-screen readability work uses an explicit showcase/profile split or a
+   comparably explicit curated window instead of silently rewriting the
+   benchmark-facing baseline.
 
 ---
 
@@ -359,6 +428,7 @@ Consolidated frontend work items. Each maps to a phase closure requirement above
 | 6V-2 | Beam renderer shows both source and target beams active simultaneously during DAPS dual-active | `leo-beam-sim` state-semantics | `snapshot.daps.phase === 'dual-active'` → target beams rendered cyan at serving opacity | ✅ done (2026-03-25) |
 | 6V-3 | Path-switch moment visually transitions from dual-active to single-active target | — | `DapsSnapshot.phase` drives `isDapsTarget` flag in `SatBeamGroup` — transitions naturally | ✅ done (2026-03-25) |
 | 6V-4 | Browser screenshot: DAPS A/B comparison (baseline vs DAPS) showing dual-active phase | — | `case9-daps-baseline` profile added; dual-active visible in browser and now browser-validated in both live and replay | ✅ done (2026-03-25) |
+| 6V-5 | Promote a truth-preserving first-screen showcase split without changing engine SINR / HO / bounded steering | — | shared `BeamPresentationFrame`, `case9-daps-showcase`, browser-visible readability gates | ✅ done (2026-04-15) |
 
 Prerequisite: 4V-3 (replay controller) must be completed first.
 
@@ -372,7 +442,8 @@ Prerequisite: 4V-3 (replay controller) must be completed first.
 | XV-4 | Land donor-backed `BeamInfoOverlay` with truth-driven SINR/beam explainers only | ✅ done (2026-03-25) — `BeamInfoOverlay.tsx`, SINR dB color-coded + role tag, wired LiveLayer + ReplayLayer |
 | XV-5 | Land donor-backed `HandoverLinkOverlay` for serving / target / post-HO / dual-active continuity | ✅ done (2026-03-25) — `HandoverLinkOverlay.tsx`, truth-driven serving / prepared / secondary / dual-active link styles; `post-ho` remains contingent on runtime truth |
 | XV-6 | Enforce replay parity so live/replay use the same overlay/link truth fields | ✅ done (2026-03-25) — both overlays wired into ReplayLayer with same snapshot path |
-| XV-7 | Add browser-visible proof for overlay/link package and wire corresponding `VAL-FV-*` closure evidence | ✅ done (2026-03-25) — `validate-visual-browser.ts` now covers `VAL-FV-005`~`VAL-FV-009`; screenshots remain as supplementary proof |
+| XV-7 | Add browser-visible proof for overlay/link package and wire corresponding `VAL-FV-*` closure evidence | ✅ done (2026-04-15) — `validate-visual-browser.ts` now covers `VAL-FV-005`~`VAL-FV-010`; screenshots remain as supplementary proof |
+| XV-8 | Extract a shared `BeamPresentationFrame` so sky/beam/BH/overlay layers stop diverging on scene grammar | ✅ done (2026-04-15) — `SceneShell` now builds one presentation frame and reuses it across markers, beams, BH cells, labels, and handover links |
 
 ### 12.6 Prerequisites from Core (all satisfied)
 

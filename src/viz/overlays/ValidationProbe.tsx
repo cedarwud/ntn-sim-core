@@ -43,6 +43,8 @@ export const ValidationProbe = React.memo(function ValidationProbe({
 
   const runtime = state.runtime;
   const orbitParity = state.orbitParity;
+  const snapshotBeamTruth = state.snapshotBeamTruth;
+  const presentationFrame = state.beamPresentationFrame;
   const moving = state.earthMovingBeamLayer;
   const fixed = state.earthFixedCellLayer;
   const beamInfo = state.beamInfoOverlay;
@@ -93,6 +95,39 @@ export const ValidationProbe = React.memo(function ValidationProbe({
       </div>
 
       <div
+        data-testid="validation-snapshot-beam-truth"
+        data-present={String(Boolean(snapshotBeamTruth?.present))}
+        data-sat-ids-with-beams={stringify(snapshotBeamTruth?.satIdsWithBeams ?? [])}
+        data-beam-ids-by-sat-id={stringify(snapshotBeamTruth?.beamIdsBySatId ?? {})}
+        data-beam-role-by-key={stringify(snapshotBeamTruth?.beamRoleByKey ?? {})}
+        data-beam-active-by-key={stringify(snapshotBeamTruth?.beamActiveByKey ?? {})}
+      >
+        snapshotBeamTruth={stringify(snapshotBeamTruth ?? null)}
+      </div>
+
+      <div
+        data-testid="validation-presentation-frame"
+        data-present={String(Boolean(presentationFrame?.present))}
+        data-focus-mode={presentationFrame?.focusMode ?? ''}
+        data-narrative-phase={presentationFrame?.narrativePhase ?? ''}
+        data-narrative-serving-sat-id={presentationFrame?.narrativeServingSatId ?? ''}
+        data-narrative-source-sat-id={presentationFrame?.narrativeSourceSatId ?? ''}
+        data-narrative-target-sat-id={presentationFrame?.narrativeTargetSatId ?? ''}
+        data-narrative-post-ho-sat-id={presentationFrame?.narrativePostHoSatId ?? ''}
+        data-cooled-down-sat-ids={stringify(presentationFrame?.cooledDownSatIds ?? [])}
+        data-cooldown-suppressed-target-sat-id={presentationFrame?.cooldownSuppressedTargetSatId ?? ''}
+        data-display-sat-ids={stringify(presentationFrame?.displaySatIds ?? [])}
+        data-event-sat-ids={stringify(presentationFrame?.eventSatIds ?? [])}
+        data-beam-sat-ids={stringify(presentationFrame?.beamSatIds ?? [])}
+        data-primary-beam-by-sat-id={stringify(presentationFrame?.primaryBeamBySatId ?? {})}
+        data-context-beam-ids-by-sat-id={stringify(presentationFrame?.contextBeamIdsBySatId ?? {})}
+        data-marker-role-by-sat-id={stringify(presentationFrame?.markerRoleBySatId ?? {})}
+        data-beam-role-accent-by-beam-id={stringify(presentationFrame?.beamRoleAccentByBeamId ?? {})}
+      >
+        presentation={stringify(presentationFrame ?? null)}
+      </div>
+
+      <div
         data-testid="validation-earth-moving"
         data-present={String(Boolean(moving?.present))}
         data-rendered-sat-ids={stringify(moving?.renderedSatIds ?? [])}
@@ -108,6 +143,9 @@ export const ValidationProbe = React.memo(function ValidationProbe({
         data-testid="validation-earth-fixed"
         data-present={String(Boolean(fixed?.present))}
         data-cell-count={fixed?.cellCount ?? 0}
+        data-selection-source={fixed?.selectionSource ?? ''}
+        data-analyzed-sat-ids={stringify(fixed?.analyzedSatIds ?? [])}
+        data-analyzed-beam-ids-by-sat-id={stringify(fixed?.analyzedBeamIdsBySatId ?? {})}
         data-state-counts={stringify(
           fixed?.stateCounts ?? {
             served: 0,
@@ -147,6 +185,13 @@ export const ValidationProbe = React.memo(function ValidationProbe({
         data-observed-style-keys={stringify(handover?.observedStyleKeys ?? [])}
         data-continuity-state={handover?.continuityState ?? ''}
         data-daps-phase={handover?.dapsPhase ?? ''}
+        data-narrative-phase={handover?.narrativePhase ?? ''}
+        data-narrative-serving-sat-id={handover?.narrativeServingSatId ?? ''}
+        data-narrative-source-sat-id={handover?.narrativeSourceSatId ?? ''}
+        data-narrative-target-sat-id={handover?.narrativeTargetSatId ?? ''}
+        data-narrative-post-ho-sat-id={handover?.narrativePostHoSatId ?? ''}
+        data-cooled-down-sat-ids={stringify(handover?.cooledDownSatIds ?? [])}
+        data-cooldown-suppressed-target-sat-id={handover?.cooldownSuppressedTargetSatId ?? ''}
         data-observed-daps-phases={stringify(handover?.observedDapsPhases ?? [])}
         data-observed-dual-active-truth={String(Boolean(handover?.observedDualActiveTruth))}
       >

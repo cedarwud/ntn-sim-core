@@ -15,6 +15,7 @@
 
 import { getActivePassesAt, interpolatePass } from '../orbit/trajectory-cache.js';
 import { computeOffAxisAngle } from '../channel/beam-gain.js';
+import { computeUeLinkGeometry } from '../channel/slant-range.js';
 import type { TrajectoryCache, TrajectorySample } from '../orbit/types.js';
 import type { ObserverLocation } from '../common/types.js';
 
@@ -44,6 +45,8 @@ export interface SatelliteGeometry {
   dopplerHz: number;
   /** Per-UE off-axis angle from beam center (index = uePositions index). DP-3. */
   ueOffAxisAngleDeg: number[];
+  /** Per-UE elevation in degrees (index = uePositions index). */
+  ueElevationDeg: number[];
   /** Per-UE slant range in km (index = uePositions index). DP-3. */
   ueSlantRangeKm: number[];
   /** Raw TrajectorySample for engine internal use (beam selection, etc.). */
@@ -102,6 +105,7 @@ export class TrajectoryCacheGeometry implements GeometryModel {
       // Per-UE off-axis angle: angle from satellite nadir to UE position as seen from sat
       // DP-3: per-UE arrays indexed by uePositions order
       const ueOffAxisAngleDeg: number[] = [];
+      const ueElevationDeg: number[] = [];
       const ueSlantRangeKm: number[] = [];
 
       for (const ue of uePositions) {
@@ -112,9 +116,13 @@ export class TrajectoryCacheGeometry implements GeometryModel {
           ue.lonDeg,
           sample.altKm,
         );
+        const linkGeometry = computeUeLinkGeometry(sample, {
+          latitudeDeg: ue.latDeg,
+          longitudeDeg: ue.lonDeg,
+        });
         ueOffAxisAngleDeg.push(offAxis);
-        // Approximate per-UE slant range (single-observer model; per-UE refinement is Phase 5+)
-        ueSlantRangeKm.push(sample.rangeKm);
+        ueElevationDeg.push(linkGeometry.elevationDeg);
+        ueSlantRangeKm.push(linkGeometry.slantRangeKm);
       }
 
       satellites.push({
@@ -126,6 +134,7 @@ export class TrajectoryCacheGeometry implements GeometryModel {
         azimuthDeg: sample.azimuthDeg,
         dopplerHz: 0,   // Doppler computed separately by engine (channel/doppler.ts)
         ueOffAxisAngleDeg,
+        ueElevationDeg,
         ueSlantRangeKm,
         sample,
       });

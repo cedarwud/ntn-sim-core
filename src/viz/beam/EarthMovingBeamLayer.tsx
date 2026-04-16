@@ -12,18 +12,15 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, DapsSnapshot } from '@/core/contracts/runtime-v1';
+import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot } from '@/core/contracts/runtime-v1';
+import type {
+  BeamPresentationBeamAccent,
+  BeamPresentationFrame,
+} from '@/viz/presentation';
 import { usePublishValidationSection } from '@/viz/validation/store';
-import { selectBeamSatellites } from './beam-visibility-selection';
-import {
-  computeMovingBeamGroundTarget,
-  isUeAnchoredMovingBeam,
-  resolveMovingBeamProjection,
-} from './moving-beam-geometry';
-import {
-  MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
-  MOVING_BEAM_GROUND_Y,
-} from './beam-visual-constants';
+import { MOVING_BEAM_GROUND_Y } from './beam-visual-constants';
+import { buildRenderedBeamPlans } from './earth-moving-beam-plans';
+import { buildEarthMovingBeamLayerSummary } from './earth-moving-beam-validation';
 
 // ---------------------------------------------------------------------------
 // VISUAL-ONLY constants
@@ -31,13 +28,16 @@ import {
 
 const SEGMENTS = 32;
 
-const POLARIZATION_A = '#ff8844'; // orange (odd index)
-const POLARIZATION_B = '#44aaff'; // blue   (even index)
-
 const SERVING_COLOR = '#0088ff';
 const PREPARED_COLOR = '#ffb000';
-const SECONDARY_COLOR = '#00e5ff';
+const SECONDARY_COLOR = '#ff5ab3';
 const POST_HO_COLOR = '#7a5cff';
+const NEUTRAL_PRIMARY_WARM = '#ff9647';
+const NEUTRAL_PRIMARY_COOL = '#4cc8ff';
+const NEUTRAL_CONTEXT_WARM = '#ffc079';
+const NEUTRAL_CONTEXT_COOL = '#84d7ff';
+const INACTIVE_CONTEXT_WARM = '#8a5f46';
+const INACTIVE_CONTEXT_COOL = '#4d6277';
 
 // ---------------------------------------------------------------------------
 // Color + style
@@ -51,81 +51,66 @@ interface BeamStyle {
   dashed: boolean;
 }
 
-function rankBeamForRendering(a: SatelliteBeamSnapshot, b: SatelliteBeamSnapshot): number {
-  const rolePriority = (beam: SatelliteBeamSnapshot) => {
-    switch (beam.role) {
-      case 'serving': return 5;
-      case 'prepared': return 4;
-      case 'secondary': return 3;
-      case 'post-ho': return 2;
-      case 'neutral': return 1;
-      case 'inactive': return 0;
-    }
-  };
-
-  const priorityDelta = rolePriority(b) - rolePriority(a);
-  if (priorityDelta !== 0) return priorityDelta;
-
-  if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-
-  const radialA = Math.hypot(a.offsetEastKm, a.offsetNorthKm);
-  const radialB = Math.hypot(b.offsetEastKm, b.offsetNorthKm);
-  return radialA - radialB || a.beamId.localeCompare(b.beamId);
+function beamOrdinal(beam: SatelliteBeamSnapshot): number {
+  const match = beam.beamId.match(/-b(\d+)$/);
+  if (match) return Number(match[1]);
+  return [...beam.beamId].reduce((hash, char) => hash + char.charCodeAt(0), 0);
 }
 
-function getBeamColor(beam: SatelliteBeamSnapshot, beamIndex: number): string {
-  if (beam.role === 'serving') return SERVING_COLOR;
-  if (beam.role === 'prepared') return PREPARED_COLOR;
-  if (beam.role === 'secondary') return SECONDARY_COLOR;
-  if (beam.role === 'post-ho') return POST_HO_COLOR;
-  return beamIndex % 2 === 1 ? POLARIZATION_A : POLARIZATION_B;
+function getBeamColor(
+  beam: SatelliteBeamSnapshot,
+  accent: BeamPresentationBeamAccent,
+): string {
+  const isWarmBeam = beamOrdinal(beam) % 2 === 1;
+  switch (accent) {
+    case 'serving':
+      return SERVING_COLOR;
+    case 'prepared':
+      return PREPARED_COLOR;
+    case 'secondary':
+      return SECONDARY_COLOR;
+    case 'post-ho':
+      return POST_HO_COLOR;
+    case 'neutral-primary':
+      return isWarmBeam ? NEUTRAL_PRIMARY_WARM : NEUTRAL_PRIMARY_COOL;
+    case 'neutral-context':
+      return isWarmBeam ? NEUTRAL_CONTEXT_WARM : NEUTRAL_CONTEXT_COOL;
+    case 'inactive-context':
+      return isWarmBeam ? INACTIVE_CONTEXT_WARM : INACTIVE_CONTEXT_COOL;
+  }
 }
 
-function getBeamStyle(beam: SatelliteBeamSnapshot): BeamStyle {
-  if (beam.role === 'serving') {
+function getBeamStyle(
+  beam: SatelliteBeamSnapshot,
+  accent: BeamPresentationBeamAccent,
+): BeamStyle {
+  if (accent === 'serving') {
     return beam.isActive
       ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
       : { cone: 0.22, disc: 0.14, line: 0.96, width: 4, dashed: true };
   }
-  if (beam.role === 'prepared') {
+  if (accent === 'prepared') {
     return beam.isActive
       ? { cone: 0.30, disc: 0.20, line: 0.90, width: 3.4, dashed: true }
       : { cone: 0.18, disc: 0.12, line: 0.60, width: 2.4, dashed: true };
   }
-  if (beam.role === 'secondary') {
+  if (accent === 'secondary') {
     return beam.isActive
       ? { cone: 0.33, disc: 0.21, line: 0.95, width: 3.8, dashed: false }
       : { cone: 0.20, disc: 0.13, line: 0.70, width: 2.8, dashed: true };
   }
-  if (beam.role === 'post-ho') {
+  if (accent === 'post-ho') {
     return beam.isActive
       ? { cone: 0.24, disc: 0.16, line: 0.80, width: 3.0, dashed: false }
       : { cone: 0.14, disc: 0.09, line: 0.55, width: 2.2, dashed: true };
   }
-  if (!beam.isActive) {
+  if (accent === 'inactive-context' || !beam.isActive) {
     return { cone: 0.08, disc: 0.05, line: 0.38, width: 1.8, dashed: true };
   }
-  return { cone: 0.20, disc: 0.12, line: 0.72, width: 2.4, dashed: false };
-}
-
-function selectRenderableBeams(beams: SatelliteBeamSnapshot[], isCandidate?: boolean): SatelliteBeamSnapshot[] {
-  const renderable = beams.filter(
-    (beam) =>
-      beam.isActive ||
-      beam.role === 'serving' ||
-      beam.role === 'prepared' ||
-      beam.role === 'secondary' ||
-      beam.role === 'post-ho',
-  );
-  renderable.sort(rankBeamForRendering);
-
-  if (isCandidate) {
-    // Background candidates stay faint, but they still render the tracked beam
-    // lattice instead of collapsing back to a single center-beam placeholder.
-    return renderable;
+  if (accent === 'neutral-primary') {
+    return { cone: 0.22, disc: 0.14, line: 0.78, width: 2.8, dashed: false };
   }
-
-  return renderable;
+  return { cone: 0.13, disc: 0.08, line: 0.54, width: 2.0, dashed: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -184,40 +169,6 @@ function sinrColor(sinrDb: number): string {
   return '#ff4444';
 }
 
-interface RenderedBeamPlan {
-  beam: SatelliteBeamSnapshot;
-  beamIndex: number;
-  satPos: [number, number, number];
-  groundX: number;
-  groundZ: number;
-  footprintRadiusWorld: number;
-  isUeAnchored: boolean;
-}
-
-function buildRenderedBeamPlans(
-  sat: SatelliteState,
-  beams: readonly SatelliteBeamSnapshot[],
-): RenderedBeamPlan[] {
-  const projection = resolveMovingBeamProjection(sat, beams);
-
-  return beams.map((beam, beamIndex) => {
-    const target = computeMovingBeamGroundTarget(
-      projection,
-      beam,
-      isUeAnchoredMovingBeam(beam),
-    );
-
-    return {
-      beam,
-      beamIndex,
-      satPos: projection.satPos,
-      groundX: target.groundX,
-      groundZ: target.groundZ,
-      footprintRadiusWorld: target.footprintRadiusWorld,
-      isUeAnchored: target.isUeAnchored,
-    };
-  });
-}
 
 const BeamCone = React.memo(function BeamCone({
   satPos,
@@ -377,46 +328,47 @@ const BeamCone = React.memo(function BeamCone({
 
 const SatBeamGroup = React.memo(function SatBeamGroup({
   sat,
-  daps,
+  presentationFrame,
   servingBeamId,
   servingSinrDb,
-  isCandidate,
 }: {
   sat: SatelliteState;
-  daps?: DapsSnapshot;
+  presentationFrame: BeamPresentationFrame;
   servingBeamId?: string | null;
   servingSinrDb?: number | null;
-  isCandidate?: boolean;
 }) {
   const beams = sat.beams;
   if (!beams || beams.length === 0) return null;
 
-  const isDapsTarget = daps?.phase === 'dual-active' && sat.id === daps.targetSatId;
-  const isServingSat = Boolean(servingBeamId && beams.some((b) => b.beamId === servingBeamId));
+  const selectedBeamIds = useMemo(() => {
+    const primary = presentationFrame.primaryBeamBySatId[sat.id];
+    const context = presentationFrame.contextBeamIdsBySatId[sat.id] ?? [];
+    return primary ? [primary, ...context] : [];
+  }, [presentationFrame.contextBeamIdsBySatId, presentationFrame.primaryBeamBySatId, sat.id]);
   const chosenBeams = useMemo(
-    () => selectRenderableBeams(beams, isCandidate),
-    [beams, isCandidate],
+    () =>
+      selectedBeamIds
+        .map((beamId) => beams.find((beam) => beam.beamId === beamId) ?? null)
+        .filter((beam): beam is SatelliteBeamSnapshot => beam !== null),
+    [beams, selectedBeamIds],
   );
   const renderedBeamPlans = useMemo(
     () => buildRenderedBeamPlans(sat, chosenBeams),
     [sat, chosenBeams],
+  );
+  const isServingSat = Boolean(
+    servingBeamId && beams.some((beam) => beam.beamId === servingBeamId),
   );
 
   return (
     <group>
       {renderedBeamPlans.map(({ beam, beamIndex, satPos, groundX, groundZ, footprintRadiusWorld }) => {
         const isServingBeam = isServingSat && beam.beamId === servingBeamId;
-
-        const color = isCandidate
-          ? '#aaaaaa'
-          : isDapsTarget && beam.role === 'secondary'
-            ? SECONDARY_COLOR
-            : getBeamColor(beam, beamIndex);
-        const style: BeamStyle = isCandidate
-          ? { cone: 0.06, disc: 0.04, line: 0.30, width: 1.5, dashed: true }
-          : isDapsTarget && beam.role === 'secondary'
-            ? { cone: 0.35, disc: 0.22, line: 1.0, width: 4, dashed: false }
-            : getBeamStyle(beam);
+        const accent =
+          presentationFrame.beamRoleAccentByBeamId[beam.beamId]
+          ?? (beam.isActive ? 'neutral-context' : 'inactive-context');
+        const color = getBeamColor(beam, accent);
+        const style = getBeamStyle(beam, accent);
 
         return (
           <BeamCone
@@ -444,84 +396,39 @@ const SatBeamGroup = React.memo(function SatBeamGroup({
 
 export interface EarthMovingBeamLayerProps {
   snapshot: SimulationSnapshot | null;
+  presentationFrame: BeamPresentationFrame | null;
   visible?: boolean;
 }
 
 export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
   snapshot,
+  presentationFrame,
   visible = true,
 }: EarthMovingBeamLayerProps) {
   const primaryUe = snapshot?.ues[0];
   const servingSatId = primaryUe?.servingSatId;
 
   const beamSats = useMemo(
-    () => (snapshot && visible ? selectBeamSatellites(snapshot) : []),
-    [snapshot, visible],
+    () =>
+      !snapshot || !visible || !presentationFrame
+        ? []
+        : presentationFrame.beamSatIds
+          .map((satId) => snapshot.satellites.find((sat) => sat.id === satId) ?? null)
+          .filter((sat): sat is SatelliteState => sat !== null),
+    [presentationFrame, snapshot, visible],
   );
 
-  // Tier 1 satellite IDs: HO-relevant (serving / target / secondary / special roles)
-  const tier1SatIds = useMemo(() => {
-    if (!snapshot) return new Set<string>();
-    const ids = new Set<string>();
-    const ue = snapshot.ues[0];
-    if (ue?.servingSatId) ids.add(ue.servingSatId);
-    if (ue?.targetSatId) ids.add(ue.targetSatId);
-    if (ue?.secondarySatId) ids.add(ue.secondarySatId);
-    if (snapshot.daps?.targetSatId) ids.add(snapshot.daps.targetSatId);
-    for (const sat of snapshot.satellites) {
-      if (sat.beams?.some((b) => b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho')) {
-        ids.add(sat.id);
-      }
-    }
-    return ids;
-  }, [snapshot]);
-
-  const validationSummary = useMemo(() => {
-    const roleCounts: Record<string, number> = {};
-    let renderedBeamCount = 0;
-    const renderedSatIds: string[] = [];
-    const geometrySamples = [];
-
-    for (const sat of beamSats) {
-      const isCandidate = !tier1SatIds.has(sat.id);
-      const chosenBeams = selectRenderableBeams(sat.beams ?? [], isCandidate);
-      const renderedBeamPlans = buildRenderedBeamPlans(sat, chosenBeams);
-      if (renderedBeamPlans.length > 0) {
-        renderedSatIds.push(sat.id);
-      }
-      renderedBeamCount += renderedBeamPlans.length;
-      for (const { beam, satPos, groundX, groundZ, isUeAnchored } of renderedBeamPlans) {
-        roleCounts[beam.role] = (roleCounts[beam.role] ?? 0) + 1;
-        geometrySamples.push({
-          satId: sat.id,
-          beamId: beam.beamId,
-          role: beam.role,
-          isActive: beam.isActive,
-          isCandidate,
-          isUeAnchored,
-          satX: satPos[0],
-          satZ: satPos[2],
-          groundX,
-          groundZ,
-          offsetEastKm: beam.offsetEastKm,
-          offsetNorthKm: beam.offsetNorthKm,
-        });
-      }
-    }
-
-    return {
-      present: beamSats.length > 0,
-      renderedSatIds,
-      renderedBeamCount,
-      footprintRadiusWorld: MOVING_BEAM_FOOTPRINT_RADIUS_WORLD,
-      roleCounts,
-      geometrySamples,
-    };
-  }, [beamSats, tier1SatIds]);
+  const validationSummary = useMemo(
+    () => buildEarthMovingBeamLayerSummary(
+      beamSats,
+      presentationFrame,
+    ),
+    [beamSats, presentationFrame],
+  );
 
   usePublishValidationSection('earthMovingBeamLayer', validationSummary);
 
-  if (!snapshot || !visible || beamSats.length === 0) return null;
+  if (!snapshot || !visible || !presentationFrame || beamSats.length === 0) return null;
 
   const primaryUeSinrDb = snapshot.ues[0]?.sinrDb ?? null;
   const primaryUeServingBeamId = snapshot.ues[0]?.servingBeamId ?? null;
@@ -532,10 +439,9 @@ export const EarthMovingBeamLayer = React.memo(function EarthMovingBeamLayer({
         <SatBeamGroup
           key={sat.id}
           sat={sat}
-          daps={snapshot.daps}
+          presentationFrame={presentationFrame}
           servingBeamId={sat.id === servingSatId ? primaryUeServingBeamId : null}
           servingSinrDb={sat.id === servingSatId ? primaryUeSinrDb : null}
-          isCandidate={!tier1SatIds.has(sat.id)}
         />
       ))}
     </group>

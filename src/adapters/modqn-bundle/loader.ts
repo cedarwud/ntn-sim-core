@@ -24,7 +24,11 @@ import {
 } from './replay-frame-adapter';
 import { ModqnBundleSchemaError, assertManifestShape } from './schema-guard';
 import { parseTimelineJsonl } from './timeline-parser';
-import type { ModqnReplayBundle } from './types';
+import type {
+  ModqnReplayBundle,
+  ModqnTrainingEpisodeMetricRow,
+  ModqnTrainingLossCurveRow,
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Reader interface
@@ -134,6 +138,116 @@ function parseJsonObject(
   return parsed as Record<string, unknown>;
 }
 
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === ',' && !inQuotes) {
+      values.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  values.push(current);
+  return values;
+}
+
+function parseCsvTable(
+  text: string,
+  relativePath: string,
+): Record<string, string>[] {
+  const lines = text
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return [];
+
+  const header = parseCsvLine(lines[0]);
+  return lines.slice(1).map((line, lineIndex) => {
+    const values = parseCsvLine(line);
+    if (values.length !== header.length) {
+      throw new ModqnBundleSchemaError(
+        'BUNDLE_CSV_SHAPE',
+        `${relativePath}: row ${lineIndex + 2} has ${values.length} columns; expected ${header.length}.`,
+        { relativePath, line: lineIndex + 2 },
+      );
+    }
+    return Object.fromEntries(header.map((key, index) => [key, values[index]]));
+  });
+}
+
+function parseOptionalNumber(raw: string | undefined): number | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseLossArray(
+  raw: string | undefined,
+  relativePath: string,
+  rowNumber: number,
+): number[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== 'number')) {
+      throw new Error('losses must be a number array');
+    }
+    return parsed;
+  } catch (error) {
+    throw new ModqnBundleSchemaError(
+      'BUNDLE_CSV_PARSE',
+      `${relativePath}: row ${rowNumber} has invalid losses payload: ${(error as Error).message}`,
+      { relativePath, rowNumber },
+    );
+  }
+}
+
+function parseTrainingEpisodeMetrics(
+  text: string,
+  relativePath: string,
+): ModqnTrainingEpisodeMetricRow[] {
+  const rows = parseCsvTable(text, relativePath);
+  return rows.map((row, index) => ({
+    episode: parseOptionalNumber(row.episode) ?? 0,
+    epsilon: parseOptionalNumber(row.epsilon),
+    r1Mean: parseOptionalNumber(row.r1_mean),
+    r2Mean: parseOptionalNumber(row.r2_mean),
+    r3Mean: parseOptionalNumber(row.r3_mean),
+    scalarReward: parseOptionalNumber(row.scalar_reward),
+    totalHandovers: parseOptionalNumber(row.total_handovers),
+    replaySize: parseOptionalNumber(row.replay_size),
+    losses: parseLossArray(row.losses, relativePath, index + 2),
+  }));
+}
+
+function parseTrainingLossCurves(
+  text: string,
+  relativePath: string,
+): ModqnTrainingLossCurveRow[] {
+  const rows = parseCsvTable(text, relativePath);
+  return rows.map((row) => ({
+    episode: parseOptionalNumber(row.episode) ?? 0,
+    lossQ1: parseOptionalNumber(row.loss_q1),
+    lossQ2: parseOptionalNumber(row.loss_q2),
+    lossQ3: parseOptionalNumber(row.loss_q3),
+  }));
+}
+
 /**
  * Load and validate a replay bundle through a reader.
  *
@@ -185,6 +299,14 @@ export async function loadModqnReplayBundle(
     await requireText(reader, 'evaluation/summary.json'),
     'evaluation/summary.json',
   );
+  const trainingEpisodeMetrics = parseTrainingEpisodeMetrics(
+    await requireText(reader, 'training/episode_metrics.csv'),
+    'training/episode_metrics.csv',
+  );
+  const trainingLossCurves = parseTrainingLossCurves(
+    await requireText(reader, 'training/loss_curves.csv'),
+    'training/loss_curves.csv',
+  );
 
   // 4. Timeline.
   const timelineText = await requireText(reader, 'timeline/step-trace.jsonl');
@@ -205,6 +327,8 @@ export async function loadModqnReplayBundle(
     assumptions,
     provenanceMap,
     evaluationSummary,
+    trainingEpisodeMetrics,
+    trainingLossCurves,
     frames,
     frameBySlotIndex,
     slotCount: frames.length,

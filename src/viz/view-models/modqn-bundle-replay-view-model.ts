@@ -50,11 +50,55 @@ export interface ModqnTrainingEvalSummaryView {
   elapsedSec: number | null;
   finalEpisodeIndex: number | null;
   finalScalarReward: number | null;
+  evaluationEveryEpisodes: number | null;
   bestEvalEpisode: number | null;
   bestEvalMeanScalarReward: number | null;
   bestEvalStdScalarReward: number | null;
   bestEvalEvalSeedCount: number | null;
   bestEvalMeanHandovers: number | null;
+  bestEvalMeanR1: number | null;
+  bestEvalMeanR2: number | null;
+  bestEvalMeanR3: number | null;
+}
+
+export interface ModqnDecisionStoryView {
+  slotIndex: number;
+  timeSec: number;
+  decisionTimeSec: number | null;
+  userId: string;
+  previousServingSatId: string | null;
+  previousServingBeamId: string | null;
+  selectedSatId: string;
+  selectedBeamId: string;
+  selectedLocalBeamIndex: number;
+  visibleSatelliteCount: number;
+  visibleBeamCount: number;
+  validActionCount: number;
+  totalActionCount: number;
+  scalarReward: number;
+  rewardVector: {
+    throughput: number;
+    handover: number;
+    loadBalance: number;
+  };
+  handoverKind: string;
+  handoverOccurred: boolean;
+  userThroughputBps: number;
+  selectedBeamLoad: number;
+  selectedBeamThroughputBps: number;
+}
+
+export interface ModqnTrainingEvidenceView {
+  episodeCount: number;
+  latestEpisode: number | null;
+  latestScalarReward: number | null;
+  latestEpsilon: number | null;
+  scalarRewardSeries: number[];
+  throughputLossSeries: number[];
+  handoverLossSeries: number[];
+  loadBalanceLossSeries: number[];
+  trainingObjectivesFigureUrl: string | null;
+  trainingScalarRewardFigureUrl: string | null;
 }
 
 export interface ModqnAssumptionView {
@@ -107,6 +151,23 @@ function getPrimaryUser(frame: ModqnReplayFrame): ModqnReplayUserRecord {
     const rightIndex = right.userIndex ?? Number.MAX_SAFE_INTEGER;
     return leftIndex - rightIndex || left.userId.localeCompare(right.userId);
   })[0];
+}
+
+function countDistinctSatIdsForMask(
+  frame: ModqnReplayFrame,
+  mask: boolean[] | null,
+): number {
+  if (!mask) return 0;
+  return new Set(
+    frame.beamStates
+      .filter((beam, beamIndex) => Boolean(mask[beamIndex]))
+      .map((beam) => beam.satId),
+  ).size;
+}
+
+function countMask(mask: boolean[] | null): number {
+  if (!mask) return 0;
+  return mask.filter(Boolean).length;
 }
 
 function getUserBeamRole(
@@ -412,6 +473,9 @@ export class ModqnBundleReplayViewModel {
       finalScalarReward: typeof trainingSummary.final_scalar_reward === 'number'
         ? trainingSummary.final_scalar_reward
         : null,
+      evaluationEveryEpisodes: typeof bestEvalSummary.evaluation_every_episodes === 'number'
+        ? bestEvalSummary.evaluation_every_episodes
+        : null,
       bestEvalEpisode: typeof bestEvalSummary.episode === 'number'
         ? bestEvalSummary.episode
         : null,
@@ -425,6 +489,77 @@ export class ModqnBundleReplayViewModel {
       bestEvalMeanHandovers: typeof bestEvalSummary.mean_total_handovers === 'number'
         ? bestEvalSummary.mean_total_handovers
         : null,
+      bestEvalMeanR1: typeof bestEvalSummary.mean_r1 === 'number'
+        ? bestEvalSummary.mean_r1
+        : null,
+      bestEvalMeanR2: typeof bestEvalSummary.mean_r2 === 'number'
+        ? bestEvalSummary.mean_r2
+        : null,
+      bestEvalMeanR3: typeof bestEvalSummary.mean_r3 === 'number'
+        ? bestEvalSummary.mean_r3
+        : null,
+    };
+  }
+
+  public getDecisionStory(index: number): ModqnDecisionStoryView {
+    const frame = this.getFrame(index);
+    const primaryUser = getPrimaryUser(frame);
+    const decisionVisibilityMask =
+      primaryUser.decisionVisibilityMask ?? primaryUser.visibilityMask;
+    const decisionActionValidityMask =
+      primaryUser.decisionActionValidityMask ?? primaryUser.actionValidityMask;
+
+    return {
+      slotIndex: frame.slotIndex,
+      timeSec: frame.timeSec,
+      decisionTimeSec: frame.decisionTimeSec,
+      userId: primaryUser.userId,
+      previousServingSatId: primaryUser.previousServing.satId,
+      previousServingBeamId: primaryUser.previousServing.beamId,
+      selectedSatId: primaryUser.selectedServing.satId,
+      selectedBeamId: primaryUser.selectedServing.beamId,
+      selectedLocalBeamIndex: primaryUser.selectedServing.localBeamIndex,
+      visibleSatelliteCount: countDistinctSatIdsForMask(frame, decisionVisibilityMask),
+      visibleBeamCount: countMask(decisionVisibilityMask),
+      validActionCount: countMask(decisionActionValidityMask),
+      totalActionCount: frame.beamStates.length,
+      scalarReward: primaryUser.scalarReward,
+      rewardVector: {
+        throughput: primaryUser.rewardVector.r1Throughput,
+        handover: primaryUser.rewardVector.r2Handover,
+        loadBalance: primaryUser.rewardVector.r3LoadBalance,
+      },
+      handoverKind: primaryUser.handoverEvent.kind,
+      handoverOccurred: primaryUser.kpiOverlay.handoverOccurred,
+      userThroughputBps: primaryUser.kpiOverlay.userThroughputBps,
+      selectedBeamLoad: primaryUser.kpiOverlay.selectedBeamLoad,
+      selectedBeamThroughputBps: primaryUser.kpiOverlay.selectedBeamThroughputBps,
+    };
+  }
+
+  public getTrainingEvidence(): ModqnTrainingEvidenceView {
+    const latestEpisodeMetric = this.bundle.trainingEpisodeMetrics.length > 0
+      ? this.bundle.trainingEpisodeMetrics[this.bundle.trainingEpisodeMetrics.length - 1]
+      : null;
+    return {
+      episodeCount: this.bundle.trainingEpisodeMetrics.length,
+      latestEpisode: latestEpisodeMetric?.episode ?? null,
+      latestScalarReward: latestEpisodeMetric?.scalarReward ?? null,
+      latestEpsilon: latestEpisodeMetric?.epsilon ?? null,
+      scalarRewardSeries: this.bundle.trainingEpisodeMetrics
+        .map((row) => row.scalarReward)
+        .filter((value): value is number => value !== null && Number.isFinite(value)),
+      throughputLossSeries: this.bundle.trainingLossCurves
+        .map((row) => row.lossQ1)
+        .filter((value): value is number => value !== null && Number.isFinite(value)),
+      handoverLossSeries: this.bundle.trainingLossCurves
+        .map((row) => row.lossQ2)
+        .filter((value): value is number => value !== null && Number.isFinite(value)),
+      loadBalanceLossSeries: this.bundle.trainingLossCurves
+        .map((row) => row.lossQ3)
+        .filter((value): value is number => value !== null && Number.isFinite(value)),
+      trainingObjectivesFigureUrl: this.bundle.artifactUrls?.trainingObjectivesFigureUrl ?? null,
+      trainingScalarRewardFigureUrl: this.bundle.artifactUrls?.trainingScalarRewardFigureUrl ?? null,
     };
   }
 

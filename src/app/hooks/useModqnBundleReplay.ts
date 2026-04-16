@@ -7,6 +7,7 @@ import {
   advanceBundleReplayFrameIndex,
 } from '@/viz/view-models/modqn-bundle-replay-view-model';
 import { loadBundledModqnSampleBundle } from './modqn-bundle-sample';
+import { publishWithTransientTruthHold } from './transient-truth-hold';
 
 const SNAPSHOT_INTERVAL_MS = 50;
 
@@ -47,6 +48,8 @@ export function useModqnBundleReplay(
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const lastSnapshotTimeRef = useRef(0);
+  const stickySnapshotRef = useRef<SimulationSnapshot | null>(null);
+  const stickySnapshotHoldUntilRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +58,8 @@ export function useModqnBundleReplay(
     setCurrentFrameIndex(0);
     setSnapshot(null);
     lastSnapshotTimeRef.current = 0;
+    stickySnapshotRef.current = null;
+    stickySnapshotHoldUntilRef.current = 0;
 
     void loadBundledModqnSampleBundle()
       .then((bundle) => {
@@ -75,7 +80,14 @@ export function useModqnBundleReplay(
 
   useEffect(() => {
     if (!viewModel) return;
-    setSnapshot(viewModel.projectFrame(currentFrameIndex));
+    setSnapshot(
+      publishWithTransientTruthHold({
+        candidateSnapshot: viewModel.projectFrame(currentFrameIndex),
+        nowMs: performance.now(),
+        stickySnapshotRef,
+        stickySnapshotHoldUntilRef,
+      }),
+    );
   }, [currentFrameIndex, viewModel]);
 
   const invalidate = useThree((state) => state.invalidate);

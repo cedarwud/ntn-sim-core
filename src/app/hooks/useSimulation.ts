@@ -18,6 +18,10 @@ import { buildInteractiveProfileRuntime } from '@/core/orbit/profile-runtime';
 import { createSimEngine } from '@/core/engine';
 import type { SimEngine } from '@/core/engine';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
+import {
+  getTransientTruthHoldMs,
+  publishWithTransientTruthHold,
+} from './transient-truth-hold';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -51,12 +55,6 @@ export interface UseSimulationResult {
 // ---------------------------------------------------------------------------
 
 const SNAPSHOT_INTERVAL_MS = 50; // 20fps simulation updates (was 33 / 30fps)
-const TRANSIENT_VISUAL_HOLD_MS = 120;
-
-function isPriorityTransientSnapshot(snapshot: SimulationSnapshot | null): boolean {
-  const phase = snapshot?.daps?.phase ?? null;
-  return typeof phase === 'string' && phase.includes('dual-active');
-}
 
 interface EngineRuntime {
   engine: SimEngine;
@@ -121,6 +119,7 @@ export function useSimulation(
   const simTimeRef = useRef(0);
   const lastSnapshotTimeRef = useRef(0);
   const lastProcessedTickRef = useRef<number | null>(null);
+  const reachedEndRef = useRef(false);
 
   // ── 3. Snapshot state (updated at throttled rate) ──
 
@@ -136,6 +135,7 @@ export function useSimulation(
     simTimeRef.current = 0;
     lastSnapshotTimeRef.current = 0;
     lastProcessedTickRef.current = null;
+    reachedEndRef.current = false;
     handoverCountRef.current = 0;
     prevServingSatIdRef.current = null;
     lastKnownServingRef.current = null;
@@ -154,6 +154,11 @@ export function useSimulation(
     let lastTime = performance.now();
 
     const id = setInterval(() => {
+      if (reachedEndRef.current) {
+        clearInterval(id);
+        return;
+      }
+
       const { engine, profile, durationSec } = runtime;
       const now = performance.now();
       const delta = (now - lastTime) / 1000;
@@ -162,14 +167,8 @@ export function useSimulation(
       // Advance sim time
       simTimeRef.current += delta * speed;
       if (simTimeRef.current >= durationSec) {
-        simTimeRef.current %= durationSec;
-        engine.reset();
-        lastProcessedTickRef.current = null;
-        handoverCountRef.current = 0;
-        prevServingSatIdRef.current = null;
-        lastKnownServingRef.current = null;
-        stickySnapshotRef.current = null;
-        stickySnapshotHoldUntilRef.current = 0;
+        simTimeRef.current = durationSec;
+        reachedEndRef.current = true;
       }
 
       const timeSec = simTimeRef.current;
@@ -182,7 +181,7 @@ export function useSimulation(
       if (lastProcessedTick !== null && tickNumber > lastProcessedTick + 1) {
         for (let missedTick = lastProcessedTick + 1; missedTick < tickNumber; missedTick += 1) {
           const missedSnap = engine.tick(missedTick * stepSec, missedTick);
-          if (publishedSnap === null && isPriorityTransientSnapshot(missedSnap)) {
+          if (publishedSnap === null && getTransientTruthHoldMs(missedSnap) > 0) {
             publishedSnap = missedSnap;
           }
         }
@@ -190,16 +189,12 @@ export function useSimulation(
 
       const finalSnap = engine.tick(timeSec, tickNumber);
       const candidateSnap = publishedSnap ?? finalSnap;
-      if (isPriorityTransientSnapshot(candidateSnap)) {
-        stickySnapshotRef.current = candidateSnap;
-        stickySnapshotHoldUntilRef.current = now + TRANSIENT_VISUAL_HOLD_MS;
-      } else if (stickySnapshotHoldUntilRef.current <= now) {
-        stickySnapshotRef.current = null;
-      }
-
-      const snap = stickySnapshotRef.current && stickySnapshotHoldUntilRef.current > now
-        ? stickySnapshotRef.current
-        : candidateSnap;
+      const snap = publishWithTransientTruthHold({
+        candidateSnapshot: candidateSnap,
+        nowMs: now,
+        stickySnapshotRef,
+        stickySnapshotHoldUntilRef,
+      });
       lastProcessedTickRef.current = tickNumber;
 
       const currentServing = finalSnap.ues[0]?.servingSatId ?? null;
@@ -216,6 +211,10 @@ export function useSimulation(
 
       setSnapshot(snap);
       invalidate(); // trigger one GPU render per update
+
+      if (reachedEndRef.current) {
+        clearInterval(id);
+      }
     }, SNAPSHOT_INTERVAL_MS);
 
     return () => clearInterval(id);

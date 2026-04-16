@@ -19,6 +19,10 @@
 import React, { useMemo } from 'react';
 import { Text } from '@react-three/drei';
 import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
+import type {
+  BeamPresentationFrame,
+  BeamPresentationMarkerRole,
+} from '@/viz/presentation';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import {
   projectToSkyDome,
@@ -29,7 +33,6 @@ import {
 // VISUAL-ONLY constants
 // ---------------------------------------------------------------------------
 
-const MIN_ELEVATION_DEG = 10;
 const MAX_LABEL_SATS = 6;
 
 // SINR color thresholds (from leo-beam-sim donor)
@@ -40,19 +43,19 @@ function sinrColor(sinrDb: number): string {
   return '#ff4444';
 }
 
-function getRoleTag(sat: SatelliteState): string {
-  const beams = sat.beams ?? [];
-  const servingBeam = beams.find((b) => b.role === 'serving');
-  const preparedBeam = beams.find((b) => b.role === 'prepared');
-  const secondaryBeam = beams.find((b) => b.role === 'secondary');
-  const postHoBeam = beams.find((b) => b.role === 'post-ho');
-  const activeCount = beams.filter((b) => b.isActive).length;
-
-  if (servingBeam) return 'SERVING';
-  if (secondaryBeam) return 'SECONDARY';
-  if (preparedBeam) return 'PREPARED';
-  if (postHoBeam) return 'POST-HO';
-  return `${activeCount} active`;
+function getRoleTag(role: BeamPresentationMarkerRole): string {
+  switch (role) {
+    case 'serving':
+      return 'SERVING';
+    case 'prepared':
+      return 'PREPARED';
+    case 'secondary':
+      return 'SECONDARY';
+    case 'post-ho':
+      return 'POST-HO';
+    case 'neutral':
+      return 'CONTEXT';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,15 +64,16 @@ function getRoleTag(sat: SatelliteState): string {
 
 const SatBeamLabel = React.memo(function SatBeamLabel({
   sat,
+  markerRole,
   sinrDb,
 }: {
   sat: SatelliteState;
+  markerRole: BeamPresentationMarkerRole;
   sinrDb: number | null;
 }) {
   const pos = projectToSkyDome(sat.azimuthDeg, sat.elevationDeg, DEFAULT_SKY_PROJECTION);
 
-  // Role summary from beams
-  const roleTag = getRoleTag(sat);
+  const roleTag = getRoleTag(markerRole);
   const isServing = roleTag === 'SERVING';
   const isPrepared = roleTag === 'PREPARED';
   const isSecondary = roleTag === 'SECONDARY';
@@ -145,11 +149,13 @@ const SatBeamLabel = React.memo(function SatBeamLabel({
 
 export interface BeamInfoOverlayProps {
   snapshot: SimulationSnapshot | null;
+  presentationFrame: BeamPresentationFrame | null;
   visible?: boolean;
 }
 
 export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
   snapshot,
+  presentationFrame,
   visible = true,
 }: BeamInfoOverlayProps) {
   const hasBeams = useMemo(
@@ -158,38 +164,24 @@ export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
   );
 
   const topSats = useMemo(() => {
-    if (!snapshot || !visible || !hasBeams) return [];
-    const relevantSatIds = new Set<string>();
-    for (const ue of snapshot.ues) {
-      if (ue.servingSatId) relevantSatIds.add(ue.servingSatId);
-      if (ue.targetSatId) relevantSatIds.add(ue.targetSatId);
-      if (ue.secondarySatId) relevantSatIds.add(ue.secondarySatId);
-    }
+    if (!snapshot || !presentationFrame || !visible || !hasBeams) return [];
 
-    const visibleBeamSats = snapshot.satellites
-      .filter(
-        (sat) =>
-          sat.isVisible &&
-          sat.elevationDeg > MIN_ELEVATION_DEG &&
-          (sat.beams?.length ?? 0) > 0,
-      )
-      .sort((a, b) => {
-        const aPriority = relevantSatIds.has(a.id) ? 1 : 0;
-        const bPriority = relevantSatIds.has(b.id) ? 1 : 0;
-        return bPriority - aPriority || b.elevationDeg - a.elevationDeg;
-      });
-
-    const roleQualified = visibleBeamSats.filter((sat) =>
-      sat.beams?.some(
-        (b) => b.role === 'serving' || b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho',
+    const orderedSatIds = [
+      ...presentationFrame.eventSatIds,
+      ...presentationFrame.beamSatIds.filter(
+        (satId) => !presentationFrame.eventSatIds.includes(satId),
       ),
-    );
+      ...presentationFrame.displaySatIds.filter(
+        (satId) =>
+          !presentationFrame.eventSatIds.includes(satId)
+          && !presentationFrame.beamSatIds.includes(satId),
+      ),
+    ].slice(0, MAX_LABEL_SATS);
 
-    // The bounded-steering slice can expose candidate-only beam truth before the
-    // primary UE actually attaches. In that state we still label the visible
-    // tracked-beam satellite so the renderer remains explainable.
-    return (roleQualified.length > 0 ? roleQualified : visibleBeamSats).slice(0, MAX_LABEL_SATS);
-  }, [hasBeams, snapshot, visible]);
+    return orderedSatIds
+      .map((satId) => snapshot.satellites.find((sat) => sat.id === satId) ?? null)
+      .filter((sat): sat is SatelliteState => sat !== null);
+  }, [hasBeams, presentationFrame, snapshot, visible]);
 
   const primaryUe = snapshot?.ues[0] ?? null;
   const primarySinr = primaryUe?.sinrDb ?? null;
@@ -197,14 +189,14 @@ export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
   const validationSummary = useMemo(() => ({
     present: topSats.length > 0,
     labeledSatIds: topSats.map((sat) => sat.id),
-    roleTags: topSats.map((sat) => `${sat.id}:${getRoleTag(sat)}`),
+    roleTags: topSats.map((sat) => `${sat.id}:${getRoleTag(presentationFrame?.markerRoleBySatId[sat.id] ?? 'neutral')}`),
     primaryServingSatId: primaryUe?.servingSatId ?? null,
     servingSinrDb: primarySinr,
-  }), [primarySinr, primaryUe?.servingSatId, topSats]);
+  }), [presentationFrame?.markerRoleBySatId, primarySinr, primaryUe?.servingSatId, topSats]);
 
   usePublishValidationSection('beamInfoOverlay', validationSummary);
 
-  if (!snapshot || !visible || !hasBeams || topSats.length === 0) return null;
+  if (!snapshot || !presentationFrame || !visible || !hasBeams || topSats.length === 0) return null;
 
   return (
     <group name="beam-info-overlay">
@@ -212,7 +204,12 @@ export const BeamInfoOverlay = React.memo(function BeamInfoOverlay({
         // Only expose SINR for the satellite actually serving the primary UE
         const sinrForSat = sat.id === primaryUe?.servingSatId ? primarySinr : null;
         return (
-          <SatBeamLabel key={sat.id} sat={sat} sinrDb={sinrForSat} />
+          <SatBeamLabel
+            key={sat.id}
+            sat={sat}
+            markerRole={presentationFrame.markerRoleBySatId[sat.id] ?? 'neutral'}
+            sinrDb={sinrForSat}
+          />
         );
       })}
     </group>

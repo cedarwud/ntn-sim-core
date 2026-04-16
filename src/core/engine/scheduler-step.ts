@@ -41,9 +41,8 @@ export function runSchedulerStep(state: SimEngineState, timeSec: number) {
           meanArrivalRatePerSec: profile.beam.bh_traffic_arrival_rate ?? 10,
         };
         const cellDemands = generateTrafficDemand(trafficCfg, () => rng.next(), timeSec);
-        const sortedBeamIds = [...layout.beams.map((b) => b.beamId)].sort();
         for (let i = 0; i < cellDemands.length; i++) {
-          demandPerBeam.set(sortedBeamIds[i] ?? `${satId}-b${i}`, cellDemands[i].demandBps);
+          demandPerBeam.set(layout.beams[i]?.beamId ?? `${satId}-b${i}`, cellDemands[i].demandBps);
         }
       }
     }

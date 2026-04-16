@@ -71,9 +71,37 @@ type VisualState = {
     replayWindowStartSec: number | null;
     replayWindowEndSec: number | null;
   };
+  snapshotBeamTruth?: {
+    present: boolean;
+    satIdsWithBeams: string[];
+    beamIdsBySatId: Record<string, string[]>;
+    beamRoleByKey: Record<string, string>;
+    beamActiveByKey: Record<string, boolean>;
+  };
+  beamPresentationFrame?: {
+    present: boolean;
+    focusMode: string | null;
+    displaySatIds: string[];
+    eventSatIds: string[];
+    beamSatIds: string[];
+    primaryBeamBySatId: Record<string, string>;
+    contextBeamIdsBySatId: Record<string, string[]>;
+    markerRoleBySatId: Record<string, string>;
+    beamRoleAccentByBeamId: Record<string, string>;
+    narrativePhase?: string | null;
+    narrativeServingSatId?: string | null;
+    narrativeSourceSatId?: string | null;
+    narrativeTargetSatId?: string | null;
+    narrativePostHoSatId?: string | null;
+    cooledDownSatIds?: string[];
+    cooldownSuppressedTargetSatId?: string | null;
+  };
   earthFixedCellLayer?: {
     present: boolean;
     cellCount: number;
+    selectionSource: string;
+    analyzedSatIds: string[];
+    analyzedBeamIdsBySatId: Record<string, string[]>;
     stateCounts: {
       served: number;
       interfered: number;
@@ -112,6 +140,13 @@ type VisualState = {
     dapsPhase: string | null;
     observedDapsPhases: string[];
     observedDualActiveTruth: boolean;
+    narrativePhase?: string | null;
+    narrativeServingSatId?: string | null;
+    narrativeSourceSatId?: string | null;
+    narrativeTargetSatId?: string | null;
+    narrativePostHoSatId?: string | null;
+    cooledDownSatIds?: string[];
+    cooldownSuppressedTargetSatId?: string | null;
   };
 };
 
@@ -132,6 +167,7 @@ function check(label: string, condition: boolean, detail = '') {
 }
 
 function validateMovingBeamGeometry(state: VisualState | null) {
+  const presentation = state?.beamPresentationFrame;
   const moving = state?.earthMovingBeamLayer;
   const geometrySamples = moving?.geometrySamples ?? [];
 
@@ -209,6 +245,152 @@ function validateMovingBeamGeometry(state: VisualState | null) {
     comparableSamples > 0 && maxDelta <= GEOMETRY_TOLERANCE_WORLD,
     `samples=${comparableSamples}, maxDelta=${maxDelta.toExponential(3)}`,
   );
+
+  const renderedSatIds = [...(moving?.renderedSatIds ?? [])].sort();
+  const frameBeamSatIds = [...(presentation?.beamSatIds ?? [])].sort();
+  check(
+    'VAL-FV-006 shared presentation frame drives rendered beam-satellite membership',
+    JSON.stringify(renderedSatIds) === JSON.stringify(frameBeamSatIds),
+    `rendered=${renderedSatIds.join(',')} frame=${frameBeamSatIds.join(',')}`,
+  );
+
+  const frameDisplaySatIds = new Set(presentation?.displaySatIds ?? []);
+  const labeledSatIds = state?.beamInfoOverlay?.labeledSatIds ?? [];
+  check(
+    'VAL-FV-006 beam overlay labels stay inside the shared display-satellite set',
+    labeledSatIds.every((satId) => frameDisplaySatIds.has(satId)),
+    `labels=${labeledSatIds.join(',')} display=${[...frameDisplaySatIds].join(',')}`,
+  );
+
+  const frameEventSatIds = new Set(presentation?.eventSatIds ?? []);
+  const nonEventBeamSatIds = (presentation?.beamSatIds ?? []).filter(
+    (satId) => !frameEventSatIds.has(satId),
+  );
+  const idlePassBeamSatIds = nonEventBeamSatIds.length > 0
+    ? nonEventBeamSatIds
+    : (presentation?.beamSatIds ?? []);
+  const maxNonEventBeamCount = Math.max(
+    0,
+    ...idlePassBeamSatIds.map((satId) => countFrameBeamsForSat(presentation, satId)),
+  );
+  const maxTier1NeutralBeamCount = Math.max(
+    0,
+    ...[...(presentation?.eventSatIds ?? [])].map((satId) =>
+      countFrameNeutralContextBeamsForSat(presentation, satId),
+    ),
+  );
+
+  check(
+    'VAL-FV-005 background candidates stay compact when present',
+    nonEventBeamSatIds.length === 0 || maxNonEventBeamCount <= 7,
+    `nonEventSatIds=${nonEventBeamSatIds.join(',')}, maxNonEventBeamCount=${maxNonEventBeamCount}`,
+  );
+
+  check(
+    'VAL-FV-005 idle-pass beam satellites keep a local multibeam neighborhood instead of collapsing to 1-2 cones',
+    presentation?.focusMode !== 'idle-pass'
+      || (idlePassBeamSatIds.length > 0 && maxNonEventBeamCount >= 4),
+    `focus=${presentation?.focusMode ?? 'null'}, beamSatIds=${idlePassBeamSatIds.join(',')}, maxBeamCount=${maxNonEventBeamCount}`,
+  );
+
+  check(
+    'VAL-FV-005 BH-active tier-1 focus suppresses background candidate beam cones in case9 DAPS',
+    state?.runtime?.profileId !== 'case9-daps-baseline'
+      || nonEventBeamSatIds.length === 0,
+    `profile=${state?.runtime?.profileId ?? 'null'}, nonEventSatIds=${nonEventBeamSatIds.join(',')}`,
+  );
+
+  check(
+    'VAL-FV-005 BH-active tier-1 satellites keep a compact but non-collapsed neutral beam context',
+    state?.runtime?.profileId !== 'case9-daps-baseline'
+      || maxTier1NeutralBeamCount <= 3,
+    `profile=${state?.runtime?.profileId ?? 'null'}, maxTier1NeutralBeamCount=${maxTier1NeutralBeamCount}`,
+  );
+}
+
+function getOrbitElevation(
+  state: VisualState | null,
+  satId: string | null | undefined,
+): number | null {
+  if (!satId) return null;
+  const sample = state?.orbitParity?.satellites.find((sat) => sat.id === satId);
+  return sample?.elevationDeg ?? null;
+}
+
+function getOrbitAzimuth(
+  state: VisualState | null,
+  satId: string | null | undefined,
+): number | null {
+  if (!satId) return null;
+  const sample = state?.orbitParity?.satellites.find((sat) => sat.id === satId);
+  return sample?.azimuthDeg ?? null;
+}
+
+function azimuthDistance(left: number, right: number): number {
+  let delta = Math.abs(left - right) % 360;
+  if (delta > 180) delta = 360 - delta;
+  return delta;
+}
+
+function countFrameBeamsForSat(
+  frame: VisualState['beamPresentationFrame'] | undefined,
+  satId: string,
+): number {
+  if (!frame) return 0;
+  return frame.primaryBeamBySatId[satId]
+    ? 1 + (frame.contextBeamIdsBySatId[satId]?.length ?? 0)
+    : 0;
+}
+
+function countFrameNeutralContextBeamsForSat(
+  frame: VisualState['beamPresentationFrame'] | undefined,
+  satId: string,
+): number {
+  if (!frame) return 0;
+  return (frame.contextBeamIdsBySatId[satId] ?? []).filter(
+    (beamId) => frame.beamRoleAccentByBeamId[beamId] === 'neutral-context',
+  ).length;
+}
+
+function allFrameBeamsExistInSnapshot(state: VisualState | null): boolean {
+  const frame = state?.beamPresentationFrame;
+  const snapshotBeamTruth = state?.snapshotBeamTruth;
+  let totalPickCount = 0;
+
+  if (!frame || !snapshotBeamTruth?.present) return false;
+
+  for (const [satId, beamId] of Object.entries(frame.primaryBeamBySatId)) {
+    totalPickCount += 1;
+    if (!(snapshotBeamTruth.beamIdsBySatId[satId] ?? []).includes(beamId)) return false;
+  }
+  for (const [satId, beamIds] of Object.entries(frame.contextBeamIdsBySatId)) {
+    for (const beamId of beamIds) {
+      totalPickCount += 1;
+      if (!(snapshotBeamTruth.beamIdsBySatId[satId] ?? []).includes(beamId)) return false;
+    }
+  }
+  return totalPickCount > 0;
+}
+
+function earthFixedLayerMatchesFrameBeamPicks(state: VisualState | null): boolean {
+  const frame = state?.beamPresentationFrame;
+  const fixed = state?.earthFixedCellLayer;
+  if (!frame || !fixed) return false;
+
+  const frameSatIds = [...frame.beamSatIds].sort();
+  const analyzedSatIds = [...(fixed.analyzedSatIds ?? [])].sort();
+  if (fixed.selectionSource !== 'presentation-frame') return false;
+  if (JSON.stringify(frameSatIds) !== JSON.stringify(analyzedSatIds)) return false;
+
+  for (const satId of frameSatIds) {
+    const frameBeamIds = [
+      ...(frame.primaryBeamBySatId[satId] ? [frame.primaryBeamBySatId[satId]] : []),
+      ...(frame.contextBeamIdsBySatId[satId] ?? []),
+    ].sort();
+    const analyzedBeamIds = [...(fixed.analyzedBeamIdsBySatId[satId] ?? [])].sort();
+    if (JSON.stringify(frameBeamIds) !== JSON.stringify(analyzedBeamIds)) return false;
+  }
+  return true;
 }
 
 async function waitForServer(url: string, timeoutMs = 20000) {
@@ -350,7 +532,14 @@ async function validateHobsLive(page: Page) {
       state?.runtime?.profileId === 'hobs-multibeam-baseline' &&
       state.runtime.mode === 'live' &&
       Boolean(state.earthMovingBeamLayer?.present) &&
-      Boolean(state.beamInfoOverlay?.present),
+      Boolean(state.beamPresentationFrame?.present) &&
+      Boolean(state.beamInfoOverlay?.present) &&
+      Boolean(state.snapshotBeamTruth?.present) &&
+      state.runtime.primaryUe.servingSatId !== null &&
+      state.runtime.primaryUe.sinrDb !== null &&
+      state.beamInfoOverlay?.primaryServingSatId !== null &&
+      state.beamInfoOverlay?.servingSinrDb !== null,
+    60000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-hobs-live.png') });
@@ -373,7 +562,7 @@ async function validateHobsLive(page: Page) {
 
   check(
     'VAL-FV-005 multibeam renderer exposes more than one beam',
-    (stateA?.earthMovingBeamLayer?.renderedBeamCount ?? 0) > 1,
+    (stateA?.earthMovingBeamLayer?.renderedBeamCount ?? 0) >= 4,
     `beamCount=${stateA?.earthMovingBeamLayer?.renderedBeamCount ?? 0}`,
   );
 
@@ -385,17 +574,201 @@ async function validateHobsLive(page: Page) {
 
   check(
     'VAL-FV-006 serving SINR comes from runtime truth',
-    stateA?.beamInfoOverlay?.servingSinrDb === stateA?.runtime?.primaryUe.sinrDb,
+    stateA?.runtime?.primaryUe.sinrDb !== null
+      && stateA?.beamInfoOverlay?.servingSinrDb !== null
+      && stateA.beamInfoOverlay.servingSinrDb === stateA.runtime.primaryUe.sinrDb,
     `${stateA?.beamInfoOverlay?.servingSinrDb ?? 'null'} vs ${stateA?.runtime?.primaryUe.sinrDb ?? 'null'}`,
   );
 
   check(
     'VAL-FV-006 serving satellite ID matches runtime truth',
-    stateA?.beamInfoOverlay?.primaryServingSatId === stateA?.runtime?.primaryUe.servingSatId,
+    stateA?.runtime?.primaryUe.servingSatId !== null
+      && stateA?.beamInfoOverlay?.primaryServingSatId !== null
+      && stateA.beamInfoOverlay.primaryServingSatId === stateA.runtime.primaryUe.servingSatId,
     `${stateA?.beamInfoOverlay?.primaryServingSatId ?? 'null'} vs ${stateA?.runtime?.primaryUe.servingSatId ?? 'null'}`,
   );
 
+  check(
+    'VAL-FV-006 HOBS live frame beam picks stay backed by raw snapshot truth',
+    allFrameBeamsExistInSnapshot(stateA),
+    `primaryKeys=${JSON.stringify(stateA?.beamPresentationFrame?.primaryBeamBySatId ?? {})}`,
+  );
+
   validateMovingBeamGeometry(stateA);
+}
+
+async function validateDapsShowcase(page: Page) {
+  console.log('\n=== Browser Visual Validation: DAPS Showcase ===\n');
+
+  await gotoScenario(page, {
+    validate: '1',
+    profile: 'case9-daps-showcase',
+    speed: '20',
+    showBeams: '1',
+    showLabels: '1',
+  });
+
+  const state = await waitForState(
+    page,
+    (current) =>
+      current?.runtime?.profileId === 'case9-daps-showcase'
+      && current.runtime.mode === 'live'
+      && (current.runtime.timeSec ?? Infinity) <= 300
+      && current.beamPresentationFrame?.focusMode === 'continuity-focus'
+      && (current.beamPresentationFrame.eventSatIds?.length ?? 0) >= 2,
+    90000,
+  );
+
+  await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-showcase-live.png') });
+
+  const preparedOverlayState = await waitForState(
+    page,
+    (current) =>
+      current?.runtime?.profileId === 'case9-daps-showcase'
+      && current.runtime.mode === 'live'
+      && current.handoverLinkOverlay?.narrativePhase === 'prepared'
+      && current.handoverLinkOverlay?.styleKeys?.includes('target'),
+    30000,
+  );
+  const postSwitchState = await waitForState(
+    page,
+    (current) =>
+      current?.runtime?.profileId === 'case9-daps-showcase'
+      && current.runtime.mode === 'live'
+      && current.handoverLinkOverlay?.narrativePhase === 'post-switch'
+      && current.handoverLinkOverlay?.observedStyleKeys?.includes('postHo'),
+    60000,
+  );
+
+  const frame = state?.beamPresentationFrame;
+  const primaryServingSatId = state?.runtime?.primaryUe.servingSatId ?? null;
+  const servingElevation = getOrbitElevation(state, primaryServingSatId);
+  const servingAzimuth = getOrbitAzimuth(state, primaryServingSatId);
+  const nonServingBeamSatIds = (frame?.beamSatIds ?? []).filter((satId) => satId !== primaryServingSatId);
+  const nonEventBeamSatIds = (frame?.beamSatIds ?? []).filter(
+    (satId) => !(frame?.eventSatIds ?? []).includes(satId),
+  );
+  const readableContextSatCount = nonServingBeamSatIds.filter(
+    (satId) => (getOrbitElevation(state, satId) ?? -Infinity) >= 35,
+  ).length;
+  const servingBeamCount = primaryServingSatId ? countFrameBeamsForSat(frame, primaryServingSatId) : 0;
+  const maxNarrativeSpreadDeg = servingAzimuth === null
+    ? null
+    : nonServingBeamSatIds.reduce((maxSpreadDeg, satId) => {
+      const azimuthDeg = getOrbitAzimuth(state, satId);
+      if (azimuthDeg === null) return maxSpreadDeg;
+      return Math.max(maxSpreadDeg, azimuthDistance(azimuthDeg, servingAzimuth));
+    }, 0);
+  const distinctMarkerRoles = new Set(
+    (frame?.eventSatIds ?? []).map((satId) => frame?.markerRoleBySatId[satId] ?? 'neutral'),
+  );
+
+  check(
+    'VAL-FV-010 showcase profile reaches continuity-focused narration on first screen',
+    frame?.focusMode === 'continuity-focus'
+      && (frame.eventSatIds.length ?? 0) >= 2
+      && (state?.runtime?.timeSec ?? Infinity) <= 300,
+    `focus=${frame?.focusMode ?? 'null'} events=${frame?.eventSatIds.join(',') ?? 'none'} timeSec=${state?.runtime?.timeSec ?? 'null'}`,
+  );
+
+  check(
+    'VAL-FV-010 showcase keeps the serving satellite in the central high-elevation region',
+    (servingElevation ?? -Infinity) >= 55,
+    `servingElevation=${servingElevation ?? 'null'}`,
+  );
+
+  check(
+    'VAL-FV-010 showcase either keeps one additional readable context satellite or falls back to a serving-centered beam narrative without wide-angle scatter',
+    readableContextSatCount >= 1 || nonServingBeamSatIds.length === 0,
+    `readableContextSatCount=${readableContextSatCount} nonServingBeamSatIds=${nonServingBeamSatIds.join(',')}`,
+  );
+
+  check(
+    'VAL-FV-010 showcase keeps the visible sky cast compact around the event narrative',
+    (frame?.displaySatIds.length ?? Infinity) <= (frame?.eventSatIds.length ?? 0) + 2,
+    `displaySatIds=${frame?.displaySatIds.join(',') ?? 'none'} eventSatIds=${frame?.eventSatIds.join(',') ?? 'none'}`,
+  );
+
+  check(
+    'VAL-FV-010 showcase keeps a readable local multibeam neighborhood on the serving satellite',
+    servingBeamCount >= 4,
+    `servingBeamCount=${servingBeamCount}`,
+  );
+
+  check(
+    'VAL-FV-010 continuity-focused showcase keeps beam-bearing event satellites inside a compact azimuth cluster',
+    maxNarrativeSpreadDeg !== null && maxNarrativeSpreadDeg <= 80,
+    `maxNarrativeSpreadDeg=${maxNarrativeSpreadDeg ?? 'null'}`,
+  );
+
+  check(
+    'VAL-FV-005 continuity-focused showcase keeps any non-event context beam satellites tightly limited',
+    nonEventBeamSatIds.length <= 1,
+    `beamSatIds=${frame?.beamSatIds.join(',') ?? 'none'} eventSatIds=${frame?.eventSatIds.join(',') ?? 'none'} nonEvent=${nonEventBeamSatIds.join(',')}`,
+  );
+
+  check(
+    'VAL-FV-006 presentation frame keeps serving/prepared/secondary roles visually separable',
+    distinctMarkerRoles.size >= 2,
+    `markerRoles=${[...distinctMarkerRoles].join(',')}`,
+  );
+
+  check(
+    'VAL-FV-007 showcase live overlay exposes a prepared target link before the path switch completes',
+    (preparedOverlayState?.handoverLinkOverlay?.styleKeys?.includes('target') ?? false)
+      && preparedOverlayState?.handoverLinkOverlay?.narrativePhase === 'prepared'
+      && Boolean(preparedOverlayState?.handoverLinkOverlay?.narrativeServingSatId)
+      && Boolean(preparedOverlayState?.handoverLinkOverlay?.narrativeTargetSatId)
+      && preparedOverlayState?.handoverLinkOverlay?.narrativeServingSatId
+        !== preparedOverlayState?.handoverLinkOverlay?.narrativeTargetSatId,
+    [
+      `phase=${preparedOverlayState?.handoverLinkOverlay?.narrativePhase ?? 'null'}`,
+      `styles=${preparedOverlayState?.handoverLinkOverlay?.styleKeys?.join(',') ?? 'none'}`,
+      `serving=${preparedOverlayState?.handoverLinkOverlay?.narrativeServingSatId ?? 'null'}`,
+      `target=${preparedOverlayState?.handoverLinkOverlay?.narrativeTargetSatId ?? 'null'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-007 showcase holds a readable post-switch narrative before settling',
+    postSwitchState?.handoverLinkOverlay?.narrativePhase === 'post-switch'
+      && postSwitchState?.handoverLinkOverlay?.observedStyleKeys?.includes('postHo')
+      && Boolean(postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId)
+      && Boolean(postSwitchState?.handoverLinkOverlay?.narrativeServingSatId)
+      && postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId
+        !== postSwitchState?.handoverLinkOverlay?.narrativeServingSatId,
+    [
+      `phase=${postSwitchState?.handoverLinkOverlay?.narrativePhase ?? 'null'}`,
+      `observedStyles=${postSwitchState?.handoverLinkOverlay?.observedStyleKeys?.join(',') ?? 'none'}`,
+      `source=${postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId ?? 'null'}`,
+      `serving=${postSwitchState?.handoverLinkOverlay?.narrativeServingSatId ?? 'null'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-007 showcase places the previous serving satellite on cooldown after the switch',
+    Boolean(
+      postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId
+      && postSwitchState.handoverLinkOverlay.cooledDownSatIds?.includes(
+        postSwitchState.handoverLinkOverlay.narrativeSourceSatId,
+      ),
+    ) && (
+      postSwitchState?.handoverLinkOverlay?.narrativeTargetSatId
+        !== postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId
+    ),
+    [
+      `source=${postSwitchState?.handoverLinkOverlay?.narrativeSourceSatId ?? 'null'}`,
+      `target=${postSwitchState?.handoverLinkOverlay?.narrativeTargetSatId ?? 'null'}`,
+      `cooldown=${postSwitchState?.handoverLinkOverlay?.cooledDownSatIds?.join(',') ?? 'none'}`,
+      `suppressed=${postSwitchState?.handoverLinkOverlay?.cooldownSuppressedTargetSatId ?? 'null'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-006 presentation frame beam picks stay derived from snapshot truth',
+    allFrameBeamsExistInSnapshot(state),
+    `primaryKeys=${JSON.stringify(frame?.primaryBeamBySatId ?? {})}`,
+  );
 }
 
 async function validateReplay(page: Page) {
@@ -416,7 +789,13 @@ async function validateReplay(page: Page) {
       current?.runtime?.profileId === 'hobs-multibeam-baseline' &&
       current.runtime.mode === 'replay' &&
       current.runtime.replayWindowStartSec !== null &&
-      Boolean(current.beamInfoOverlay?.present),
+      Boolean(current.beamPresentationFrame?.present) &&
+      Boolean(current.beamInfoOverlay?.present) &&
+      Boolean(current.snapshotBeamTruth?.present) &&
+      current.runtime.primaryUe.servingSatId !== null &&
+      current.runtime.primaryUe.sinrDb !== null &&
+      current.beamInfoOverlay?.primaryServingSatId !== null &&
+      current.beamInfoOverlay?.servingSinrDb !== null,
     60000,
   );
 
@@ -430,8 +809,16 @@ async function validateReplay(page: Page) {
 
   check(
     'VAL-FV-008 beam info overlay stays truth-driven in replay',
-    state?.beamInfoOverlay?.servingSinrDb === state?.runtime?.primaryUe.sinrDb,
+    state?.runtime?.primaryUe.sinrDb !== null
+      && state?.beamInfoOverlay?.servingSinrDb !== null
+      && state.beamInfoOverlay.servingSinrDb === state.runtime.primaryUe.sinrDb,
     `${state?.beamInfoOverlay?.servingSinrDb ?? 'null'} vs ${state?.runtime?.primaryUe.sinrDb ?? 'null'}`,
+  );
+
+  check(
+    'VAL-FV-008 replay frame beam picks stay backed by raw snapshot truth',
+    allFrameBeamsExistInSnapshot(state),
+    `primaryKeys=${JSON.stringify(state?.beamPresentationFrame?.primaryBeamBySatId ?? {})}`,
   );
 
   check(
@@ -448,8 +835,8 @@ async function validateDapsDualActive(page: Page) {
 
   await gotoScenario(page, {
     validate: '1',
-    profile: 'case9-daps-baseline',
-    speed: '50',
+    profile: 'case9-daps-showcase',
+    speed: '20',
     showBeams: '1',
     showLabels: '1',
   });
@@ -457,10 +844,13 @@ async function validateDapsDualActive(page: Page) {
   const state = await waitForState(
     page,
     (current) =>
-      current?.runtime?.profileId === 'case9-daps-baseline' &&
+      current?.runtime?.profileId === 'case9-daps-showcase' &&
       current.runtime.mode === 'live' &&
+      current.handoverLinkOverlay?.narrativePhase === 'dual-active' &&
+      current.handoverLinkOverlay?.styleKeys?.includes('dapsSource') &&
+      current.handoverLinkOverlay?.styleKeys?.includes('dapsTarget') &&
       Boolean(current.handoverLinkOverlay?.observedDualActiveTruth),
-    60000,
+    120000,
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-case9-daps-dual-active.png') });
@@ -470,10 +860,15 @@ async function validateDapsDualActive(page: Page) {
   check(
     'VAL-FV-007 live handover/service links reflect continuity truth',
     Boolean(state?.handoverLinkOverlay?.observedDualActiveTruth) &&
+      state?.handoverLinkOverlay?.narrativePhase === 'dual-active' &&
       observedPhases.includes('dual-active') &&
       styles.includes('dapsSource') &&
       styles.includes('dapsTarget'),
-    `observedPhases=${observedPhases.join(',')} observedStyles=${styles.join(',')}`,
+    [
+      `narrativePhase=${state?.handoverLinkOverlay?.narrativePhase ?? 'null'}`,
+      `observedPhases=${observedPhases.join(',')}`,
+      `observedStyles=${styles.join(',')}`,
+    ].join(' '),
   );
 
   check(
@@ -503,7 +898,7 @@ async function validateLowSinrExplainability(page: Page) {
       current.runtime.mode === 'live' &&
       (current.runtime.lowSinrUeCount ?? 0) > 0 &&
       Boolean(current.beamInfoOverlay?.present),
-    30000,
+    90000,
   );
 
   check(
@@ -555,6 +950,12 @@ async function validateBhExplainability(page: Page) {
     Boolean(blockedObservedState),
     `${blockedObservedState?.earthFixedCellLayer?.observedStateCounts.energyBlocked ?? 0} observed energy-blocked cells`,
   );
+
+  check(
+    'VAL-FV-004 earth-fixed BH analysis consumes the same frame-level beam picks',
+    earthFixedLayerMatchesFrameBeamPicks(blockedObservedState),
+    `selectionSource=${blockedObservedState?.earthFixedCellLayer?.selectionSource ?? 'null'}`,
+  );
 }
 
 async function validateDapsReplay(page: Page) {
@@ -592,10 +993,15 @@ async function validateDapsReplay(page: Page) {
   check(
     'VAL-FV-009 replay preserves DAPS dual-active link truth',
     Boolean(state?.handoverLinkOverlay?.observedDualActiveTruth) &&
+      state?.handoverLinkOverlay?.narrativePhase === 'dual-active' &&
       observedPhases.includes('dual-active') &&
       styles.includes('dapsSource') &&
       styles.includes('dapsTarget'),
-    `observedPhases=${observedPhases.join(',')} observedStyles=${styles.join(',')}`,
+    [
+      `narrativePhase=${state?.handoverLinkOverlay?.narrativePhase ?? 'null'}`,
+      `observedPhases=${observedPhases.join(',')}`,
+      `observedStyles=${styles.join(',')}`,
+    ].join(' '),
   );
 }
 
@@ -628,6 +1034,7 @@ async function main() {
     });
 
     await validateHobsLive(page);
+    await validateDapsShowcase(page);
     await validateReplay(page);
     await validateDapsDualActive(page);
     await validateLowSinrExplainability(page);

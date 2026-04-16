@@ -17,6 +17,7 @@ import type { ProfileConfig } from './types';
 export {
   CASE9_ACCESS_BASELINE,
   CASE9_DAPS_BASELINE,
+  CASE9_DAPS_SHOWCASE,
   SINR_ELEVATION_REPRODUCTION,
   TIMER_CHO_REPRODUCTION,
 } from './defaults-access';
@@ -24,6 +25,7 @@ export {
 export {
   HOBS_MULTIBEAM_BASELINE,
   HOBS_REPRODUCTION,
+  HOBS_TR38811_RESEARCH,
 } from './defaults-hobs';
 
 export {
@@ -48,6 +50,7 @@ export {
 import {
   CASE9_ACCESS_BASELINE,
   CASE9_DAPS_BASELINE,
+  CASE9_DAPS_SHOWCASE,
   SINR_ELEVATION_REPRODUCTION,
   TIMER_CHO_REPRODUCTION,
 } from './defaults-access';
@@ -55,6 +58,7 @@ import {
 import {
   HOBS_MULTIBEAM_BASELINE,
   HOBS_REPRODUCTION,
+  HOBS_TR38811_RESEARCH,
 } from './defaults-hobs';
 
 import {
@@ -89,10 +93,12 @@ export const DEFAULT_PROFILES: Record<string, ProfileConfig> = {
   'bh-sinr-greedy-baseline': BH_SINR_GREEDY_BASELINE,
   'real-trace-validation': REAL_TRACE_VALIDATION,
   'case9-daps-baseline': CASE9_DAPS_BASELINE,
+  'case9-daps-showcase': CASE9_DAPS_SHOWCASE,
   'meo-constellation-baseline': MEO_CONSTELLATION_BASELINE,
   'geo-relay-baseline': GEO_RELAY_BASELINE,
   'sinr-elevation-reproduction': SINR_ELEVATION_REPRODUCTION,
   'hobs-reproduction': HOBS_REPRODUCTION,
+  'hobs-tr38811-research': HOBS_TR38811_RESEARCH,
   'timer-cho-reproduction': TIMER_CHO_REPRODUCTION,
   'realistic-first-screen': REALISTIC_FIRST_SCREEN,
 };

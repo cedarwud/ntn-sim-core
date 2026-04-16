@@ -18,6 +18,10 @@ import React, { useEffect, useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
+import {
+  collectPresentationBeamIdsBySatId,
+  type BeamPresentationFrame,
+} from '@/viz/presentation';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import type { BhCellState, HexCell } from './bh-cell-analysis';
 import {
@@ -27,7 +31,6 @@ import {
   createHexFillGeometry,
   generateHexGrid,
 } from './bh-cell-analysis';
-import { selectCellCandidateSatIds } from './beam-visibility-selection';
 
 const CELL_COLORS = {
   served:        { fill: '#44aaff', border: '#66ccff', fillOpacity: 0.35, borderOpacity: 0.8 },
@@ -116,12 +119,14 @@ const HexCellMesh = React.memo(function HexCellMesh({
 
 export interface EarthFixedCellLayerProps {
   snapshot: SimulationSnapshot | null;
+  presentationFrame: BeamPresentationFrame | null;
   visible?: boolean;
   showLabels?: boolean;
 }
 
 export const EarthFixedCellLayer = React.memo(function EarthFixedCellLayer({
   snapshot,
+  presentationFrame,
   visible = true,
 }: EarthFixedCellLayerProps) {
   const bhSlot = snapshot?.bhSlot;
@@ -130,11 +135,27 @@ export const EarthFixedCellLayer = React.memo(function EarthFixedCellLayer({
   });
 
   const cells = useMemo(() => generateHexGrid(), []);
+  const analyzedBeamIdsBySatId = useMemo(() => {
+    if (!snapshot) return {};
+    if (presentationFrame) {
+      return collectPresentationBeamIdsBySatId(presentationFrame);
+    }
+
+    const fallback: Record<string, string[]> = {};
+    for (const sat of snapshot.satellites) {
+      if (!sat.beams || sat.beams.length === 0) continue;
+      fallback[sat.id] = sat.beams.map((beam) => beam.beamId);
+    }
+    return fallback;
+  }, [presentationFrame, snapshot]);
 
   const analysis = useMemo(() => {
     if (!snapshot || !visible || !bhSlot) return null;
-    return analyzeBhCells(snapshot, cells, selectCellCandidateSatIds(snapshot));
-  }, [bhSlot, cells, snapshot, visible]);
+    return analyzeBhCells(snapshot, cells, {
+      relevantSatIds: new Set(Object.keys(analyzedBeamIdsBySatId)),
+      analyzedBeamIdsBySatId,
+    });
+  }, [analyzedBeamIdsBySatId, bhSlot, cells, snapshot, visible]);
 
   const cellStates = analysis?.cellStates ?? [];
 
@@ -152,10 +173,15 @@ export const EarthFixedCellLayer = React.memo(function EarthFixedCellLayer({
     return {
       present: Boolean(snapshot && visible && bhSlot),
       cellCount: cells.length,
+      selectionSource: presentationFrame
+        ? ('presentation-frame' as const)
+        : ('snapshot-all' as const),
+      analyzedSatIds: Object.keys(analyzedBeamIdsBySatId).sort(),
+      analyzedBeamIdsBySatId,
       stateCounts: currentCounts,
       observedStateCounts: { ...observed },
     };
-  }, [analysis, bhSlot, cells.length, snapshot, visible]);
+  }, [analysis, analyzedBeamIdsBySatId, bhSlot, cells.length, presentationFrame, snapshot, visible]);
 
   usePublishValidationSection('earthFixedCellLayer', validationSummary);
 

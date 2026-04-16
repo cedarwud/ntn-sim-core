@@ -2,8 +2,9 @@
  * SatelliteSkyLayer — renders visible satellites on a sky dome.
  *
  * Uses the sat.glb 3D model for each satellite marker.
- * Serving / handover state is shown by separate overlay layers
- * (HandoverLinkOverlay, BeamInfoOverlay), NOT by the marker itself.
+ * Marker size / halo / role badges reflect the shared presentation-frame role
+ * so the beam-off first screen still reads as serving / prepared / secondary
+ * truth without inventing new runtime state.
  *
  * VISUAL-ONLY: Does NOT modify physics, SINR, or KPI data.
  *
@@ -14,49 +15,117 @@
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Text, useGLTF } from '@react-three/drei';
+import { Billboard, Line, Text, useGLTF } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
 import { VISUAL_SCENE_CONFIG } from '@/config/visual-scene.config';
+import type {
+  BeamPresentationFrame,
+  BeamPresentationMarkerRole,
+} from '@/viz/presentation';
 import {
   projectToSkyDome,
   DEFAULT_SKY_PROJECTION,
 } from './observer-sky-projection';
 
-const SAT_COLOR = '#aaccff';
 const SAT_MODEL_SCALE = 4;
+const HALO_GEOMETRY = new THREE.SphereGeometry(4.6, 12, 12);
+const BADGE_GEOMETRY = new THREE.PlaneGeometry(26, 10);
 
-// ---------------------------------------------------------------------------
-// VISUAL-ONLY: Curated satellite selection constants
-// ---------------------------------------------------------------------------
-
-/** Max satellite markers to render. HO-relevant sats are always included. */
-const MAX_DISPLAY_SATS = 10;
-
-/** Satellites below this elevation are never rendered (but still in engine). */
-const MIN_DISPLAY_ELEVATION_DEG = 10;
-
-/** Elevation below which a large score penalty is applied. */
-const LOW_ELEVATION_PENALTY_THRESHOLD_DEG = 25;
-
-/** Score penalty for satellites below LOW_ELEVATION_PENALTY_THRESHOLD_DEG. */
-const LOW_ELEVATION_PENALTY = -500;
-
-/** Score bonus for HO-relevant satellites (serving/target/secondary). */
-const HO_RELEVANT_BONUS = 10000;
-
-/** Score bonus for satellites that were displayed in the previous frame. */
-const CONTINUITY_BONUS = 20;
-
-/** Minimum azimuth separation (degrees) before proximity penalty applies. */
-const MIN_AZIMUTH_SEPARATION_DEG = 30;
-
-/** Penalty applied when a satellite's azimuth is too close to an already-selected one. */
-const AZIMUTH_PROXIMITY_PENALTY = -200;
+const MARKER_STYLES: Record<
+  BeamPresentationMarkerRole,
+  {
+    color: string;
+    modelScale: number;
+    haloScale: number;
+    haloOpacity: number;
+    labelPrefix: string;
+    pulseAmplitude: number;
+    pulseHz: number;
+    badgeFill: string | null;
+    badgeText: string | null;
+    trailLength: number;
+    trailOpacity: number;
+    trailWidth: number;
+  }
+> = {
+  serving: {
+    color: '#18f0ff',
+    modelScale: SAT_MODEL_SCALE * 1.18,
+    haloScale: 2.6,
+    haloOpacity: 0.26,
+    labelPrefix: 'SRV',
+    pulseAmplitude: 0.11,
+    pulseHz: 1.15,
+    badgeFill: '#053947',
+    badgeText: 'SERVING',
+    trailLength: 10,
+    trailOpacity: 0.42,
+    trailWidth: 3.1,
+  },
+  prepared: {
+    color: '#ffb000',
+    modelScale: SAT_MODEL_SCALE * 1.1,
+    haloScale: 2.35,
+    haloOpacity: 0.24,
+    labelPrefix: 'PRE',
+    pulseAmplitude: 0.08,
+    pulseHz: 1.55,
+    badgeFill: '#4d3000',
+    badgeText: 'PREP',
+    trailLength: 8,
+    trailOpacity: 0.34,
+    trailWidth: 2.7,
+  },
+  secondary: {
+    color: '#ff5ab3',
+    modelScale: SAT_MODEL_SCALE * 1.08,
+    haloScale: 2.25,
+    haloOpacity: 0.22,
+    labelPrefix: 'SEC',
+    pulseAmplitude: 0.07,
+    pulseHz: 1.35,
+    badgeFill: '#4c1233',
+    badgeText: 'SECOND',
+    trailLength: 8,
+    trailOpacity: 0.32,
+    trailWidth: 2.7,
+  },
+  'post-ho': {
+    color: '#8c6dff',
+    modelScale: SAT_MODEL_SCALE * 1.05,
+    haloScale: 2.15,
+    haloOpacity: 0.2,
+    labelPrefix: 'POST',
+    pulseAmplitude: 0.05,
+    pulseHz: 0.95,
+    badgeFill: '#221551',
+    badgeText: 'POST',
+    trailLength: 6,
+    trailOpacity: 0.24,
+    trailWidth: 2.3,
+  },
+  neutral: {
+    color: '#aaccff',
+    modelScale: SAT_MODEL_SCALE,
+    haloScale: 1.95,
+    haloOpacity: 0.12,
+    labelPrefix: 'CTX',
+    pulseAmplitude: 0,
+    pulseHz: 0,
+    badgeFill: null,
+    badgeText: null,
+    trailLength: 0,
+    trailOpacity: 0,
+    trailWidth: 0,
+  },
+};
 
 interface SatelliteSkyLayerProps {
   snapshot: SimulationSnapshot | null;
+  presentationFrame: BeamPresentationFrame | null;
   showLabels?: boolean;
 }
 
@@ -72,100 +141,18 @@ function elevationOpacity(elevationDeg: number): number {
   return 0.25 + 0.75 * ((elevationDeg - FADE_IN) / (FULL_EL - FADE_IN));
 }
 
-/** Shortest angular distance between two azimuths (0-180°). */
-function azimuthDistance(a: number, b: number): number {
-  let d = Math.abs(a - b) % 360;
-  if (d > 180) d = 360 - d;
-  return d;
-}
-
-/**
- * VISUAL-ONLY: Select which satellites to display on the sky dome.
- *
- * Scoring favors:
- *  1. HO-relevant satellites (serving, target, secondary) — always shown
- *  2. High-elevation satellites — more visually central
- *  3. Previously displayed satellites — avoids flickering
- *  4. Azimuth diversity — penalizes satellites too close to already-selected ones
- *
- * Uses greedy selection: pick the highest-scoring candidate, then re-score
- * remaining candidates with azimuth proximity penalty before picking next.
- */
-function selectDisplaySatellites(
-  satellites: SatelliteState[],
-  snapshot: SimulationSnapshot,
-  previousIds: Set<string>,
-): SatelliteState[] {
-  // Identify HO-relevant satellite IDs
-  const hoRelevantIds = new Set<string>();
-  const primaryUe = snapshot.ues[0];
-  if (primaryUe?.servingSatId) hoRelevantIds.add(primaryUe.servingSatId);
-  if (primaryUe?.targetSatId) hoRelevantIds.add(primaryUe.targetSatId);
-  if (primaryUe?.secondarySatId) hoRelevantIds.add(primaryUe.secondarySatId);
-  if (snapshot.daps?.targetSatId) hoRelevantIds.add(snapshot.daps.targetSatId);
-
-  // Filter candidates
-  const candidates = satellites.filter(
-    (s) => s.isVisible && s.elevationDeg >= MIN_DISPLAY_ELEVATION_DEG,
-  );
-
-  // Base score each satellite
-  const pool = candidates.map((sat) => {
-    let score = sat.elevationDeg; // base: elevation in degrees
-    if (hoRelevantIds.has(sat.id)) score += HO_RELEVANT_BONUS;
-    if (previousIds.has(sat.id)) score += CONTINUITY_BONUS;
-    if (sat.elevationDeg < LOW_ELEVATION_PENALTY_THRESHOLD_DEG) score += LOW_ELEVATION_PENALTY;
-    return { sat, baseScore: score };
-  });
-
-  // Greedy selection with azimuth diversity
-  const selected: SatelliteState[] = [];
-  const selectedAzimuths: number[] = [];
-  const used = new Set<string>();
-
-  for (let round = 0; round < MAX_DISPLAY_SATS && pool.length > 0; round++) {
-    let bestIdx = -1;
-    let bestEffective = -Infinity;
-
-    for (let i = 0; i < pool.length; i++) {
-      if (used.has(pool[i].sat.id)) continue;
-      let effective = pool[i].baseScore;
-
-      // Azimuth proximity penalty (skip for HO-relevant — always show them)
-      if (!hoRelevantIds.has(pool[i].sat.id)) {
-        for (const az of selectedAzimuths) {
-          if (azimuthDistance(pool[i].sat.azimuthDeg, az) < MIN_AZIMUTH_SEPARATION_DEG) {
-            effective += AZIMUTH_PROXIMITY_PENALTY;
-            break; // one penalty is enough
-          }
-        }
-      }
-
-      if (effective > bestEffective) {
-        bestEffective = effective;
-        bestIdx = i;
-      }
-    }
-
-    if (bestIdx < 0) break;
-    const pick = pool[bestIdx];
-    selected.push(pick.sat);
-    selectedAzimuths.push(pick.sat.azimuthDeg);
-    used.add(pick.sat.id);
-  }
-
-  return selected;
-}
-
 const SatelliteMarker = React.memo(function SatelliteMarker({
   sat,
+  markerRole,
   showLabels,
   sourceScene,
 }: {
   sat: SatelliteState;
+  markerRole: BeamPresentationMarkerRole;
   showLabels: boolean;
   sourceScene: THREE.Group;
 }) {
+  const markerStyle = MARKER_STYLES[markerRole];
   const position = useMemo<[number, number, number]>(
     () => projectToSkyDome(sat.azimuthDeg, sat.elevationDeg, DEFAULT_SKY_PROJECTION),
     [sat.azimuthDeg, sat.elevationDeg],
@@ -174,6 +161,9 @@ const SatelliteMarker = React.memo(function SatelliteMarker({
   const opacity = elevationOpacity(sat.elevationDeg);
   const shortId = sat.id.replace(/.*-shell-/, '');
   const materialsRef = useRef<Array<THREE.Material & { opacity: number; transparent: boolean; color?: THREE.Color }>>([]);
+  const haloRef = useRef<THREE.Mesh>(null);
+  const badgeRef = useRef<THREE.Group>(null);
+  const [trailPoints, setTrailPoints] = React.useState<Array<[number, number, number]>>([]);
 
   const clonedScene = useMemo(() => {
     const cloned = SkeletonUtils.clone(sourceScene);
@@ -200,12 +190,12 @@ const SatelliteMarker = React.memo(function SatelliteMarker({
 
   useEffect(() => {
     for (const material of materialsRef.current) {
-      if (material.color) material.color.set(SAT_COLOR);
+      if (material.color) material.color.set(markerStyle.color);
       material.transparent = true;
       material.opacity = opacity;
       material.needsUpdate = true;
     }
-  }, [opacity]);
+  }, [markerStyle.color, opacity]);
 
   useEffect(() => () => {
     for (const material of materialsRef.current) {
@@ -214,21 +204,105 @@ const SatelliteMarker = React.memo(function SatelliteMarker({
     materialsRef.current = [];
   }, []);
 
+  useEffect(() => {
+    if (markerStyle.trailLength <= 0) {
+      setTrailPoints([]);
+      return;
+    }
+    setTrailPoints((previous) => {
+      const nextPoint: [number, number, number] = [position[0], position[1], position[2]];
+      const lastPoint = previous[previous.length - 1];
+      if (
+        lastPoint
+        && Math.abs(lastPoint[0] - nextPoint[0]) < 0.001
+        && Math.abs(lastPoint[1] - nextPoint[1]) < 0.001
+        && Math.abs(lastPoint[2] - nextPoint[2]) < 0.001
+      ) {
+        return previous;
+      }
+      const next = [...previous, nextPoint];
+      return next.slice(-markerStyle.trailLength);
+    });
+  }, [markerStyle.trailLength, position]);
+
+  useFrame(({ clock }) => {
+    if (!haloRef.current) return;
+    const pulse =
+      markerStyle.pulseAmplitude > 0
+        ? 1 + markerStyle.pulseAmplitude * Math.sin(clock.getElapsedTime() * markerStyle.pulseHz * Math.PI * 2)
+        : 1;
+    haloRef.current.scale.setScalar(markerStyle.haloScale * pulse);
+    const haloMaterial = haloRef.current.material as THREE.MeshBasicMaterial;
+    haloMaterial.opacity =
+      markerStyle.haloOpacity * opacity * (markerStyle.pulseAmplitude > 0 ? 0.92 + 0.18 * pulse : 1);
+
+    if (badgeRef.current) {
+      badgeRef.current.position.y = markerStyle.modelScale * 4.7 + (pulse - 1) * 6;
+    }
+  });
+
   return (
     <group position={position}>
-      <primitive object={clonedScene} scale={SAT_MODEL_SCALE} />
+      {trailPoints.length >= 2 && (
+        <Line
+          points={trailPoints}
+          color={markerStyle.color}
+          lineWidth={markerStyle.trailWidth}
+          transparent
+          opacity={markerStyle.trailOpacity * opacity}
+          dashed={markerRole === 'prepared'}
+          dashSize={6}
+          gapSize={5}
+          depthWrite={false}
+        />
+      )}
+      <mesh ref={haloRef} geometry={HALO_GEOMETRY} scale={markerStyle.haloScale}>
+        <meshBasicMaterial
+          color={markerStyle.color}
+          transparent
+          opacity={markerStyle.haloOpacity * opacity}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      <primitive object={clonedScene} scale={markerStyle.modelScale} />
+      {markerStyle.badgeText && (
+        <Billboard follow>
+          <group ref={badgeRef} position={[0, markerStyle.modelScale * 4.7, 0]}>
+            <mesh geometry={BADGE_GEOMETRY}>
+              <meshBasicMaterial
+                color={markerStyle.badgeFill!}
+                transparent
+                opacity={0.82 * opacity}
+                depthWrite={false}
+              />
+            </mesh>
+            <Text
+              position={[0, 0, 0.1]}
+              fontSize={4.3}
+              color={markerStyle.color}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.7}
+              outlineColor="#041018"
+            >
+              {markerStyle.badgeText}
+            </Text>
+          </group>
+        </Billboard>
+      )}
       {showLabels && (
         <Text
-          position={[0, SAT_MODEL_SCALE * 3, 0]}
+          position={[0, markerStyle.modelScale * 6.4, 0]}
           fontSize={8}
-          color={SAT_COLOR}
+          color={markerStyle.color}
           anchorX="center"
           anchorY="bottom"
           outlineWidth={1}
           outlineColor="#000000"
           fillOpacity={opacity}
         >
-          {shortId} {Math.round(sat.elevationDeg)}°
+          {markerStyle.labelPrefix} {shortId} {Math.round(sat.elevationDeg)}°
         </Text>
       )}
     </group>
@@ -237,22 +311,18 @@ const SatelliteMarker = React.memo(function SatelliteMarker({
 
 export const SatelliteSkyLayer = React.memo(function SatelliteSkyLayer({
   snapshot,
+  presentationFrame,
   showLabels = true,
 }: SatelliteSkyLayerProps) {
   const { scene } = useGLTF(VISUAL_SCENE_CONFIG.satellite.modelPath);
-  const previousIdsRef = useRef<Set<string>>(new Set());
-
-  const displaySats = useMemo(() => {
-    if (!snapshot) return [];
-    const selected = selectDisplaySatellites(
-      snapshot.satellites,
-      snapshot,
-      previousIdsRef.current,
-    );
-    // Update continuity set for next frame
-    previousIdsRef.current = new Set(selected.map((s) => s.id));
-    return selected;
-  }, [snapshot]);
+  const displaySatIds = presentationFrame?.displaySatIds ?? [];
+  const displaySats = useMemo(
+    () =>
+      displaySatIds
+        .map((satId) => snapshot?.satellites.find((sat) => sat.id === satId) ?? null)
+        .filter((sat): sat is SatelliteState => sat !== null),
+    [displaySatIds, snapshot],
+  );
 
   if (!snapshot) return null;
 
@@ -262,6 +332,7 @@ export const SatelliteSkyLayer = React.memo(function SatelliteSkyLayer({
         <SatelliteMarker
           key={sat.id}
           sat={sat}
+          markerRole={presentationFrame?.markerRoleBySatId[sat.id] ?? 'neutral'}
           showLabels={showLabels}
           sourceScene={scene}
         />

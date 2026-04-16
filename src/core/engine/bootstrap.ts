@@ -104,6 +104,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
       ...(profile.rf.tx_power_per_beam_dbm !== undefined
         ? { txPowerPerBeamDbm: profile.rf.tx_power_per_beam_dbm }
         : {}),
+      ...(profile.energy.layer1_overrides ?? {}),
     };
     energyManager = createEnergyLayer1(energyConfig);
   }
@@ -114,10 +115,14 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
   }
 
   const isBhActive = isMultiBeam && profile.beam.bh_max_active_per_slot != null;
+  const bhMaxActivePerSlot = profile.beam.bh_max_active_per_slot ?? 1;
+  const bhSlotsPerFrame = profile.beam.bh_slots_per_frame
+    ?? Math.max(1, Math.ceil(profile.beam.num_beams / bhMaxActivePerSlot));
   const bhScheduler = isBhActive ? createBhScheduler({
     strategy: profile.beam.bh_strategy ?? 'round-robin',
-    maxActiveBeamsPerSlot: profile.beam.bh_max_active_per_slot ?? 1,
+    maxActiveBeamsPerSlot: bhMaxActivePerSlot,
     frameDurationSec: profile.beam.bh_frame_duration_sec ?? 0.64,
+    slotsPerFrame: bhSlotsPerFrame,
   }, beamLayouts) : null;
 
   return {
@@ -145,6 +150,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
     energyL2Manager,
     l2InitializedSats: new Set<string>(),
     lastEnergyMetrics: null,
+    beamTxPowerOverridesDbm: new Map<string, number>(),
     txEirp,
     noiseDbm,
     deploymentEnvironment,

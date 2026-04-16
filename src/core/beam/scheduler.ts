@@ -105,17 +105,23 @@ function computeIndices(
   return { frameIndex, slotIndex };
 }
 
-/** Pick top-N beamIds by demand, deterministic tie-breaking by beamId. */
+function buildBeamOrderRank(beamIds: readonly string[]): Map<string, number> {
+  return new Map(beamIds.map((beamId, index) => [beamId, index]));
+}
+
+/** Pick top-N beamIds by demand, deterministic tie-breaking by authored beam order. */
 function topByDemand(
   beamIds: string[],
   n: number,
   demandPerBeam: Map<string, number>,
+  beamOrderRank: Map<string, number>,
 ): string[] {
   const sorted = [...beamIds].sort((a, b) => {
     const da = demandPerBeam.get(a) ?? 0;
     const db = demandPerBeam.get(b) ?? 0;
     if (db !== da) return db - da; // descending demand
-    return a < b ? -1 : 1; // deterministic tie-break
+    return (beamOrderRank.get(a) ?? Number.MAX_SAFE_INTEGER)
+      - (beamOrderRank.get(b) ?? Number.MAX_SAFE_INTEGER);
   });
   return sorted.slice(0, n);
 }
@@ -155,13 +161,18 @@ function proportionalFairSelect(
   max: number,
   demandPerBeam: Map<string, number>,
   historicalService: Map<string, number>,
+  beamOrderRank: Map<string, number>,
 ): string[] {
   const scored = beamIds.map((id) => {
     const demand = demandPerBeam.get(id) ?? 1; // default 1 to avoid starvation
     const history = historicalService.get(id) ?? 1;
     return { id, score: demand / history };
   });
-  scored.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1));
+  scored.sort((a, b) => (
+    b.score - a.score
+    || (beamOrderRank.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+      - (beamOrderRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+  ));
   return scored.slice(0, max).map((s) => s.id);
 }
 
@@ -174,6 +185,7 @@ function sinrGreedySelect(
   max: number,
   sinrPerBeam: Map<string, number>,
   slotIndex: number,
+  beamOrderRank: Map<string, number>,
 ): string[] {
   const hasSinr = beamIds.some((id) => sinrPerBeam.has(id));
   if (!hasSinr) return roundRobinSelect(beamIds, max, slotIndex);
@@ -181,7 +193,11 @@ function sinrGreedySelect(
     id,
     sinr: sinrPerBeam.get(id) ?? -100,
   }));
-  scored.sort((a, b) => b.sinr - a.sinr || (a.id < b.id ? -1 : 1));
+  scored.sort((a, b) => (
+    b.sinr - a.sinr
+    || (beamOrderRank.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+      - (beamOrderRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+  ));
   return scored.slice(0, max).map((s) => s.id);
 }
 
@@ -202,13 +218,14 @@ export function createBhScheduler(
   const cfg: BhSchedulerConfig = { ...DEFAULT_CONFIG, ...config };
   const { frameDurationSec, slotsPerFrame, maxActiveBeamsPerSlot, strategy } = cfg;
 
-  // Pre-sort beam IDs per satellite for deterministic ordering.
-  const sortedBeamIds = new Map<string, string[]>();
+  // Preserve the authored layout order; lexicographic beamId sorting turns
+  // `b10` before `b2`, which breaks the spatial coherence of BH slot groups.
+  const beamIdsBySat = new Map<string, string[]>();
+  const beamOrderRanksBySat = new Map<string, Map<string, number>>();
   for (const [satId, layout] of layouts) {
-    sortedBeamIds.set(
-      satId,
-      [...layout.beams.map((b) => b.beamId)].sort(),
-    );
+    const beamIds = layout.beams.map((b) => b.beamId);
+    beamIdsBySat.set(satId, beamIds);
+    beamOrderRanksBySat.set(satId, buildBeamOrderRank(beamIds));
   }
 
   // Power-aware: assume uniform power per beam = powerBudgetW / maxActiveBeamsPerSlot
@@ -229,8 +246,10 @@ export function createBhScheduler(
     demandPerBeam?: Map<string, number>,
     sinrPerBeam?: Map<string, number>,
   ): string[] {
-    const beamIds = sortedBeamIds.get(satId);
+    const beamIds = beamIdsBySat.get(satId);
+    const beamOrderRank = beamOrderRanksBySat.get(satId);
     if (!beamIds || beamIds.length === 0) return [];
+    if (!beamOrderRank) return [];
     const max = Math.min(maxActiveBeamsPerSlot, beamIds.length);
 
     switch (strategy) {
@@ -238,18 +257,18 @@ export function createBhScheduler(
         return roundRobinSelect(beamIds, max, slotIndex);
 
       case 'max-demand':
-        return topByDemand(beamIds, max, demandPerBeam ?? new Map());
+        return topByDemand(beamIds, max, demandPerBeam ?? new Map(), beamOrderRank);
 
       case 'power-aware': {
         if (perBeamPowerW === undefined || perBeamPowerW <= 0) {
           // No budget constraint — fall back to max-demand.
-          return topByDemand(beamIds, max, demandPerBeam ?? new Map());
+          return topByDemand(beamIds, max, demandPerBeam ?? new Map(), beamOrderRank);
         }
         const budgetMax = Math.min(
           max,
           Math.floor(cfg.powerBudgetW! / perBeamPowerW),
         );
-        return topByDemand(beamIds, budgetMax, demandPerBeam ?? new Map());
+        return topByDemand(beamIds, budgetMax, demandPerBeam ?? new Map(), beamOrderRank);
       }
 
       case 'deterministic-fixed':
@@ -257,11 +276,17 @@ export function createBhScheduler(
 
       case 'proportional-fair':
         return proportionalFairSelect(
-          beamIds, max, demandPerBeam ?? new Map(), historicalService,
+          beamIds, max, demandPerBeam ?? new Map(), historicalService, beamOrderRank,
         );
 
       case 'sinr-greedy':
-        return sinrGreedySelect(beamIds, max, sinrPerBeam ?? new Map(), slotIndex);
+        return sinrGreedySelect(
+          beamIds,
+          max,
+          sinrPerBeam ?? new Map(),
+          slotIndex,
+          beamOrderRank,
+        );
 
       default: {
         // Exhaustive check.
@@ -316,7 +341,7 @@ export function createBhScheduler(
     }
 
     const activeBeamsPerSat = new Map<string, string[]>();
-    for (const satId of sortedBeamIds.keys()) {
+    for (const satId of beamIdsBySat.keys()) {
       activeBeamsPerSat.set(
         satId,
         selectForSat(satId, globalSlotCounter, demandPerBeam, sinrPerBeam),
@@ -350,9 +375,10 @@ export function createBhScheduler(
     },
     /** Register a satellite that appeared after scheduler init. */
     registerSatellite(satId: string, layout: SatelliteBeamLayout): void {
-      if (sortedBeamIds.has(satId)) return;
-      const beamIds = [...layout.beams.map((b) => b.beamId)].sort();
-      sortedBeamIds.set(satId, beamIds);
+      if (beamIdsBySat.has(satId)) return;
+      const beamIds = layout.beams.map((b) => b.beamId);
+      beamIdsBySat.set(satId, beamIds);
+      beamOrderRanksBySat.set(satId, buildBeamOrderRank(beamIds));
       // Initialize PF history for new beams.
       if (strategy === 'proportional-fair') {
         for (const beamId of beamIds) {

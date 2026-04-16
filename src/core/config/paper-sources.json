@@ -260,13 +260,16 @@
       "id": "3GPP TR 38.811",
       "title": "Study on New Radio (NR) to support non-terrestrial networks",
       "relevantSections": [
+        "Table 6.6.1-1 (LOS probability by environment/elevation)",
         "Table 6.6.2-1 (dense-urban SF/CL)",
         "Table 6.6.2-3 (suburban/rural SF/CL)",
         "§6.7 (NTN channel model)"
       ],
       "usedIn": [
+        "src/core/channel/los-probability.ts",
         "src/core/channel/link-budget.ts",
-        "src/core/channel/shadow-fading.ts"
+        "src/core/channel/shadow-fading.ts",
+        "src/core/engine/channel-sinr-helpers.ts"
       ]
     },
     "STD-3GPP-38811-LOS-20DEG": {

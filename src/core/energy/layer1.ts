@@ -94,6 +94,19 @@ export const DEFAULT_ENERGY_LAYER1_CONFIG: EnergyLayer1Config = {
   dpcTargetSinrDb: 10,
 };
 
+export function computeDpcAdjustedTxPowerDbm(
+  currentTxPowerDbm: number,
+  currentSinrDb: number,
+  config: EnergyLayer1Config = DEFAULT_ENERGY_LAYER1_CONFIG,
+): number {
+  if (!config.dpcEnabled) {
+    return currentTxPowerDbm;
+  }
+  const adjustment = config.dpcTargetSinrDb - currentSinrDb;
+  const newPower = currentTxPowerDbm + adjustment;
+  return Math.max(0, Math.min(config.txPowerPerBeamDbm, newPower));
+}
+
 function dbmToWatts(dbm: number): number {
   return Math.pow(10, (dbm - 30) / 10);
 }
@@ -360,10 +373,7 @@ export function createEnergyLayer1(
         return foundEntry?.txPowerDbm ?? config.txPowerPerBeamDbm;
       }
 
-      // DPC: newPower = current + (target - actual), clamped to config max
-      const adjustment = config.dpcTargetSinrDb - currentSinrDb;
-      const newPower = foundEntry.txPowerDbm + adjustment;
-      const clamped = Math.max(0, Math.min(config.txPowerPerBeamDbm, newPower));
+      const clamped = computeDpcAdjustedTxPowerDbm(foundEntry.txPowerDbm, currentSinrDb, config);
 
       foundEntry.txPowerDbm = clamped;
       foundEntry.txPowerW = clamped > 0 ? dbmToWatts(clamped) : 0;

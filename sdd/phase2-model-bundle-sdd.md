@@ -315,10 +315,14 @@ Failing to exclude beam gain from PathLossModel would double-count beam gain whe
 engine also calls BeamGainModel.
 
 **isLos ownership note:** `PathLossInput.isLos` is determined by the caller (engine) before
-calling `PathLossModel.compute()`. The threshold is `profile.channel.los_elevation_deg`
-(default 20°). PathLossModel does NOT re-derive LOS status from elevation angle internally.
-The engine line `isLos: elevationDeg >= (profile.channel.los_elevation_deg ?? 20)` is the
-single authoritative LOS decision point and must remain there after Phase 2.
+calling `PathLossModel.compute()`. PathLossModel does NOT re-derive LOS status from
+elevation angle internally. The engine owns the LOS/NLOS closure and may choose either:
+
+1. the legacy threshold shortcut `elevationDeg >= (profile.channel.los_elevation_deg ?? 20)`, or
+2. a table-backed closure such as TR 38.811 Table 6.6.1-1 when a profile selects
+   `channel.los_mode = 'tr38811-probability'`.
+
+That engine-side LOS decision point must remain authoritative after Phase 2.
 
 **Inputs:**
 
@@ -328,7 +332,7 @@ interface PathLossInput {
   frequencyGhz: number;           // from ProfileConfig.rf.frequency_ghz
   elevationDeg: number;           // from GeometryResult
   environment: DeploymentEnvironment; // from ProfileConfig.channel.deployment_environment
-  isLos: boolean;                 // engine decides: elevationDeg >= los_elevation_deg threshold
+  isLos: boolean;                 // engine decides LOS via profile-selected closure
   txEirpDbm: number;              // computed: tx_power_per_beam_dbm + peak_gain_dbi - impl_loss_db
   implementationLossDb: number;   // from ProfileConfig.rf.implementation_loss_db
   rngNext: (() => number) | null; // RNG for stochastic tier components; null = deterministic

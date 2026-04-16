@@ -160,11 +160,15 @@ export const ModqnBundleMetadataPanel: React.FC<ModqnBundleMetadataPanelProps> =
         {renderSummaryRow('Elapsed Sec', formatNumber(trainingEvalSummary?.elapsedSec ?? null, 2))}
         {renderSummaryRow('Final Episode', formatInteger(trainingEvalSummary?.finalEpisodeIndex ?? null))}
         {renderSummaryRow('Final Scalar Reward', formatNumber(trainingEvalSummary?.finalScalarReward ?? null, 3))}
+        {renderSummaryRow('Eval Every Episodes', formatInteger(trainingEvalSummary?.evaluationEveryEpisodes ?? null))}
         {renderSummaryRow('Best Eval Episode', formatInteger(trainingEvalSummary?.bestEvalEpisode ?? null))}
         {renderSummaryRow('Best Eval Mean Reward', formatNumber(trainingEvalSummary?.bestEvalMeanScalarReward ?? null, 3))}
         {renderSummaryRow('Best Eval Reward Std', formatNumber(trainingEvalSummary?.bestEvalStdScalarReward ?? null, 3))}
         {renderSummaryRow('Eval Seed Count', formatInteger(trainingEvalSummary?.bestEvalEvalSeedCount ?? null))}
         {renderSummaryRow('Best Eval Mean HO', formatNumber(trainingEvalSummary?.bestEvalMeanHandovers ?? null, 2))}
+        {renderSummaryRow('Best Eval Mean R1', formatNumber(trainingEvalSummary?.bestEvalMeanR1 ?? null, 3))}
+        {renderSummaryRow('Best Eval Mean R2', formatNumber(trainingEvalSummary?.bestEvalMeanR2 ?? null, 3))}
+        {renderSummaryRow('Best Eval Mean R3', formatNumber(trainingEvalSummary?.bestEvalMeanR3 ?? null, 3))}
       </div>
 
       <div style={sectionTitleStyle}>Assumptions</div>

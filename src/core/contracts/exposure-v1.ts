@@ -71,7 +71,7 @@ export interface ProfileListEntry {
  *   Within each tier: order matches the authoring registry declaration order.
  *
  * Expected return: one entry per active profile in the authoring registry
- * (currently 15 entries).
+ * (currently 17 entries).
  *
  * @version v1
  * @frozen — signature is stable; active profile count may expand via registry updates

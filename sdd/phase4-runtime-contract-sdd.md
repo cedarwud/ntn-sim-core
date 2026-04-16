@@ -238,7 +238,7 @@ export interface BatchKpiEntry {
  * One entry in the profile selector list.
  *
  * Backed by ProfileBundle.exposurePreset — NOT backed by hardcoded ControlPanel arrays.
- * Ordering: Realistic → Advanced → Sensitivity; within tier: DEFAULT_PROFILES declaration order.
+ * Ordering: Realistic → Advanced → Sensitivity; within tier: authoring registry declaration order.
  *
  * @version v1
  * @frozen
@@ -268,10 +268,10 @@ export interface ProfileListEntry {
  *   1. 'Realistic' tier entries
  *   2. 'Advanced' tier entries
  *   3. 'Sensitivity' tier entries
- *   Within each tier: order matches DEFAULT_PROFILES declaration order.
+ *   Within each tier: order matches authoring registry declaration order.
  *
- * Expected return: one entry per active profile in DEFAULT_PROFILES
- * (currently 15 entries).
+ * Expected return: one entry per active profile in the authoring registry
+ * (currently 16 entries).
  *
  * @version v1
  * @frozen — signature is stable; the active profile set may expand without reopening v1
@@ -282,7 +282,7 @@ export function getProfileList(): ProfileListEntry[]
 **Implementation contract for Group 2:**
 1. Import `getProfileExposureCatalog` from `profiles/profile-exposure-catalog.ts`
 2. Read `id`, `family`, `tier`, and `label` from the authoring exposure catalog
-3. Map to `ProfileListEntry[]`; sort by tier order (Realistic < Advanced < Sensitivity), then by insertion order within each tier
+3. Map to `ProfileListEntry[]`; sort by tier order (Realistic < Advanced < Sensitivity), then preserve authoring-registry insertion order within each tier
 4. Return the sorted list
 
 **DECISION-POINT-DP2:** If Group 2 finds that importing `profiles/profile-exposure-catalog.ts` from within `contracts/` creates problematic circular imports, `getProfileList()` may be implemented in `runner-exposure-api.ts` instead and re-exported from `exposure-v1.ts` as a forwarding stub. The contract interface (input: none, output: `ProfileListEntry[]`) is frozen either way.
@@ -600,13 +600,13 @@ for (const { files, pattern, id } of checks) {
 
 1. `getProfileList()` is importable from `@/core/contracts/exposure-v1`
 2. Calling `getProfileList()` returns an `Array`
-3. Array length === 15
-4. The following 15 profile IDs are all present (exact set):
+3. Array length === 17
+4. The following 17 profile IDs are all present (exact set):
    `'realistic-first-screen'`, `'case9-access-baseline'`, `'hobs-multibeam-baseline'`,
    `'modqn-paper-baseline'`,
-   `'bh-resource-baseline'`, `'case9-daps-baseline'`, `'real-trace-validation'`,
+   `'bh-resource-baseline'`, `'case9-daps-baseline'`, `'case9-daps-showcase'`, `'real-trace-validation'`,
    `'meo-constellation-baseline'`, `'geo-relay-baseline'`, `'sinr-elevation-reproduction'`,
-   `'hobs-reproduction'`, `'timer-cho-reproduction'`, `'bh-pf-baseline'`,
+   `'hobs-reproduction'`, `'hobs-tr38811-research'`, `'timer-cho-reproduction'`, `'bh-pf-baseline'`,
    `'bh-sinr-greedy-baseline'`, `'bh-resource-energy-proof'`
 5. Every entry has `tier ∈ ['Realistic', 'Advanced', 'Sensitivity']`
 6. Every entry has non-empty `id` (string), `label` (string), `family` (string)
@@ -619,14 +619,14 @@ const { getProfileList } = await import('../src/core/contracts/exposure-v1.ts');
 const list = getProfileList();
 
 if (!Array.isArray(list)) fail('VAL-PLAT-010: getProfileList() did not return an Array');
-if (list.length !== 15) fail(`VAL-PLAT-010: expected 15 entries, got ${list.length}`);
+if (list.length !== 17) fail(`VAL-PLAT-010: expected 17 entries, got ${list.length}`);
 
 const EXPECTED_IDS = new Set([
   'realistic-first-screen', 'case9-access-baseline', 'hobs-multibeam-baseline',
   'modqn-paper-baseline',
-  'bh-resource-baseline', 'case9-daps-baseline', 'real-trace-validation',
+  'bh-resource-baseline', 'case9-daps-baseline', 'case9-daps-showcase', 'real-trace-validation',
   'meo-constellation-baseline', 'geo-relay-baseline', 'sinr-elevation-reproduction',
-  'hobs-reproduction', 'timer-cho-reproduction', 'bh-pf-baseline',
+  'hobs-reproduction', 'hobs-tr38811-research', 'timer-cho-reproduction', 'bh-pf-baseline',
   'bh-sinr-greedy-baseline', 'bh-resource-energy-proof',
 ]);
 const VALID_TIERS = new Set(['Realistic', 'Advanced', 'Sensitivity']);
@@ -674,7 +674,7 @@ Group 1 (this document) freezes the spec. Group 2 implements the spec against th
 | 2 | P4-2 | `src/core/contracts/runtime-v1.ts` | Re-export 9 snapshot types from `common/types.ts` with required file header, `@version v1`, `@frozen` on each type | P4-1 |
 | 3 | P4-3a | `src/core/contracts/kpi-v1.ts` | Re-export `KpiBundle`; define `BatchKpiEntry` (migrate from `useBatchKpi.ts`) | P4-1 |
 | 4 | P4-3b | `src/core/contracts/policy-v1.ts` | Re-export 8 policy types from `policy/types.ts` | P4-1 |
-| 5 | P4-4 | `src/core/contracts/exposure-v1.ts` | Define `ProfileListEntry`; implement `getProfileList()` backed by DEFAULT_PROFILES; re-export `HandoverType`; add `ParameterView`/`ParameterMetadataResponse` stubs | P4-1, Phase 3 complete |
+| 5 | P4-4 | `src/core/contracts/exposure-v1.ts` | Define `ProfileListEntry`; implement `getProfileList()` backed by the authoring exposure catalog; re-export `HandoverType`; add `ParameterView`/`ParameterMetadataResponse` stubs | P4-1, Phase 3 complete |
 | 6 | P4-5 | `src/runner/runner-exposure-api.ts` | Define `RunnerBenchmarkRequest/Response`; implement `executeBenchmark()` wrapping `executeBenchmarkRun`; re-export `getProfileList` | P4-4, P4-3a |
 | 7 | P4-6 | `src/app/hooks/useBatchKpi.ts` | Replace direct `benchmark-runner` import with `runner-exposure-api`; replace local `BatchKpiEntry` with import from `kpi-v1` | P4-3a, P4-5 |
 | 8 | P4-7 | `src/viz/overlays/ControlPanel.tsx` | Replace `PROFILE_OPTIONS` hardcode with `getProfileList()` call; replace `HandoverType` import source (`profiles/types` → `contracts/exposure-v1`) | P4-4 |

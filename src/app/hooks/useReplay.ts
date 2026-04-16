@@ -30,6 +30,7 @@ import { createReplaySelectionPlan } from '@/runner/curation';
 import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import type { ReplayManifest } from '@/core/trace/types';
 import type { ReplayState, ReplayController } from '@/runner/replay/types';
+import { publishWithTransientTruthHold } from './transient-truth-hold';
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -93,6 +94,8 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
     setSnapshot(null);
     setReplayState(null);
     lastSnapshotTimeRef.current = 0;
+    stickySnapshotRef.current = null;
+    stickySnapshotHoldUntilRef.current = 0;
 
     const prof = loadProfile(profileId);
 
@@ -157,6 +160,8 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
   const [snapshot, setSnapshot] = useState<SimulationSnapshot | null>(null);
   const [replayState, setReplayState] = useState<ReplayState | null>(null);
   const lastSnapshotTimeRef = useRef(0);
+  const stickySnapshotRef = useRef<SimulationSnapshot | null>(null);
+  const stickySnapshotHoldUntilRef = useRef(0);
 
   // ── 3. Interval-based advance (decoupled from R3F demand-render loop) ──
   // Uses setInterval like useSimulation.ts so the controller advances
@@ -186,7 +191,14 @@ export function useReplay(options?: UseReplayOptions): UseReplayResult {
       if (now - lastSnapshotTimeRef.current < SNAPSHOT_INTERVAL_MS) return;
       lastSnapshotTimeRef.current = now;
 
-      setSnapshot(controller.getSnapshot());
+      setSnapshot(
+        publishWithTransientTruthHold({
+          candidateSnapshot: controller.getSnapshot(),
+          nowMs: now,
+          stickySnapshotRef,
+          stickySnapshotHoldUntilRef,
+        }),
+      );
       setReplayState(controller.getState());
       invalidate(); // trigger one GPU render per snapshot update
     }, SNAPSHOT_INTERVAL_MS);

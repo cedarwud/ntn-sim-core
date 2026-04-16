@@ -12,6 +12,10 @@ import type {
   DeploymentEnvironment,
   UeDistribution,
   EarthMovingBeamTrackingMode,
+  SlantRangeMode,
+  UeGeometryMode,
+  ChannelPowerCouplingMode,
+  ChannelLosMode,
 } from './runtime-schema';
 
 /**
@@ -26,6 +30,7 @@ export type ProfileFamily =
   | 'bh-resource-baseline'
   | 'real-trace-validation'
   | 'case9-daps-baseline'
+  | 'case9-daps-showcase'
   | 'meo-constellation-baseline'
   | 'geo-relay-baseline'
   | 'realistic-first-screen';
@@ -74,6 +79,10 @@ export interface ModelBundleSelection {
     tier5_fading: boolean;
     tier6_doppler?: boolean;
     large_scale_model?: LargeScaleModel;
+    los_mode?: ChannelLosMode;
+    slant_range_mode?: SlantRangeMode;
+    ue_geometry_mode?: UeGeometryMode;
+    power_coupling_mode?: ChannelPowerCouplingMode;
   };
   handover: {
     type: HandoverType;
@@ -160,6 +169,7 @@ export interface ProfileBundle {
     deployment_environment?: DeploymentEnvironment;
     los_elevation_deg?: number;
     subcarrier_spacing_khz?: number;
+    max_interfering_sats?: number | null;
   };
   handover: {
     trigger_threshold_db: number;
@@ -192,6 +202,14 @@ export interface ProfileBundle {
   };
   energy: {
     energy_per_handover_j?: number;
+    layer1_overrides?: {
+      txPowerPerBeamDbm?: number;
+      activeBeamPowerW?: number;
+      idlePowerW?: number;
+      offBeamPowerW?: number;
+      dpcEnabled?: boolean;
+      dpcTargetSinrDb?: number;
+    };
     layer2_overrides?: {
       batteryCapacityWh?: number;
       initialSoc?: number;

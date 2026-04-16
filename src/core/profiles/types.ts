@@ -22,6 +22,10 @@ export type DeploymentEnvironment = Schema.DeploymentEnvironment;
 export type HandoverType = Schema.HandoverType;
 export type UeDistribution = Schema.UeDistribution;
 export type EarthMovingBeamTrackingMode = Schema.EarthMovingBeamTrackingMode;
+export type SlantRangeMode = Schema.SlantRangeMode;
+export type UeGeometryMode = Schema.UeGeometryMode;
+export type ChannelPowerCouplingMode = Schema.ChannelPowerCouplingMode;
+export type ChannelLosMode = Schema.ChannelLosMode;
 
 export type ProfileFamily = Vocab.ProfileFamily;
 export type ScenarioConfig = Vocab.ScenarioConfig;

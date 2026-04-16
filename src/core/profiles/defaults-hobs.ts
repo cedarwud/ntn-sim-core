@@ -1,7 +1,7 @@
 /**
  * HOBS multi-beam profile defaults.
  *
- * Profiles: hobs-multibeam-baseline, hobs-reproduction
+ * Profiles: hobs-multibeam-baseline, hobs-reproduction, hobs-tr38811-research
  *
  * Authority: sdd/phase3-scenario-profile-experiment-split.md §8.3
  * Phase 3 Group 3 (P3-4b): extracted from defaults.ts.
@@ -246,3 +246,86 @@ export const HOBS_REPRODUCTION_DEFAULT_EXP: ExperimentBundle = {
 
 export const HOBS_REPRODUCTION: ProfileConfig =
   materializeRuntimeProfile(HOBS_REPRODUCTION_BUNDLE, HOBS_REPRODUCTION_DEFAULT_EXP);
+
+// ---------------------------------------------------------------------------
+// 3. hobs-tr38811-research (HOBS Eq. (4) + TR 38.811 Eq. (6.6-3))
+// ---------------------------------------------------------------------------
+
+export const HOBS_TR38811_RESEARCH_BUNDLE: ProfileBundle = {
+  ...HOBS_REPRODUCTION_BUNDLE,
+  id: 'hobs-tr38811-research',
+  version: '0.4.0',
+  exposurePreset: { tier: 'Sensitivity', label: 'Sensitivity — HOBS TR38.811 Research' },
+  models: {
+    ...HOBS_REPRODUCTION_BUNDLE.models,
+    channel: {
+      ...HOBS_REPRODUCTION_BUNDLE.models.channel,
+      los_mode: 'tr38811-probability',
+      slant_range_mode: 'tr38811-elevation',
+      ue_geometry_mode: 'per-ue-topocentric',
+      power_coupling_mode: 'beam-power-override',
+    },
+  },
+  channel: {
+    ...HOBS_REPRODUCTION_BUNDLE.channel,
+    max_interfering_sats: null,
+  },
+  energy: {
+    layer1_overrides: {
+      dpcEnabled: true,
+      dpcTargetSinrDb: 10,
+    },
+  },
+  sourceMap: [
+    ...HOBS_REPRODUCTION_BUNDLE.sourceMap,
+    {
+      tier: 'standard-backed',
+      id: 'STD-3GPP-38811',
+      parameterPath: 'channel.los_mode',
+      note: 'LOS/NLOS state now follows TR 38.811 Table 6.6.1-1 with nearest-angle lookup and deterministic per-link Bernoulli sampling instead of the legacy 20deg threshold shortcut',
+      specMode: 'Sensitivity',
+    },
+    {
+      tier: 'standard-backed',
+      id: 'STD-3GPP-38811',
+      parameterPath: 'channel.slant_range_mode',
+      note: 'research profile replaces observer-truth slant range with the explicit TR 38.811 Eq. (6.6-3) d(alpha) path so H follows elevation through an auditable analytic formula',
+      specMode: 'Sensitivity',
+    },
+    {
+      tier: 'standard-backed',
+      id: 'STD-3GPP-38811',
+      parameterPath: 'channel.ue_geometry_mode',
+      note: 'per-UE topocentric geometry feeds elevation/slant-range into H instead of reusing the observer-centric sample for every UE',
+      specMode: 'Sensitivity',
+    },
+    {
+      tier: 'paper-backed',
+      id: 'PAP-2024-HOBS',
+      parameterPath: 'channel.power_coupling_mode',
+      note: 'beam-associated DPC power is coupled back into the channel path when a beam has a UE candidate/forced-serving SINR proxy; unmatched beams fall back to fixed power instead of sharing a whole-satellite seed',
+      specMode: 'Sensitivity',
+    },
+    {
+      tier: 'paper-backed',
+      id: 'PAP-2024-HOBS',
+      parameterPath: 'channel.max_interfering_sats',
+      note: 'research profile removes the legacy 15-satellite interferer cap and keeps the inter-LEO sum closer to the uncapped HOBS Eq. (4) interpretation',
+      specMode: 'Sensitivity',
+    },
+    {
+      tier: 'paper-backed',
+      id: 'PAP-2024-HOBS',
+      parameterPath: 'energy.layer1_overrides.dpcEnabled',
+      note: 'enables the HOBS-style DPC controller so the research profile can actually materialize serving-beam power adaptation',
+      specMode: 'Sensitivity',
+    },
+  ],
+};
+
+export const HOBS_TR38811_RESEARCH_DEFAULT_EXP: ExperimentBundle = {
+  ...HOBS_REPRODUCTION_DEFAULT_EXP,
+};
+
+export const HOBS_TR38811_RESEARCH: ProfileConfig =
+  materializeRuntimeProfile(HOBS_TR38811_RESEARCH_BUNDLE, HOBS_TR38811_RESEARCH_DEFAULT_EXP);

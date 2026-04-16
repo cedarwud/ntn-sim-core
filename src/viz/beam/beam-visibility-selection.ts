@@ -8,6 +8,7 @@
  */
 
 import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
+import { collectTier1SatelliteIds } from '@/viz/tier1-satellite-selection';
 
 const MIN_BEAM_ELEVATION_DEG = 10;
 
@@ -20,42 +21,33 @@ const MAX_CANDIDATE_SATS = 3;
  *
  * Tier 1 (HO-relevant): serving / target / secondary / DAPS / explicit beam roles.
  * Tier 2 (background candidates): top-N visible sats ≥20° elevation not already in Tier 1.
- *   These are rendered faintly (neutral role, single center beam) to show the upcoming
- *   candidate pool BEFORE a handover is actually triggered.
+ *   These are only shown when the scene is not already focused on a BH-active
+ *   tier-1 handover context; otherwise they are suppressed so the renderer and
+ *   BH cell layer stay aligned on the same satellite set.
  */
 export function selectBeamSatellites(snapshot: SimulationSnapshot): SatelliteState[] {
-  const primaryUe = snapshot.ues[0];
-  const tier1Ids = new Set<string>();
+  const tier1Ids = collectTier1SatelliteIds(snapshot);
+  const includeBackgroundCandidates = tier1Ids.size === 0 || !snapshot.bhSlot;
 
-  if (primaryUe?.servingSatId) tier1Ids.add(primaryUe.servingSatId);
-  if (primaryUe?.targetSatId) tier1Ids.add(primaryUe.targetSatId);
-  if (primaryUe?.secondarySatId) tier1Ids.add(primaryUe.secondarySatId);
-  if (snapshot.daps?.targetSatId) tier1Ids.add(snapshot.daps.targetSatId);
+  const renderedSatIds = new Set<string>(tier1Ids);
+  if (includeBackgroundCandidates) {
+    const sorted = snapshot.satellites
+      .filter(
+        (s) =>
+          s.isVisible &&
+          s.elevationDeg >= MIN_CANDIDATE_ELEVATION_DEG &&
+          s.beams && s.beams.length > 0 &&
+          !tier1Ids.has(s.id),
+      )
+      .sort((a, b) => b.elevationDeg - a.elevationDeg);
 
-  for (const sat of snapshot.satellites) {
-    if (sat.beams?.some((b) => b.role === 'prepared' || b.role === 'secondary' || b.role === 'post-ho')) {
-      tier1Ids.add(sat.id);
+    for (let i = 0; i < Math.min(sorted.length, MAX_CANDIDATE_SATS); i++) {
+      renderedSatIds.add(sorted[i].id);
     }
   }
 
-  // Tier 2: top candidates by elevation (not already Tier 1)
-  const candidateIds = new Set<string>(tier1Ids);
-  const sorted = snapshot.satellites
-    .filter(
-      (s) =>
-        s.isVisible &&
-        s.elevationDeg >= MIN_CANDIDATE_ELEVATION_DEG &&
-        s.beams && s.beams.length > 0 &&
-        !tier1Ids.has(s.id),
-    )
-    .sort((a, b) => b.elevationDeg - a.elevationDeg);
-
-  for (let i = 0; i < Math.min(sorted.length, MAX_CANDIDATE_SATS); i++) {
-    candidateIds.add(sorted[i].id);
-  }
-
   return snapshot.satellites.filter(
-    (s) => s.isVisible && s.elevationDeg >= MIN_BEAM_ELEVATION_DEG && s.beams && s.beams.length > 0 && candidateIds.has(s.id),
+    (s) => s.isVisible && s.elevationDeg >= MIN_BEAM_ELEVATION_DEG && s.beams && s.beams.length > 0 && renderedSatIds.has(s.id),
   );
 }
 

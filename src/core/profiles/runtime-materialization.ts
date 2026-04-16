@@ -80,9 +80,14 @@ export function materializeRuntimeProfile(
       tier5_fading: bundle.models.channel.tier5_fading,
       ...(bundle.models.channel.tier6_doppler !== undefined && { tier6_doppler: bundle.models.channel.tier6_doppler }),
       ...(bundle.models.channel.large_scale_model !== undefined && { large_scale_model: bundle.models.channel.large_scale_model }),
+      ...(bundle.models.channel.los_mode !== undefined && { los_mode: bundle.models.channel.los_mode }),
+      ...(bundle.models.channel.slant_range_mode !== undefined && { slant_range_mode: bundle.models.channel.slant_range_mode }),
+      ...(bundle.models.channel.ue_geometry_mode !== undefined && { ue_geometry_mode: bundle.models.channel.ue_geometry_mode }),
+      ...(bundle.models.channel.power_coupling_mode !== undefined && { power_coupling_mode: bundle.models.channel.power_coupling_mode }),
       ...(bundle.channel.deployment_environment !== undefined && { deployment_environment: bundle.channel.deployment_environment }),
       ...(bundle.channel.los_elevation_deg !== undefined && { los_elevation_deg: bundle.channel.los_elevation_deg }),
       ...(bundle.channel.subcarrier_spacing_khz !== undefined && { subcarrier_spacing_khz: bundle.channel.subcarrier_spacing_khz }),
+      ...(bundle.channel.max_interfering_sats !== undefined && { max_interfering_sats: bundle.channel.max_interfering_sats }),
     },
     handover: {
       type: bundle.models.handover.type,
@@ -118,6 +123,7 @@ export function materializeRuntimeProfile(
       layer1_enabled: bundle.models.energy.layer1_enabled,
       layer2_enabled: bundle.models.energy.layer2_enabled,
       ...(bundle.energy.energy_per_handover_j !== undefined && { energy_per_handover_j: bundle.energy.energy_per_handover_j }),
+      ...(bundle.energy.layer1_overrides !== undefined && { layer1_overrides: { ...bundle.energy.layer1_overrides } }),
       ...(bundle.energy.layer2_overrides !== undefined && { layer2_overrides: { ...bundle.energy.layer2_overrides } }),
     },
     ueConfig: {

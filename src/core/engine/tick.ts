@@ -39,6 +39,13 @@ interface SatSelectionEntry {
   beamCenterOffsetNorthKm: number;
 }
 
+function getInterfererCap(state: Pick<SimEngineState, 'profile'>): number | null {
+  const configured = state.profile.channel.max_interfering_sats;
+  if (configured === null) return null;
+  if (configured === undefined) return 15;
+  return Math.max(0, Math.floor(configured));
+}
+
 export function executeTick(
   state: SimEngineState,
   timeSec: number,
@@ -82,7 +89,12 @@ export function executeTick(
       const { satId, sample } = activeSatSamples[i];
       if (!visibleSatSet.has(satId)) continue;
 
-      const others = activeSatSamples.filter((_, j) => j !== i).map((s) => s.sample);
+      const sortedOthers = activeSatSamples
+        .filter((_, j) => j !== i)
+        .map((s) => s.sample)
+        .sort((a, b) => b.elevationDeg - a.elevationDeg);
+      const interfererCap = getInterfererCap(state);
+      const others = interfererCap === null ? sortedOthers : sortedOthers.slice(0, interfererCap);
       const sinrDb = computeBundleSinrSingleBeam(state, sample, others);
       
       satSinrs.push({
@@ -145,7 +157,7 @@ export function executeTick(
     // negligible interference (~13 dB weaker at 5° vs 80° elevation due to path loss),
     // so capping at MAX_SINR_INTERFERERS has near-zero physics impact while cutting
     // per-tick channel computations from O(N²) to O(N × K).
-    const MAX_SINR_INTERFERERS = 15;
+    const interfererCap = getInterfererCap(state);
     const allActiveSortedByElev = [...allActiveSelections].sort(
       (a, b) => b.sample.elevationDeg - a.sample.elevationDeg,
     );
@@ -168,7 +180,7 @@ export function executeTick(
       for (const s of allActiveSortedByElev) {
         if (s.satId === satId) continue;
         otherActiveSats.push({ satId: s.satId, sample: s.sample, selection: s.selection });
-        if (otherActiveSats.length >= MAX_SINR_INTERFERERS) break;
+        if (interfererCap !== null && otherActiveSats.length >= interfererCap) break;
       }
       
       const sinrDb = serviceEligible

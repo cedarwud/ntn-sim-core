@@ -6,8 +6,8 @@
  *
  * Link states rendered:
  *   serving      — solid cyan line, UE → serving satellite
- *   prepared     — dashed orange line, UE → prepared target satellite
- *   secondary    — solid green line, UE → secondary/dual-active target satellite
+ *   prepared     — dashed amber line, UE → prepared target satellite
+ *   secondary    — solid magenta line, UE → secondary/dual-active target satellite
  *   dual-active  — serving + secondary shown simultaneously
  *
  * UE anchor: fixed world-space origin (observer center).
@@ -16,6 +16,8 @@
  * Donor: leo-beam-sim/src/viz/HandoverLinks.tsx (line style + role colors)
  *
  * VISUAL-ONLY / TRUTH-DRIVEN: reads snapshot fields only.
+ * The dashed target link is only shown for explicit prepared truth, not merely
+ * because a targetSatId happens to be present in snapshot state.
  *
  * @see sdd/ntn-sim-core-frontend-beam-visual-sdd.md §6.4, §7, §7.1
  */
@@ -25,6 +27,7 @@ import { useFrame } from '@react-three/fiber';
 import { Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationSnapshot, SatelliteState } from '@/core/contracts/runtime-v1';
+import type { BeamPresentationFrame } from '@/viz/presentation';
 import { usePublishValidationSection } from '@/viz/validation/store';
 import {
   projectToSkyDome,
@@ -44,73 +47,81 @@ const MIN_ELEVATION_DEG = 5;
 const LINK_STYLES = {
   serving: {
     color: '#18f0ff',
-    lineWidth: 3.5,
+    lineWidth: 3.8,
     dashed: false,
-    opacity: 0.9,
+    opacity: 0.94,
     label: 'serving',
   },
   target: {
-    color: '#ff9d1c',
-    lineWidth: 2.4,
+    color: '#ffb000',
+    lineWidth: 2.8,
     dashed: true,
-    opacity: 0.85,
+    opacity: 0.9,
     label: 'prepared',
   },
   secondary: {
-    color: '#00ff88',
-    lineWidth: 3.0,
+    color: '#ff5ab3',
+    lineWidth: 3.2,
     dashed: false,
-    opacity: 0.9,
+    opacity: 0.92,
     label: 'secondary',
   },
   postHo: {
-    color: '#7a5cff',
+    color: '#8c6dff',
     lineWidth: 2.8,
     dashed: false,
     opacity: 0.8,
     label: 'post-ho',
   },
   dapsSource: {
-    color: '#00ff88',
-    lineWidth: 3.0,
+    color: '#18f0ff',
+    lineWidth: 3.4,
     dashed: false,
-    opacity: 0.85,
+    opacity: 0.9,
     label: 'DAPS src',
   },
   dapsTarget: {
-    color: '#00e5ff',
-    lineWidth: 3.0,
+    color: '#ff5ab3',
+    lineWidth: 3.4,
     dashed: false,
     opacity: 0.9,
     label: 'DAPS tgt',
   },
 } as const;
 
-function computeRenderedLinkStyles(snapshot: SimulationSnapshot | null): Array<keyof typeof LINK_STYLES> {
-  if (!snapshot) return [];
-
-  const primaryUe = snapshot.ues[0] ?? null;
-  if (!primaryUe) return [];
+function computeRenderedLinkStyles(
+  snapshot: SimulationSnapshot | null,
+  presentationFrame: BeamPresentationFrame | null,
+): Array<keyof typeof LINK_STYLES> {
+  const narrative = presentationFrame?.continuityNarrative ?? null;
+  if (!snapshot || !narrative) return [];
 
   const hasVisibleSat = (satId: string | null | undefined) =>
-    Boolean(satId && snapshot.satellites.some((sat) => sat.id === satId && sat.isVisible && sat.elevationDeg > MIN_ELEVATION_DEG));
+    Boolean(
+      satId
+        && snapshot.satellites.some(
+          (sat) =>
+            sat.id === satId
+            && sat.isVisible
+            && sat.elevationDeg > MIN_ELEVATION_DEG,
+        ),
+    );
 
-  const { servingSatId, targetSatId, secondarySatId, continuityState } = primaryUe;
-  const daps = snapshot.daps;
-
-  if (daps?.phase === 'dual-active' || continuityState === 'dual-active') {
+  if (narrative.phase === 'dual-active') {
     const styles: Array<keyof typeof LINK_STYLES> = [];
-    if (hasVisibleSat(daps?.sourceSatId ?? servingSatId)) styles.push('dapsSource');
-    if (hasVisibleSat(daps?.targetSatId ?? secondarySatId)) styles.push('dapsTarget');
+    if (hasVisibleSat(narrative.sourceSatId ?? narrative.servingSatId)) styles.push('dapsSource');
+    if (hasVisibleSat(narrative.targetSatId)) styles.push('dapsTarget');
     return styles;
   }
 
   const styles: Array<keyof typeof LINK_STYLES> = [];
-  if (hasVisibleSat(servingSatId)) styles.push('serving');
-  if (continuityState === 'prepared' && hasVisibleSat(targetSatId)) styles.push('target');
-  if (continuityState === 'post-ho' && hasVisibleSat(targetSatId)) styles.push('postHo');
-  if (!continuityState && hasVisibleSat(targetSatId)) styles.push('target');
-  if (hasVisibleSat(secondarySatId)) styles.push('secondary');
+  if (hasVisibleSat(narrative.servingSatId)) styles.push('serving');
+  if (narrative.phase === 'prepared' && hasVisibleSat(narrative.targetSatId)) {
+    styles.push('target');
+  }
+  if (narrative.phase === 'post-switch' && hasVisibleSat(narrative.postHoSatId)) {
+    styles.push('postHo');
+  }
   return styles;
 }
 
@@ -312,14 +323,17 @@ const AnimatedTargetLink = React.memo(function AnimatedTargetLink({
 
 export interface HandoverLinkOverlayProps {
   snapshot: SimulationSnapshot | null;
+  presentationFrame: BeamPresentationFrame | null;
   visible?: boolean;
 }
 
 export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
   snapshot,
+  presentationFrame,
   visible = true,
 }: HandoverLinkOverlayProps) {
   const primaryUe = snapshot?.ues[0] ?? null;
+  const narrative = presentationFrame?.continuityNarrative ?? null;
   const observedStyleKeysRef = React.useRef(new Set<string>());
   const observedDapsPhasesRef = React.useRef(new Set<string>());
   const observedDualActiveTruthRef = React.useRef(false);
@@ -330,8 +344,7 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
   const crossfadeProgressRef = useRef(0);
   const prevHasTargetRef = useRef(false);
 
-  const hasPreparedTarget =
-    primaryUe?.continuityState === 'prepared' || (!primaryUe?.continuityState && Boolean(primaryUe?.targetSatId));
+  const hasPreparedTarget = narrative?.phase === 'prepared';
 
   useFrame((_, delta) => {
     if (hasPreparedTarget) {
@@ -343,8 +356,8 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
     prevHasTargetRef.current = hasPreparedTarget;
   });
   const renderedStyles = useMemo(
-    () => (snapshot && visible ? computeRenderedLinkStyles(snapshot) : []),
-    [snapshot, visible],
+    () => (snapshot && visible ? computeRenderedLinkStyles(snapshot, presentationFrame) : []),
+    [presentationFrame, snapshot, visible],
   );
 
   const validationSummary = useMemo(() => {
@@ -353,7 +366,7 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
       observedDapsPhasesRef.current.add(snapshot.daps.phase);
     }
     if (
-      snapshot?.daps?.phase === 'dual-active'
+      narrative?.phase === 'dual-active'
       && renderedStyles.includes('dapsSource')
       && renderedStyles.includes('dapsTarget')
     ) {
@@ -366,30 +379,38 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
       observedStyleKeys: [...observedStyleKeysRef.current],
       continuityState: primaryUe?.continuityState ?? null,
       dapsPhase: snapshot?.daps?.phase ?? null,
+      narrativePhase: narrative?.phase ?? null,
+      narrativeServingSatId: narrative?.servingSatId ?? null,
+      narrativeSourceSatId: narrative?.sourceSatId ?? null,
+      narrativeTargetSatId: narrative?.targetSatId ?? null,
+      narrativePostHoSatId: narrative?.postHoSatId ?? null,
+      cooledDownSatIds: narrative?.cooledDownSatIds ?? [],
+      cooldownSuppressedTargetSatId: narrative?.cooldownSuppressedTargetSatId ?? null,
       observedDapsPhases: [...observedDapsPhasesRef.current],
       observedDualActiveTruth: observedDualActiveTruthRef.current,
     };
-  }, [primaryUe?.continuityState, renderedStyles, snapshot?.daps?.phase]);
+  }, [narrative, primaryUe?.continuityState, renderedStyles, snapshot?.daps?.phase]);
 
   usePublishValidationSection('handoverLinkOverlay', validationSummary);
 
-  if (!snapshot || !visible || !primaryUe || renderedStyles.length === 0) return null;
-
-  const {
-    servingSatId,
-    targetSatId,
-    secondarySatId,
-    continuityState,
-  } = primaryUe;
-  const daps = snapshot.daps;
+  if (!snapshot || !presentationFrame || !visible || !primaryUe || !narrative || renderedStyles.length === 0) {
+    return null;
+  }
 
   // Find satellite objects by ID
   const byId = (id: string | null): SatelliteState | undefined =>
-    id ? snapshot.satellites.find((s) => s.id === id && s.isVisible && s.elevationDeg > MIN_ELEVATION_DEG) : undefined;
+    id
+      ? snapshot.satellites.find(
+        (s) =>
+          s.id === id
+          && s.isVisible
+          && s.elevationDeg > MIN_ELEVATION_DEG,
+      )
+      : undefined;
 
-  if (daps?.phase === 'dual-active' || continuityState === 'dual-active') {
-    const srcSat = byId(daps?.sourceSatId ?? servingSatId);
-    const tgtSat = byId(daps?.targetSatId ?? secondarySatId ?? null);
+  if (narrative.phase === 'dual-active') {
+    const srcSat = byId(narrative.sourceSatId ?? narrative.servingSatId);
+    const tgtSat = byId(narrative.targetSatId);
     return (
       <group name="handover-link-overlay">
         {srcSat && <ServiceLink sat={srcSat} styleKey="dapsSource" />}
@@ -398,10 +419,9 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
     );
   }
 
-  // Normal: serving link + optional prepared or secondary target
-  const servingSat = byId(servingSatId);
-  const preparedSat = byId(targetSatId ?? null);
-  const secondarySat = byId(secondarySatId ?? null);
+  const servingSat = byId(narrative.servingSatId);
+  const preparedSat = byId(narrative.targetSatId);
+  const postHoSat = byId(narrative.postHoSatId);
 
   return (
     <group name="handover-link-overlay">
@@ -412,10 +432,12 @@ export const HandoverLinkOverlay = React.memo(function HandoverLinkOverlay({
           crossfadeProgressRef={hasPreparedTarget ? crossfadeProgressRef : undefined}
         />
       )}
-      {continuityState === 'prepared' && preparedSat && <AnimatedTargetLink sat={preparedSat} styleKey="target" />}
-      {continuityState === 'post-ho' && preparedSat && <ServiceLink sat={preparedSat} styleKey="postHo" />}
-      {!continuityState && preparedSat && <AnimatedTargetLink sat={preparedSat} styleKey="target" />}
-      {secondarySat && <ServiceLink sat={secondarySat} styleKey="secondary" />}
+      {narrative.phase === 'prepared' && preparedSat && (
+        <AnimatedTargetLink sat={preparedSat} styleKey="target" />
+      )}
+      {narrative.phase === 'post-switch' && postHoSat && (
+        <ServiceLink sat={postHoSat} styleKey="postHo" />
+      )}
     </group>
   );
 });

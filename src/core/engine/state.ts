@@ -64,6 +64,7 @@ export interface SimEngineState {
   energyL2Manager: EnergyLayer2Manager | null;
   l2InitializedSats: Set<string>;
   lastEnergyMetrics: EnergyEfficiencyMetrics | null;
+  beamTxPowerOverridesDbm: Map<string, number>;
 
   // RF Pre-computed Constants
   txEirp: number;

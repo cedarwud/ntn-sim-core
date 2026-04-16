@@ -12,6 +12,8 @@ import evaluationSummaryRaw from '../../../fixtures/sample-bundle-v1/evaluation/
 import episodeMetricsRaw from '../../../fixtures/sample-bundle-v1/training/episode_metrics.csv?raw';
 import lossCurvesRaw from '../../../fixtures/sample-bundle-v1/training/loss_curves.csv?raw';
 import timelineRaw from '../../../fixtures/sample-bundle-v1/timeline/step-trace.jsonl?raw';
+import trainingObjectivesFigureUrl from '../../../fixtures/sample-bundle-v1/figures/training-objectives.png';
+import trainingScalarRewardFigureUrl from '../../../fixtures/sample-bundle-v1/figures/training-scalar-reward.png';
 
 let sampleBundlePromise: Promise<ModqnReplayBundle> | null = null;
 
@@ -27,6 +29,12 @@ export async function loadBundledModqnSampleBundle(): Promise<ModqnReplayBundle>
       'training/loss_curves.csv': lossCurvesRaw,
       'timeline/step-trace.jsonl': timelineRaw,
       'evaluation/sweeps/': '',
+    })).then((bundle) => ({
+      ...bundle,
+      artifactUrls: {
+        trainingObjectivesFigureUrl,
+        trainingScalarRewardFigureUrl,
+      },
     }));
   }
   return sampleBundlePromise;

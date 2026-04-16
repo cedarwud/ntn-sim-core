@@ -1,6 +1,12 @@
 import React from 'react';
 
 import type { BeamRole, ContinuityState } from '@/core/contracts/runtime-v1';
+import type {
+  BeamPresentationBeamAccent,
+  BeamPresentationFocusMode,
+  BeamPresentationMarkerRole,
+  ContinuityNarrativePhase,
+} from '@/viz/presentation';
 
 export interface ValidationRuntimeSummary {
   mode: 'live' | 'replay' | 'modqn-bundle';
@@ -76,6 +82,9 @@ export interface EarthMovingLayerSummary {
 export interface EarthFixedLayerSummary {
   present: boolean;
   cellCount: number;
+  selectionSource: 'presentation-frame' | 'snapshot-all';
+  analyzedSatIds: string[];
+  analyzedBeamIdsBySatId: Record<string, string[]>;
   stateCounts: {
     served: number;
     interfered: number;
@@ -106,14 +115,50 @@ export interface HandoverLinkOverlaySummary {
   observedStyleKeys: string[];
   continuityState: ContinuityState | null;
   dapsPhase: string | null;
+  narrativePhase?: ContinuityNarrativePhase | null;
+  narrativeServingSatId?: string | null;
+  narrativeSourceSatId?: string | null;
+  narrativeTargetSatId?: string | null;
+  narrativePostHoSatId?: string | null;
+  cooledDownSatIds?: string[];
+  cooldownSuppressedTargetSatId?: string | null;
   observedDapsPhases: string[];
   observedDualActiveTruth: boolean;
+}
+
+export interface SnapshotBeamTruthSummary {
+  present: boolean;
+  satIdsWithBeams: string[];
+  beamIdsBySatId: Record<string, string[]>;
+  beamRoleByKey: Record<string, BeamRole>;
+  beamActiveByKey: Record<string, boolean>;
+}
+
+export interface BeamPresentationFrameSummary {
+  present: boolean;
+  focusMode: BeamPresentationFocusMode | null;
+  narrativePhase: ContinuityNarrativePhase | null;
+  narrativeServingSatId: string | null;
+  narrativeSourceSatId: string | null;
+  narrativeTargetSatId: string | null;
+  narrativePostHoSatId: string | null;
+  cooledDownSatIds: string[];
+  cooldownSuppressedTargetSatId: string | null;
+  displaySatIds: string[];
+  eventSatIds: string[];
+  beamSatIds: string[];
+  primaryBeamBySatId: Record<string, string>;
+  contextBeamIdsBySatId: Record<string, string[]>;
+  markerRoleBySatId: Record<string, BeamPresentationMarkerRole>;
+  beamRoleAccentByBeamId: Record<string, BeamPresentationBeamAccent>;
 }
 
 export interface VisualValidationState {
   updatedAt: number;
   runtime?: ValidationRuntimeSummary;
   orbitParity?: OrbitParitySummary;
+  snapshotBeamTruth?: SnapshotBeamTruthSummary;
+  beamPresentationFrame?: BeamPresentationFrameSummary;
   earthMovingBeamLayer?: EarthMovingLayerSummary;
   earthFixedCellLayer?: EarthFixedLayerSummary;
   beamInfoOverlay?: BeamInfoOverlaySummary;
