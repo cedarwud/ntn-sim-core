@@ -45,21 +45,21 @@ const containerStyle: React.CSSProperties = {
   zIndex: 10,
   pointerEvents: 'none',
   fontFamily: '"JetBrains Mono", "Fira Code", "Consolas", monospace',
-  fontSize: 13,
-  lineHeight: 1.6,
+  fontSize: 12,
+  lineHeight: 1.45,
   color: '#e0e0e0',
   background: 'rgba(0, 0, 0, 0.65)',
-  borderRadius: 6,
-  padding: '12px 16px',
+  borderRadius: 8,
+  padding: '10px 12px',
   backdropFilter: 'blur(4px)',
   userSelect: 'none',
-  minWidth: 280,
+  minWidth: 236,
 };
 
 const titleStyle: React.CSSProperties = {
   color: '#4fc3f7',
   fontWeight: 700,
-  fontSize: 14,
+  fontSize: 13,
   marginBottom: 4,
 };
 
@@ -70,6 +70,34 @@ const separatorStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   color: '#888',
+};
+
+const truthGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '8px 12px',
+  marginTop: 6,
+};
+
+const truthCellStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: 2,
+};
+
+const truthCellLabelStyle: React.CSSProperties = {
+  color: '#7f95a7',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: 0.35,
+  textTransform: 'uppercase',
+};
+
+const truthCellValueStyle: React.CSSProperties = {
+  color: '#eef5fb',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 };
 
 function titleizeHyphenated(value: string | null | undefined): string {
@@ -189,46 +217,49 @@ export const BundleTruthHud = React.memo(function BundleTruthHud({
   return (
     <div style={containerStyle} data-testid="bundle-truth-hud">
       <div style={titleStyle}>
-        BUNDLE TRUTH HUD{' '}
+        BUNDLE TRUTH{' '}
         <span style={{ color: '#888', fontWeight: 400 }}>| {sourceLabel}</span>
       </div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
-      <div>
-        <span style={labelStyle}>Truth: </span>
-        <span data-testid="bundle-hud-truth-source">MODQN bundle replay</span>
-      </div>
-      <div>
-        <span style={labelStyle}>Slot: </span>
-        <span data-testid="bundle-hud-slot">
-          {currentSlotIndex ?? '—'} / {slotCount ?? '—'}
-        </span>
-      </div>
-      <div>
-        <span style={labelStyle}>Serving Sat: </span>
-        <span data-testid="bundle-hud-serving-sat">{servingSatId ?? '—'}</span>
-      </div>
-      <div>
-        <span style={labelStyle}>Serving Beam: </span>
-        <span data-testid="bundle-hud-serving-beam">{servingBeamId ?? '—'}</span>
-      </div>
-      <div>
-        <span style={labelStyle}>Narrative: </span>
-        <span
-          data-testid="bundle-hud-narrative-label"
-          data-scene-phase={continuityNarrative?.phase ?? ''}
-        >
-          {formatReplayTruthNarrative(handoverKind)}
-        </span>
-      </div>
-      <div>
-        <span style={labelStyle}>Handover Kind: </span>
-        <span data-testid="bundle-hud-handover-kind">
-          {titleizeHyphenated(handoverKind)}
-        </span>
-      </div>
-      <div>
-        <span style={labelStyle}>Handovers: </span>
-        <span data-testid="bundle-hud-handover-count">{handoverCount}</span>
+      <div style={truthGridStyle}>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Truth</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-truth-source">MODQN bundle replay</span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Slot</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-slot">
+            {currentSlotIndex ?? '—'} / {slotCount ?? '—'}
+          </span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Serving Sat</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-serving-sat">{servingSatId ?? '—'}</span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Serving Beam</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-serving-beam">{servingBeamId ?? '—'}</span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Status</span>
+          <span
+            style={truthCellValueStyle}
+            data-testid="bundle-hud-narrative-label"
+            data-scene-phase={continuityNarrative?.phase ?? ''}
+          >
+            {formatReplayTruthNarrative(handoverKind)}
+          </span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>HO Kind</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-handover-kind">
+            {titleizeHyphenated(handoverKind)}
+          </span>
+        </div>
+        <div style={truthCellStyle}>
+          <span style={truthCellLabelStyle}>Handovers</span>
+          <span style={truthCellValueStyle} data-testid="bundle-hud-handover-count">{handoverCount}</span>
+        </div>
       </div>
     </div>
   );

@@ -2,13 +2,14 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-16, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), the first landing of the truth-preserving showcase visual realignment follow-on, the consumer-only MODQN external bundle loading follow-on, the consumer-only MODQN story dashboard / dynamic-chart follow-on, and the consumer-only MODQN replay-truth hardening / showcase acceptance follow-on. The next plausible MODQN bundle/dashboard line now has paired producer/consumer planning surfaces, but remains blocked from active implementation until the producer-side additive export slice lands. The SDD set is therefore split into:
+As of 2026-04-16, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), the first landing of the truth-preserving showcase visual realignment follow-on, the consumer-only MODQN external bundle loading follow-on, the consumer-only MODQN story dashboard / dynamic-chart follow-on, the consumer-only MODQN replay-truth hardening / showcase acceptance follow-on, and the consumer-only MODQN producer diagnostics / explainability follow-on (`Slice 5`). The producer-side Phase 03B diagnostics export slice in `modqn-paper-reproduction` is now consumed by a landed `ntn-sim-core` Slice 5 implementation, so there is no remaining promoted-but-unlanded MODQN bundle follow-on in the current tree. The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
 3. **Shipped downstream files** that record the completed downstream baseline surfaces and paper-oriented follow-ons
-4. **Deferred / paused downstream files** that still require additional promotion
-5. **Historical / closure files** moved to `archive/`
+4. **Promoted downstream files** that are active implementation authority but not yet landed
+5. **Deferred / paused downstream files** that still require additional promotion
+6. **Historical / closure files** moved to `archive/`
 
 ## 1. Core Authority
 
@@ -96,6 +97,8 @@ These files remain the shipped downstream authority for the completed baseline s
    - landed Slice 3 consumer-only story-dashboard / dynamic-chart record for the shared `bundle-story-dashboard` surface, additive replay-trend charts, and the new `VAL-MODQN-BUNDLE-003` browser gate
 16. `modqn-replay-truth-hardening-follow-on.md`
    - landed Slice 4 consumer-only replay-truth hardening / showcase acceptance record for dashboard/HUD/probe truth alignment, scene beam/link replay-truth proof, non-trivial external bundle acceptance, and the passing `VAL-MODQN-BUNDLE-004` browser gate
+17. `modqn-producer-diagnostics-consumer-follow-on.md`
+   - landed Slice 5 consumer-only producer diagnostics / explainability record for additive `policyDiagnostics` / `optionalPolicyDiagnostics` consumption, older-bundle compatibility, bundle-mode explainability disclosure, and the passing `VAL-MODQN-BUNDLE-005` browser gate
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
@@ -104,7 +107,16 @@ Any new paper-oriented work beyond these shipped surfaces should still start onl
 1. a fresh reviewer-grade rerun against the shipped current-anchor evidence / paper-safety surface if needed, and
 2. a newly promoted follow-on SDD plus matching `todo/` handoff pack.
 
-## 4. Deferred / Paused Downstream Files
+## 4. Promoted Downstream Files
+
+There are currently no promoted downstream files.
+
+The last promoted MODQN bundle follow-on,
+`modqn-producer-diagnostics-consumer-follow-on.md`, moved into the
+shipped downstream set once the Slice 5 consumer implementation and
+`VAL-MODQN-BUNDLE-005` landed on 2026-04-16.
+
+## 5. Deferred / Paused Downstream Files
 
 These files are not valid implementation authority for the current baseline entry path without further promotion or explicit reopen.
 
@@ -119,13 +131,11 @@ These files are not valid implementation authority for the current baseline entr
 5. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
    - proposed narrow beam / serving semantics correction surface; not implementation authority until explicitly promoted with matching `todo/` handoff docs
 6. `modqn-producer-diagnostics-and-explainability-follow-on.md`
-   - standby cross-repo kickoff draft for future producer-owned policy diagnostics / explainability; not active until a paired `modqn-paper-reproduction` reopen slice and a paired `ntn-sim-core` execution surface are both promoted
-7. `modqn-producer-diagnostics-consumer-follow-on.md`
-   - paired consumer-side execution draft for future producer-owned diagnostics consumption; not active until the producer-side Phase 03B export slice lands in a reviewed artifact or fixture
+   - cross-repo kickoff / boundary record for producer-owned policy diagnostics / explainability; useful context, but not the direct consumer implementation surface now that the paired consumer SDD is promoted
 
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
-## 5. Archived Historical Documents
+## 6. Archived Historical Documents
 
 Closed closure notes, stale roadmaps, donor-migration notes, and one-shot acceptance documents are no longer kept in this folder as authority. They are archived under:
 
@@ -133,7 +143,7 @@ Closed closure notes, stale roadmaps, donor-migration notes, and one-shot accept
 
 Historical documents may be cited for forensic context, but they must not override the active authority set above.
 
-## 6. Working Rule
+## 7. Working Rule
 
 1. No KPI-impacting implementation should land without a corresponding place in:
    - the core authority set

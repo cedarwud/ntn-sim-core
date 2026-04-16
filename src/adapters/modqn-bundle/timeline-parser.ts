@@ -30,6 +30,33 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isFiniteInteger(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isInteger(value);
+}
+
+function assertObjectiveTriplet(
+  value: unknown,
+  path: string,
+  lineNumber: number,
+): void {
+  if (!isRecord(value)) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_OBJECTIVE_TRIPLET',
+      `timeline/step-trace.jsonl line ${lineNumber}: ${path} must be an object.`,
+      { lineNumber, path },
+    );
+  }
+  for (const field of ['r1Throughput', 'r2Handover', 'r3LoadBalance'] as const) {
+    if (!isFiniteNumber(value[field])) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_OBJECTIVE_TRIPLET',
+        `timeline/step-trace.jsonl line ${lineNumber}: ${path}.${field} must be numeric.`,
+        { lineNumber, path, field },
+      );
+    }
+  }
+}
+
 function assertGeodeticPoint(
   value: unknown,
   path: string,
@@ -95,6 +122,321 @@ function assertSatellitePositionEci(
       'TIMELINE_ROW_SATELLITE_GEOMETRY_NULL',
       `timeline/step-trace.jsonl line ${lineNumber}: ${path} must contain finite x/y/z.`,
       { lineNumber, path },
+    );
+  }
+}
+
+function assertPolicyDiagnostics(
+  raw: Record<string, unknown>,
+  lineNumber: number,
+): void {
+  const payload = raw.policyDiagnostics;
+  if (payload === undefined) {
+    return;
+  }
+  if (!isRecord(payload)) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_TYPE',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics must be an object when present.`,
+      { lineNumber },
+    );
+  }
+
+  const requiredFields = [
+    'diagnosticsVersion',
+    'objectiveWeights',
+    'selectedScalarizedQ',
+    'runnerUpScalarizedQ',
+    'scalarizedMarginToRunnerUp',
+    'availableActionCount',
+    'topCandidates',
+  ] as const;
+  const missing = requiredFields.filter((field) => !(field in payload));
+  if (missing.length > 0) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_MISSING_FIELDS',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics is missing required fields: ${missing.join(', ')}`,
+      { lineNumber, missing },
+    );
+  }
+
+  if (typeof payload.diagnosticsVersion !== 'string' || payload.diagnosticsVersion.length === 0) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_VERSION',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.diagnosticsVersion must be a non-empty string.`,
+      { lineNumber },
+    );
+  }
+  assertObjectiveTriplet(
+    payload.objectiveWeights,
+    'policyDiagnostics.objectiveWeights',
+    lineNumber,
+  );
+  if (!isFiniteNumber(payload.selectedScalarizedQ)) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_SCORE',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.selectedScalarizedQ must be numeric.`,
+      { lineNumber },
+    );
+  }
+  if (
+    payload.runnerUpScalarizedQ !== null
+    && payload.runnerUpScalarizedQ !== undefined
+    && !isFiniteNumber(payload.runnerUpScalarizedQ)
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_RUNNER_UP_SCORE',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.runnerUpScalarizedQ must be numeric or null.`,
+      { lineNumber },
+    );
+  }
+  if (
+    payload.scalarizedMarginToRunnerUp !== null
+    && payload.scalarizedMarginToRunnerUp !== undefined
+    && !isFiniteNumber(payload.scalarizedMarginToRunnerUp)
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_MARGIN',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.scalarizedMarginToRunnerUp must be numeric or null.`,
+      { lineNumber },
+    );
+  }
+  if (!isFiniteInteger(payload.availableActionCount) || payload.availableActionCount < 1) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_AVAILABLE_ACTION_COUNT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.availableActionCount must be a positive integer.`,
+      { lineNumber },
+    );
+  }
+  if (!Array.isArray(payload.topCandidates) || payload.topCandidates.length === 0) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_TOP_CANDIDATES',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates must be a non-empty array.`,
+      { lineNumber },
+    );
+  }
+  if (payload.topCandidates.length > payload.availableActionCount) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_TOP_CANDIDATES_LIMIT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates cannot exceed availableActionCount.`,
+      {
+        lineNumber,
+        availableActionCount: payload.availableActionCount,
+        candidateCount: payload.topCandidates.length,
+      },
+    );
+  }
+
+  const selectedServing = isRecord(raw.selectedServing) ? raw.selectedServing : {};
+  const selectedBeamIndex = isFiniteInteger(selectedServing.beamIndex)
+    ? selectedServing.beamIndex
+    : null;
+  const decisionMask = Array.isArray(raw.decisionActionValidityMask)
+    ? raw.decisionActionValidityMask
+    : Array.isArray(raw.actionValidityMask)
+      ? raw.actionValidityMask
+      : null;
+  if (decisionMask) {
+    const availableActionCount = decisionMask.filter(Boolean).length;
+    if (availableActionCount !== payload.availableActionCount) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_MASK_COUNT_MISMATCH',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.availableActionCount must match the decision mask.`,
+        { lineNumber, availableActionCount, exported: payload.availableActionCount },
+      );
+    }
+  }
+
+  let previousScalarizedQ: number | null = null;
+  let previousBeamIndex: number | null = null;
+  payload.topCandidates.forEach((candidate, index) => {
+    if (!isRecord(candidate)) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_TYPE',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}] must be an object.`,
+        { lineNumber, index },
+      );
+    }
+
+    const requiredCandidateFields = [
+      'beamId',
+      'beamIndex',
+      'satId',
+      'satIndex',
+      'localBeamIndex',
+      'validUnderDecisionMask',
+      'objectiveQ',
+      'scalarizedQ',
+    ] as const;
+    const missingCandidateFields = requiredCandidateFields.filter((field) => !(field in candidate));
+    if (missingCandidateFields.length > 0) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_FIELDS',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}] is missing required fields: ${missingCandidateFields.join(', ')}`,
+        { lineNumber, index, missing: missingCandidateFields },
+      );
+    }
+    if (
+      typeof candidate.beamId !== 'string'
+      || typeof candidate.satId !== 'string'
+      || !isFiniteInteger(candidate.beamIndex)
+      || !isFiniteInteger(candidate.satIndex)
+      || !isFiniteInteger(candidate.localBeamIndex)
+    ) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_IDENTITY',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}] must carry stable beam/satellite identity.`,
+        { lineNumber, index },
+      );
+    }
+    if (candidate.validUnderDecisionMask !== true) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_VALIDITY',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}].validUnderDecisionMask must be true.`,
+        { lineNumber, index },
+      );
+    }
+    if (decisionMask) {
+      if (
+        candidate.beamIndex < 0
+        || candidate.beamIndex >= decisionMask.length
+        || !Boolean(decisionMask[candidate.beamIndex])
+      ) {
+        throw new ModqnBundleSchemaError(
+          'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_MASK_MISMATCH',
+          `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}] does not respect the decision mask.`,
+          { lineNumber, index, beamIndex: candidate.beamIndex },
+        );
+      }
+    }
+    assertObjectiveTriplet(
+      candidate.objectiveQ,
+      `policyDiagnostics.topCandidates[${index}].objectiveQ`,
+      lineNumber,
+    );
+    if (!isFiniteNumber(candidate.scalarizedQ)) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_CANDIDATE_SCORE',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[${index}].scalarizedQ must be numeric.`,
+        { lineNumber, index },
+      );
+    }
+    if (previousScalarizedQ !== null) {
+      if (candidate.scalarizedQ > previousScalarizedQ + 1e-9) {
+        throw new ModqnBundleSchemaError(
+          'TIMELINE_ROW_POLICY_DIAGNOSTICS_ORDERING',
+          `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates must preserve descending scalarizedQ ordering.`,
+          { lineNumber, index },
+        );
+      }
+      if (
+        Math.abs(candidate.scalarizedQ - previousScalarizedQ) <= 1e-9
+        && previousBeamIndex !== null
+        && candidate.beamIndex < previousBeamIndex
+      ) {
+        throw new ModqnBundleSchemaError(
+          'TIMELINE_ROW_POLICY_DIAGNOSTICS_TIE_BREAK',
+          `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates must keep ascending beamIndex tie-breaks.`,
+          { lineNumber, index },
+        );
+      }
+    }
+    previousScalarizedQ = candidate.scalarizedQ;
+    previousBeamIndex = candidate.beamIndex;
+  });
+
+  const selectedCandidate = payload.topCandidates[0];
+  if (selectedBeamIndex !== null && selectedCandidate.beamIndex !== selectedBeamIndex) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_ALIGNMENT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[0] must align with selectedServing.beamIndex.`,
+      { lineNumber, selectedBeamIndex, candidateBeamIndex: selectedCandidate.beamIndex },
+    );
+  }
+  if (
+    typeof selectedServing.beamId === 'string'
+    && selectedCandidate.beamId !== selectedServing.beamId
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_ALIGNMENT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[0] must align with selectedServing.beamId.`,
+      { lineNumber },
+    );
+  }
+  if (
+    typeof selectedServing.satId === 'string'
+    && selectedCandidate.satId !== selectedServing.satId
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_ALIGNMENT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[0] must align with selectedServing.satId.`,
+      { lineNumber },
+    );
+  }
+  if (
+    isFiniteInteger(selectedServing.localBeamIndex)
+    && selectedCandidate.localBeamIndex !== selectedServing.localBeamIndex
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_ALIGNMENT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[0] must align with selectedServing.localBeamIndex.`,
+      { lineNumber },
+    );
+  }
+  if (
+    isFiniteInteger(selectedServing.satIndex)
+    && selectedCandidate.satIndex !== selectedServing.satIndex
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_ALIGNMENT',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.topCandidates[0] must align with selectedServing.satIndex.`,
+      { lineNumber },
+    );
+  }
+  if (Math.abs(selectedCandidate.scalarizedQ - payload.selectedScalarizedQ) > 1e-9) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_SELECTED_SCORE_MISMATCH',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.selectedScalarizedQ must match topCandidates[0].scalarizedQ.`,
+      { lineNumber },
+    );
+  }
+
+  const hasRunnerUp = payload.topCandidates.length > 1;
+  if (hasRunnerUp) {
+    if (
+      !isFiniteNumber(payload.runnerUpScalarizedQ)
+      || !isFiniteNumber(payload.scalarizedMarginToRunnerUp)
+    ) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_RUNNER_UP_REQUIRED',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics must include runner-up score and margin when more than one candidate is exported.`,
+        { lineNumber },
+      );
+    }
+    const runnerUp = payload.topCandidates[1];
+    if (Math.abs(runnerUp.scalarizedQ - payload.runnerUpScalarizedQ) > 1e-9) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_RUNNER_UP_MISMATCH',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.runnerUpScalarizedQ must match topCandidates[1].scalarizedQ.`,
+        { lineNumber },
+      );
+    }
+    const expectedMargin = payload.selectedScalarizedQ - payload.runnerUpScalarizedQ;
+    if (Math.abs(payload.scalarizedMarginToRunnerUp - expectedMargin) > 1e-9) {
+      throw new ModqnBundleSchemaError(
+        'TIMELINE_ROW_POLICY_DIAGNOSTICS_MARGIN_MISMATCH',
+        `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics.scalarizedMarginToRunnerUp is inconsistent with selected and runner-up scores.`,
+        { lineNumber },
+      );
+    }
+  } else if (
+    payload.runnerUpScalarizedQ !== null
+    || payload.scalarizedMarginToRunnerUp !== null
+  ) {
+    throw new ModqnBundleSchemaError(
+      'TIMELINE_ROW_POLICY_DIAGNOSTICS_RUNNER_UP_NULLABILITY',
+      `timeline/step-trace.jsonl line ${lineNumber}: policyDiagnostics must keep runner-up score and margin null when only one candidate is exported.`,
+      { lineNumber },
     );
   }
 }
@@ -333,6 +675,8 @@ function assertRow(raw: unknown, lineNumber: number): ModqnTimelineRow {
       { lineNumber },
     );
   }
+
+  assertPolicyDiagnostics(raw, lineNumber);
 
   return raw as unknown as ModqnTimelineRow;
 }

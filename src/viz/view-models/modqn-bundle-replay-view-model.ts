@@ -12,6 +12,11 @@ import type {
   UeState,
 } from '@/core/contracts/runtime-v1';
 import type { GeodeticPoint, ModqnReplayBundle, ModqnReplayFrame, ModqnReplayUserRecord } from '@/adapters/modqn-bundle';
+import type {
+  ModqnOptionalPolicyDiagnosticsDisclosure,
+  ModqnPolicyDiagnostics,
+  ModqnPolicyObjectiveTriplet,
+} from '@/adapters/modqn-bundle';
 
 const WGS84_A_KM = 6378.137;
 const WGS84_F = 1 / 298.257223563;
@@ -160,6 +165,47 @@ export interface ModqnProvenanceFieldView {
   note: string | null;
 }
 
+export interface ModqnPolicyDiagnosticsDisclosureView {
+  present: boolean;
+  timelineField: string;
+  diagnosticsVersion: string;
+  requiredByBundleSchema: boolean;
+  producerOwned: boolean;
+  selectedActionSource: string;
+  topCandidateLimit: number;
+  rowsWithDiagnostics: number;
+  rowsWithoutDiagnostics: number;
+  note: string;
+}
+
+export interface ModqnPolicyDiagnosticsCandidateView {
+  rank: number;
+  beamId: string;
+  beamIndex: number;
+  satId: string;
+  satIndex: number;
+  localBeamIndex: number;
+  validUnderDecisionMask: boolean;
+  objectiveQ: ModqnPolicyObjectiveTriplet;
+  scalarizedQ: number;
+}
+
+export interface ModqnBundleExplainabilityView {
+  slotIndex: number;
+  hasDiagnostics: boolean;
+  diagnosticsVersion: string | null;
+  objectiveWeights: ModqnPolicyObjectiveTriplet | null;
+  selectedScalarizedQ: number | null;
+  runnerUpScalarizedQ: number | null;
+  scalarizedMarginToRunnerUp: number | null;
+  availableActionCount: number | null;
+  topCandidates: ModqnPolicyDiagnosticsCandidateView[];
+  producerDisclosure: string;
+  absenceDisclosure: string | null;
+  coverageDisclosure: string;
+  metadata: ModqnPolicyDiagnosticsDisclosureView | null;
+}
+
 function geodeticToEcefKm(point: GeodeticPoint, altitudeKm: number): [number, number, number] {
   const latRad = (point.latDeg * Math.PI) / 180;
   const lonRad = (point.lonDeg * Math.PI) / 180;
@@ -187,11 +233,14 @@ function getGroundPoint(bundle: ModqnReplayBundle): GeodeticPoint {
 }
 
 function getPrimaryUser(frame: ModqnReplayFrame): ModqnReplayUserRecord {
-  return [...frame.users].sort((left, right) => {
-    const leftIndex = left.userIndex ?? Number.MAX_SAFE_INTEGER;
-    const rightIndex = right.userIndex ?? Number.MAX_SAFE_INTEGER;
-    return leftIndex - rightIndex || left.userId.localeCompare(right.userId);
-  })[0];
+  const firstUser = frame.users[0];
+  if (!firstUser) {
+    throw new Error('[ModqnBundleReplayViewModel] frame has no users');
+  }
+  // Preserve exported row order. Bundle-mode consumer surfaces project from
+  // the first replay row in the slot rather than inventing a frontend-only
+  // user reordering policy.
+  return firstUser;
 }
 
 function countDistinctSatIdsForMask(
@@ -214,6 +263,90 @@ function countMask(mask: boolean[] | null): number {
 function computeMean(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function projectPolicyDiagnosticsDisclosure(
+  disclosure: ModqnOptionalPolicyDiagnosticsDisclosure | undefined,
+): ModqnPolicyDiagnosticsDisclosureView | null {
+  if (!disclosure) return null;
+  return {
+    present: disclosure.present,
+    timelineField: disclosure.timelineField,
+    diagnosticsVersion: disclosure.diagnosticsVersion,
+    requiredByBundleSchema: disclosure.requiredByBundleSchema,
+    producerOwned: disclosure.producerOwned,
+    selectedActionSource: disclosure.selectedActionSource,
+    topCandidateLimit: disclosure.topCandidateLimit,
+    rowsWithDiagnostics: disclosure.rowsWithDiagnostics,
+    rowsWithoutDiagnostics: disclosure.rowsWithoutDiagnostics,
+    note: disclosure.note,
+  };
+}
+
+function formatPolicyDiagnosticsCoverage(
+  disclosure: ModqnPolicyDiagnosticsDisclosureView | null,
+  rowCount: number,
+): string {
+  if (!disclosure) {
+    return 'No manifest.optionalPolicyDiagnostics disclosure. Older bundles stay valid without inferred scores.';
+  }
+  return `${disclosure.rowsWithDiagnostics}/${rowCount} rows carry producer diagnostics; ${disclosure.rowsWithoutDiagnostics} rows do not.`;
+}
+
+function buildExplainabilityAbsenceDisclosure(
+  disclosure: ModqnPolicyDiagnosticsDisclosureView | null,
+  rowCount: number,
+): string {
+  if (!disclosure) {
+    return 'This bundle does not export producer-owned policyDiagnostics. Consumer explainability stays empty instead of inventing scores or ranking.';
+  }
+  if (disclosure.rowsWithDiagnostics === 0) {
+    return 'Bundle disclosure reports zero policyDiagnostics rows. Consumer explainability stays empty instead of inventing values.';
+  }
+  return `The current slot has no policyDiagnostics row. ${formatPolicyDiagnosticsCoverage(disclosure, rowCount)}`;
+}
+
+function buildProducerDiagnosticsDisclosure(
+  disclosure: ModqnPolicyDiagnosticsDisclosureView | null,
+): string {
+  const base = 'Producer-exported policy diagnostics only. Candidate order, scalarized scores, and objective triplets come from the bundle; the frontend does not recompute ranking.';
+  if (!disclosure) {
+    return base;
+  }
+  return `${base} ${disclosure.note}`;
+}
+
+function projectPolicyDiagnostics(
+  diagnostics: ModqnPolicyDiagnostics,
+): Pick<
+  ModqnBundleExplainabilityView,
+  | 'diagnosticsVersion'
+  | 'objectiveWeights'
+  | 'selectedScalarizedQ'
+  | 'runnerUpScalarizedQ'
+  | 'scalarizedMarginToRunnerUp'
+  | 'availableActionCount'
+  | 'topCandidates'
+> {
+  return {
+    diagnosticsVersion: diagnostics.diagnosticsVersion,
+    objectiveWeights: diagnostics.objectiveWeights,
+    selectedScalarizedQ: diagnostics.selectedScalarizedQ,
+    runnerUpScalarizedQ: diagnostics.runnerUpScalarizedQ,
+    scalarizedMarginToRunnerUp: diagnostics.scalarizedMarginToRunnerUp,
+    availableActionCount: diagnostics.availableActionCount,
+    topCandidates: diagnostics.topCandidates.map((candidate, index) => ({
+      rank: index + 1,
+      beamId: candidate.beamId,
+      beamIndex: candidate.beamIndex,
+      satId: candidate.satId,
+      satIndex: candidate.satIndex,
+      localBeamIndex: candidate.localBeamIndex,
+      validUnderDecisionMask: candidate.validUnderDecisionMask,
+      objectiveQ: candidate.objectiveQ,
+      scalarizedQ: candidate.scalarizedQ,
+    })),
+  };
 }
 
 function getUserBeamRole(
@@ -722,6 +855,45 @@ export class ModqnBundleReplayViewModel {
       provenanceMap.fields !== null && typeof provenanceMap.fields === 'object'
     ) ? provenanceMap.fields as Record<string, unknown> : {};
     return sortProvenanceFields(fieldsRaw);
+  }
+
+  public getPolicyDiagnosticsDisclosure(): ModqnPolicyDiagnosticsDisclosureView | null {
+    return projectPolicyDiagnosticsDisclosure(this.bundle.manifest.optionalPolicyDiagnostics);
+  }
+
+  public getExplainability(index: number): ModqnBundleExplainabilityView {
+    const frame = this.getFrame(index);
+    const primaryUser = getPrimaryUser(frame);
+    const metadata = this.getPolicyDiagnosticsDisclosure();
+    const coverageDisclosure = formatPolicyDiagnosticsCoverage(metadata, this.bundle.rowCount);
+
+    if (!primaryUser.policyDiagnostics) {
+      return {
+        slotIndex: frame.slotIndex,
+        hasDiagnostics: false,
+        diagnosticsVersion: null,
+        objectiveWeights: null,
+        selectedScalarizedQ: null,
+        runnerUpScalarizedQ: null,
+        scalarizedMarginToRunnerUp: null,
+        availableActionCount: null,
+        topCandidates: [],
+        producerDisclosure: buildProducerDiagnosticsDisclosure(metadata),
+        absenceDisclosure: buildExplainabilityAbsenceDisclosure(metadata, this.bundle.rowCount),
+        coverageDisclosure,
+        metadata,
+      };
+    }
+
+    return {
+      slotIndex: frame.slotIndex,
+      hasDiagnostics: true,
+      ...projectPolicyDiagnostics(primaryUser.policyDiagnostics),
+      producerDisclosure: buildProducerDiagnosticsDisclosure(metadata),
+      absenceDisclosure: null,
+      coverageDisclosure,
+      metadata,
+    };
   }
 
   public getCumulativeHandoverCount(index: number): number {

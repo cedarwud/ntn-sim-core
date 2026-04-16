@@ -101,6 +101,46 @@ export interface ModqnBundleReplaySummary {
   sampleSubset?: ModqnBundleSampleSubset;
 }
 
+export interface ModqnPolicyObjectiveTriplet {
+  r1Throughput: number;
+  r2Handover: number;
+  r3LoadBalance: number;
+}
+
+export interface ModqnPolicyDiagnosticsCandidate {
+  beamId: string;
+  beamIndex: number;
+  satId: string;
+  satIndex: number;
+  localBeamIndex: number;
+  validUnderDecisionMask: boolean;
+  objectiveQ: ModqnPolicyObjectiveTriplet;
+  scalarizedQ: number;
+}
+
+export interface ModqnPolicyDiagnostics {
+  diagnosticsVersion: string;
+  objectiveWeights: ModqnPolicyObjectiveTriplet;
+  selectedScalarizedQ: number;
+  runnerUpScalarizedQ: number | null;
+  scalarizedMarginToRunnerUp: number | null;
+  availableActionCount: number;
+  topCandidates: ModqnPolicyDiagnosticsCandidate[];
+}
+
+export interface ModqnOptionalPolicyDiagnosticsDisclosure {
+  present: boolean;
+  timelineField: string;
+  diagnosticsVersion: string;
+  requiredByBundleSchema: boolean;
+  producerOwned: boolean;
+  selectedActionSource: string;
+  topCandidateLimit: number;
+  rowsWithDiagnostics: number;
+  rowsWithoutDiagnostics: number;
+  note: string;
+}
+
 /**
  * Structured checkpoint-rule record from `run_metadata.checkpoint_rule`.
  * Producer emits it as a nested object in the Phase 03A Slice A bundle.
@@ -140,6 +180,7 @@ export interface ModqnBundleManifest {
   replaySummary?: ModqnBundleReplaySummary;
   /** Free-text disclosure when this bundle is a trimmed sample/fixture. */
   sampleNote?: string;
+  optionalPolicyDiagnostics?: ModqnOptionalPolicyDiagnosticsDisclosure;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +276,7 @@ export interface ModqnTimelineRow {
   beamStates: ModqnBeamState[];
   kpiOverlay: ModqnKpiOverlay;
   beamCatalogOrder?: string;
+  policyDiagnostics?: ModqnPolicyDiagnostics;
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +305,7 @@ export interface ModqnReplayUserRecord {
   rewardVector: ModqnRewardVector;
   scalarReward: number;
   kpiOverlay: ModqnKpiOverlay;
+  policyDiagnostics: ModqnPolicyDiagnostics | null;
 }
 
 /**

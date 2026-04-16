@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VAL-MODQN-BUNDLE-002 / 003 / 004: MODQN bundle replay UI validation.
+ * VAL-MODQN-BUNDLE-002 / 003 / 004 / 005: MODQN bundle replay UI validation.
  *
  * Covers:
  *   - 002A mode switch changes the active truth source, not just labels
@@ -20,11 +20,19 @@
  *   - 004B handover narration and cumulative counts track exported replay truth
  *   - 004C shared beam/link presentation stays bundle-truth-driven
  *   - 004D a non-trivial external bundle variant drives distinct accepted truth
+ *   - 005A diagnostics render only from exported producer fields
+ *   - 005B older bundles without diagnostics stay valid and disclose absence
+ *   - 005C manifest optionalPolicyDiagnostics remains metadata/disclosure, not
+ *          primary explainability truth
+ *   - 005D sample and external bundles both support explainability when
+ *          diagnostics are present
+ *   - 005E selected-serving identity and top-candidate identity stay aligned
  *
  * Governance:
  *   - sdd/modqn-bundle-replay-ui-sdd.md
  *   - sdd/modqn-bundle-replay-consumer-sdd.md
  *   - sdd/modqn-replay-truth-hardening-follow-on.md
+ *   - sdd/modqn-producer-diagnostics-consumer-follow-on.md
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -369,14 +377,8 @@ async function createDistinctTruthExternalBundleDirectory() {
   return createExternalBundleDirectory(
     'slice4-distinct-truth-bundle',
     async (bundleDir) => {
-      const manifestPath = resolve(bundleDir, 'manifest.json');
-      const timelinePath = resolve(bundleDir, 'timeline/step-trace.jsonl');
-      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
-      const rows = (await readFile(timelinePath, 'utf8'))
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .map((line) => JSON.parse(line) as ModqnTimelineRow);
+      const state = await readBundleManifestRowsAndProvenance(bundleDir);
+      const { manifest, rows } = state;
 
       if (rows.length < 3) {
         throw new Error('distinct-truth validator bundle expects at least 3 slots');
@@ -415,18 +417,159 @@ async function createDistinctTruthExternalBundleDirectory() {
 
       manifest.runId = 'slice4-distinct-truth-run';
       manifest.sampleNote = 'validator non-trivial external truth variant';
+      delete manifest.optionalPolicyDiagnostics;
       const replaySummary = manifest.replaySummary !== null && typeof manifest.replaySummary === 'object'
         ? manifest.replaySummary as Record<string, unknown>
         : {};
       replaySummary.handoverEventCount = rows.filter((row) => row.handoverEvent.kind !== 'none').length;
       manifest.replaySummary = replaySummary;
+      for (const row of rows) {
+        delete (row as ModqnTimelineRow & { policyDiagnostics?: unknown }).policyDiagnostics;
+      }
+      const fields = (
+        state.provenance.fields !== null && typeof state.provenance.fields === 'object'
+      ) ? state.provenance.fields as Record<string, unknown> : null;
+      if (fields) {
+        delete fields['timeline.stepTrace.policyDiagnostics'];
+        delete fields['manifest.optionalPolicyDiagnostics'];
+      }
 
-      await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
-      await writeFile(
-        timelinePath,
-        `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
-        'utf8',
-      );
+      await writeBundleManifestRowsAndProvenance(bundleDir, state);
+    },
+  );
+}
+
+async function readBundleManifestRowsAndProvenance(bundleDir: string) {
+  const manifestPath = resolve(bundleDir, 'manifest.json');
+  const timelinePath = resolve(bundleDir, 'timeline/step-trace.jsonl');
+  const provenancePath = resolve(bundleDir, 'provenance-map.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+  const rows = (await readFile(timelinePath, 'utf8'))
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as ModqnTimelineRow);
+  const provenance = JSON.parse(await readFile(provenancePath, 'utf8')) as Record<string, unknown>;
+  return {
+    manifestPath,
+    timelinePath,
+    provenancePath,
+    manifest,
+    rows,
+    provenance,
+  };
+}
+
+async function writeBundleManifestRowsAndProvenance(
+  bundleDir: string,
+  state: {
+    manifest: Record<string, unknown>;
+    rows: ModqnTimelineRow[];
+    provenance: Record<string, unknown>;
+  },
+) {
+  await writeFile(
+    resolve(bundleDir, 'manifest.json'),
+    JSON.stringify(state.manifest, null, 2),
+    'utf8',
+  );
+  await writeFile(
+    resolve(bundleDir, 'timeline/step-trace.jsonl'),
+    `${state.rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+    'utf8',
+  );
+  await writeFile(
+    resolve(bundleDir, 'provenance-map.json'),
+    JSON.stringify(state.provenance, null, 2),
+    'utf8',
+  );
+}
+
+async function createLegacyNoDiagnosticsExternalBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice5-legacy-no-diagnostics-bundle',
+    async (bundleDir) => {
+      const state = await readBundleManifestRowsAndProvenance(bundleDir);
+      for (const row of state.rows) {
+        delete (row as ModqnTimelineRow & { policyDiagnostics?: unknown }).policyDiagnostics;
+      }
+      delete state.manifest.optionalPolicyDiagnostics;
+      state.manifest.runId = 'slice5-legacy-no-diagnostics-run';
+      state.manifest.sampleNote = 'validator legacy bundle without producer diagnostics';
+
+      const fields = (
+        state.provenance.fields !== null && typeof state.provenance.fields === 'object'
+      ) ? state.provenance.fields as Record<string, unknown> : null;
+      if (fields) {
+        delete fields['timeline.stepTrace.policyDiagnostics'];
+        delete fields['manifest.optionalPolicyDiagnostics'];
+      }
+
+      await writeBundleManifestRowsAndProvenance(bundleDir, state);
+    },
+  );
+}
+
+async function createPartialDiagnosticsCoverageBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice5-partial-diagnostics-bundle',
+    async (bundleDir) => {
+      const state = await readBundleManifestRowsAndProvenance(bundleDir);
+      if (state.rows.length < 2) {
+        throw new Error('partial-diagnostics validator bundle expects at least 2 slots');
+      }
+      delete (state.rows[0] as ModqnTimelineRow & { policyDiagnostics?: unknown }).policyDiagnostics;
+      state.manifest.runId = 'slice5-partial-diagnostics-run';
+      state.manifest.sampleNote = 'validator partial diagnostics coverage bundle';
+
+      const disclosure = (
+        state.manifest.optionalPolicyDiagnostics !== null
+        && typeof state.manifest.optionalPolicyDiagnostics === 'object'
+      ) ? state.manifest.optionalPolicyDiagnostics as Record<string, unknown> : {};
+      disclosure.present = true;
+      disclosure.rowsWithDiagnostics = state.rows.filter((row) => row.policyDiagnostics !== undefined).length;
+      disclosure.rowsWithoutDiagnostics = state.rows.length - Number(disclosure.rowsWithDiagnostics);
+      disclosure.note = 'Validator partial-coverage bundle: manifest disclosure remains metadata only; current-slot explainability still depends on row-level policyDiagnostics.';
+      state.manifest.optionalPolicyDiagnostics = disclosure;
+
+      await writeBundleManifestRowsAndProvenance(bundleDir, state);
+    },
+  );
+}
+
+async function createMultiUserDiagnosticsAnchoringBundleDirectory() {
+  return createExternalBundleDirectory(
+    'slice5-multi-user-anchoring-bundle',
+    async (bundleDir) => {
+      const state = await readBundleManifestRowsAndProvenance(bundleDir);
+      const exportedPrimary = state.rows[0];
+      if (!exportedPrimary?.policyDiagnostics) {
+        throw new Error('multi-user anchoring validator bundle expects slot 1 diagnostics on the first exported row');
+      }
+
+      exportedPrimary.userId = 'zz-exported-primary';
+      exportedPrimary.userIndex = 9;
+
+      const secondaryRow = JSON.parse(JSON.stringify(exportedPrimary)) as ModqnTimelineRow;
+      secondaryRow.userId = 'aa-secondary-row';
+      secondaryRow.userIndex = 0;
+      delete (secondaryRow as ModqnTimelineRow & { policyDiagnostics?: unknown }).policyDiagnostics;
+      state.rows.splice(1, 0, secondaryRow);
+
+      state.manifest.runId = 'slice5-multi-user-anchoring-run';
+      state.manifest.sampleNote = 'validator multi-user slot bundle; first exported row retains diagnostics and the later row does not';
+
+      const disclosure = (
+        state.manifest.optionalPolicyDiagnostics !== null
+        && typeof state.manifest.optionalPolicyDiagnostics === 'object'
+      ) ? state.manifest.optionalPolicyDiagnostics as Record<string, unknown> : {};
+      disclosure.present = true;
+      disclosure.rowsWithDiagnostics = state.rows.filter((row) => row.policyDiagnostics !== undefined).length;
+      disclosure.rowsWithoutDiagnostics = state.rows.length - Number(disclosure.rowsWithDiagnostics);
+      disclosure.note = 'Validator multi-user bundle: explainability must stay anchored to the first exported row in the slot, not a frontend-sorted user.';
+      state.manifest.optionalPolicyDiagnostics = disclosure;
+
+      await writeBundleManifestRowsAndProvenance(bundleDir, state);
     },
   );
 }
@@ -556,6 +699,53 @@ async function readBundleTruthAlignment(page: Page) {
       await getByTestIdAttr(page, 'validation-runtime', 'data-visible-satellite-ids'),
     ),
   };
+}
+
+async function readPolicyDiagnosticsSurface(page: Page) {
+  const panel = page.locator('[data-testid="bundle-policy-diagnostics-panel"]');
+  if (await panel.count() === 0) {
+    return null;
+  }
+
+  const readText = async (testId: string): Promise<string | null> => {
+    const locator = page.locator(`[data-testid="${testId}"]`);
+    if (await locator.count() === 0) {
+      return null;
+    }
+    return (await locator.first().innerText()).trim();
+  };
+
+  const readIntegerAttr = async (attr: string): Promise<number> => {
+    const raw = (await panel.first().getAttribute(attr)) ?? '0';
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  return {
+    hasDiagnostics: (await panel.first().getAttribute('data-has-diagnostics')) === 'true',
+    diagnosticsVersion: await panel.first().getAttribute('data-diagnostics-version'),
+    selectedSatId: await panel.first().getAttribute('data-selected-sat-id'),
+    selectedBeamId: await panel.first().getAttribute('data-selected-beam-id'),
+    topCandidateSatId: await panel.first().getAttribute('data-top-candidate-sat-id'),
+    topCandidateBeamId: await panel.first().getAttribute('data-top-candidate-beam-id'),
+    rowsWithDiagnostics: await readIntegerAttr('data-rows-with-diagnostics'),
+    rowsWithoutDiagnostics: await readIntegerAttr('data-rows-without-diagnostics'),
+    producerOwned: (await panel.first().getAttribute('data-producer-owned')) === 'true',
+    statusText: await readText('bundle-policy-diagnostics-status'),
+    selectedText: await readText('bundle-policy-diagnostics-selected'),
+    runnerUpText: await readText('bundle-policy-diagnostics-runner-up'),
+    marginText: await readText('bundle-policy-diagnostics-margin'),
+    absenceText: await readText('bundle-policy-diagnostics-absence'),
+    firstCandidateText: await readText('bundle-policy-diagnostics-candidate-0'),
+  };
+}
+
+async function waitForPolicyDiagnosticsState(page: Page, expected: boolean) {
+  await page.waitForFunction((hasDiagnostics) => {
+    return document
+      .querySelector('[data-testid="bundle-policy-diagnostics-panel"]')
+      ?.getAttribute('data-has-diagnostics') === String(hasDiagnostics);
+  }, expected, { timeout: 30_000 });
 }
 
 function validateTruthSurfaceAgainstRow(
@@ -731,8 +921,31 @@ async function readHandovers(page: Page): Promise<number | null> {
   const text = compactPanelCount > 0
     ? (await compactPanel.innerText()).trim()
     : await getByTestIdText(page, 'sim-hud');
-  const match = text.match(/(?:Cumulative\s+)?Handovers(?:\s*:\s*|\s+)(\d+)/);
+  const match = text.match(/(?:Cumulative\s+)?Handovers(?:\s*:\s*|\s+)(\d+)/i);
   return match ? Number.parseInt(match[1], 10) : null;
+}
+
+async function ensureTrainingEvidenceVisible(page: Page) {
+  const panelCount = await page.locator('[data-testid="bundle-training-chart-panel"]').count();
+  if (panelCount > 0) return;
+  await page.locator('[data-testid="toggle-bundle-training-evidence"]').click();
+  await page.waitForSelector('[data-testid="bundle-training-chart-panel"]');
+}
+
+async function ensurePolicyDiagnosticsVisible(page: Page) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const panelCount = await page.locator('[data-testid="bundle-policy-diagnostics-panel"]').count();
+    if (panelCount > 0) return;
+    await page.waitForSelector('[data-testid="toggle-bundle-policy-diagnostics"]');
+    await page.locator('[data-testid="toggle-bundle-policy-diagnostics"]').click();
+    try {
+      await page.waitForSelector('[data-testid="bundle-policy-diagnostics-panel"]', { timeout: 2_000 });
+      return;
+    } catch {
+      await delay(250);
+    }
+  }
+  throw new Error('bundle-policy-diagnostics-panel did not become visible after retrying the toggle');
 }
 
 async function validateBundleMode(page: Page) {
@@ -762,6 +975,7 @@ async function validateBundleMode(page: Page) {
   const bundleSlotIndicator = await getByTestIdText(page, 'bundle-slot-indicator');
   const truthNote = await getByTestIdText(page, 'truth-source-note');
   const compactPanelText = await getByTestIdText(page, 'modqn-compact-panel');
+  const compactPanelTextLower = compactPanelText.toLowerCase();
   const metadataPanelCountBeforeDisclosure = await page.locator('[data-testid="bundle-metadata-panel"]').count();
   const simHudCount = await page.locator('[data-testid="sim-hud"]').count();
   const parameterPanelCount = await page.locator('[data-testid="parameter-panel"]').count();
@@ -790,10 +1004,11 @@ async function validateBundleMode(page: Page) {
   );
   check(
     'VAL-MODQN-BUNDLE-002A compact mode is the persistent bundle-first surface',
-    compactPanelText.includes('Truth Source: MODQN Bundle')
-      && compactPanelText.includes('Replay Truth Mode')
-      && compactPanelText.includes('Serving Satellite')
-      && compactPanelText.includes('Cumulative Handovers'),
+    compactPanelTextLower.includes('truth source')
+      && compactPanelTextLower.includes('modqn bundle')
+      && compactPanelTextLower.includes('replay truth mode')
+      && compactPanelTextLower.includes('serving satellite')
+      && compactPanelTextLower.includes('cumulative handovers'),
     compactPanelText,
   );
   check(
@@ -923,36 +1138,70 @@ async function validateStoryDashboard(page: Page) {
     await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
     const dashboardText = await getByTestIdText(page, 'bundle-story-dashboard');
     const kpiStripText = await getByTestIdText(page, 'bundle-kpi-strip');
-    const trainingPanelText = await getByTestIdText(page, 'bundle-training-chart-panel');
-    const decisionPanelText = await getByTestIdText(page, 'bundle-decision-story-panel');
     const dashboardTextLower = dashboardText.toLowerCase();
     const kpiStripTextLower = kpiStripText.toLowerCase();
-    const trainingPanelTextLower = trainingPanelText.toLowerCase();
-    const decisionPanelTextLower = decisionPanelText.toLowerCase();
-    const trainingImageCount = await page.locator('[data-testid="bundle-training-chart-panel"] img').count();
-    const trainingSvgCount = await page.locator('[data-testid="bundle-training-chart-panel"] svg').count();
-    const decisionSvgCount = await page.locator('[data-testid="bundle-decision-story-panel"] svg').count();
+    const defaultDashboardMetrics = await page.evaluate(() => {
+      const dashboard = document.querySelector('[data-testid="bundle-story-dashboard"]');
+      if (!dashboard) return null;
+      const rect = dashboard.getBoundingClientRect();
+      return {
+        height: rect.height,
+        viewportHeight: window.innerHeight,
+        trainingMounted: Boolean(document.querySelector('[data-testid="bundle-training-chart-panel"]')),
+        decisionMounted: Boolean(document.querySelector('[data-testid="bundle-decision-story-panel"]')),
+      };
+    });
 
     check(
       'VAL-MODQN-BUNDLE-003A first-screen story dashboard keeps the required bundle obligations visible',
-      dashboardTextLower.includes('truth source: modqn bundle')
-        && kpiStripTextLower.includes('paper / run / checkpoint')
-        && kpiStripTextLower.includes('source label')
-        && kpiStripTextLower.includes('replay truth mode')
+      dashboardTextLower.includes('truth source:')
+        && dashboardTextLower.includes('modqn bundle')
+        && dashboardTextLower.includes('paper / run / checkpoint')
+        && dashboardTextLower.includes('source label')
+        && dashboardTextLower.includes('replay truth mode')
         && dashboardTextLower.includes('current slot / total slots')
         && dashboardTextLower.includes('serving satellite')
         && dashboardTextLower.includes('primary sinr')
-        && kpiStripTextLower.includes('cumulative handovers')
-        && kpiStripTextLower.includes('disclosure summary'),
-      dashboardText,
+        && dashboardTextLower.includes('cumulative handovers')
+        && dashboardTextLower.includes('provenance / assumptions')
+        && kpiStripTextLower.includes('throughput')
+        && kpiStripTextLower.includes('scalar reward')
+        && kpiStripTextLower.includes('valid actions')
+        && Boolean(defaultDashboardMetrics)
+        && !defaultDashboardMetrics.trainingMounted
+        && !defaultDashboardMetrics.decisionMounted
+        && defaultDashboardMetrics.height <= (defaultDashboardMetrics.viewportHeight * 0.8),
+      JSON.stringify({
+        dashboardText,
+        defaultDashboardMetrics,
+      }),
     );
+
+    await page.locator('[data-testid="toggle-bundle-training-evidence"]').click();
+    await page.waitForSelector('[data-testid="bundle-training-chart-panel"]');
+    const trainingPanelText = await getByTestIdText(page, 'bundle-training-chart-panel');
+    const trainingPanelTextLower = trainingPanelText.toLowerCase();
+    const trainingImageCount = await page.locator('[data-testid="bundle-training-chart-panel"] img').count();
+    const trainingSvgCount = await page.locator('[data-testid="bundle-training-chart-panel"] svg').count();
+
+    await page.locator('[data-testid="toggle-bundle-decision-story"]').click();
+    await page.waitForSelector('[data-testid="bundle-decision-story-panel"]');
+    const decisionPanelText = await getByTestIdText(page, 'bundle-decision-story-panel');
+    const decisionPanelTextLower = decisionPanelText.toLowerCase();
+    const decisionSvgCount = await page.locator('[data-testid="bundle-decision-story-panel"] svg').count();
+
+    await page.locator('[data-testid="toggle-bundle-source-notes"]').click();
+    const sourceDisclosureText = await getByTestIdText(page, 'bundle-source-disclosure');
+    const sourceDisclosureTextLower = sourceDisclosureText.toLowerCase();
     check(
       'VAL-MODQN-BUNDLE-003B bundle-backed charts and KPI strip render from the existing projector data',
       trainingPanelTextLower.includes('scalar reward track')
-        && trainingPanelTextLower.includes('three-objective training track')
-        && kpiStripTextLower.includes('current throughput')
-        && decisionPanelTextLower.includes('scalar reward across replay')
-        && decisionPanelTextLower.includes('valid action coverage')
+        && trainingPanelTextLower.includes('objective traces')
+        && kpiStripTextLower.includes('throughput')
+        && decisionPanelTextLower.includes('replay scalar reward')
+        && decisionPanelTextLower.includes('valid actions')
+        && sourceDisclosureTextLower.includes('full provenance and assumptions stay')
+        && sourceDisclosureTextLower.includes('disclosure')
         && (trainingImageCount + trainingSvgCount) >= 1
         && decisionSvgCount >= 3,
       [
@@ -987,12 +1236,16 @@ async function validateStoryDashboard(page: Page) {
     await waitForBundleSourceLabel(page, validExternalBundle.sourceLabel);
     await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
     const externalDashboardText = await getByTestIdText(page, 'bundle-story-dashboard');
-    const externalKpiStripText = await getByTestIdText(page, 'bundle-kpi-strip');
+    const externalDecisionPanelCount = await page.locator('[data-testid="bundle-decision-story-panel"]').count();
+    if (externalDecisionPanelCount === 0) {
+      await page.locator('[data-testid="toggle-bundle-decision-story"]').click();
+      await page.waitForSelector('[data-testid="bundle-decision-story-panel"]');
+    }
     const externalDecisionSvgCount = await page.locator('[data-testid="bundle-decision-story-panel"] svg').count();
     check(
       'VAL-MODQN-BUNDLE-003D sample and external bundles both reach the same story-dashboard path',
       externalDashboardText.includes('slice3-external-dashboard-run')
-        && externalKpiStripText.includes(validExternalBundle.sourceLabel)
+        && externalDashboardText.includes(validExternalBundle.sourceLabel)
         && externalDecisionSvgCount >= 3,
       `source=${validExternalBundle.sourceLabel}, decisionSvgCount=${externalDecisionSvgCount}`,
     );
@@ -1071,6 +1324,7 @@ async function validateExternalBundleFlow(page: Page) {
 
     await setExternalBundleDirectory(page, validBundle.dir);
     await waitForBundleSourceLabel(page, validBundle.sourceLabel);
+    await ensureTrainingEvidenceVisible(page);
     const runtimeTruthSourceLabel = await getByTestIdAttr(page, 'validation-runtime', 'data-truth-source-label');
     const bundleSourceNote = await getByTestIdText(page, 'bundle-source-note');
     const compactPanelText = await getByTestIdText(page, 'modqn-compact-panel');
@@ -1095,6 +1349,7 @@ async function validateExternalBundleFlow(page: Page) {
 
     await setExternalBundleDirectory(page, replayIncompleteBundle.dir);
     await waitForBundleLoadError(page, null);
+    await ensureTrainingEvidenceVisible(page);
     const replayIncompleteError = await getByTestIdText(page, 'bundle-load-error');
     const sourceLabelAfterReplayIncomplete = await getByTestIdText(page, 'bundle-source-label');
     const scalarFigureAfterReplayIncomplete = await readTrainingFigureSrc(page, EXTERNAL_SCALAR_FIGURE_ALT);
@@ -1112,6 +1367,7 @@ async function validateExternalBundleFlow(page: Page) {
 
     await setExternalBundleDirectory(page, invalidBundle.dir);
     await waitForBundleLoadError(page, replayIncompleteError);
+    await ensureTrainingEvidenceVisible(page);
     const invalidLoadError = await getByTestIdText(page, 'bundle-load-error');
     const sourceLabelAfterInvalid = await getByTestIdText(page, 'bundle-source-label');
     const runtimeTruthSourceAfterInvalid = await getByTestIdAttr(page, 'validation-runtime', 'data-truth-source-label');
@@ -1135,6 +1391,7 @@ async function validateExternalBundleFlow(page: Page) {
 
     await page.locator('[data-testid="reset-bundle-source"]').click();
     await waitForBundleSourceLabel(page, 'sample-bundle-v1');
+    await ensureTrainingEvidenceVisible(page);
     await page.waitForFunction(() => {
       return document.querySelector('[data-testid="bundle-load-error"]') === null;
     }, undefined, { timeout: 30_000 });
@@ -1270,8 +1527,177 @@ async function validateReplayTruthHardening(page: Page) {
   }
 }
 
+async function validatePolicyDiagnosticsExplainability(page: Page) {
+  console.log('\n== VAL-MODQN-BUNDLE-005A/B/C/D/E ==');
+
+  const sampleRows = await readSampleTimelineRows();
+  const sampleDiagnosticsRow = sampleRows.find((row) => row.policyDiagnostics !== undefined);
+  if (!sampleDiagnosticsRow?.policyDiagnostics) {
+    throw new Error('sample bundle must carry policyDiagnostics for VAL-MODQN-BUNDLE-005');
+  }
+
+  const validExternalBundle = await createValidExternalBundleDirectory({
+    folderName: 'slice5-valid-diagnostics-bundle',
+    runId: 'slice5-external-diagnostics-run',
+    sampleNote: 'validator external diagnostics copy',
+  });
+  const legacyNoDiagnosticsBundle = await createLegacyNoDiagnosticsExternalBundleDirectory();
+  const partialCoverageBundle = await createPartialDiagnosticsCoverageBundleDirectory();
+  const multiUserAnchoringBundle = await createMultiUserDiagnosticsAnchoringBundleDirectory();
+
+  try {
+    await page.goto(`${BASE_URL}/?mode=modqn-bundle&validate=1&paused=1&showBeams=1&showLabels=1`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-testid="bundle-story-dashboard"]');
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, true);
+
+    const sampleSurface = await readPolicyDiagnosticsSurface(page);
+    check(
+      'VAL-MODQN-BUNDLE-005A diagnostics render only from exported producer fields',
+      !!sampleSurface
+        && sampleSurface.hasDiagnostics
+        && sampleSurface.diagnosticsVersion === sampleDiagnosticsRow.policyDiagnostics.diagnosticsVersion
+        && (sampleSurface.selectedText?.includes(sampleDiagnosticsRow.policyDiagnostics.selectedScalarizedQ.toFixed(3)) ?? false)
+        && (sampleSurface.runnerUpText?.includes(sampleDiagnosticsRow.policyDiagnostics.runnerUpScalarizedQ?.toFixed(3) ?? '') ?? false)
+        && (sampleSurface.marginText?.includes(sampleDiagnosticsRow.policyDiagnostics.scalarizedMarginToRunnerUp?.toFixed(3) ?? '') ?? false)
+        && (sampleSurface.firstCandidateText?.includes(sampleDiagnosticsRow.policyDiagnostics.topCandidates[0].beamId) ?? false)
+        && (sampleSurface.firstCandidateText?.includes(sampleDiagnosticsRow.policyDiagnostics.topCandidates[0].satId) ?? false),
+      JSON.stringify(sampleSurface),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-005D sample bundle supports explainability when diagnostics are present',
+      !!sampleSurface
+        && sampleSurface.hasDiagnostics
+        && Boolean(sampleSurface.firstCandidateText),
+      JSON.stringify(sampleSurface),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-005E sample selected-serving identity stays aligned with top candidate identity',
+      !!sampleSurface
+        && sampleSurface.selectedSatId === sampleDiagnosticsRow.selectedServing.satId
+        && sampleSurface.selectedBeamId === sampleDiagnosticsRow.selectedServing.beamId
+        && sampleSurface.topCandidateSatId === sampleDiagnosticsRow.selectedServing.satId
+        && sampleSurface.topCandidateBeamId === sampleDiagnosticsRow.selectedServing.beamId,
+      JSON.stringify(sampleSurface),
+    );
+
+    await setExternalBundleDirectory(page, validExternalBundle.dir);
+    await waitForBundleSourceLabel(page, validExternalBundle.sourceLabel);
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, true);
+    const externalSurface = await readPolicyDiagnosticsSurface(page);
+    check(
+      'VAL-MODQN-BUNDLE-005D external bundle supports explainability when diagnostics are present',
+      !!externalSurface
+        && externalSurface.hasDiagnostics
+        && externalSurface.selectedText !== null
+        && externalSurface.firstCandidateText !== null,
+      JSON.stringify(externalSurface),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-005E external selected-serving identity stays aligned with top candidate identity',
+      !!externalSurface
+        && externalSurface.selectedSatId === externalSurface.topCandidateSatId
+        && externalSurface.selectedBeamId === externalSurface.topCandidateBeamId,
+      JSON.stringify(externalSurface),
+    );
+
+    const multiUserState = await readBundleManifestRowsAndProvenance(multiUserAnchoringBundle.dir);
+    const multiUserExpectedRow = multiUserState.rows[0];
+    if (!multiUserExpectedRow?.policyDiagnostics) {
+      throw new Error('multi-user anchoring bundle must keep diagnostics on the first exported row');
+    }
+
+    await setExternalBundleDirectory(page, multiUserAnchoringBundle.dir);
+    await waitForBundleSourceLabel(page, multiUserAnchoringBundle.sourceLabel);
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, true);
+    const multiUserSurface = await readPolicyDiagnosticsSurface(page);
+    check(
+      'VAL-MODQN-BUNDLE-005E multi-user slots stay anchored to the first exported replay row',
+      !!multiUserSurface
+        && multiUserSurface.hasDiagnostics
+        && multiUserSurface.selectedSatId === multiUserExpectedRow.selectedServing.satId
+        && multiUserSurface.selectedBeamId === multiUserExpectedRow.selectedServing.beamId
+        && multiUserSurface.topCandidateSatId === multiUserExpectedRow.selectedServing.satId
+        && multiUserSurface.topCandidateBeamId === multiUserExpectedRow.selectedServing.beamId
+        && (multiUserSurface.selectedText?.includes(multiUserExpectedRow.policyDiagnostics.selectedScalarizedQ.toFixed(3)) ?? false)
+        && multiUserSurface.absenceText === null,
+      JSON.stringify(multiUserSurface),
+    );
+
+    await setExternalBundleDirectory(page, legacyNoDiagnosticsBundle.dir);
+    await waitForBundleSourceLabel(page, legacyNoDiagnosticsBundle.sourceLabel);
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, false);
+    const legacySurface = await readPolicyDiagnosticsSurface(page);
+    check(
+      'VAL-MODQN-BUNDLE-005B older bundles without diagnostics stay valid and disclose absence',
+      !!legacySurface
+        && !legacySurface.hasDiagnostics
+        && Boolean(
+          legacySurface.absenceText?.toLowerCase().includes('does not export producer-owned policydiagnostics')
+          || legacySurface.absenceText?.toLowerCase().includes('does not export producer-owned'),
+        ),
+      JSON.stringify(legacySurface),
+    );
+
+    await setExternalBundleDirectory(page, partialCoverageBundle.dir);
+    await waitForBundleSourceLabel(page, partialCoverageBundle.sourceLabel);
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, false);
+    const partialCoverageSlot1 = await readPolicyDiagnosticsSurface(page);
+    await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+    await page.waitForSelector('[data-testid="bundle-metadata-panel"]');
+    const metadataText = await getByTestIdText(page, 'bundle-policy-diagnostics-disclosure');
+    const metadataPanelText = await getByTestIdText(page, 'bundle-metadata-panel');
+    await page.locator('[data-testid="toggle-bundle-metadata-panel"]').click();
+    await page.waitForFunction(() => {
+      return document.querySelector('[data-testid="bundle-metadata-panel"]') === null;
+    }, undefined, { timeout: 15_000 });
+
+    check(
+      'VAL-MODQN-BUNDLE-005C manifest optionalPolicyDiagnostics remains metadata/disclosure, not primary explainability truth',
+      !!partialCoverageSlot1
+        && !partialCoverageSlot1.hasDiagnostics
+        && partialCoverageSlot1.rowsWithDiagnostics > 0
+        && partialCoverageSlot1.rowsWithoutDiagnostics > 0
+        && Boolean(partialCoverageSlot1.absenceText?.includes('current slot has no policyDiagnostics row'))
+        && metadataText.includes('metadata/disclosure only')
+        && metadataPanelText.includes('Rows With Diagnostics')
+        && metadataPanelText.includes('Rows Without Diagnostics'),
+      JSON.stringify({
+        partialCoverageSlot1,
+        metadataText,
+      }),
+    );
+
+    await page.locator('[data-testid="bundle-step-forward"]').click();
+    await waitForPolicyDiagnosticsState(page, true);
+    const partialCoverageSlot2 = await readPolicyDiagnosticsSurface(page);
+    check(
+      'VAL-MODQN-BUNDLE-005C row-level explainability truth returns when a covered slot is selected',
+      !!partialCoverageSlot2
+        && partialCoverageSlot2.hasDiagnostics
+        && Boolean(partialCoverageSlot2.selectedText)
+        && Boolean(partialCoverageSlot2.firstCandidateText),
+      JSON.stringify(partialCoverageSlot2),
+    );
+
+    await page.locator('[data-testid="reset-bundle-source"]').click();
+    await waitForBundleSourceLabel(page, 'sample-bundle-v1');
+    await ensurePolicyDiagnosticsVisible(page);
+    await waitForPolicyDiagnosticsState(page, true);
+  } finally {
+    await validExternalBundle.cleanup();
+    await legacyNoDiagnosticsBundle.cleanup();
+    await partialCoverageBundle.cleanup();
+    await multiUserAnchoringBundle.cleanup();
+  }
+}
+
 async function main() {
-  console.log('\n=== VAL-MODQN-BUNDLE-002 / 003 / 004: MODQN Bundle Replay UI ===\n');
+  console.log('\n=== VAL-MODQN-BUNDLE-002 / 003 / 004 / 005: MODQN Bundle Replay UI ===\n');
   let previewChild: ChildProcess | null = null;
   let browser: Browser | null = null;
 
@@ -1294,6 +1720,7 @@ async function main() {
     await validateBundleMode(page);
     await validateStoryDashboard(page);
     await validateReplayTruthHardening(page);
+    await validatePolicyDiagnosticsExplainability(page);
     await validateExternalBundleFlow(page);
     await validateModeSwitch(page);
     await validateNativeUiStateRestoration(page);
@@ -1305,11 +1732,11 @@ async function main() {
   }
 
   if (failures > 0) {
-    console.log(`\nEXIT 1 — VAL-MODQN-BUNDLE-002 / 003 / 004 failed with ${failures} issue(s)\n`);
+    console.log(`\nEXIT 1 — VAL-MODQN-BUNDLE-002 / 003 / 004 / 005 failed with ${failures} issue(s)\n`);
     process.exit(1);
   }
 
-  console.log('\nEXIT 0 — VAL-MODQN-BUNDLE-002 / 003 / 004 passed\n');
+  console.log('\nEXIT 0 — VAL-MODQN-BUNDLE-002 / 003 / 004 / 005 passed\n');
 }
 
 main().catch((error) => {

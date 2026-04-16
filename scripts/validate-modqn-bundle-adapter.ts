@@ -12,6 +12,8 @@
  *   5. In-memory reader round trip (including required-file / required-dir
  *      missing cases)
  *   6. Optional decision-mask fallback stays readable for legal older bundles
+ *   7. Optional producer diagnostics load when present and stay absent-honest
+ *      for older bundles without the additive fields
  *
  * Governance:
  *   - Consumer SDD: sdd/modqn-bundle-replay-consumer-sdd.md
@@ -350,6 +352,16 @@ async function validateSchemaGuard() {
   );
 
   await expectSchemaError(
+    'rejects optionalPolicyDiagnostics=null (explicit null is drift, not absence)',
+    'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_TYPE',
+    () =>
+      assertManifestShape({
+        ...baseManifestObject(),
+        optionalPolicyDiagnostics: null,
+      }),
+  );
+
+  await expectSchemaError(
     'rejects unsupported bundleSchemaVersion',
     'UNSUPPORTED_BUNDLE_SCHEMA_VERSION',
     () => assertManifestShape({ ...baseManifestObject(), bundleSchemaVersion: 'phase-03a-replay-bundle-v999' }),
@@ -505,6 +517,18 @@ async function validateTimelineParser() {
           positionEciKm: { x: Number.NaN, y: 0, z: 0 },
         },
       ];
+      return parseTimelineJsonl(`${JSON.stringify(broken)}\n`);
+    },
+  );
+
+  await expectSchemaError(
+    'rejects explicit null policyDiagnostics',
+    'TIMELINE_ROW_POLICY_DIAGNOSTICS_TYPE',
+    () => {
+      const broken = {
+        ...minimalRow(1, 'user-0'),
+        policyDiagnostics: null,
+      };
       return parseTimelineJsonl(`${JSON.stringify(broken)}\n`);
     },
   );
@@ -869,6 +893,13 @@ async function validateProducerSampleBundle() {
     bundle.slotCount === 10 && bundle.userCount === 1 && bundle.rowCount === 10,
     `slots=${bundle.slotCount} users=${bundle.userCount} rows=${bundle.rowCount}`,
   );
+  check(
+    'producer sample manifest discloses optionalPolicyDiagnostics coverage',
+    manifest.optionalPolicyDiagnostics?.present === true
+      && manifest.optionalPolicyDiagnostics.rowsWithDiagnostics === bundle.rowCount
+      && manifest.optionalPolicyDiagnostics.rowsWithoutDiagnostics === 0,
+    JSON.stringify(manifest.optionalPolicyDiagnostics ?? null),
+  );
 
   // Smoke-check that every loaded frame has real satellite/beam geometry.
   const firstFrame = bundle.frames[0];
@@ -924,6 +955,29 @@ async function validateProducerSampleBundle() {
       category,
     );
   }
+
+  const sampleViewModel = new ModqnBundleReplayViewModel(bundle, 'sample-bundle-v1');
+  const explainability = sampleViewModel.getExplainability(0);
+  check(
+    'producer sample first slot exposes row-level policy diagnostics',
+    explainability.hasDiagnostics
+      && explainability.topCandidates.length >= 1
+      && explainability.diagnosticsVersion === 'phase-03b-policy-diagnostics-v1',
+    JSON.stringify({
+      hasDiagnostics: explainability.hasDiagnostics,
+      topCandidateCount: explainability.topCandidates.length,
+      diagnosticsVersion: explainability.diagnosticsVersion,
+    }),
+  );
+  check(
+    'producer sample explainability keeps selected-serving identity aligned with top candidate',
+    explainability.topCandidates[0]?.satId === firstFrame.users[0]?.selectedServing.satId
+      && explainability.topCandidates[0]?.beamId === firstFrame.users[0]?.selectedServing.beamId,
+    JSON.stringify({
+      selectedServing: firstFrame.users[0]?.selectedServing ?? null,
+      topCandidate: explainability.topCandidates[0] ?? null,
+    }),
+  );
 }
 
 async function validateOptionalDecisionMaskFallback() {
@@ -954,6 +1008,19 @@ async function validateOptionalDecisionMaskFallback() {
       decisionMaskSource: decisionStory.maskSource,
       trendMaskSource: trendPoint?.maskSource ?? null,
       validActionRatio: trendPoint?.validActionRatio ?? null,
+    }),
+  );
+
+  const explainability = viewModel.getExplainability(0);
+  check(
+    'older bundle without diagnostics stays explainability-honest',
+    !explainability.hasDiagnostics
+      && explainability.topCandidates.length === 0
+      && Boolean(explainability.absenceDisclosure),
+    JSON.stringify({
+      hasDiagnostics: explainability.hasDiagnostics,
+      topCandidateCount: explainability.topCandidates.length,
+      absenceDisclosure: explainability.absenceDisclosure,
     }),
   );
 }

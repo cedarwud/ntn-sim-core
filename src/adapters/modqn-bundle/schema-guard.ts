@@ -31,6 +31,111 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isFiniteInteger(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isInteger(value);
+}
+
+function assertOptionalPolicyDiagnosticsDisclosure(
+  payload: unknown,
+): void {
+  if (!isRecord(payload)) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_TYPE',
+      'manifest.optionalPolicyDiagnostics must be an object when present.',
+    );
+  }
+
+  const requiredFields = [
+    'present',
+    'timelineField',
+    'diagnosticsVersion',
+    'requiredByBundleSchema',
+    'producerOwned',
+    'selectedActionSource',
+    'topCandidateLimit',
+    'rowsWithDiagnostics',
+    'rowsWithoutDiagnostics',
+    'note',
+  ] as const;
+  const missing = requiredFields.filter((field) => !(field in payload));
+  if (missing.length > 0) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_MISSING_FIELDS',
+      `manifest.optionalPolicyDiagnostics is missing required fields: ${missing.join(', ')}`,
+      { missing },
+    );
+  }
+
+  if (typeof payload.present !== 'boolean') {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_PRESENT_TYPE',
+      'manifest.optionalPolicyDiagnostics.present must be a boolean.',
+    );
+  }
+  if (payload.timelineField !== 'policyDiagnostics') {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_TIMELINE_FIELD',
+      'manifest.optionalPolicyDiagnostics.timelineField must be "policyDiagnostics".',
+      { timelineField: payload.timelineField },
+    );
+  }
+  if (typeof payload.diagnosticsVersion !== 'string' || payload.diagnosticsVersion.length === 0) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_VERSION',
+      'manifest.optionalPolicyDiagnostics.diagnosticsVersion must be a non-empty string.',
+    );
+  }
+  if (typeof payload.requiredByBundleSchema !== 'boolean') {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_REQUIRED_FLAG',
+      'manifest.optionalPolicyDiagnostics.requiredByBundleSchema must be a boolean.',
+    );
+  }
+  if (typeof payload.producerOwned !== 'boolean') {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_PRODUCER_OWNED',
+      'manifest.optionalPolicyDiagnostics.producerOwned must be a boolean.',
+    );
+  }
+  if (
+    typeof payload.selectedActionSource !== 'string'
+    || payload.selectedActionSource.length === 0
+  ) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_ACTION_SOURCE',
+      'manifest.optionalPolicyDiagnostics.selectedActionSource must be a non-empty string.',
+    );
+  }
+  if (!isFiniteInteger(payload.topCandidateLimit) || payload.topCandidateLimit < 1) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_TOP_LIMIT',
+      'manifest.optionalPolicyDiagnostics.topCandidateLimit must be a positive integer.',
+    );
+  }
+  if (!isFiniteInteger(payload.rowsWithDiagnostics) || payload.rowsWithDiagnostics < 0) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_ROWS_WITH',
+      'manifest.optionalPolicyDiagnostics.rowsWithDiagnostics must be a non-negative integer.',
+    );
+  }
+  if (!isFiniteInteger(payload.rowsWithoutDiagnostics) || payload.rowsWithoutDiagnostics < 0) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_ROWS_WITHOUT',
+      'manifest.optionalPolicyDiagnostics.rowsWithoutDiagnostics must be a non-negative integer.',
+    );
+  }
+  if (typeof payload.note !== 'string') {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_NOTE',
+      'manifest.optionalPolicyDiagnostics.note must be a string.',
+    );
+  }
+}
+
 /**
  * Validate a parsed manifest payload and return it as the typed
  * `ModqnBundleManifest` shape. Throws `ModqnBundleSchemaError` on any
@@ -165,6 +270,10 @@ export function assertManifestShape(payload: unknown): ModqnBundleManifest {
         'manifest.slotIndexSemantics must be {firstIndex: number, note: string}.',
       );
     }
+  }
+
+  if ('optionalPolicyDiagnostics' in payload) {
+    assertOptionalPolicyDiagnosticsDisclosure(payload.optionalPolicyDiagnostics);
   }
 
   return payload as unknown as ModqnBundleManifest;

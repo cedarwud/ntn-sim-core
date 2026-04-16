@@ -3,6 +3,7 @@ import React from 'react';
 import type {
   ModqnAssumptionView,
   ModqnBundleSummaryView,
+  ModqnPolicyDiagnosticsDisclosureView,
   ModqnProvenanceFieldView,
   ModqnProvenanceLegendEntry,
   ModqnTrainingEvalSummaryView,
@@ -15,6 +16,7 @@ export interface ModqnBundleMetadataPanelProps {
   assumptions: ModqnAssumptionView[];
   provenanceLegend: ModqnProvenanceLegendEntry[];
   provenanceFields: ModqnProvenanceFieldView[];
+  policyDiagnosticsDisclosure: ModqnPolicyDiagnosticsDisclosureView | null;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -119,6 +121,7 @@ export const ModqnBundleMetadataPanel: React.FC<ModqnBundleMetadataPanelProps> =
   assumptions,
   provenanceLegend,
   provenanceFields,
+  policyDiagnosticsDisclosure,
 }) => {
   if (!visible || !bundleSummary) return null;
 
@@ -170,6 +173,37 @@ export const ModqnBundleMetadataPanel: React.FC<ModqnBundleMetadataPanelProps> =
         {renderSummaryRow('Best Eval Mean R2', formatNumber(trainingEvalSummary?.bestEvalMeanR2 ?? null, 3))}
         {renderSummaryRow('Best Eval Mean R3', formatNumber(trainingEvalSummary?.bestEvalMeanR3 ?? null, 3))}
       </div>
+
+      <div style={sectionTitleStyle}>Policy Diagnostics Disclosure</div>
+      <div
+        style={helperTextStyle}
+        data-testid="bundle-policy-diagnostics-disclosure"
+      >
+        `optionalPolicyDiagnostics` stays metadata/disclosure only. Row-level `policyDiagnostics`
+        remains the primary explainability truth when present.
+      </div>
+      {policyDiagnosticsDisclosure ? (
+        <>
+          <div style={{ ...summaryGridStyle, marginTop: 8 }}>
+            {renderSummaryRow('Present', policyDiagnosticsDisclosure.present ? 'true' : 'false')}
+            {renderSummaryRow('Timeline Field', policyDiagnosticsDisclosure.timelineField)}
+            {renderSummaryRow('Version', policyDiagnosticsDisclosure.diagnosticsVersion)}
+            {renderSummaryRow('Producer Owned', policyDiagnosticsDisclosure.producerOwned ? 'true' : 'false')}
+            {renderSummaryRow('Required By Schema', policyDiagnosticsDisclosure.requiredByBundleSchema ? 'true' : 'false')}
+            {renderSummaryRow('Selected Action Source', policyDiagnosticsDisclosure.selectedActionSource)}
+            {renderSummaryRow('Top Candidate Limit', policyDiagnosticsDisclosure.topCandidateLimit)}
+            {renderSummaryRow('Rows With Diagnostics', policyDiagnosticsDisclosure.rowsWithDiagnostics)}
+            {renderSummaryRow('Rows Without Diagnostics', policyDiagnosticsDisclosure.rowsWithoutDiagnostics)}
+          </div>
+          <div style={{ ...helperTextStyle, marginTop: 8, color: '#c7d1db' }}>
+            {policyDiagnosticsDisclosure.note}
+          </div>
+        </>
+      ) : (
+        <div style={{ ...helperTextStyle, marginTop: 8 }}>
+          No `optionalPolicyDiagnostics` manifest block. Older bundles remain valid and do not imply missing scores.
+        </div>
+      )}
 
       <div style={sectionTitleStyle}>Assumptions</div>
       <div style={helperTextStyle} data-testid="bundle-assumptions-panel">

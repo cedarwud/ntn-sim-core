@@ -23,8 +23,10 @@ import { Starfield } from '@/viz/overlays/Starfield';
 import { ValidationProbe } from '@/viz/overlays/ValidationProbe';
 import type { BeamPresentationFrame } from '@/viz/presentation';
 import type {
+  ModqnBundleExplainabilityView,
   ModqnBundleReplayViewModel,
   ModqnDashboardKpiView,
+  ModqnPolicyDiagnosticsDisclosureView,
   ModqnReplayTrendPointView,
 } from '@/viz/view-models/modqn-bundle-replay-view-model';
 
@@ -138,6 +140,10 @@ export function SceneShell() {
     () => bundleViewModel?.getProvenanceFields() ?? [],
     [bundleViewModel],
   );
+  const bundlePolicyDiagnosticsDisclosure = useMemo<ModqnPolicyDiagnosticsDisclosureView | null>(
+    () => bundleViewModel?.getPolicyDiagnosticsDisclosure() ?? null,
+    [bundleViewModel],
+  );
   const bundleFrameIndex = useMemo(() => {
     if (!bundleViewModel) return 0;
     const slotIndex = hudData?.bundleSlotIndex;
@@ -155,6 +161,10 @@ export function SceneShell() {
   const bundleReplayTrendSeries = useMemo<ModqnReplayTrendPointView[]>(
     () => bundleViewModel?.getReplayTrendSeries() ?? [],
     [bundleViewModel],
+  );
+  const bundleExplainability = useMemo<ModqnBundleExplainabilityView | null>(
+    () => bundleViewModel?.getExplainability(bundleFrameIndex) ?? null,
+    [bundleFrameIndex, bundleViewModel],
   );
   const bundleSourceLabel = bundleControls?.sourceLabel
     ?? hudData?.truthSourceLabel
@@ -180,6 +190,7 @@ export function SceneShell() {
     provenanceLegend: bundleProvenanceLegend,
     provenanceFields: bundleProvenanceFields,
     replayTrendSeries: bundleReplayTrendSeries,
+    explainability: bundleExplainability,
   };
   const bundleMetadataPanelProps = {
     visible: showBundleMetadata,
@@ -188,6 +199,7 @@ export function SceneShell() {
     assumptions: bundleAssumptions,
     provenanceLegend: bundleProvenanceLegend,
     provenanceFields: bundleProvenanceFields,
+    policyDiagnosticsDisclosure: bundlePolicyDiagnosticsDisclosure,
   };
   const bundleControlPanelProps = {
     bundleLoadError: bundleControls?.error ?? null,

@@ -86,6 +86,7 @@ function toUserRecord(row: ModqnTimelineRow): ModqnReplayUserRecord {
     rewardVector: row.rewardVector,
     scalarReward: row.scalarReward,
     kpiOverlay: row.kpiOverlay,
+    policyDiagnostics: row.policyDiagnostics ?? null,
   };
 }
 

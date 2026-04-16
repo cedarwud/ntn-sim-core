@@ -26,6 +26,7 @@ import { ModqnBundleSchemaError, assertManifestShape } from './schema-guard';
 import { parseTimelineJsonl } from './timeline-parser';
 import type {
   ModqnReplayBundle,
+  ModqnTimelineRow,
   ModqnTrainingEpisodeMetricRow,
   ModqnTrainingLossCurveRow,
 } from './types';
@@ -248,6 +249,61 @@ function parseTrainingLossCurves(
   }));
 }
 
+function validateOptionalPolicyDiagnosticsCoverage(
+  rows: ModqnTimelineRow[],
+  disclosure: ModqnReplayBundle['manifest']['optionalPolicyDiagnostics'],
+): void {
+  if (!disclosure) return;
+
+  const rowsWithDiagnostics = rows.filter((row) => row.policyDiagnostics !== undefined).length;
+  const rowsWithoutDiagnostics = rows.length - rowsWithDiagnostics;
+  if (disclosure.rowsWithDiagnostics !== rowsWithDiagnostics) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_ROWS_WITH_MISMATCH',
+      'manifest.optionalPolicyDiagnostics.rowsWithDiagnostics does not match timeline coverage.',
+      {
+        expected: rowsWithDiagnostics,
+        actual: disclosure.rowsWithDiagnostics,
+      },
+    );
+  }
+  if (disclosure.rowsWithoutDiagnostics !== rowsWithoutDiagnostics) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_ROWS_WITHOUT_MISMATCH',
+      'manifest.optionalPolicyDiagnostics.rowsWithoutDiagnostics does not match timeline coverage.',
+      {
+        expected: rowsWithoutDiagnostics,
+        actual: disclosure.rowsWithoutDiagnostics,
+      },
+    );
+  }
+  if (disclosure.present !== (rowsWithDiagnostics > 0)) {
+    throw new ModqnBundleSchemaError(
+      'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_PRESENT_MISMATCH',
+      'manifest.optionalPolicyDiagnostics.present does not match timeline coverage.',
+      {
+        rowsWithDiagnostics,
+        present: disclosure.present,
+      },
+    );
+  }
+
+  for (const [rowIndex, row] of rows.entries()) {
+    if (!row.policyDiagnostics) continue;
+    if (row.policyDiagnostics.diagnosticsVersion !== disclosure.diagnosticsVersion) {
+      throw new ModqnBundleSchemaError(
+        'MANIFEST_OPTIONAL_POLICY_DIAGNOSTICS_VERSION_MISMATCH',
+        `timeline row ${rowIndex + 1}: policyDiagnostics.diagnosticsVersion does not match manifest.optionalPolicyDiagnostics.diagnosticsVersion.`,
+        {
+          lineNumber: rowIndex + 1,
+          rowVersion: row.policyDiagnostics.diagnosticsVersion,
+          manifestVersion: disclosure.diagnosticsVersion,
+        },
+      );
+    }
+  }
+}
+
 /**
  * Load and validate a replay bundle through a reader.
  *
@@ -311,6 +367,7 @@ export async function loadModqnReplayBundle(
   // 4. Timeline.
   const timelineText = await requireText(reader, 'timeline/step-trace.jsonl');
   const rows = parseTimelineJsonl(timelineText);
+  validateOptionalPolicyDiagnosticsCoverage(rows, manifest.optionalPolicyDiagnostics);
   const frames = buildReplayFrames(rows);
   const frameBySlotIndex = indexFramesBySlot(frames);
 

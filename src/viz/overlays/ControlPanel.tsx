@@ -270,18 +270,18 @@ export const ControlPanel = React.memo(function ControlPanel({
 
   const bundleSourceDisclosure = useMemo(() => {
     if (bundleLoadState === 'loading-external-directory') {
-      return 'Loading external-directory bundle. The current valid replay bundle stays active until validation succeeds.';
+      return 'Loading external-directory bundle. Keeping the current valid replay bundle active.';
     }
     if (bundleLoadState === 'resetting-to-sample') {
-      return 'Resetting to the shipped sample bundle baseline.';
+      return 'Resetting to sample baseline.';
     }
     if (bundleLoadState === 'boot-load-failed') {
-      return 'Sample bundle boot failed before bundle-mode truth became ready.';
+      return 'Sample baseline boot failed before bundle truth became ready.';
     }
     if (bundleSourceKind === 'external-directory') {
       return `Current bundle source: external-directory (${bundleSourceLabel ?? 'local selection'}).`;
     }
-    return 'Current bundle source: sample baseline. The shipped sample bundle remains the default boot path and reset target.';
+    return 'Current bundle source: sample baseline. Default boot path and reset target.';
   }, [bundleLoadState, bundleSourceKind, bundleSourceLabel]);
 
   const selectStyle: React.CSSProperties = {
@@ -652,7 +652,7 @@ export const ControlPanel = React.memo(function ControlPanel({
         <span style={labelStyle}>Truth:</span>
         <span data-testid="truth-source-note" style={{ color: '#a7b6c7', fontSize: 12 }}>
           {isBundleMode
-            ? 'Now replaying a saved MODQN producer export bundle. Native simulator panels stay hidden unless you leave bundle mode.'
+            ? 'MODQN producer export bundle replay. Leave bundle mode for native panels.'
             : isNativeReplayMode
               ? 'Native simulator truth recorded into replay window'
               : 'Native simulator truth from live engine'}
