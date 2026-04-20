@@ -142,6 +142,7 @@ export function bootstrapEngine(config: SimEngineConfig): SimEngineState {
     lastDiscreteTickNumber: null,
     lastTickHoLog: [],
     lastRepresentativeServing: null,
+    lastPublishedServingTransitions: {},
     isMultiBeam,
     beamLayouts,
     bhScheduler,

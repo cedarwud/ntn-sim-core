@@ -296,6 +296,439 @@ try {
 console.log(`VAL-PLAT-010: ${v010Pass ? 'PASS' : 'FAIL'} — getProfileList() runtime check`);
 
 // ---------------------------------------------------------------------------
+// Scene-consumer proof surface — deterministic read-only proof path
+//
+// Ensures the next Phase 2 proof slice stays facade-only and does not regress
+// into SceneShell / shell-helper imports.
+// ---------------------------------------------------------------------------
+
+console.log('\n── Scene consumer proof + harness + starter surface ──');
+
+const sceneProofPath = path.join(rootDir, 'src', 'viz', 'scene', 'scene-consumer-proof.ts');
+const sceneProofSurfacePath = path.join(rootDir, 'src', 'viz', 'scene', 'SceneConsumerProofSurface.tsx');
+const sceneHarnessPath = path.join(rootDir, 'src', 'viz', 'scene', 'scene-consumer-harness.ts');
+const sceneHarnessSurfacePath = path.join(rootDir, 'src', 'viz', 'scene', 'SceneConsumerHarnessSurface.tsx');
+const sceneStarterPath = path.join(rootDir, 'src', 'viz', 'scene', 'scene-consumer-starter.ts');
+const sceneStarterSurfacePath = path.join(rootDir, 'src', 'viz', 'scene', 'SceneConsumerStarterSurface.tsx');
+
+let sceneProofPass = true;
+
+for (const filePath of [
+  sceneProofPath,
+  sceneProofSurfacePath,
+  sceneHarnessPath,
+  sceneHarnessSurfacePath,
+  sceneStarterPath,
+  sceneStarterSurfacePath,
+]) {
+  if (!existsSync(filePath)) {
+    fail(`scene-consumer-proof: missing file: ${rel(filePath)}`);
+    sceneProofPass = false;
+  }
+}
+
+if (sceneProofPass) {
+  const proofContent = readFile(sceneProofPath);
+  const surfaceContent = readFile(sceneProofSurfacePath);
+  const harnessContent = readFile(sceneHarnessPath);
+  const harnessSurfaceContent = readFile(sceneHarnessSurfacePath);
+  const starterContent = readFile(sceneStarterPath);
+  const starterSurfaceContent = readFile(sceneStarterSurfacePath);
+
+  for (const exportName of ['SceneConsumerProofReadModel', 'buildSceneConsumerProofReadModel']) {
+    if (!hasNamedExport(proofContent, exportName)) {
+      fail(`scene-consumer-proof: ${rel(sceneProofPath)} missing export ${exportName}`);
+      sceneProofPass = false;
+    }
+  }
+
+  for (const exportName of ['SceneConsumerHarnessViewModel', 'buildSceneConsumerHarnessViewModel']) {
+    if (!hasNamedExport(harnessContent, exportName)) {
+      fail(`scene-consumer-proof: ${rel(sceneHarnessPath)} missing export ${exportName}`);
+      sceneProofPass = false;
+    }
+  }
+
+  for (const exportName of ['SceneConsumerStarterExport', 'buildSceneConsumerStarterExport']) {
+    if (!hasNamedExport(starterContent, exportName)) {
+      fail(`scene-consumer-proof: ${rel(sceneStarterPath)} missing export ${exportName}`);
+      sceneProofPass = false;
+    }
+  }
+
+  const shellForbiddenPatterns = [
+    /(?:import\s+.*from\s+|import\()['"](?:\.\/SceneShell|@\/viz\/scene\/SceneShell)['"]/,
+    /(?:import\s+.*from\s+|import\()['"](?:\.\/shell\/useSceneControlSurface|@\/viz\/scene\/shell\/useSceneControlSurface)['"]/,
+    /(?:import\s+.*from\s+|import\()['"](?:\.\/bundle\/useBundleReplayShellState|@\/viz\/scene\/bundle\/useBundleReplayShellState)['"]/,
+  ];
+
+  for (const [filePath, content] of [
+    [sceneProofPath, proofContent],
+    [sceneProofSurfacePath, surfaceContent],
+    [sceneHarnessPath, harnessContent],
+    [sceneHarnessSurfacePath, harnessSurfaceContent],
+    [sceneStarterPath, starterContent],
+    [sceneStarterSurfacePath, starterSurfaceContent],
+  ]) {
+    for (const pattern of shellForbiddenPatterns) {
+      if (pattern.test(content)) {
+        fail(`scene-consumer-proof: ${rel(filePath)} must stay facade-only and may not import shell surfaces`);
+        sceneProofPass = false;
+      }
+    }
+  }
+
+  try {
+    const { buildSceneConsumerProofReadModel } = await import('../src/viz/scene/scene-consumer-proof.ts');
+    const { buildSceneConsumerHarnessViewModel } = await import('../src/viz/scene/scene-consumer-harness.ts');
+    const { buildSceneConsumerStarterExport } = await import('../src/viz/scene/scene-consumer-starter.ts');
+
+    const continuityNarrative = {
+      phase: 'prepared',
+      rawContinuityState: 'prepared',
+      rawDapsPhase: null,
+      timeSec: 12,
+      phaseStartedAtSec: 10,
+      servingSatId: 'sat-a',
+      sourceSatId: 'sat-a',
+      targetSatId: 'sat-b',
+      postHoSatId: null,
+      recentSourceSatId: null,
+      sourceCooldownUntilSec: null,
+      cooledDownSatIds: [],
+      cooldownSuppressedTargetSatId: null,
+      handoverInProgress: true,
+      narrativeSatIds: ['sat-a', 'sat-b'],
+    };
+
+    const bundleFacadeFixture = {
+      source: {
+        mode: 'modqn-bundle',
+        isReady: true,
+        profileId: 'modqn-bundle-replay',
+        isBhProfile: false,
+        simTimeSec: 12,
+        totalDurationSec: 120,
+        satelliteCount: 8,
+        visibleCount: 3,
+        servingSatId: 'sat-a',
+        handoverCount: 2,
+        replaySelection: 'producer-bundle',
+        replayWindowStartSec: null,
+        replayWindowEndSec: null,
+        modeLabel: 'MODQN bundle replay',
+        truthSourceLabel: 'sample-bundle-v1',
+        bundleSlotIndex: 2,
+        bundleSlotCount: 5,
+        statusLabel: 'ready-sample',
+      },
+      truth: {
+        sceneConsumedSnapshot: {
+          tick: 11,
+          timeSec: 12,
+          satellites: [],
+          ues: [{
+            id: 'ue-0',
+            latDeg: 0,
+            lonDeg: 0,
+            servingSatId: 'sat-a',
+            servingBeamId: 'beam-a',
+            targetSatId: 'sat-b',
+            targetBeamId: 'beam-b',
+            secondarySatId: null,
+            secondaryBeamId: null,
+            continuityState: 'prepared',
+            sinrDb: 18,
+          }],
+          recentHoEvents: [],
+        },
+        publishedTruthSnapshot: {
+          tick: 11,
+          timeSec: 12,
+          satellites: [],
+          ues: [{
+            id: 'ue-0',
+            latDeg: 0,
+            lonDeg: 0,
+            servingSatId: 'sat-a',
+            servingBeamId: 'beam-a',
+            targetSatId: 'sat-b',
+            targetBeamId: 'beam-b',
+            secondarySatId: null,
+            secondaryBeamId: null,
+            continuityState: 'prepared',
+            sinrDb: 18,
+            servingTransition: {
+              kind: 'same-satellite-beam-switch',
+              sourceSatId: 'sat-a',
+              sourceBeamId: 'beam-x',
+              targetSatId: 'sat-a',
+              targetBeamId: 'beam-a',
+            },
+            serviceState: {
+              state: 'serving',
+            },
+          }],
+          recentHoEvents: [],
+        },
+        nativeRuntime: {
+          continuityState: 'prepared',
+          servingTransition: {
+            kind: 'same-satellite-beam-switch',
+            sourceSatId: 'sat-a',
+            sourceBeamId: 'beam-x',
+            targetSatId: 'sat-a',
+            targetBeamId: 'beam-a',
+          },
+          serviceState: {
+            state: 'serving',
+          },
+          recentHoEvents: [],
+          daps: null,
+        },
+        bundleReplay: {
+          producerHandoverKind: 'intra-satellite-beam-switch',
+        },
+      },
+      presentation: {
+        beamPresentationFrame: {
+          focusMode: 'continuity-focus',
+          continuityNarrative,
+          displaySatIds: ['sat-a', 'sat-b'],
+          eventSatIds: ['sat-a', 'sat-b'],
+          beamSatIds: ['sat-a', 'sat-b'],
+          primaryBeamBySatId: {
+            'sat-a': 'beam-a',
+            'sat-b': 'beam-b',
+          },
+          contextBeamIdsBySatId: {
+            'sat-a': [],
+            'sat-b': [],
+          },
+          markerRoleBySatId: {
+            'sat-a': 'serving',
+            'sat-b': 'prepared',
+          },
+          beamRoleAccentByBeamId: {
+            'beam-a': 'serving',
+            'beam-b': 'prepared',
+          },
+        },
+        continuityNarrative,
+      },
+    };
+
+    const bundleProof = buildSceneConsumerProofReadModel(bundleFacadeFixture);
+    const bundleHarness = buildSceneConsumerHarnessViewModel(bundleProof);
+    const bundleStarter = buildSceneConsumerStarterExport(bundleFacadeFixture);
+    const bundleProofValid = Boolean(
+      bundleProof
+      && bundleProof.source.mode === 'modqn-bundle'
+      && bundleProof.source.truthSourceLabel === 'sample-bundle-v1'
+      && bundleProof.truth.snapshotRelationship.scenePublishedSameReference === false
+      && bundleProof.truth.nativeRuntime.servingTransitionKind === 'same-satellite-beam-switch'
+      && bundleProof.truth.bundleReplay.producerHandoverKind === 'intra-satellite-beam-switch'
+      && bundleProof.presentation.focusMode === 'continuity-focus'
+      && bundleProof.presentation.beamSatIds.length === 2,
+    );
+
+    if (!bundleProofValid) {
+      fail('scene-consumer-proof: read model runtime proof did not preserve facade source/truth/presentation fields');
+      sceneProofPass = false;
+    }
+
+    const bundleHarnessValid = Boolean(
+      bundleHarness
+      && bundleHarness.source.pathKind === 'bundle-sample'
+      && bundleHarness.truth.snapshotRelationship === 'distinct-reference'
+      && bundleHarness.truth.nativeServingTransitionKind === 'same-satellite-beam-switch'
+      && bundleHarness.truth.bundleProducerHandoverKind === 'intra-satellite-beam-switch'
+      && bundleHarness.presentation.focusMode === 'continuity-focus'
+      && bundleHarness.render.sourceLine.includes('path=bundle-sample')
+      && bundleHarness.render.truthLine.includes('snapshot=distinct-reference')
+      && bundleHarness.render.presentationLine.includes('focus=continuity-focus')
+    );
+
+    if (!bundleHarnessValid) {
+      fail('scene-consumer-proof: bundle-sample harness proof did not preserve deterministic consumer summary fields');
+      sceneProofPass = false;
+    }
+
+    const bundleStarterValid = Boolean(
+      bundleStarter
+      && bundleStarter.entry.surfaceId === 'scene-consumer-starter-v1'
+      && bundleStarter.entry.contractKind === 'starter-export'
+      && bundleStarter.entry.pathKind === 'bundle-sample'
+      && bundleStarter.entry.deterministicPathId === 'bundle-sample:sample-bundle-v1'
+      && bundleStarter.entry.deterministicPathReady === true
+      && bundleStarter.source.truthSourceLabel === 'sample-bundle-v1'
+      && bundleStarter.truth.snapshotRelationship === 'distinct-reference'
+      && bundleStarter.presentation.focusMode === 'continuity-focus'
+      && bundleStarter.summary.sourceLine.includes('path=bundle-sample')
+      && bundleStarter.summary.truthLine.includes('snapshot=distinct-reference')
+      && bundleStarter.summary.presentationLine.includes('focus=continuity-focus')
+    );
+
+    if (!bundleStarterValid) {
+      fail('scene-consumer-proof: bundle-sample starter export did not preserve deterministic entry fields');
+      sceneProofPass = false;
+    }
+
+    const nativeReplaySnapshot = {
+      tick: 27,
+      timeSec: 81,
+      satellites: [],
+      ues: [{
+        id: 'ue-0',
+        latDeg: 0,
+        lonDeg: 0,
+        servingSatId: 'sat-r1',
+        servingBeamId: 'beam-r1',
+        targetSatId: null,
+        targetBeamId: null,
+        secondarySatId: null,
+        secondaryBeamId: null,
+        continuityState: 'single-active',
+        sinrDb: 14,
+        servingTransition: {
+          kind: 'same-satellite-beam-switch',
+          sourceSatId: 'sat-r0',
+          sourceBeamId: 'beam-r0',
+          targetSatId: 'sat-r1',
+          targetBeamId: 'beam-r1',
+        },
+        serviceState: {
+          state: 'serving',
+        },
+      }],
+      recentHoEvents: [],
+      daps: null,
+    };
+
+    const nativeReplayFacadeFixture = {
+      source: {
+        mode: 'native-replay',
+        isReady: true,
+        profileId: 'hobs-multibeam-baseline',
+        isBhProfile: false,
+        simTimeSec: 81,
+        totalDurationSec: 180,
+        satelliteCount: 12,
+        visibleCount: 4,
+        servingSatId: 'sat-r1',
+        handoverCount: 0,
+        replaySelection: 'continuity-window',
+        replayWindowStartSec: 72,
+        replayWindowEndSec: 96,
+        modeLabel: null,
+        truthSourceLabel: null,
+        bundleSlotIndex: null,
+        bundleSlotCount: null,
+        statusLabel: null,
+      },
+      truth: {
+        sceneConsumedSnapshot: nativeReplaySnapshot,
+        publishedTruthSnapshot: nativeReplaySnapshot,
+        nativeRuntime: {
+          continuityState: 'single-active',
+          servingTransition: nativeReplaySnapshot.ues[0].servingTransition,
+          serviceState: nativeReplaySnapshot.ues[0].serviceState,
+          recentHoEvents: [],
+          daps: null,
+        },
+        bundleReplay: {
+          producerHandoverKind: null,
+        },
+      },
+      presentation: {
+        beamPresentationFrame: {
+          focusMode: 'idle-pass',
+          continuityNarrative: null,
+          displaySatIds: ['sat-r1', 'sat-r2'],
+          eventSatIds: ['sat-r1'],
+          beamSatIds: ['sat-r1'],
+          primaryBeamBySatId: {
+            'sat-r1': 'beam-r1',
+          },
+          contextBeamIdsBySatId: {
+            'sat-r1': ['beam-r2'],
+          },
+          markerRoleBySatId: {
+            'sat-r1': 'serving',
+          },
+          beamRoleAccentByBeamId: {
+            'beam-r1': 'serving',
+            'beam-r2': 'neutral-context',
+          },
+        },
+        continuityNarrative: null,
+      },
+    };
+
+    const nativeReplayProof = buildSceneConsumerProofReadModel(nativeReplayFacadeFixture);
+    const nativeReplayHarness = buildSceneConsumerHarnessViewModel(nativeReplayProof);
+    const nativeReplayStarter = buildSceneConsumerStarterExport(nativeReplayFacadeFixture);
+    const nativeReplayProofValid = Boolean(
+      nativeReplayProof
+      && nativeReplayProof.source.mode === 'native-replay'
+      && nativeReplayProof.source.replaySelection === 'continuity-window'
+      && nativeReplayProof.truth.snapshotRelationship.scenePublishedSameReference === true
+      && nativeReplayProof.truth.sceneConsumed.servingSatId === 'sat-r1'
+      && nativeReplayProof.truth.published.servingSatId === 'sat-r1'
+      && nativeReplayProof.presentation.focusMode === 'idle-pass'
+      && nativeReplayProof.presentation.beamSatIds.length === 1,
+    );
+
+    if (!nativeReplayProofValid) {
+      fail('scene-consumer-proof: native-replay proof did not preserve alias-like facade semantics');
+      sceneProofPass = false;
+    }
+
+    const nativeReplayHarnessValid = Boolean(
+      nativeReplayHarness
+      && nativeReplayHarness.source.pathKind === 'native-replay'
+      && nativeReplayHarness.truth.snapshotRelationship === 'same-reference'
+      && nativeReplayHarness.truth.sceneServingSatId === 'sat-r1'
+      && nativeReplayHarness.truth.publishedServingSatId === 'sat-r1'
+      && nativeReplayHarness.presentation.focusMode === 'idle-pass'
+      && nativeReplayHarness.render.sourceLine.includes('path=native-replay')
+      && nativeReplayHarness.render.truthLine.includes('snapshot=same-reference')
+      && nativeReplayHarness.render.presentationLine.includes('focus=idle-pass')
+    );
+
+    if (!nativeReplayHarnessValid) {
+      fail('scene-consumer-proof: native-replay harness proof did not preserve deterministic consumer summary fields');
+      sceneProofPass = false;
+    }
+
+    const nativeReplayStarterValid = Boolean(
+      nativeReplayStarter
+      && nativeReplayStarter.entry.surfaceId === 'scene-consumer-starter-v1'
+      && nativeReplayStarter.entry.contractKind === 'starter-export'
+      && nativeReplayStarter.entry.pathKind === 'native-replay'
+      && nativeReplayStarter.entry.deterministicPathId === 'native-replay:hobs-multibeam-baseline:continuity-window'
+      && nativeReplayStarter.entry.deterministicPathReady === true
+      && nativeReplayStarter.truth.snapshotRelationship === 'same-reference'
+      && nativeReplayStarter.source.replaySelection === 'continuity-window'
+      && nativeReplayStarter.presentation.focusMode === 'idle-pass'
+      && nativeReplayStarter.summary.sourceLine.includes('path=native-replay')
+      && nativeReplayStarter.summary.truthLine.includes('snapshot=same-reference')
+      && nativeReplayStarter.summary.presentationLine.includes('focus=idle-pass')
+    );
+
+    if (!nativeReplayStarterValid) {
+      fail('scene-consumer-proof: native-replay starter export did not preserve deterministic entry fields');
+      sceneProofPass = false;
+    }
+  } catch (error) {
+    fail(`scene-consumer-proof: runtime proof failed: ${String(error)}`);
+    sceneProofPass = false;
+  }
+}
+
+console.log(`scene-consumer-proof: ${sceneProofPass ? 'PASS' : 'FAIL'} — facade-only proof, harness path, and starter export`);
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 

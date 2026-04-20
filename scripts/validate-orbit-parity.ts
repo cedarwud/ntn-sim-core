@@ -19,6 +19,14 @@ const CHROME_BIN = process.env.CHROME_BIN || '/usr/bin/google-chrome';
 const DEFAULT_PREVIEW_PORT = 4173;
 const PROFILE_IDS = ['case9-access-baseline', 'hobs-multibeam-baseline'] as const;
 const CHECKPOINTS_SEC = [10, 120] as const;
+const LIVE_STATE_TIMEOUT_MS = 150_000;
+const VALIDATION_SPEED = 10;
+// Validation probe snapshots are published from the live scene loop, which runs
+// at 20 fps by default. Keeping the validator below that headless catch-up edge
+// makes the 10 s checkpoint observable without relaxing the bounded overshoot
+// rule into arbitrary-late sample parity.
+const CHECKPOINT_MAX_OVERSHOOT_SEC = 15;
+const ORBIT_SAMPLE_TIMEOUT_MS = 20_000;
 const POSITION_TOLERANCES = {
   azimuthDeg: 1e-4,
   elevationDeg: 1e-4,
@@ -40,6 +48,11 @@ type OrbitParitySatelliteSample = {
 };
 
 type OrbitParityState = {
+  runtime?: {
+    mode: 'live' | 'replay' | 'modqn-bundle';
+    profileId: string;
+    timeSec: number | null;
+  };
   orbitParity?: {
     present: boolean;
     mode: 'live' | 'replay';
@@ -188,32 +201,62 @@ async function gotoLiveScenario(page: Page, profileId: string) {
   const url = new URL(activeBaseUrl);
   url.searchParams.set('validate', '1');
   url.searchParams.set('profile', profileId);
-  url.searchParams.set('speed', '180');
+  url.searchParams.set('speed', String(VALIDATION_SPEED));
+  url.searchParams.set('paused', '1');
   url.searchParams.set('showBeams', '0');
   url.searchParams.set('showLabels', '0');
-  await page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
+  await page.goto(url.toString(), {
+    waitUntil: 'domcontentloaded',
+    timeout: LIVE_STATE_TIMEOUT_MS,
+  });
 
   const started = Date.now();
-  while (Date.now() - started < 90000) {
+  // Keep bootstrap and checkpoint timing separate. The scene can take tens of
+  // seconds to become ready in headless mode, but we do not want that startup
+  // delay to consume the 10 s / 120 s checkpoint budget before sampling begins.
+  while (Date.now() - started < LIVE_STATE_TIMEOUT_MS) {
     const state = await readOrbitParityState(page);
-    const orbit = state?.orbitParity;
-    if (orbit?.present && orbit.mode === 'live' && orbit.profileId === profileId) {
+    const runtime = state?.runtime;
+    if (runtime?.mode === 'live' && runtime.profileId === profileId) {
       return;
     }
     await delay(250);
   }
 
-  throw new Error(`orbit parity state not reached within 90s for ${profileId}`);
+  throw new Error(`live runtime not reached within ${LIVE_STATE_TIMEOUT_MS / 1000}s for ${profileId}`);
+}
+
+async function resumeLiveScenario(page: Page, profileId: string) {
+  await page.getByRole('button', { name: /^▶\s*Play$/ }).click({ timeout: 5_000 });
+
+  const started = Date.now();
+  while (Date.now() - started < ORBIT_SAMPLE_TIMEOUT_MS) {
+    const state = await readOrbitParityState(page);
+    const orbit = state?.orbitParity;
+    if (
+      orbit?.present
+      && orbit.mode === 'live'
+      && orbit.profileId === profileId
+      && orbit.timeSec !== null
+      && orbit.sampleCount > 0
+    ) {
+      return orbit;
+    }
+    await delay(100);
+  }
+
+  throw new Error(`orbit parity sampling did not start within ${ORBIT_SAMPLE_TIMEOUT_MS / 1000}s for ${profileId}`);
 }
 
 async function waitForOrbitSample(
   page: Page,
   profileId: string,
-  minTimeSec: number,
+  checkpointSec: number,
   previousTimeSec: number,
 ) {
+  const maxTimeSec = checkpointSec + CHECKPOINT_MAX_OVERSHOOT_SEC;
   const started = Date.now();
-  while (Date.now() - started < 20000) {
+  while (Date.now() - started < ORBIT_SAMPLE_TIMEOUT_MS) {
     const state = await readOrbitParityState(page);
     const orbit = state?.orbitParity;
     if (
@@ -221,16 +264,31 @@ async function waitForOrbitSample(
       orbit.mode === 'live' &&
       orbit.profileId === profileId &&
       orbit.timeSec !== null &&
-      orbit.timeSec >= minTimeSec &&
       orbit.timeSec > previousTimeSec &&
       orbit.sampleCount > 0
     ) {
+      if (orbit.timeSec < checkpointSec) {
+        await delay(100);
+        continue;
+      }
+
+      if (orbit.timeSec > maxTimeSec) {
+        throw new Error(
+          `orbit sample skipped past checkpoint ${checkpointSec}s too far `
+          + `(t=${orbit.timeSec.toFixed(3)}s, overshoot=${(orbit.timeSec - checkpointSec).toFixed(3)}s, `
+          + `limit=${CHECKPOINT_MAX_OVERSHOOT_SEC}s)`,
+        );
+      }
+
       return orbit;
     }
     await delay(100);
   }
 
-  throw new Error(`orbit sample not reached within 20s for ${profileId} @ ${minTimeSec}s`);
+  throw new Error(
+    `orbit sample not reached within ${ORBIT_SAMPLE_TIMEOUT_MS / 1000}s for ${profileId} `
+    + `@ ${checkpointSec}s (max overshoot ${CHECKPOINT_MAX_OVERSHOOT_SEC}s)`,
+  );
 }
 
 function buildHeadlessReference(profileId: string) {
@@ -338,33 +396,60 @@ async function main() {
     browser = await chromium.launch({
       executablePath: CHROME_BIN,
       headless: true,
+      // Keep this browser gate on the same stable SwiftShader path as the
+      // other scene-heavy validators. The default headless GPU path can stall
+      // long enough that the live orbit parity state becomes reachable only
+      // near the 90s readiness timeout.
+      args: [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--use-angle=swiftshader',
+        '--enable-webgl',
+      ],
     });
 
-    const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-
     for (const profileId of PROFILE_IDS) {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
       const { profile, engine } = buildHeadlessReference(profileId);
-      await gotoLiveScenario(page, profileId);
+      try {
+        await gotoLiveScenario(page, profileId);
+        await resumeLiveScenario(page, profileId);
 
-      let lastTimeSec = -1;
-      for (const checkpointSec of CHECKPOINTS_SEC) {
-        const orbitSample = await waitForOrbitSample(page, profileId, checkpointSec, lastTimeSec);
-        if (orbitSample.timeSec === null) {
-          fail(`VAL-ORB-001 ${profileId} orbit sample`, 'timeSec is null');
-          continue;
+        let lastOrbitSampleTimeSec = -1;
+        for (const checkpointSec of CHECKPOINTS_SEC) {
+          const orbitSample = await waitForOrbitSample(
+            page,
+            profileId,
+            checkpointSec,
+            lastOrbitSampleTimeSec,
+          );
+          if (orbitSample.timeSec === null) {
+            fail(`VAL-ORB-001 ${profileId} orbit sample`, 'timeSec is null');
+            continue;
+          }
+
+          check(
+            `VAL-ORB-001 ${profileId} live time advances`,
+            orbitSample.timeSec > lastOrbitSampleTimeSec,
+            `${lastOrbitSampleTimeSec.toFixed(3)}s -> ${orbitSample.timeSec.toFixed(3)}s`,
+          );
+          pass(
+            `VAL-ORB-001 ${profileId} checkpoint ${checkpointSec}s window`,
+            `observed t=${orbitSample.timeSec.toFixed(3)}s `
+            + `(overshoot=${(orbitSample.timeSec - checkpointSec).toFixed(3)}s `
+            + `<= ${CHECKPOINT_MAX_OVERSHOOT_SEC}s)`,
+          );
+          lastOrbitSampleTimeSec = orbitSample.timeSec;
+
+          const snapshot = engine.tick(
+            orbitSample.timeSec,
+            Math.floor(orbitSample.timeSec / profile.timeControl.stepSec),
+          );
+          compareOrbitSamples(profile, orbitSample, snapshot);
         }
-        check(
-          `VAL-ORB-001 ${profileId} live time advances`,
-          orbitSample.timeSec > lastTimeSec,
-          `${lastTimeSec.toFixed(3)}s -> ${orbitSample.timeSec.toFixed(3)}s`,
-        );
-        lastTimeSec = orbitSample.timeSec;
-
-        const snapshot = engine.tick(
-          orbitSample.timeSec,
-          Math.floor(orbitSample.timeSec / profile.timeControl.stepSec),
-        );
-        compareOrbitSamples(profile, orbitSample, snapshot);
+      } finally {
+        await page.close();
       }
     }
   } finally {

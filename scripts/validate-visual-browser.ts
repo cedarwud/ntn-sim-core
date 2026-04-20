@@ -437,6 +437,288 @@ async function readVisualState(page: Page): Promise<VisualState | null> {
   });
 }
 
+type SceneConsumerProofState = {
+  mode: string | null;
+  profileId: string | null;
+  replaySelection: string | null;
+  sceneServingSatId: string | null;
+  publishedServingSatId: string | null;
+  scenePublishedSameReference: boolean;
+  presentationFocusMode: string | null;
+  displaySatIds: string[];
+  beamSatIds: string[];
+};
+
+type SceneConsumerHarnessState = {
+  mode: string | null;
+  profileId: string | null;
+  pathKind: string | null;
+  replaySelection: string | null;
+  sceneServingSatId: string | null;
+  publishedServingSatId: string | null;
+  snapshotRelationship: string | null;
+  presentationFocusMode: string | null;
+  displaySatIds: string[];
+  beamSatIds: string[];
+  sourceLine: string | null;
+  truthLine: string | null;
+  presentationLine: string | null;
+};
+
+type SceneConsumerStarterState = {
+  mode: string | null;
+  profileId: string | null;
+  pathKind: string | null;
+  deterministicPathId: string | null;
+  deterministicPathReady: boolean;
+  replaySelection: string | null;
+  sceneServingSatId: string | null;
+  publishedServingSatId: string | null;
+  snapshotRelationship: string | null;
+  presentationFocusMode: string | null;
+  displaySatIds: string[];
+  beamSatIds: string[];
+  sourceLine: string | null;
+  truthLine: string | null;
+  presentationLine: string | null;
+};
+
+type SceneConsumerStarterPanelState = SceneConsumerStarterState;
+
+type NativeReplaySceneConsumerSnapshot = {
+  visualState: VisualState | null;
+  proof: SceneConsumerProofState;
+  harness: SceneConsumerHarnessState;
+  starter: SceneConsumerStarterState;
+  starterPanel: SceneConsumerStarterPanelState;
+};
+
+async function waitForNativeReplaySceneConsumerSnapshot(
+  page: Page,
+  expectedProfileId: string,
+  timeoutMs = 15_000,
+): Promise<NativeReplaySceneConsumerSnapshot> {
+  const started = Date.now();
+
+  while (Date.now() - started < timeoutMs) {
+    const snapshot = await page.evaluate(({ profileId }) => {
+      const proof = document.querySelector('[data-testid="scene-consumer-proof"]');
+      const harness = document.querySelector('[data-testid="scene-consumer-harness"]');
+      const starter = document.querySelector('[data-testid="scene-consumer-starter"]');
+      const starterPanel = document.querySelector('[data-testid="scene-consumer-starter-panel"]');
+      const visualState = (window as Window & { __NTN_SIM_CORE_VISUAL__?: unknown }).__NTN_SIM_CORE_VISUAL__ ?? null;
+
+      if (
+        !(proof instanceof Element)
+        || !(harness instanceof Element)
+        || !(starter instanceof Element)
+        || !(starterPanel instanceof Element)
+        || !visualState
+        || typeof visualState !== 'object'
+      ) {
+        return null;
+      }
+
+      const runtime = 'runtime' in visualState && typeof visualState.runtime === 'object'
+        ? visualState.runtime
+        : null;
+      const primaryUe = runtime && 'primaryUe' in runtime && typeof runtime.primaryUe === 'object'
+        ? runtime.primaryUe
+        : null;
+      const beamPresentationFrame = 'beamPresentationFrame' in visualState
+        && typeof visualState.beamPresentationFrame === 'object'
+        ? visualState.beamPresentationFrame
+        : null;
+      const beamInfoOverlay = 'beamInfoOverlay' in visualState
+        && typeof visualState.beamInfoOverlay === 'object'
+        ? visualState.beamInfoOverlay
+        : null;
+      const snapshotBeamTruth = 'snapshotBeamTruth' in visualState
+        && typeof visualState.snapshotBeamTruth === 'object'
+        ? visualState.snapshotBeamTruth
+        : null;
+
+      const proofSceneServingSatId = proof.getAttribute('data-scene-serving-sat-id');
+      const proofPublishedServingSatId = proof.getAttribute('data-published-serving-sat-id');
+      const proofSameReference = proof.getAttribute('data-scene-published-same-reference') === 'true';
+      const harnessSceneServingSatId = harness.getAttribute('data-scene-serving-sat-id');
+      const harnessPublishedServingSatId = harness.getAttribute('data-published-serving-sat-id');
+      const starterSceneServingSatId = starter.getAttribute('data-scene-serving-sat-id');
+      const starterPublishedServingSatId = starter.getAttribute('data-published-serving-sat-id');
+      const panelSceneServingSatId = starterPanel.getAttribute('data-scene-serving-sat-id');
+      const panelPublishedServingSatId = starterPanel.getAttribute('data-published-serving-sat-id');
+
+      if (
+        runtime?.mode !== 'replay'
+        || runtime?.profileId !== profileId
+        || runtime?.replayWindowStartSec == null
+        || !primaryUe?.servingSatId
+        || primaryUe?.sinrDb == null
+        || !beamPresentationFrame?.present
+        || !beamInfoOverlay?.present
+        || !beamInfoOverlay?.primaryServingSatId
+        || beamInfoOverlay?.servingSinrDb == null
+        || !snapshotBeamTruth?.present
+      ) {
+        return null;
+      }
+
+      if (
+        proof.getAttribute('data-mode') !== 'native-replay'
+        || proof.getAttribute('data-profile-id') !== profileId
+        || !proofSameReference
+        || !proofSceneServingSatId
+        || !proofPublishedServingSatId
+        || harness.getAttribute('data-mode') !== 'native-replay'
+        || harness.getAttribute('data-profile-id') !== profileId
+        || harness.getAttribute('data-path-kind') !== 'native-replay'
+        || harness.getAttribute('data-snapshot-relationship') !== 'same-reference'
+        || !harnessSceneServingSatId
+        || !harnessPublishedServingSatId
+        || starter.getAttribute('data-mode') !== 'native-replay'
+        || starter.getAttribute('data-profile-id') !== profileId
+        || starter.getAttribute('data-path-kind') !== 'native-replay'
+        || starter.getAttribute('data-deterministic-path-ready') !== 'true'
+        || starter.getAttribute('data-snapshot-relationship') !== 'same-reference'
+        || !starterSceneServingSatId
+        || !starterPublishedServingSatId
+        || starterPanel.getAttribute('data-mode') !== 'native-replay'
+        || starterPanel.getAttribute('data-profile-id') !== profileId
+        || starterPanel.getAttribute('data-path-kind') !== 'native-replay'
+        || starterPanel.getAttribute('data-deterministic-path-ready') !== 'true'
+        || starterPanel.getAttribute('data-snapshot-relationship') !== 'same-reference'
+        || !panelSceneServingSatId
+        || !panelPublishedServingSatId
+      ) {
+        return null;
+      }
+
+      let proofDisplaySatIds: string[] = [];
+      let proofBeamSatIds: string[] = [];
+      let harnessDisplaySatIds: string[] = [];
+      let harnessBeamSatIds: string[] = [];
+      let starterDisplaySatIds: string[] = [];
+      let starterBeamSatIds: string[] = [];
+      let panelDisplaySatIds: string[] = [];
+      let panelBeamSatIds: string[] = [];
+
+      const proofDisplaySatIdsRaw = proof.getAttribute('data-display-sat-ids');
+      const proofBeamSatIdsRaw = proof.getAttribute('data-beam-sat-ids');
+      const harnessDisplaySatIdsRaw = harness.getAttribute('data-display-sat-ids');
+      const harnessBeamSatIdsRaw = harness.getAttribute('data-beam-sat-ids');
+      const starterDisplaySatIdsRaw = starter.getAttribute('data-display-sat-ids');
+      const starterBeamSatIdsRaw = starter.getAttribute('data-beam-sat-ids');
+      const panelDisplaySatIdsRaw = starterPanel.getAttribute('data-display-sat-ids');
+      const panelBeamSatIdsRaw = starterPanel.getAttribute('data-beam-sat-ids');
+
+      try {
+        const parsed = proofDisplaySatIdsRaw ? JSON.parse(proofDisplaySatIdsRaw) : [];
+        proofDisplaySatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = proofBeamSatIdsRaw ? JSON.parse(proofBeamSatIdsRaw) : [];
+        proofBeamSatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = harnessDisplaySatIdsRaw ? JSON.parse(harnessDisplaySatIdsRaw) : [];
+        harnessDisplaySatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = harnessBeamSatIdsRaw ? JSON.parse(harnessBeamSatIdsRaw) : [];
+        harnessBeamSatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = starterDisplaySatIdsRaw ? JSON.parse(starterDisplaySatIdsRaw) : [];
+        starterDisplaySatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = starterBeamSatIdsRaw ? JSON.parse(starterBeamSatIdsRaw) : [];
+        starterBeamSatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = panelDisplaySatIdsRaw ? JSON.parse(panelDisplaySatIdsRaw) : [];
+        panelDisplaySatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+      try {
+        const parsed = panelBeamSatIdsRaw ? JSON.parse(panelBeamSatIdsRaw) : [];
+        panelBeamSatIds = Array.isArray(parsed) ? parsed.filter((value) => typeof value === 'string') : [];
+      } catch {}
+
+      return {
+        visualState,
+        proof: {
+          mode: proof.getAttribute('data-mode'),
+          profileId: proof.getAttribute('data-profile-id'),
+          replaySelection: proof.getAttribute('data-replay-selection'),
+          sceneServingSatId: proofSceneServingSatId,
+          publishedServingSatId: proofPublishedServingSatId || (proofSameReference ? proofSceneServingSatId : proofPublishedServingSatId),
+          scenePublishedSameReference: proofSameReference,
+          presentationFocusMode: proof.getAttribute('data-presentation-focus-mode'),
+          displaySatIds: proofDisplaySatIds,
+          beamSatIds: proofBeamSatIds,
+        },
+        harness: {
+          mode: harness.getAttribute('data-mode'),
+          profileId: harness.getAttribute('data-profile-id'),
+          pathKind: harness.getAttribute('data-path-kind'),
+          replaySelection: harness.getAttribute('data-replay-selection'),
+          sceneServingSatId: harnessSceneServingSatId,
+          publishedServingSatId: harnessPublishedServingSatId,
+          snapshotRelationship: harness.getAttribute('data-snapshot-relationship'),
+          presentationFocusMode: harness.getAttribute('data-presentation-focus-mode'),
+          displaySatIds: harnessDisplaySatIds,
+          beamSatIds: harnessBeamSatIds,
+          sourceLine: harness.getAttribute('data-source-line'),
+          truthLine: harness.getAttribute('data-truth-line'),
+          presentationLine: harness.getAttribute('data-presentation-line'),
+        },
+        starter: {
+          mode: starter.getAttribute('data-mode'),
+          profileId: starter.getAttribute('data-profile-id'),
+          pathKind: starter.getAttribute('data-path-kind'),
+          deterministicPathId: starter.getAttribute('data-deterministic-path-id'),
+          deterministicPathReady: starter.getAttribute('data-deterministic-path-ready') === 'true',
+          replaySelection: starter.getAttribute('data-replay-selection'),
+          sceneServingSatId: starterSceneServingSatId,
+          publishedServingSatId: starterPublishedServingSatId,
+          snapshotRelationship: starter.getAttribute('data-snapshot-relationship'),
+          presentationFocusMode: starter.getAttribute('data-presentation-focus-mode'),
+          displaySatIds: starterDisplaySatIds,
+          beamSatIds: starterBeamSatIds,
+          sourceLine: starter.getAttribute('data-source-line'),
+          truthLine: starter.getAttribute('data-truth-line'),
+          presentationLine: starter.getAttribute('data-presentation-line'),
+        },
+        starterPanel: {
+          mode: starterPanel.getAttribute('data-mode'),
+          profileId: starterPanel.getAttribute('data-profile-id'),
+          pathKind: starterPanel.getAttribute('data-path-kind'),
+          deterministicPathId: starterPanel.getAttribute('data-deterministic-path-id'),
+          deterministicPathReady: starterPanel.getAttribute('data-deterministic-path-ready') === 'true',
+          replaySelection: starterPanel.getAttribute('data-replay-selection'),
+          sceneServingSatId: panelSceneServingSatId,
+          publishedServingSatId: panelPublishedServingSatId,
+          snapshotRelationship: starterPanel.getAttribute('data-snapshot-relationship'),
+          presentationFocusMode: starterPanel.getAttribute('data-presentation-focus-mode'),
+          displaySatIds: panelDisplaySatIds,
+          beamSatIds: panelBeamSatIds,
+          sourceLine: starterPanel.getAttribute('data-source-line'),
+          truthLine: starterPanel.getAttribute('data-truth-line'),
+          presentationLine: starterPanel.getAttribute('data-presentation-line'),
+        },
+      };
+    }, { profileId: expectedProfileId });
+
+    if (snapshot) {
+      return snapshot as NativeReplaySceneConsumerSnapshot;
+    }
+
+    await delay(250);
+  }
+
+  throw new Error(`native-replay scene-consumer snapshot did not resolve for ${expectedProfileId}`);
+}
+
 async function gotoScenario(page: Page, params: Record<string, string>) {
   const url = new URL(activeBaseUrl);
   url.searchParams.set('hoSlow', '0');
@@ -608,14 +890,23 @@ async function validateDapsShowcase(page: Page) {
     showLabels: '1',
   });
 
-  const state = await waitForState(
+  const showcaseState = await waitForState(
     page,
     (current) =>
       current?.runtime?.profileId === 'case9-daps-showcase'
       && current.runtime.mode === 'live'
       && (current.runtime.timeSec ?? Infinity) <= 300
       && current.beamPresentationFrame?.focusMode === 'continuity-focus'
-      && (current.beamPresentationFrame.eventSatIds?.length ?? 0) >= 2,
+      && (current.beamPresentationFrame.eventSatIds?.length ?? 0) >= 2
+      && (
+        (
+          current.handoverLinkOverlay?.narrativePhase === 'prepared'
+          && current.handoverLinkOverlay?.styleKeys?.includes('target')
+        ) || (
+          current.handoverLinkOverlay?.narrativePhase === 'post-switch'
+          && current.handoverLinkOverlay?.styleKeys?.includes('postHo')
+        )
+      ),
     90000,
   );
 
@@ -627,9 +918,12 @@ async function validateDapsShowcase(page: Page) {
       current?.runtime?.profileId === 'case9-daps-showcase'
       && current.runtime.mode === 'live'
       && current.handoverLinkOverlay?.narrativePhase === 'prepared'
-      && current.handoverLinkOverlay?.styleKeys?.includes('target'),
-    30000,
+      && current.handoverLinkOverlay?.styleKeys?.includes('target')
+      && Boolean(current.beamPresentationFrame?.present)
+      && (current.beamPresentationFrame?.eventSatIds?.length ?? 0) >= 2,
+    60000,
   );
+
   const postSwitchState = await waitForState(
     page,
     (current) =>
@@ -640,22 +934,22 @@ async function validateDapsShowcase(page: Page) {
     60000,
   );
 
-  const frame = state?.beamPresentationFrame;
-  const primaryServingSatId = state?.runtime?.primaryUe.servingSatId ?? null;
-  const servingElevation = getOrbitElevation(state, primaryServingSatId);
-  const servingAzimuth = getOrbitAzimuth(state, primaryServingSatId);
+  const frame = showcaseState?.beamPresentationFrame;
+  const primaryServingSatId = showcaseState?.runtime?.primaryUe.servingSatId ?? null;
+  const servingElevation = getOrbitElevation(showcaseState, primaryServingSatId);
+  const servingAzimuth = getOrbitAzimuth(showcaseState, primaryServingSatId);
   const nonServingBeamSatIds = (frame?.beamSatIds ?? []).filter((satId) => satId !== primaryServingSatId);
   const nonEventBeamSatIds = (frame?.beamSatIds ?? []).filter(
     (satId) => !(frame?.eventSatIds ?? []).includes(satId),
   );
   const readableContextSatCount = nonServingBeamSatIds.filter(
-    (satId) => (getOrbitElevation(state, satId) ?? -Infinity) >= 35,
+    (satId) => (getOrbitElevation(showcaseState, satId) ?? -Infinity) >= 35,
   ).length;
   const servingBeamCount = primaryServingSatId ? countFrameBeamsForSat(frame, primaryServingSatId) : 0;
   const maxNarrativeSpreadDeg = servingAzimuth === null
     ? null
     : nonServingBeamSatIds.reduce((maxSpreadDeg, satId) => {
-      const azimuthDeg = getOrbitAzimuth(state, satId);
+      const azimuthDeg = getOrbitAzimuth(showcaseState, satId);
       if (azimuthDeg === null) return maxSpreadDeg;
       return Math.max(maxSpreadDeg, azimuthDistance(azimuthDeg, servingAzimuth));
     }, 0);
@@ -667,8 +961,8 @@ async function validateDapsShowcase(page: Page) {
     'VAL-FV-010 showcase profile reaches continuity-focused narration on first screen',
     frame?.focusMode === 'continuity-focus'
       && (frame.eventSatIds.length ?? 0) >= 2
-      && (state?.runtime?.timeSec ?? Infinity) <= 300,
-    `focus=${frame?.focusMode ?? 'null'} events=${frame?.eventSatIds.join(',') ?? 'none'} timeSec=${state?.runtime?.timeSec ?? 'null'}`,
+      && (showcaseState?.runtime?.timeSec ?? Infinity) <= 300,
+    `focus=${frame?.focusMode ?? 'null'} events=${frame?.eventSatIds.join(',') ?? 'none'} timeSec=${showcaseState?.runtime?.timeSec ?? 'null'}`,
   );
 
   check(
@@ -766,7 +1060,7 @@ async function validateDapsShowcase(page: Page) {
 
   check(
     'VAL-FV-006 presentation frame beam picks stay derived from snapshot truth',
-    allFrameBeamsExistInSnapshot(state),
+    allFrameBeamsExistInSnapshot(showcaseState),
     `primaryKeys=${JSON.stringify(frame?.primaryBeamBySatId ?? {})}`,
   );
 }
@@ -783,7 +1077,7 @@ async function validateReplay(page: Page) {
     showLabels: '1',
   });
 
-  const state = await waitForState(
+  const readyState = await waitForState(
     page,
     (current) =>
       current?.runtime?.profileId === 'hobs-multibeam-baseline' &&
@@ -800,6 +1094,17 @@ async function validateReplay(page: Page) {
   );
 
   await page.screenshot({ path: resolve(SCREENSHOT_DIR, 'browser-hobs-replay.png') });
+  const sceneConsumerSnapshot = await waitForNativeReplaySceneConsumerSnapshot(
+    page,
+    'hobs-multibeam-baseline',
+  );
+  const state = sceneConsumerSnapshot.visualState ?? readyState;
+  const {
+    proof,
+    harness,
+    starter,
+    starterPanel,
+  } = sceneConsumerSnapshot;
 
   check(
     'VAL-FV-008 replay exposes deterministic window metadata',
@@ -827,6 +1132,136 @@ async function validateReplay(page: Page) {
       ? Boolean(state?.handoverLinkOverlay?.present && state.handoverLinkOverlay.styleKeys.length > 0)
       : !state?.handoverLinkOverlay?.present,
     `truthExpected=${replayTruthExpectsVisibleLinks(state)}, styles=${state?.handoverLinkOverlay?.styleKeys.join(',') ?? 'none'}`,
+  );
+
+  check(
+    'VAL-FV-008 native-replay scene-consumer proof reads facade source metadata',
+    proof.mode === 'native-replay'
+      && proof.profileId === 'hobs-multibeam-baseline'
+      && Boolean(proof.replaySelection),
+    [
+      `mode=${proof.mode ?? 'null'}`,
+      `profile=${proof.profileId ?? 'null'}`,
+      `selection=${proof.replaySelection ?? 'null'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-008 native-replay scene-consumer proof preserves alias-like snapshot semantics',
+    proof.scenePublishedSameReference
+      && Boolean(proof.sceneServingSatId)
+      && proof.sceneServingSatId === proof.publishedServingSatId
+      && proof.sceneServingSatId === state?.runtime?.primaryUe.servingSatId,
+    [
+      `sameRef=${proof.scenePublishedSameReference}`,
+      `scene=${proof.sceneServingSatId ?? 'null'}`,
+      `published=${proof.publishedServingSatId ?? 'null'}`,
+      `runtime=${state?.runtime?.primaryUe.servingSatId ?? 'null'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-008 native-replay scene-consumer proof reads shared presentation contract',
+    proof.presentationFocusMode === (state?.beamPresentationFrame?.focusMode ?? null)
+      && JSON.stringify([...proof.displaySatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.displaySatIds ?? [])].sort())
+      && JSON.stringify([...proof.beamSatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.beamSatIds ?? [])].sort()),
+    [
+      `proofFocus=${proof.presentationFocusMode ?? 'null'}`,
+      `frameFocus=${state?.beamPresentationFrame?.focusMode ?? 'null'}`,
+      `proofDisplay=${proof.displaySatIds.join(',')}`,
+      `frameDisplay=${state?.beamPresentationFrame?.displaySatIds.join(',') ?? 'none'}`,
+      `proofBeam=${proof.beamSatIds.join(',')}`,
+      `frameBeam=${state?.beamPresentationFrame?.beamSatIds.join(',') ?? 'none'}`,
+    ].join(', '),
+  );
+
+  check(
+    'VAL-FV-008 native-replay stub harness reads deterministic proof path without SceneShell dependencies',
+    harness.mode === 'native-replay'
+      && harness.profileId === 'hobs-multibeam-baseline'
+      && harness.pathKind === 'native-replay'
+      && harness.snapshotRelationship === 'same-reference'
+      && harness.sourceLine?.includes('path=native-replay')
+      && harness.sourceLine?.includes(proof.replaySelection ?? '')
+      && harness.truthLine?.includes('snapshot=same-reference'),
+    JSON.stringify(harness),
+  );
+
+  check(
+    'VAL-FV-008 native-replay stub harness renders shared presentation summary from the proof read model',
+    harness.presentationFocusMode === (state?.beamPresentationFrame?.focusMode ?? null)
+      && JSON.stringify([...harness.displaySatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.displaySatIds ?? [])].sort())
+      && JSON.stringify([...harness.beamSatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.beamSatIds ?? [])].sort())
+      && harness.presentationLine?.includes(`focus=${state?.beamPresentationFrame?.focusMode ?? 'none'}`),
+    JSON.stringify({
+      harnessFocus: harness.presentationFocusMode,
+      stateFocus: state?.beamPresentationFrame?.focusMode ?? null,
+      harnessDisplay: harness.displaySatIds,
+      stateDisplay: state?.beamPresentationFrame?.displaySatIds ?? [],
+      harnessBeams: harness.beamSatIds,
+      stateBeams: state?.beamPresentationFrame?.beamSatIds ?? [],
+      presentationLine: harness.presentationLine,
+    }),
+  );
+
+  check(
+    'VAL-FV-008 native-replay starter export publishes a deterministic path identity',
+    starter.mode === 'native-replay'
+      && starter.profileId === 'hobs-multibeam-baseline'
+      && starter.pathKind === 'native-replay'
+      && starter.deterministicPathReady
+      && starter.deterministicPathId === `native-replay:hobs-multibeam-baseline:${proof.replaySelection ?? ''}`
+      && starter.snapshotRelationship === 'same-reference'
+      && starter.sourceLine?.includes('path=native-replay'),
+    JSON.stringify(starter),
+  );
+
+  check(
+    'VAL-FV-008 native-replay starter export keeps truth and presentation summaries aligned',
+    starter.sceneServingSatId === proof.sceneServingSatId
+      && starter.publishedServingSatId === proof.publishedServingSatId
+      && starter.presentationFocusMode === (state?.beamPresentationFrame?.focusMode ?? null)
+      && JSON.stringify([...starter.displaySatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.displaySatIds ?? [])].sort())
+      && JSON.stringify([...starter.beamSatIds].sort())
+        === JSON.stringify([...(state?.beamPresentationFrame?.beamSatIds ?? [])].sort())
+      && starter.truthLine?.includes('snapshot=same-reference')
+      && starter.presentationLine?.includes(`focus=${state?.beamPresentationFrame?.focusMode ?? 'none'}`),
+    JSON.stringify({
+      starter,
+      proof,
+      frame: state?.beamPresentationFrame ?? null,
+    }),
+  );
+
+  check(
+    'VAL-FV-008 native-replay starter consumer panel adopts the named starter export',
+    starterPanel.mode === starter.mode
+      && starterPanel.profileId === starter.profileId
+      && starterPanel.pathKind === starter.pathKind
+      && starterPanel.deterministicPathReady === starter.deterministicPathReady
+      && starterPanel.deterministicPathId === starter.deterministicPathId
+      && starterPanel.sceneServingSatId === starter.sceneServingSatId
+      && starterPanel.publishedServingSatId === starter.publishedServingSatId
+      && starterPanel.snapshotRelationship === starter.snapshotRelationship,
+    JSON.stringify({ starter, starterPanel }),
+  );
+
+  check(
+    'VAL-FV-008 native-replay starter consumer panel keeps shared presentation summary aligned',
+    starterPanel.presentationFocusMode === starter.presentationFocusMode
+      && JSON.stringify([...starterPanel.displaySatIds].sort())
+        === JSON.stringify([...starter.displaySatIds].sort())
+      && JSON.stringify([...starterPanel.beamSatIds].sort())
+        === JSON.stringify([...starter.beamSatIds].sort())
+      && starterPanel.sourceLine === starter.sourceLine
+      && starterPanel.truthLine === starter.truthLine
+      && starterPanel.presentationLine === starter.presentationLine,
+    JSON.stringify({ starter, starterPanel }),
   );
 }
 

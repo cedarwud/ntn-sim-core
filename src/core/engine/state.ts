@@ -11,7 +11,7 @@ import type { EnergyLayer1Manager } from '../energy/layer1';
 import type { EnergyLayer2Manager } from '../energy/layer2';
 import type { EnergyEfficiencyMetrics } from '../energy/types';
 import type { PolicyAction, PolicyObservation } from '../policy/types';
-import type { HoLogEntry } from '../common/types';
+import type { HoLogEntry, PublishedServingTransition } from '../common/types';
 
 /**
  * Phase 5 Core Structural Split: SimEngine state definition.
@@ -52,6 +52,7 @@ export interface SimEngineState {
   lastDiscreteTickNumber: number | null;
   lastTickHoLog: HoLogEntry[];
   lastRepresentativeServing: { satId: string; beamId: string } | null;
+  lastPublishedServingTransitions: Record<string, PublishedServingTransition>;
 
   // Beam/Scheduler State
   isMultiBeam: boolean;

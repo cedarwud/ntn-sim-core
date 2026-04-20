@@ -1,5 +1,17 @@
 import type { SimEngineState } from './state';
-import type { SimulationSnapshot, SatelliteState, SatelliteBeamSnapshot, UeState, BhSlotSnapshot, DapsSnapshot, HoLogEntry, BeamRole, HoExplanation } from '../common/types';
+import type {
+  SimulationSnapshot,
+  SatelliteState,
+  SatelliteBeamSnapshot,
+  UeState,
+  BhSlotSnapshot,
+  DapsSnapshot,
+  HoLogEntry,
+  BeamRole,
+  HoExplanation,
+  PublishedServiceState,
+  PublishedServingTransition,
+} from '../common/types';
 import type { TrajectorySample } from '../orbit/types';
 import type { ServingState } from '../handover/types';
 import {
@@ -24,6 +36,31 @@ type ContinuityTruth = {
   continuityState: UeState['continuityState'] | null;
   continuityPhase: string | null;
 };
+
+function buildPublishedServiceState(
+  serving: ServingState | null,
+  hasEligibleService: boolean,
+): PublishedServiceState {
+  if (serving) {
+    return { state: 'serving' };
+  }
+  return hasEligibleService
+    ? { state: 'no-service', reason: 'no-eligible-service' }
+    : { state: 'no-service', reason: 'out-of-reach' };
+}
+
+function getPublishedServingTransition(
+  state: SimEngineState,
+  ueId: string,
+): PublishedServingTransition {
+  return state.lastPublishedServingTransitions[ueId] ?? {
+    kind: 'none',
+    sourceSatId: null,
+    sourceBeamId: null,
+    targetSatId: null,
+    targetBeamId: null,
+  };
+}
 
 function endpointFromServing(serving: ServingState | null | undefined): ContinuityEndpoint | null {
   return serving ? { satId: serving.satId, beamId: serving.beamId } : null;
@@ -178,6 +215,7 @@ export function runSnapshotStep(
     let ueSecondary: ContinuityEndpoint | null = null;
     let ueContinuityState: UeState['continuityState'] | null = null;
     let ueSinr: number | null = null;
+    const serviceCandidates = buildSortedUeCandidates(state, ue, satSinrs);
 
     if (independentHandover) {
       const mgr = hoManagers.get(ue.id);
@@ -201,7 +239,7 @@ export function runSnapshotStep(
     }
 
     if (independentHandover && ueServing) {
-      const postTickCandidate = buildSortedUeCandidates(state, ue, satSinrs).find(
+      const postTickCandidate = serviceCandidates.find(
         (candidate) =>
           candidate.satId === ueServing!.satId &&
           candidate.beamId === ueServing!.beamId,
@@ -221,6 +259,8 @@ export function runSnapshotStep(
       secondaryBeamId: ueSecondary?.beamId ?? null,
       continuityState: ueContinuityState ?? undefined,
       sinrDb: ueSinr,
+      servingTransition: getPublishedServingTransition(state, ue.id),
+      serviceState: buildPublishedServiceState(ueServing, serviceCandidates.length > 0),
     };
   });
 

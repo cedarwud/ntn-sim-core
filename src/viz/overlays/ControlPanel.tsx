@@ -5,12 +5,13 @@
  * so users can interact with controls.
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
+import type { SceneMode } from '@/app/hooks/useSceneQueryState';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import { getProfileList } from '@/core/contracts/exposure-v1';
 import { DEFAULT_INTERACTIVE_PROFILE_ID } from '@/core/profiles/default-profile';
 
-export type ControlPanelSceneMode = 'native-live' | 'native-replay' | 'modqn-bundle';
+export type ControlPanelSceneMode = SceneMode;
 export type ControlPanelBundleSourceKind = 'sample' | 'external-directory';
 export type ControlPanelBundleLoadState =
   | 'boot-loading-sample'
@@ -20,7 +21,58 @@ export type ControlPanelBundleLoadState =
   | 'ready-external-directory'
   | 'resetting-to-sample';
 
+export interface ControlPanelCapabilities {
+  profileSelection: boolean;
+  hoTypeOverride: boolean;
+  hoSlow: boolean;
+  labels: boolean;
+  sinrChart: boolean;
+  hoLog: boolean;
+  sinrCdf: boolean;
+  elevScatter: boolean;
+  parametersPanel: boolean;
+  bundleMetadataPanel: boolean;
+  kpiExport: boolean;
+  baselineResults: boolean;
+  bundleSourceLoad: boolean;
+  bundleSourceReset: boolean;
+  bundleStepBackward: boolean;
+  bundleStepForward: boolean;
+}
+
+export interface ControlPanelSections {
+  modeSelector: boolean;
+  profileSelector: boolean;
+  hoTypeSelector: boolean;
+  hoSlowToggle: boolean;
+  labelsToggle: boolean;
+  sinrChartToggle: boolean;
+  hoLogToggle: boolean;
+  sinrCdfToggle: boolean;
+  elevScatterToggle: boolean;
+  bundleStepper: boolean;
+  bundleSourceActions: boolean;
+  bundleSourceState: boolean;
+  bundleLoadError: boolean;
+  bundleMetadataToggle: boolean;
+  parametersToggle: boolean;
+  exportKpiButton: boolean;
+  baselineResultsButton: boolean;
+  actionButtons: boolean;
+}
+
+export interface ControlPanelSurfaceModel {
+  mode: ControlPanelSceneMode;
+  variant: 'native' | 'bundle';
+  capabilities: ControlPanelCapabilities;
+  sections: ControlPanelSections;
+  truthNote: string;
+  bundleSourceDisclosure: string | null;
+  bundleLoadErrorMessage: string | null;
+}
+
 export interface ControlPanelProps {
+  surface: ControlPanelSurfaceModel;
   speed: number;
   onSpeedChange: (speed: number) => void;
   effectiveSpeed?: number;
@@ -32,7 +84,7 @@ export interface ControlPanelProps {
   showBeams: boolean;
   onShowBeamsToggle: () => void;
   showLabels: boolean;
-  onShowLabelsToggle: () => void;
+  onShowLabelsToggle?: () => void;
   replayMode?: boolean;
   onReplayToggle?: () => void;
   sceneMode?: ControlPanelSceneMode;
@@ -169,6 +221,7 @@ const checkboxLabelStyle: React.CSSProperties = {
 };
 
 export const ControlPanel = React.memo(function ControlPanel({
+  surface,
   speed,
   onSpeedChange,
   effectiveSpeed = speed,
@@ -181,9 +234,7 @@ export const ControlPanel = React.memo(function ControlPanel({
   onShowBeamsToggle,
   showLabels,
   onShowLabelsToggle,
-  replayMode,
   onReplayToggle,
-  sceneMode,
   onSceneModeChange,
   showSinrChart = true,
   onShowSinrChartToggle,
@@ -203,10 +254,7 @@ export const ControlPanel = React.memo(function ControlPanel({
   onHoTypeOverrideChange,
   profileId,
   onProfileChange,
-  bundleSourceKind = 'sample',
-  bundleLoadState = 'ready-sample',
   bundleIsLoading = false,
-  bundleLoadError = null,
   bundleSourceLabel,
   bundleCurrentSlotIndex,
   bundleSlotCount,
@@ -216,16 +264,10 @@ export const ControlPanel = React.memo(function ControlPanel({
   onBundleStepForward,
 }: ControlPanelProps) {
   const bundleDirectoryInputRef = useRef<HTMLInputElement | null>(null);
-  const resolvedSceneMode = sceneMode ?? (replayMode ? 'native-replay' : 'native-live');
-  const isBundleMode = resolvedSceneMode === 'modqn-bundle';
+  const resolvedSceneMode = surface.mode;
+  const isBundleMode = surface.variant === 'bundle';
   const isNativeReplayMode = resolvedSceneMode === 'native-replay';
-  const canResetBundleSource = Boolean(
-    onResetBundleSource
-    && (!bundleIsLoading && (bundleSourceKind === 'external-directory' || bundleLoadError)),
-  );
-  const bundleLoadErrorPrefix = bundleLoadState === 'boot-load-failed'
-    ? 'Bundle source is not ready.'
-    : 'The current valid replay bundle stayed active.';
+  const { capabilities, sections } = surface;
   const resolvedContainerStyle: React.CSSProperties = isBundleMode
     ? {
         ...containerStyle,
@@ -251,9 +293,9 @@ export const ControlPanel = React.memo(function ControlPanel({
   }, [onSceneModeChange]);
 
   const handleSelectBundleDirectory = useCallback(() => {
-    if (bundleIsLoading || !onLoadExternalBundleDirectory) return;
+    if (!capabilities.bundleSourceLoad) return;
     bundleDirectoryInputRef.current?.click();
-  }, [bundleIsLoading, onLoadExternalBundleDirectory]);
+  }, [capabilities.bundleSourceLoad]);
 
   const handleBundleDirectoryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -264,25 +306,9 @@ export const ControlPanel = React.memo(function ControlPanel({
   }, [onLoadExternalBundleDirectory]);
 
   const handleResetBundleSource = useCallback(() => {
-    if (!canResetBundleSource) return;
+    if (!capabilities.bundleSourceReset) return;
     void onResetBundleSource?.();
-  }, [canResetBundleSource, onResetBundleSource]);
-
-  const bundleSourceDisclosure = useMemo(() => {
-    if (bundleLoadState === 'loading-external-directory') {
-      return 'Loading external-directory bundle. Keeping the current valid replay bundle active.';
-    }
-    if (bundleLoadState === 'resetting-to-sample') {
-      return 'Resetting to sample baseline.';
-    }
-    if (bundleLoadState === 'boot-load-failed') {
-      return 'Sample baseline boot failed before bundle truth became ready.';
-    }
-    if (bundleSourceKind === 'external-directory') {
-      return `Current bundle source: external-directory (${bundleSourceLabel ?? 'local selection'}).`;
-    }
-    return 'Current bundle source: sample baseline. Default boot path and reset target.';
-  }, [bundleLoadState, bundleSourceKind, bundleSourceLabel]);
+  }, [capabilities.bundleSourceReset, onResetBundleSource]);
 
   const selectStyle: React.CSSProperties = {
     background: '#222',
@@ -319,7 +345,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       <div style={titleStyle}>NTN-SIM-CORE</div>
       <div style={separatorStyle}>{'─'.repeat(36)}</div>
 
-      {(onSceneModeChange || onReplayToggle) && (
+      {sections.modeSelector && (
         <div style={rowStyle}>
           <span style={labelStyle}>Mode:</span>
           {onSceneModeChange ? (
@@ -362,7 +388,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       )}
 
       {/* Profile selector (spec §10 Realistic/Advanced/Sensitivity tiers) */}
-      {onProfileChange && !isBundleMode && (
+      {sections.profileSelector && (
         <div style={rowStyle}>
           <span style={labelStyle}>Profile:</span>
           <select
@@ -388,7 +414,7 @@ export const ControlPanel = React.memo(function ControlPanel({
           Advanced:  SINR-Offset, CHO, Timer-CHO, MC-HO, DAPS, Hard-HO
           The shipped UI default profile is DAPS-driven, but the override taxonomy
           still follows spec H8 for the individual HO families. */}
-      {onHoTypeOverrideChange && !isBundleMode && (
+      {sections.hoTypeSelector && (
         <div style={rowStyle}>
           <span style={labelStyle}>HO:</span>
           <select
@@ -440,7 +466,7 @@ export const ControlPanel = React.memo(function ControlPanel({
         <button style={btnBase} onClick={onPauseToggle}>
           {paused ? '\u25B6 Play' : '\u23F8 Pause'}
         </button>
-        {onHoSlowToggle && !isBundleMode && (
+        {sections.hoSlowToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-ho-slow"
@@ -464,64 +490,64 @@ export const ControlPanel = React.memo(function ControlPanel({
           />
           Show Beams
         </label>
-        {!isBundleMode && (
+        {sections.labelsToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-show-labels"
               type="checkbox"
               checked={showLabels}
-              onChange={onShowLabelsToggle}
-            />
-            Show Labels
-          </label>
+            onChange={onShowLabelsToggle}
+          />
+          Show Labels
+        </label>
         )}
-        {!isBundleMode && onShowSinrChartToggle && (
+        {sections.sinrChartToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-sinr-chart"
               type="checkbox"
               checked={showSinrChart}
-              onChange={onShowSinrChartToggle}
-            />
-            SINR Chart
-          </label>
+            onChange={onShowSinrChartToggle}
+          />
+          SINR Chart
+        </label>
         )}
-        {!isBundleMode && onShowHoLogToggle && (
+        {sections.hoLogToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-ho-log"
               type="checkbox"
               checked={showHoLog}
-              onChange={onShowHoLogToggle}
-            />
-            HO Log
-          </label>
+            onChange={onShowHoLogToggle}
+          />
+          HO Log
+        </label>
         )}
-        {!isBundleMode && onShowSinrCdfToggle && (
+        {sections.sinrCdfToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-sinr-cdf"
               type="checkbox"
               checked={showSinrCdf}
-              onChange={onShowSinrCdfToggle}
-            />
-            SINR CDF
-          </label>
+            onChange={onShowSinrCdfToggle}
+          />
+          SINR CDF
+        </label>
         )}
-        {!isBundleMode && onShowElevScatterToggle && (
+        {sections.elevScatterToggle && (
           <label style={checkboxLabelStyle}>
             <input
               data-testid="toggle-elev-scatter"
               type="checkbox"
               checked={showElevScatter}
-              onChange={onShowElevScatterToggle}
-            />
-            Elev Scatter
-          </label>
+            onChange={onShowElevScatterToggle}
+          />
+          Elev Scatter
+        </label>
         )}
       </div>
 
-      {isBundleMode && (bundleSourceLabel || onBundleStepBackward || onBundleStepForward) && (
+      {sections.bundleStepper && (
         <div style={rowStyle}>
           <span style={labelStyle}>Bundle:</span>
           <span
@@ -535,7 +561,7 @@ export const ControlPanel = React.memo(function ControlPanel({
             data-testid="bundle-step-backward"
             style={btnBase}
             onClick={onBundleStepBackward}
-            disabled={!onBundleStepBackward}
+            disabled={!capabilities.bundleStepBackward}
           >
             ◀ Slot
           </button>
@@ -546,21 +572,21 @@ export const ControlPanel = React.memo(function ControlPanel({
             data-testid="bundle-step-forward"
             style={btnBase}
             onClick={onBundleStepForward}
-            disabled={!onBundleStepForward}
+            disabled={!capabilities.bundleStepForward}
           >
             Slot ▶
           </button>
         </div>
       )}
 
-      {isBundleMode && (
+      {sections.bundleSourceActions && (
         <div style={{ ...rowStyle, flexWrap: 'wrap' }}>
           <span style={labelStyle}>Source:</span>
           <button
             data-testid="load-external-bundle"
             style={btnSecondaryStyle}
             onClick={handleSelectBundleDirectory}
-            disabled={!onLoadExternalBundleDirectory || bundleIsLoading}
+            disabled={!capabilities.bundleSourceLoad}
             title="Select a local MODQN replay bundle directory from the browser"
           >
             Load Bundle...
@@ -569,7 +595,7 @@ export const ControlPanel = React.memo(function ControlPanel({
             data-testid="reset-bundle-source"
             style={btnSecondaryStyle}
             onClick={handleResetBundleSource}
-            disabled={!canResetBundleSource}
+            disabled={!capabilities.bundleSourceReset}
             title="Restore the shipped sample bundle baseline"
           >
             Reset To Sample
@@ -580,42 +606,41 @@ export const ControlPanel = React.memo(function ControlPanel({
         </div>
       )}
 
-      {isBundleMode && (
+      {sections.bundleSourceState && (
         <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
           <span style={labelStyle}>State:</span>
           <span data-testid="bundle-source-note" style={{ color: '#a7b6c7', fontSize: 12, maxWidth: 260 }}>
-            {bundleSourceDisclosure}
+            {surface.bundleSourceDisclosure}
           </span>
         </div>
       )}
 
-      {isBundleMode && bundleLoadError && (
+      {sections.bundleLoadError && surface.bundleLoadErrorMessage && (
         <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
           <span style={labelStyle}>Error:</span>
           <span
             data-testid="bundle-load-error"
             style={{ color: '#ff9f80', fontSize: 12, maxWidth: 260 }}
           >
-            {bundleLoadErrorPrefix} {bundleLoadError}
+            {surface.bundleLoadErrorMessage}
           </span>
         </div>
       )}
 
       {/* KPI Export + baseline viewer */}
-      {(onExportKpi || onOpenBaselineResults || onShowBundleMetadataToggle || onShowParametersToggle) && (
+      {sections.actionButtons && (
         <div style={rowStyle}>
-          {isBundleMode ? (
-            onShowBundleMetadataToggle && (
-              <button
-                data-testid="toggle-bundle-metadata-panel"
-                style={showBundleMetadata ? btnActive : btnSecondaryStyle}
-                onClick={onShowBundleMetadataToggle}
-                title="Show or hide bundle assumptions, provenance, and training/evaluation disclosure"
-              >
-                Disclosure
-              </button>
-            )
-          ) : onShowParametersToggle && (
+          {sections.bundleMetadataToggle && (
+            <button
+              data-testid="toggle-bundle-metadata-panel"
+              style={showBundleMetadata ? btnActive : btnSecondaryStyle}
+              onClick={onShowBundleMetadataToggle}
+              title="Show or hide bundle assumptions, provenance, and training/evaluation disclosure"
+            >
+              Disclosure
+            </button>
+          )}
+          {sections.parametersToggle && (
             <button
               data-testid="toggle-parameters-panel"
               style={showParameters ? btnActive : btnSecondaryStyle}
@@ -625,7 +650,7 @@ export const ControlPanel = React.memo(function ControlPanel({
               Parameters
             </button>
           )}
-          {!isBundleMode && onExportKpi && (
+          {sections.exportKpiButton && onExportKpi && (
             <button
               data-testid="export-kpi"
               style={btnBase}
@@ -635,7 +660,7 @@ export const ControlPanel = React.memo(function ControlPanel({
               Export KPI
             </button>
           )}
-          {!isBundleMode && onOpenBaselineResults && (
+          {sections.baselineResultsButton && onOpenBaselineResults && (
             <button
               data-testid="open-baseline-results"
               style={profileId === 'modqn-paper-baseline' ? { ...btnSecondaryStyle, borderColor: '#00d4ff', color: '#00d4ff' } : btnSecondaryStyle}
@@ -651,11 +676,7 @@ export const ControlPanel = React.memo(function ControlPanel({
       <div style={{ ...rowStyle, marginBottom: 0 }}>
         <span style={labelStyle}>Truth:</span>
         <span data-testid="truth-source-note" style={{ color: '#a7b6c7', fontSize: 12 }}>
-          {isBundleMode
-            ? 'MODQN producer export bundle replay. Leave bundle mode for native panels.'
-            : isNativeReplayMode
-              ? 'Native simulator truth recorded into replay window'
-              : 'Native simulator truth from live engine'}
+          {surface.truthNote}
         </span>
       </div>
     </div>

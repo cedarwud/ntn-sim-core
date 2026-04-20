@@ -181,14 +181,19 @@ export function useSimulation(
       if (lastProcessedTick !== null && tickNumber > lastProcessedTick + 1) {
         for (let missedTick = lastProcessedTick + 1; missedTick < tickNumber; missedTick += 1) {
           const missedSnap = engine.tick(missedTick * stepSec, missedTick);
-          if (publishedSnap === null && getTransientTruthHoldMs(missedSnap) > 0) {
+          // Keep the latest transient missed tick so browser publication can
+          // progress through prepared/dual-active/post-switch instead of
+          // pinning to the earliest transient in a collapsed catch-up window.
+          if (getTransientTruthHoldMs(missedSnap) > 0) {
             publishedSnap = missedSnap;
           }
         }
       }
 
       const finalSnap = engine.tick(timeSec, tickNumber);
-      const candidateSnap = publishedSnap ?? finalSnap;
+      const candidateSnap = getTransientTruthHoldMs(finalSnap) > 0
+        ? finalSnap
+        : (publishedSnap ?? finalSnap);
       const snap = publishWithTransientTruthHold({
         candidateSnapshot: candidateSnap,
         nowMs: now,

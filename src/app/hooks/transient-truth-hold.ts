@@ -9,6 +9,7 @@ export function getTransientTruthHoldMs(
 ): number {
   const continuityState = snapshot?.ues[0]?.continuityState ?? null;
   const phase = snapshot?.daps?.phase ?? null;
+  const transitionKind = snapshot?.ues[0]?.servingTransition?.kind ?? null;
 
   if (continuityState === 'dual-active' || phase === 'dual-active') {
     return DUAL_ACTIVE_VISUAL_HOLD_MS;
@@ -16,7 +17,10 @@ export function getTransientTruthHoldMs(
   if (continuityState === 'prepared' || phase === 'prepared') {
     return PREPARED_VISUAL_HOLD_MS;
   }
-  if (continuityState === 'post-ho') {
+  if (
+    continuityState === 'post-ho'
+    || transitionKind === 'inter-satellite-handover'
+  ) {
     return POST_HO_VISUAL_HOLD_MS;
   }
   return 0;

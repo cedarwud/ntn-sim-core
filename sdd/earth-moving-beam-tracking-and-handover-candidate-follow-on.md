@@ -182,11 +182,21 @@ families and thresholds if:
 
 ### 6.3 Same-Satellite Beam Switching
 
-This follow-on should stop treating same-satellite beam movement as a purely
-invisible side-effect when doing so hides research-relevant behavior.
+The narrow Task 4 published-semantics prerequisite is already landed in the
+current tree: `UeState.servingTransition.kind` now distinguishes
+`same-satellite-beam-switch` from `inter-satellite-handover`, and
+`UeState.serviceState` now distinguishes `out-of-reach` from
+`no-eligible-service`.
+
+This follow-on should therefore stop treating same-satellite beam movement as a
+purely invisible side-effect when doing so hides research-relevant behavior,
+but it no longer needs to solve the basic truth-vs-presentation publication
+split from scratch.
 
 The first landing does **not** need to count every same-satellite beam change as
-a cross-satellite HO, but it should at least make one of the following true:
+a cross-satellite HO. The current tree already satisfies (1) below; any
+promoted first landing should preserve that baseline and may additionally make
+(2) more visible:
 
 1. explicit beam-switch events exist in the log / snapshot truth, or
 2. the explainability / overlay layer clearly distinguishes:

@@ -192,6 +192,38 @@ export type ContinuityState =
   | 'post-ho';
 
 /**
+ * Published serving-transition semantics for external consumers.
+ *
+ * These values intentionally distinguish inter-satellite HO from
+ * same-satellite tracked-beam updates so consumers do not need to infer
+ * handover meaning from raw beamId changes.
+ */
+export type ServingTransitionKind =
+  | 'none'
+  | 'inter-satellite-handover'
+  | 'same-satellite-beam-switch';
+
+export interface PublishedServingTransition {
+  kind: ServingTransitionKind;
+  sourceSatId: string | null;
+  sourceBeamId: string | null;
+  targetSatId: string | null;
+  targetBeamId: string | null;
+}
+
+/**
+ * Minimal published service-state semantics for external consumers.
+ *
+ * `out-of-reach` means the current snapshot exposes no service-eligible
+ * candidate. `no-eligible-service` means service-eligible candidates exist, but
+ * the UE is still currently unserved by the runtime.
+ */
+export interface PublishedServiceState {
+  state: 'serving' | 'no-service';
+  reason?: 'out-of-reach' | 'no-eligible-service';
+}
+
+/**
  * Handover event entry for the HO event log overlay.
  * Emitted per tick — overlays accumulate them into a running log.
  */
@@ -301,4 +333,8 @@ export interface UeState {
   continuityState?: ContinuityState;
   /** Per-UE serving SINR truth in dB (null if unserved). Emitted by engine, never recomputed in frontend. */
   sinrDb: number | null;
+  /** Published engine truth for serving-link transitions in this snapshot tick. */
+  servingTransition?: PublishedServingTransition;
+  /** Published engine truth for explicit service/no-service semantics. */
+  serviceState?: PublishedServiceState;
 }

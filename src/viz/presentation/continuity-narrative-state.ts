@@ -143,11 +143,19 @@ export function buildContinuityNarrativeState(
   const currentServingSatId = primaryUe?.servingSatId ?? null;
   const rawTargetSatId = primaryUe?.targetSatId ?? null;
   const rawSecondarySatId = primaryUe?.secondarySatId ?? null;
-  const servingChanged = Boolean(
-    previous?.servingSatId
-      && currentServingSatId
-      && previous.servingSatId !== currentServingSatId,
-  );
+  const publishedTransition = primaryUe?.servingTransition;
+  const hasPublishedTransition = publishedTransition !== undefined;
+  const servingChanged = hasPublishedTransition
+    ? publishedTransition.kind === 'inter-satellite-handover'
+    : Boolean(
+      previous?.servingSatId
+        && currentServingSatId
+        && previous.servingSatId !== currentServingSatId,
+    );
+  const publishedPostSwitchSourceSatId = servingChanged
+    ? publishedTransition?.sourceSatId ?? null
+    : null;
+  const publishedServiceState = primaryUe?.serviceState?.state ?? null;
 
   let {
     recentSourceSatId,
@@ -155,10 +163,10 @@ export function buildContinuityNarrativeState(
     cooledDownSatIds,
   } = carryForwardIfActive(previous, timeSec);
 
-  if (servingChanged && previous?.servingSatId) {
-    recentSourceSatId = previous.servingSatId;
+  if (servingChanged && (publishedPostSwitchSourceSatId ?? previous?.servingSatId)) {
+    recentSourceSatId = publishedPostSwitchSourceSatId ?? previous?.servingSatId ?? null;
     sourceCooldownUntilSec = timeSec + SOURCE_COOLDOWN_SEC;
-    cooledDownSatIds = [previous.servingSatId];
+    cooledDownSatIds = recentSourceSatId ? [recentSourceSatId] : [];
   }
 
   const cooldownSuppressedTargetSatId = (
@@ -224,7 +232,7 @@ export function buildContinuityNarrativeState(
   }
 
   if (rawPhase === 'post-switch' || servingChanged) {
-    const postHoSatId = rawTargetSatId ?? recentSourceSatId;
+    const postHoSatId = publishedPostSwitchSourceSatId ?? rawTargetSatId ?? recentSourceSatId;
     return buildBaseState({
       phase: 'post-switch',
       timeSec,
@@ -238,6 +246,27 @@ export function buildContinuityNarrativeState(
       sourceSatId: postHoSatId,
       targetSatId: currentServingSatId,
       postHoSatId,
+      recentSourceSatId,
+      sourceCooldownUntilSec,
+      cooledDownSatIds,
+      cooldownSuppressedTargetSatId: null,
+    });
+  }
+
+  if (publishedServiceState === 'no-service') {
+    return buildBaseState({
+      phase: 'stable',
+      timeSec,
+      phaseStartedAtSec:
+        previous?.phase === 'stable' && previous.servingSatId === null
+          ? previous.phaseStartedAtSec
+          : timeSec,
+      rawContinuityState,
+      rawDapsPhase,
+      servingSatId: null,
+      sourceSatId: null,
+      targetSatId: null,
+      postHoSatId: null,
       recentSourceSatId,
       sourceCooldownUntilSec,
       cooledDownSatIds,

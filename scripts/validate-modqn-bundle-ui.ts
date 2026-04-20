@@ -701,6 +701,222 @@ async function readBundleTruthAlignment(page: Page) {
   };
 }
 
+async function readSceneConsumerProof(page: Page) {
+  await page.waitForFunction(() => {
+    return document.querySelector('[data-testid="scene-consumer-proof"]') !== null;
+  }, undefined, { timeout: 15_000 });
+
+  return {
+    mode: await getByTestIdAttr(page, 'scene-consumer-proof', 'data-mode'),
+    profileId: await getByTestIdAttr(page, 'scene-consumer-proof', 'data-profile-id'),
+    truthSourceLabel: await getByTestIdAttr(page, 'scene-consumer-proof', 'data-truth-source-label'),
+    bundleSlotIndex: parseInteger(
+      await getByTestIdAttr(page, 'scene-consumer-proof', 'data-bundle-slot-index'),
+    ),
+    bundleSlotCount: parseInteger(
+      await getByTestIdAttr(page, 'scene-consumer-proof', 'data-bundle-slot-count'),
+    ),
+    sceneServingSatId: await getByTestIdAttr(page, 'scene-consumer-proof', 'data-scene-serving-sat-id'),
+    publishedServingSatId: await getByTestIdAttr(page, 'scene-consumer-proof', 'data-published-serving-sat-id'),
+    nativeServingTransitionKind: await getByTestIdAttr(
+      page,
+      'scene-consumer-proof',
+      'data-native-serving-transition-kind',
+    ),
+    bundleProducerHandoverKind: await getByTestIdAttr(
+      page,
+      'scene-consumer-proof',
+      'data-bundle-producer-handover-kind',
+    ),
+    presentationFocusMode: await getByTestIdAttr(
+      page,
+      'scene-consumer-proof',
+      'data-presentation-focus-mode',
+    ),
+    presentationNarrativePhase: await getByTestIdAttr(
+      page,
+      'scene-consumer-proof',
+      'data-presentation-narrative-phase',
+    ),
+    displaySatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-proof', 'data-display-sat-ids'),
+    ),
+    beamSatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-proof', 'data-beam-sat-ids'),
+    ),
+  };
+}
+
+async function readSceneConsumerHarness(page: Page) {
+  await page.waitForFunction(() => {
+    return document.querySelector('[data-testid="scene-consumer-harness"]') !== null;
+  }, undefined, { timeout: 15_000 });
+
+  return {
+    mode: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-mode'),
+    profileId: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-profile-id'),
+    pathKind: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-path-kind'),
+    truthSourceLabel: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-truth-source-label'),
+    sceneServingSatId: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-scene-serving-sat-id'),
+    publishedServingSatId: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-published-serving-sat-id'),
+    snapshotRelationship: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-snapshot-relationship'),
+    bundleProducerHandoverKind: await getByTestIdAttr(
+      page,
+      'scene-consumer-harness',
+      'data-bundle-producer-handover-kind',
+    ),
+    presentationFocusMode: await getByTestIdAttr(
+      page,
+      'scene-consumer-harness',
+      'data-presentation-focus-mode',
+    ),
+    presentationNarrativePhase: await getByTestIdAttr(
+      page,
+      'scene-consumer-harness',
+      'data-presentation-narrative-phase',
+    ),
+    displaySatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-harness', 'data-display-sat-ids'),
+    ),
+    beamSatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-harness', 'data-beam-sat-ids'),
+    ),
+    sourceLine: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-source-line'),
+    truthLine: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-truth-line'),
+    presentationLine: await getByTestIdAttr(page, 'scene-consumer-harness', 'data-presentation-line'),
+  };
+}
+
+async function readSceneConsumerStarter(page: Page) {
+  await page.waitForFunction(() => {
+    return document.querySelector('[data-testid="scene-consumer-starter"]') !== null;
+  }, undefined, { timeout: 15_000 });
+
+  return {
+    mode: await getByTestIdAttr(page, 'scene-consumer-starter', 'data-mode'),
+    profileId: await getByTestIdAttr(page, 'scene-consumer-starter', 'data-profile-id'),
+    pathKind: await getByTestIdAttr(page, 'scene-consumer-starter', 'data-path-kind'),
+    deterministicPathId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-deterministic-path-id',
+    ),
+    deterministicPathReady: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-deterministic-path-ready',
+    ),
+    truthSourceLabel: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-truth-source-label',
+    ),
+    sceneServingSatId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-scene-serving-sat-id',
+    ),
+    publishedServingSatId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-published-serving-sat-id',
+    ),
+    snapshotRelationship: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-snapshot-relationship',
+    ),
+    bundleProducerHandoverKind: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-bundle-producer-handover-kind',
+    ),
+    presentationFocusMode: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-presentation-focus-mode',
+    ),
+    presentationNarrativePhase: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-presentation-narrative-phase',
+    ),
+    displaySatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-starter', 'data-display-sat-ids'),
+    ),
+    beamSatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-starter', 'data-beam-sat-ids'),
+    ),
+    sourceLine: await getByTestIdAttr(page, 'scene-consumer-starter', 'data-source-line'),
+    truthLine: await getByTestIdAttr(page, 'scene-consumer-starter', 'data-truth-line'),
+    presentationLine: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter',
+      'data-presentation-line',
+    ),
+  };
+}
+
+async function readSceneConsumerStarterPanel(page: Page) {
+  await page.waitForFunction(() => {
+    return document.querySelector('[data-testid="scene-consumer-starter-panel"]') !== null;
+  }, undefined, { timeout: 15_000 });
+
+  return {
+    mode: await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-mode'),
+    profileId: await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-profile-id'),
+    pathKind: await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-path-kind'),
+    deterministicPathId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-deterministic-path-id',
+    ),
+    deterministicPathReady: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-deterministic-path-ready',
+    ),
+    truthSourceLabel: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-truth-source-label',
+    ),
+    sceneServingSatId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-scene-serving-sat-id',
+    ),
+    publishedServingSatId: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-published-serving-sat-id',
+    ),
+    snapshotRelationship: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-snapshot-relationship',
+    ),
+    presentationFocusMode: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-presentation-focus-mode',
+    ),
+    displaySatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-display-sat-ids'),
+    ),
+    beamSatIds: parseJsonAttr<string[]>(
+      await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-beam-sat-ids'),
+    ),
+    sourceLine: await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-source-line'),
+    truthLine: await getByTestIdAttr(page, 'scene-consumer-starter-panel', 'data-truth-line'),
+    presentationLine: await getByTestIdAttr(
+      page,
+      'scene-consumer-starter-panel',
+      'data-presentation-line',
+    ),
+  };
+}
+
 async function readPolicyDiagnosticsSurface(page: Page) {
   const panel = page.locator('[data-testid="bundle-policy-diagnostics-panel"]');
   if (await panel.count() === 0) {
@@ -991,6 +1207,10 @@ async function validateBundleMode(page: Page) {
   const handoverStyleKeys = parseJsonAttr<string[]>(
     await getByTestIdAttr(page, 'validation-handover-links', 'data-style-keys'),
   );
+  const sceneConsumerProof = await readSceneConsumerProof(page);
+  const sceneConsumerHarness = await readSceneConsumerHarness(page);
+  const sceneConsumerStarter = await readSceneConsumerStarter(page);
+  const sceneConsumerStarterPanel = await readSceneConsumerStarterPanel(page);
 
   check(
     'VAL-MODQN-BUNDLE-002A bundle mode publishes MODQN bundle runtime identity',
@@ -1059,6 +1279,74 @@ async function validateBundleMode(page: Page) {
     JSON.stringify(handoverStyleKeys),
   );
   check(
+    'VAL-MODQN-BUNDLE-002C scene-consumer proof surface reads facade source/truth/presentation without shell imports',
+    sceneConsumerProof.mode === 'modqn-bundle'
+      && sceneConsumerProof.profileId === MODQN_BUNDLE_PROFILE_ID
+      && sceneConsumerProof.truthSourceLabel === runtimeTruthSourceLabel
+      && sceneConsumerProof.sceneServingSatId === runtimeServingSatId
+      && sceneConsumerProof.publishedServingSatId === runtimeServingSatId
+      && sceneConsumerProof.presentationFocusMode.length > 0
+      && sceneConsumerProof.displaySatIds.includes(runtimeServingSatId)
+      && sceneConsumerProof.beamSatIds.length >= 1,
+    JSON.stringify(sceneConsumerProof),
+  );
+  check(
+    'VAL-MODQN-BUNDLE-002C stub harness consumes the bundle-sample contract without shell helpers',
+    sceneConsumerHarness.mode === 'modqn-bundle'
+      && sceneConsumerHarness.profileId === MODQN_BUNDLE_PROFILE_ID
+      && sceneConsumerHarness.pathKind === 'bundle-sample'
+      && sceneConsumerHarness.truthSourceLabel === runtimeTruthSourceLabel
+      && sceneConsumerHarness.sceneServingSatId === runtimeServingSatId
+      && sceneConsumerHarness.publishedServingSatId === runtimeServingSatId
+      && sceneConsumerHarness.presentationFocusMode.length > 0
+      && sceneConsumerHarness.displaySatIds.includes(runtimeServingSatId)
+      && sceneConsumerHarness.beamSatIds.length >= 1
+      && sceneConsumerHarness.sourceLine.includes('path=bundle-sample'),
+    JSON.stringify(sceneConsumerHarness),
+  );
+  check(
+    'VAL-MODQN-BUNDLE-002C starter export names a deterministic bundle-sample entry without shell helpers',
+    sceneConsumerStarter.mode === 'modqn-bundle'
+      && sceneConsumerStarter.profileId === MODQN_BUNDLE_PROFILE_ID
+      && sceneConsumerStarter.pathKind === 'bundle-sample'
+      && sceneConsumerStarter.deterministicPathReady === 'true'
+      && sceneConsumerStarter.deterministicPathId === `bundle-sample:${runtimeTruthSourceLabel}`
+      && sceneConsumerStarter.truthSourceLabel === runtimeTruthSourceLabel
+      && sceneConsumerStarter.sceneServingSatId === runtimeServingSatId
+      && sceneConsumerStarter.publishedServingSatId === runtimeServingSatId
+      && sceneConsumerStarter.snapshotRelationship === 'distinct-reference'
+      && sceneConsumerStarter.presentationFocusMode.length > 0
+      && sceneConsumerStarter.displaySatIds.includes(runtimeServingSatId)
+      && sceneConsumerStarter.beamSatIds.length >= 1
+      && sceneConsumerStarter.sourceLine.includes('path=bundle-sample'),
+    JSON.stringify(sceneConsumerStarter),
+  );
+  check(
+    'VAL-MODQN-BUNDLE-002C starter consumer panel adopts the deterministic bundle-sample export',
+    sceneConsumerStarterPanel.mode === sceneConsumerStarter.mode
+      && sceneConsumerStarterPanel.profileId === sceneConsumerStarter.profileId
+      && sceneConsumerStarterPanel.pathKind === sceneConsumerStarter.pathKind
+      && sceneConsumerStarterPanel.deterministicPathReady === sceneConsumerStarter.deterministicPathReady
+      && sceneConsumerStarterPanel.deterministicPathId === sceneConsumerStarter.deterministicPathId
+      && sceneConsumerStarterPanel.truthSourceLabel === sceneConsumerStarter.truthSourceLabel
+      && sceneConsumerStarterPanel.sceneServingSatId === sceneConsumerStarter.sceneServingSatId
+      && sceneConsumerStarterPanel.publishedServingSatId === sceneConsumerStarter.publishedServingSatId
+      && sceneConsumerStarterPanel.snapshotRelationship === sceneConsumerStarter.snapshotRelationship,
+    JSON.stringify(sceneConsumerStarterPanel),
+  );
+  check(
+    'VAL-MODQN-BUNDLE-002C starter consumer panel keeps starter truth/presentation summaries aligned',
+    sceneConsumerStarterPanel.presentationFocusMode === sceneConsumerStarter.presentationFocusMode
+      && JSON.stringify([...sceneConsumerStarterPanel.displaySatIds].sort())
+        === JSON.stringify([...sceneConsumerStarter.displaySatIds].sort())
+      && JSON.stringify([...sceneConsumerStarterPanel.beamSatIds].sort())
+        === JSON.stringify([...sceneConsumerStarter.beamSatIds].sort())
+      && sceneConsumerStarterPanel.sourceLine === sceneConsumerStarter.sourceLine
+      && sceneConsumerStarterPanel.truthLine === sceneConsumerStarter.truthLine
+      && sceneConsumerStarterPanel.presentationLine === sceneConsumerStarter.presentationLine,
+    JSON.stringify(sceneConsumerStarterPanel),
+  );
+  check(
     'VAL-MODQN-BUNDLE-002D compact mode hides native-first panels by default',
     metadataPanelCountBeforeDisclosure === 0 && simHudCount === 0 && parameterPanelCount === 0,
     `metadataPanel=${metadataPanelCountBeforeDisclosure}, simHud=${simHudCount}, parameterPanel=${parameterPanelCount}`,
@@ -1123,6 +1411,73 @@ async function validateBundleMode(page: Page) {
     observedHandover,
     observedHandover ? 'handovers > 0 reached during slot stepping' : 'no handover observed within sample bundle window',
   );
+  if (observedHandover) {
+    const proofAfterHandover = await readSceneConsumerProof(page);
+    const harnessAfterHandover = await readSceneConsumerHarness(page);
+    const starterAfterHandover = await readSceneConsumerStarter(page);
+    const starterPanelAfterHandover = await readSceneConsumerStarterPanel(page);
+    const proofRuntimeHandoverKind = await getByTestIdAttr(
+      page,
+      'validation-runtime',
+      'data-bundle-handover-kind',
+    );
+    const proofNarrativePhase = await getByTestIdAttr(
+      page,
+      'validation-presentation-frame',
+      'data-narrative-phase',
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002C scene-consumer proof surface stays aligned after bundle handover progression',
+      proofAfterHandover.bundleProducerHandoverKind === proofRuntimeHandoverKind
+        && proofAfterHandover.presentationNarrativePhase === proofNarrativePhase,
+      JSON.stringify({
+        proofBundleHandoverKind: proofAfterHandover.bundleProducerHandoverKind,
+        runtimeBundleHandoverKind: proofRuntimeHandoverKind,
+        proofNarrativePhase: proofAfterHandover.presentationNarrativePhase,
+        runtimeNarrativePhase: proofNarrativePhase,
+      }),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002C stub harness stays aligned after bundle handover progression',
+      harnessAfterHandover.bundleProducerHandoverKind === proofRuntimeHandoverKind
+        && harnessAfterHandover.presentationNarrativePhase === proofNarrativePhase
+        && harnessAfterHandover.truthLine.includes(`bundle=${proofRuntimeHandoverKind || 'none'}`),
+      JSON.stringify({
+        harnessBundleHandoverKind: harnessAfterHandover.bundleProducerHandoverKind,
+        runtimeBundleHandoverKind: proofRuntimeHandoverKind,
+        harnessNarrativePhase: harnessAfterHandover.presentationNarrativePhase,
+        runtimeNarrativePhase: proofNarrativePhase,
+        truthLine: harnessAfterHandover.truthLine,
+      }),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002C starter export stays aligned after bundle handover progression',
+      starterAfterHandover.bundleProducerHandoverKind === proofRuntimeHandoverKind
+        && starterAfterHandover.presentationNarrativePhase === proofNarrativePhase
+        && starterAfterHandover.deterministicPathId === `bundle-sample:${runtimeTruthSourceLabel}`
+        && starterAfterHandover.truthLine.includes(`bundle=${proofRuntimeHandoverKind || 'none'}`),
+      JSON.stringify({
+        starterBundleHandoverKind: starterAfterHandover.bundleProducerHandoverKind,
+        runtimeBundleHandoverKind: proofRuntimeHandoverKind,
+        starterNarrativePhase: starterAfterHandover.presentationNarrativePhase,
+        runtimeNarrativePhase: proofNarrativePhase,
+        deterministicPathId: starterAfterHandover.deterministicPathId,
+        truthLine: starterAfterHandover.truthLine,
+      }),
+    );
+    check(
+      'VAL-MODQN-BUNDLE-002C starter consumer panel stays aligned after bundle handover progression',
+      starterPanelAfterHandover.deterministicPathId === starterAfterHandover.deterministicPathId
+        && starterPanelAfterHandover.sceneServingSatId === starterAfterHandover.sceneServingSatId
+        && starterPanelAfterHandover.publishedServingSatId === starterAfterHandover.publishedServingSatId
+        && starterPanelAfterHandover.truthLine === starterAfterHandover.truthLine
+        && starterPanelAfterHandover.presentationLine === starterAfterHandover.presentationLine,
+      JSON.stringify({
+        starterAfterHandover,
+        starterPanelAfterHandover,
+      }),
+    );
+  }
 }
 
 async function validateStoryDashboard(page: Page) {

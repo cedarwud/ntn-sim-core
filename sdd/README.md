@@ -109,12 +109,17 @@ Any new paper-oriented work beyond these shipped surfaces should still start onl
 
 ## 4. Promoted Downstream Files
 
-There are currently no promoted downstream files.
-
-The last promoted MODQN bundle follow-on,
-`modqn-producer-diagnostics-consumer-follow-on.md`, moved into the
-shipped downstream set once the Slice 5 consumer implementation and
-`VAL-MODQN-BUNDLE-005` landed on 2026-04-16.
+1. `scene-consumer-contract-extraction-follow-on.md`
+   - active Phase 2 implementation authority for integration-friendly external
+     scene contract extraction over the current scene controller /
+     truth-source / presentation seam, paired with
+     `todo/scene-consumer-contract-extraction/README.md`
+2. `external-scene-integration-follow-on.md`
+   - active Phase 3 implementation authority for the first deterministic
+     external-scene integration path, with
+     `scenario-globe-handover-demo` / `native-replay` first and
+     `scenario-globe-viewer` / `bundle-sample` second, paired with
+     `todo/external-scene-integration/README.md`
 
 ## 5. Deferred / Paused Downstream Files
 
@@ -128,11 +133,12 @@ These files are not valid implementation authority for the current baseline entr
    - completed preflight decision record for the promoted T1 truth-path correction surface; not implementation authority itself
 4. `real-trace-scalability-preflight-note.md`
    - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused after T1 closure unless it is separately re-promoted
-5. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
+5. `scene-coordination-decoupling-follow-on.md`
+   - drafted reconciliation / closure-baseline companion for the current-tree `SceneShell` / `SceneDataLayers` seam landing; not implementation authority until explicitly rewritten and promoted
+6. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
    - proposed narrow beam / serving semantics correction surface; not implementation authority until explicitly promoted with matching `todo/` handoff docs
-6. `modqn-producer-diagnostics-and-explainability-follow-on.md`
+7. `modqn-producer-diagnostics-and-explainability-follow-on.md`
    - cross-repo kickoff / boundary record for producer-owned policy diagnostics / explainability; useful context, but not the direct consumer implementation surface now that the paired consumer SDD is promoted
-
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
 ## 6. Archived Historical Documents

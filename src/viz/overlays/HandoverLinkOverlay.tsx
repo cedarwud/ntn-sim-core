@@ -10,6 +10,9 @@
  *   secondary    — solid magenta line, UE → secondary/dual-active target satellite
  *   dual-active  — serving + secondary shown simultaneously
  *
+ * Same-satellite beam switches remain published engine truth, but they do not
+ * render as inter-satellite handover links in this overlay.
+ *
  * UE anchor: fixed world-space origin (observer center).
  * Satellite endpoint: dome position from projectToSkyDome.
  *
@@ -94,7 +97,9 @@ function computeRenderedLinkStyles(
   presentationFrame: BeamPresentationFrame | null,
 ): Array<keyof typeof LINK_STYLES> {
   const narrative = presentationFrame?.continuityNarrative ?? null;
+  const primaryUe = snapshot?.ues[0] ?? null;
   if (!snapshot || !narrative) return [];
+  if (primaryUe?.serviceState?.state === 'no-service') return [];
 
   const hasVisibleSat = (satId: string | null | undefined) =>
     Boolean(

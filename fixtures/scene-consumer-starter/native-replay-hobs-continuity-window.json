@@ -1,0 +1,46 @@
+{
+  "entry": {
+    "surfaceId": "scene-consumer-starter-v1",
+    "contractKind": "starter-export",
+    "pathKind": "native-replay",
+    "deterministicPathId": "native-replay:hobs-multibeam-baseline:continuity-window",
+    "deterministicPathReady": true
+  },
+  "source": {
+    "mode": "native-replay",
+    "profileId": "hobs-multibeam-baseline",
+    "pathKind": "native-replay",
+    "truthSourceLabel": null,
+    "replaySelection": "continuity-window",
+    "bundleSlotIndex": null,
+    "bundleSlotCount": null,
+    "handoverCount": 1,
+    "statusLabel": null
+  },
+  "truth": {
+    "sceneServingSatId": "sat-r1",
+    "publishedServingSatId": "sat-r1",
+    "snapshotRelationship": "same-reference",
+    "continuityState": "prepared",
+    "nativeServingTransitionKind": "same-satellite-beam-switch",
+    "bundleProducerHandoverKind": null
+  },
+  "presentation": {
+    "focusMode": "continuity-focus",
+    "narrativePhase": "prepared",
+    "displaySatIds": [
+      "sat-r1",
+      "sat-r2",
+      "sat-r3"
+    ],
+    "beamSatIds": [
+      "sat-r1",
+      "sat-r2"
+    ]
+  },
+  "summary": {
+    "sourceLine": "path=native-replay | mode=native-replay | profile=hobs-multibeam-baseline | source=continuity-window | slot=n/a | handovers=1",
+    "truthLine": "scene=sat-r1 | published=sat-r1 | snapshot=same-reference | continuity=prepared | native=same-satellite-beam-switch | bundle=none",
+    "presentationLine": "focus=continuity-focus | narrative=prepared | display=3 | beams=2"
+  }
+}

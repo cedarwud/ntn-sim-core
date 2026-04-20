@@ -1,0 +1,45 @@
+{
+  "entry": {
+    "surfaceId": "scene-consumer-starter-v1",
+    "contractKind": "starter-export",
+    "pathKind": "bundle-sample",
+    "deterministicPathId": "bundle-sample:sample-bundle-v1",
+    "deterministicPathReady": true
+  },
+  "source": {
+    "mode": "modqn-bundle",
+    "profileId": "modqn-bundle-replay",
+    "pathKind": "bundle-sample",
+    "truthSourceLabel": "sample-bundle-v1",
+    "replaySelection": "producer-bundle",
+    "bundleSlotIndex": 2,
+    "bundleSlotCount": 5,
+    "handoverCount": 2,
+    "statusLabel": "ready-sample"
+  },
+  "truth": {
+    "sceneServingSatId": "sat-a",
+    "publishedServingSatId": "sat-a",
+    "snapshotRelationship": "distinct-reference",
+    "continuityState": "prepared",
+    "nativeServingTransitionKind": "same-satellite-beam-switch",
+    "bundleProducerHandoverKind": "intra-satellite-beam-switch"
+  },
+  "presentation": {
+    "focusMode": "continuity-focus",
+    "narrativePhase": "prepared",
+    "displaySatIds": [
+      "sat-a",
+      "sat-b"
+    ],
+    "beamSatIds": [
+      "sat-a",
+      "sat-b"
+    ]
+  },
+  "summary": {
+    "sourceLine": "path=bundle-sample | mode=modqn-bundle | profile=modqn-bundle-replay | source=sample-bundle-v1 | slot=2/5 | handovers=2",
+    "truthLine": "scene=sat-a | published=sat-a | snapshot=distinct-reference | continuity=prepared | native=same-satellite-beam-switch | bundle=intra-satellite-beam-switch",
+    "presentationLine": "focus=continuity-focus | narrative=prepared | display=2 | beams=2"
+  }
+}

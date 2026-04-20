@@ -6,7 +6,6 @@ import { useSceneQueryState } from '@/app/hooks/useSceneQueryState';
 import { VISUAL_SCENE_CONFIG } from '@/config/visual-scene.config';
 import type { HandoverType } from '@/core/contracts/exposure-v1';
 import type { KpiBundle } from '@/core/contracts/kpi-v1';
-import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
 import { BaselineResultPanel } from '@/viz/overlays/BaselineResultPanel';
 import { ControlPanel } from '@/viz/overlays/ControlPanel';
 import { HandoverExplainabilityPanel } from '@/viz/overlays/HandoverExplainabilityPanel';
@@ -21,41 +20,24 @@ import SinrElevationScatter from '@/viz/overlays/SinrElevationScatter';
 import SinrTimeSeriesOverlay from '@/viz/overlays/SinrTimeSeriesOverlay';
 import { Starfield } from '@/viz/overlays/Starfield';
 import { ValidationProbe } from '@/viz/overlays/ValidationProbe';
-import type { BeamPresentationFrame } from '@/viz/presentation';
-import type {
-  ModqnBundleExplainabilityView,
-  ModqnBundleReplayViewModel,
-  ModqnDashboardKpiView,
-  ModqnPolicyDiagnosticsDisclosureView,
-  ModqnReplayTrendPointView,
-} from '@/viz/view-models/modqn-bundle-replay-view-model';
 
+import { useBundleReplayShellState } from './bundle/useBundleReplayShellState';
 import { CameraRig } from './CameraRig';
+import { SceneConsumerHarnessSurface } from './SceneConsumerHarnessSurface';
+import { SceneConsumerStarterPanel } from './SceneConsumerStarterPanel';
+import { SceneConsumerProofSurface } from './SceneConsumerProofSurface';
+import { SceneConsumerStarterSurface } from './SceneConsumerStarterSurface';
 import { BundleReplayLayer, LiveLayer, ReplayLayer, type DataLayerProps } from './SceneDataLayers';
 import { LightingRig } from './LightingRig';
 import { NTPUScene } from './NTPUScene';
+import type { SceneConsumerFacade } from './scene-consumer-facade';
+import { buildSceneConsumerStarterExport } from './scene-consumer-starter';
 import { UAV } from './UAV';
 import { downloadKpiBundle } from './scene-runtime-summaries';
+import { useSceneControlSurface } from './shell/useSceneControlSurface';
+import { useScenePanelState } from './shell/useScenePanelState';
 
 const HANDOVER_FOCUS_SPEED = 1;
-
-type BundleReplayControls = {
-  error: string | null;
-  isLoading: boolean;
-  loadExternalDirectory: (selectedFiles: FileList | File[]) => Promise<void>;
-  loadState:
-    | 'boot-loading-sample'
-    | 'boot-load-failed'
-    | 'ready-sample'
-    | 'loading-external-directory'
-    | 'ready-external-directory'
-    | 'resetting-to-sample';
-  resetToSample: () => Promise<void>;
-  sourceKind: 'sample' | 'external-directory';
-  sourceLabel: string;
-  stepBackward: () => void;
-  stepForward: () => void;
-};
 
 export function SceneShell() {
   const {
@@ -77,28 +59,9 @@ export function SceneShell() {
     setProfileId,
   } = useSceneQueryState();
 
-  const [hudData, setHudData] = useState<SimHudProps | null>(null);
-  const [sceneSnapshot, setSceneSnapshot] = useState<SimulationSnapshot | null>(null);
-  const [presentationFrame, setPresentationFrame] = useState<BeamPresentationFrame | null>(null);
-  const [bundleViewModel, setBundleViewModel] = useState<ModqnBundleReplayViewModel | null>(null);
-  const [bundleControls, setBundleControls] = useState<BundleReplayControls | null>(null);
-  const [showSinrChart, setShowSinrChart] = useState(true);
-  const [showHoLog, setShowHoLog] = useState(false);
-  const [showSinrCdf, setShowSinrCdf] = useState(false);
-  const [showElevScatter, setShowElevScatter] = useState(false);
-  const [showBaselineResults, setShowBaselineResults] = useState(false);
-  const [showParameters, setShowParameters] = useState(false);
-  const [showBundleMetadata, setShowBundleMetadata] = useState(false);
+  const [sceneFacade, setSceneFacade] = useState<SceneConsumerFacade | null>(null);
   const [hoTypeOverride, setHoTypeOverride] = useState<HandoverType | null>(null);
 
-  const previousSceneModeRef = useRef(sceneMode);
-  const nativePanelStateRef = useRef({
-    showSinrChart,
-    showSinrCdf,
-    showElevScatter,
-    showBaselineResults,
-    showParameters,
-  });
   const exportKpiFnRef = useRef<(() => KpiBundle | null) | null>(null);
 
   const setExportKpiFn = useCallback((fn: (() => KpiBundle | null) | null) => {
@@ -107,113 +70,39 @@ export function SceneShell() {
 
   const isBundleMode = sceneMode === 'modqn-bundle';
   const isNativeReplayMode = sceneMode === 'native-replay';
-  const bundleSummary = useMemo(
-    () => bundleViewModel?.getBundleSummary() ?? null,
-    [bundleViewModel],
+  const panelState = useScenePanelState(sceneMode);
+  const bundleShell = useBundleReplayShellState({
+    facade: sceneFacade,
+    showBundleMetadata: panelState.showBundleMetadata,
+  });
+  const clearBundleState = bundleShell.clearBundleState;
+  const sceneSnapshot = sceneFacade?.truth.sceneConsumedSnapshot ?? null;
+  const sceneStarterExport = useMemo(
+    () => buildSceneConsumerStarterExport(sceneFacade),
+    [sceneFacade],
   );
-  const bundleTrainingEvalSummary = useMemo(
-    () => bundleViewModel?.getTrainingEvalSummary() ?? null,
-    [bundleViewModel],
-  );
-  const bundleTrainingEvidence = useMemo(
-    () => bundleViewModel?.getTrainingEvidence() ?? null,
-    [bundleViewModel],
-  );
-  const bundleDecisionStory = useMemo(() => {
-    if (!bundleViewModel) return null;
-    const slotIndex = hudData?.bundleSlotIndex;
-    if (slotIndex === null || slotIndex === undefined) {
-      return bundleViewModel.getDecisionStory(0);
-    }
-    const frameIndex = Math.max(0, Math.min(slotIndex - 1, bundleViewModel.getFrameCount() - 1));
-    return bundleViewModel.getDecisionStory(frameIndex);
-  }, [bundleViewModel, hudData?.bundleSlotIndex]);
-  const bundleAssumptions = useMemo(
-    () => bundleViewModel?.getAssumptions() ?? [],
-    [bundleViewModel],
-  );
-  const bundleProvenanceLegend = useMemo(
-    () => bundleViewModel?.getProvenanceLegend() ?? [],
-    [bundleViewModel],
-  );
-  const bundleProvenanceFields = useMemo(
-    () => bundleViewModel?.getProvenanceFields() ?? [],
-    [bundleViewModel],
-  );
-  const bundlePolicyDiagnosticsDisclosure = useMemo<ModqnPolicyDiagnosticsDisclosureView | null>(
-    () => bundleViewModel?.getPolicyDiagnosticsDisclosure() ?? null,
-    [bundleViewModel],
-  );
-  const bundleFrameIndex = useMemo(() => {
-    if (!bundleViewModel) return 0;
-    const slotIndex = hudData?.bundleSlotIndex;
-    if (slotIndex === null || slotIndex === undefined) return 0;
-    return Math.max(0, Math.min(slotIndex - 1, bundleViewModel.getFrameCount() - 1));
-  }, [bundleViewModel, hudData?.bundleSlotIndex]);
-  const bundleReplayTruth = useMemo(
-    () => bundleViewModel?.getReplayTruth(bundleFrameIndex) ?? null,
-    [bundleFrameIndex, bundleViewModel],
-  );
-  const bundleDashboardKpis = useMemo<ModqnDashboardKpiView | null>(
-    () => bundleViewModel?.getDashboardKpis(bundleFrameIndex) ?? null,
-    [bundleFrameIndex, bundleViewModel],
-  );
-  const bundleReplayTrendSeries = useMemo<ModqnReplayTrendPointView[]>(
-    () => bundleViewModel?.getReplayTrendSeries() ?? [],
-    [bundleViewModel],
-  );
-  const bundleExplainability = useMemo<ModqnBundleExplainabilityView | null>(
-    () => bundleViewModel?.getExplainability(bundleFrameIndex) ?? null,
-    [bundleFrameIndex, bundleViewModel],
-  );
-  const bundleSourceLabel = bundleControls?.sourceLabel
-    ?? hudData?.truthSourceLabel
-    ?? bundleSummary?.sourceLabel
-    ?? 'sample-bundle-v1';
-  const bundleCurrentSlotIndex = bundleReplayTruth?.currentSlotIndex ?? hudData?.bundleSlotIndex ?? null;
-  const bundleSlotCount = bundleReplayTruth?.slotCount ?? hudData?.bundleSlotCount ?? bundleSummary?.slotCount ?? null;
-  const bundleHandoverCount = bundleReplayTruth?.cumulativeHandovers ?? hudData?.handoverCount ?? 0;
-  const bundleContinuityNarrative = presentationFrame?.continuityNarrative ?? null;
-  const bundleCompactPanelProps = {
-    visible: true,
-    snapshot: sceneSnapshot,
-    bundleSummary,
-    trainingEvalSummary: bundleTrainingEvalSummary,
-    trainingEvidence: bundleTrainingEvidence,
-    decisionStory: bundleDecisionStory,
-    sourceLabel: bundleSourceLabel,
-    currentSlotIndex: bundleCurrentSlotIndex,
-    slotCount: bundleSlotCount,
-    handoverCount: bundleHandoverCount,
-    assumptionCount: bundleAssumptions.length,
-    dashboardKpis: bundleDashboardKpis,
-    provenanceLegend: bundleProvenanceLegend,
-    provenanceFields: bundleProvenanceFields,
-    replayTrendSeries: bundleReplayTrendSeries,
-    explainability: bundleExplainability,
-  };
-  const bundleMetadataPanelProps = {
-    visible: showBundleMetadata,
-    bundleSummary,
-    trainingEvalSummary: bundleTrainingEvalSummary,
-    assumptions: bundleAssumptions,
-    provenanceLegend: bundleProvenanceLegend,
-    provenanceFields: bundleProvenanceFields,
-    policyDiagnosticsDisclosure: bundlePolicyDiagnosticsDisclosure,
-  };
-  const bundleControlPanelProps = {
-    bundleLoadError: bundleControls?.error ?? null,
-    bundleIsLoading: bundleControls?.isLoading ?? false,
-    bundleLoadState: bundleControls?.loadState ?? 'boot-loading-sample',
-    bundleSourceKind: bundleControls?.sourceKind ?? 'sample',
-    bundleSourceLabel,
-    bundleCurrentSlotIndex,
-    bundleSlotCount: bundleSlotCount ?? 0,
-    onLoadExternalBundleDirectory: bundleControls?.loadExternalDirectory,
-    onResetBundleSource: bundleControls?.resetToSample,
-    onBundleStepBackward: bundleControls?.stepBackward,
-    onBundleStepForward: bundleControls?.stepForward,
-  };
+  const hudData = useMemo<SimHudProps | null>(() => {
+    if (!sceneFacade) return null;
+    const { source } = sceneFacade;
+    return {
+      simTimeSec: source.simTimeSec,
+      totalDurationSec: source.totalDurationSec,
+      satelliteCount: source.satelliteCount,
+      visibleCount: source.visibleCount,
+      servingSatId: source.servingSatId,
+      handoverCount: source.handoverCount,
+      profileId: source.profileId,
+      isReady: source.isReady,
+      replaySelection: source.replaySelection,
+      replayWindowStartSec: source.replayWindowStartSec,
+      replayWindowEndSec: source.replayWindowEndSec,
+      modeLabel: source.modeLabel ?? undefined,
+      truthSourceLabel: source.truthSourceLabel,
+      bundleSlotIndex: source.bundleSlotIndex,
+      bundleSlotCount: source.bundleSlotCount,
+      statusLabel: source.statusLabel,
+    };
+  }, [sceneFacade]);
 
   const primaryUe = sceneSnapshot?.ues[0];
   const autoSlowActive = !isBundleMode && Boolean(
@@ -226,66 +115,47 @@ export function SceneShell() {
     ? Math.min(speed, HANDOVER_FOCUS_SPEED)
     : speed;
 
-  useEffect(() => {
-    if (isBundleMode || previousSceneModeRef.current === 'modqn-bundle') return;
-    nativePanelStateRef.current = {
-      showSinrChart,
-      showSinrCdf,
-      showElevScatter,
-      showBaselineResults,
-      showParameters,
-    };
-  }, [
-    isBundleMode,
-    showBaselineResults,
-    showElevScatter,
-    showParameters,
-    showSinrCdf,
-    showSinrChart,
-  ]);
-
   const handleExportKpi = useCallback(() => {
     const kpi = exportKpiFnRef.current?.();
     if (!kpi) return;
     downloadKpiBundle(hudData?.profileId ?? 'unknown', kpi);
   }, [hudData?.profileId]);
+  const controlPanelProps = useSceneControlSurface({
+    speed,
+    onSpeedChange: setSpeed,
+    effectiveSpeed,
+    paused,
+    onPauseToggle: togglePaused,
+    hoSlowEnabled,
+    hoSlowActive: autoSlowActive,
+    onHoSlowToggle: toggleHoSlowEnabled,
+    showBeams,
+    onShowBeamsToggle: toggleShowBeams,
+    showLabels,
+    onShowLabelsToggle: toggleShowLabels,
+    sceneMode,
+    onSceneModeChange: setSceneMode,
+    panelState,
+    onExportKpi: handleExportKpi,
+    hoTypeOverride,
+    onHoTypeOverrideChange: setHoTypeOverride,
+    profileId,
+    onProfileChange: setProfileId,
+    bundleControlPanelProps: bundleShell.controlPanelProps,
+  });
 
   useEffect(() => {
-    const previousSceneMode = previousSceneModeRef.current;
-    previousSceneModeRef.current = sceneMode;
-    setSceneSnapshot(null);
-    setPresentationFrame(null);
-    setHudData(null);
+    setSceneFacade(null);
     exportKpiFnRef.current = null;
 
-    if (isBundleMode) {
-      setShowBaselineResults(false);
-      setShowParameters(false);
-      setShowSinrChart(false);
-      setShowSinrCdf(false);
-      setShowElevScatter(false);
-      setShowBundleMetadata(false);
-      return;
+    if (!isBundleMode) {
+      clearBundleState();
     }
-
-    setBundleViewModel(null);
-    setBundleControls(null);
-
-    if (previousSceneMode === 'modqn-bundle') {
-      const previousNativePanels = nativePanelStateRef.current;
-      setShowBaselineResults(previousNativePanels.showBaselineResults);
-      setShowParameters(previousNativePanels.showParameters);
-      setShowSinrChart(previousNativePanels.showSinrChart);
-      setShowSinrCdf(previousNativePanels.showSinrCdf);
-      setShowElevScatter(previousNativePanels.showElevScatter);
-    }
-  }, [isBundleMode, sceneMode]);
+  }, [clearBundleState, isBundleMode, sceneMode]);
 
   const dataLayerProps: DataLayerProps = {
-    onStatsUpdate: setHudData,
-    onSnapshotUpdate: setSceneSnapshot,
+    onFacadeUpdate: setSceneFacade,
     onExportKpiReady: setExportKpiFn,
-    onPresentationFrameUpdate: setPresentationFrame,
     speed: effectiveSpeed,
     paused,
     showBeams,
@@ -306,19 +176,8 @@ export function SceneShell() {
     >
       <Starfield starCount={180} />
       {hudData && !isBundleMode && <SimHud {...hudData} />}
-      {isBundleMode && (
-        <BundleTruthHud
-          currentSlotIndex={bundleCurrentSlotIndex}
-          slotCount={bundleSlotCount}
-          sourceLabel={bundleSourceLabel}
-          servingSatId={bundleReplayTruth?.servingSatId ?? sceneSnapshot?.ues[0]?.servingSatId ?? null}
-          servingBeamId={bundleReplayTruth?.servingBeamId ?? sceneSnapshot?.ues[0]?.servingBeamId ?? null}
-          handoverCount={bundleHandoverCount}
-          handoverKind={bundleReplayTruth?.handoverKind ?? null}
-          continuityNarrative={bundleContinuityNarrative}
-        />
-      )}
-      {isBundleMode && <ModqnBaselineCompactPanel {...bundleCompactPanelProps} />}
+      {isBundleMode && <BundleTruthHud {...bundleShell.truthHudProps} />}
+      {isBundleMode && <ModqnBaselineCompactPanel {...bundleShell.compactPanelProps} />}
       {!isBundleMode && (
         <HandoverExplainabilityPanel
           snapshot={sceneSnapshot}
@@ -326,68 +185,38 @@ export function SceneShell() {
           handoverTypeOverride={hoTypeOverride}
         />
       )}
+      <SceneConsumerStarterPanel starter={sceneStarterExport} />
       <ValidationProbe visible={validationMode} />
-      {!isBundleMode && showSinrChart && (
+      {!isBundleMode && panelState.showSinrChart && (
         <SinrTimeSeriesOverlay key={`sinr-${sceneMode}`} snapshot={sceneSnapshot} visible />
       )}
-      {showHoLog && (
+      {panelState.showHoLog && (
         <HoEventLogOverlay key={`ho-log-${sceneMode}`} snapshot={sceneSnapshot} visible />
       )}
-      {!isBundleMode && showSinrCdf && (
+      {!isBundleMode && panelState.showSinrCdf && (
         <SinrCdfOverlay key={`sinr-cdf-${sceneMode}`} snapshot={sceneSnapshot} visible />
       )}
-      {!isBundleMode && showElevScatter && (
+      {!isBundleMode && panelState.showElevScatter && (
         <SinrElevationScatter key={`sinr-elev-${sceneMode}`} snapshot={sceneSnapshot} visible />
       )}
       {!isBundleMode && (
         <ParameterPanel
           profileId={profileId}
-          visible={showParameters && !showBaselineResults}
+          visible={panelState.showParameters && !panelState.showBaselineResults}
         />
       )}
-      {isBundleMode && <ModqnBundleMetadataPanel {...bundleMetadataPanelProps} />}
-      {!isBundleMode && showBaselineResults && (
+      {isBundleMode && <ModqnBundleMetadataPanel {...bundleShell.metadataPanelProps} />}
+      {!isBundleMode && panelState.showBaselineResults && (
         <BaselineResultPanel
           profileId={profileId}
           handoverTypeOverride={hoTypeOverride}
-          onClose={() => setShowBaselineResults(false)}
+          onClose={panelState.closeBaselineResults}
         />
       )}
-      <ControlPanel
-        speed={speed}
-        onSpeedChange={setSpeed}
-        effectiveSpeed={effectiveSpeed}
-        paused={paused}
-        onPauseToggle={togglePaused}
-        hoSlowEnabled={hoSlowEnabled}
-        hoSlowActive={autoSlowActive}
-        onHoSlowToggle={toggleHoSlowEnabled}
-        showBeams={showBeams}
-        onShowBeamsToggle={toggleShowBeams}
-        showLabels={showLabels}
-        onShowLabelsToggle={toggleShowLabels}
-        sceneMode={sceneMode}
-        onSceneModeChange={setSceneMode}
-        showSinrChart={showSinrChart}
-        onShowSinrChartToggle={() => setShowSinrChart((value) => !value)}
-        showHoLog={showHoLog}
-        onShowHoLogToggle={() => setShowHoLog((value) => !value)}
-        showSinrCdf={showSinrCdf}
-        onShowSinrCdfToggle={() => setShowSinrCdf((value) => !value)}
-        showElevScatter={showElevScatter}
-        onShowElevScatterToggle={() => setShowElevScatter((value) => !value)}
-        showParameters={showParameters}
-        onShowParametersToggle={() => setShowParameters((value) => !value)}
-        showBundleMetadata={showBundleMetadata}
-        onShowBundleMetadataToggle={() => setShowBundleMetadata((value) => !value)}
-        onExportKpi={isBundleMode ? undefined : handleExportKpi}
-        onOpenBaselineResults={isBundleMode ? undefined : () => setShowBaselineResults(true)}
-        hoTypeOverride={hoTypeOverride}
-        onHoTypeOverrideChange={setHoTypeOverride}
-        profileId={profileId}
-        onProfileChange={setProfileId}
-        {...bundleControlPanelProps}
-      />
+      <SceneConsumerProofSurface facade={sceneFacade} visible={validationMode} />
+      <SceneConsumerHarnessSurface facade={sceneFacade} visible={validationMode} />
+      <SceneConsumerStarterSurface starter={sceneStarterExport} visible={validationMode} />
+      <ControlPanel {...controlPanelProps} />
       <Canvas
         frameloop="demand"
         dpr={1}
@@ -410,11 +239,10 @@ export function SceneShell() {
         <Suspense fallback={null}>
           {sceneMode === 'modqn-bundle' ? (
             <BundleReplayLayer
-              onStatsUpdate={setHudData}
-              onSnapshotUpdate={setSceneSnapshot}
+              onFacadeUpdate={setSceneFacade}
               onExportKpiReady={setExportKpiFn}
-              onViewModelUpdate={setBundleViewModel}
-              onControlsUpdate={setBundleControls}
+              onViewModelUpdate={bundleShell.setBundleViewModel}
+              onControlsUpdate={bundleShell.setBundleControls}
               speed={effectiveSpeed}
               paused={paused}
               showBeams={showBeams}

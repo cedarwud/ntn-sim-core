@@ -1,7 +1,7 @@
 import type { SimEngineState } from './state';
 import type { TrajectorySample } from '../orbit/types';
 import type { UePosition } from '../ue/position-generator';
-import type { HoLogEntry } from '../common/types';
+import type { HoLogEntry, PublishedServingTransition } from '../common/types';
 import type { HandoverCandidate, HandoverPolicyOverride } from '../handover/types';
 import { buildSortedUeCandidates } from './channel-step';
 
@@ -15,6 +15,60 @@ import { buildSortedUeCandidates } from './channel-step';
 export interface HandoverStepResult {
   tickHoLog: HoLogEntry[];
   representativeServing: { satId: string; beamId: string } | null;
+}
+
+type ServingEndpoint = {
+  satId: string;
+  beamId: string;
+};
+
+function cloneServingEndpoint(
+  serving: { satId: string; beamId: string } | null | undefined,
+): ServingEndpoint | null {
+  return serving ? { satId: serving.satId, beamId: serving.beamId } : null;
+}
+
+function buildPublishedServingTransition(
+  previous: ServingEndpoint | null,
+  current: ServingEndpoint | null,
+): PublishedServingTransition {
+  if (!previous || !current) {
+    return {
+      kind: 'none',
+      sourceSatId: previous?.satId ?? null,
+      sourceBeamId: previous?.beamId ?? null,
+      targetSatId: current?.satId ?? null,
+      targetBeamId: current?.beamId ?? null,
+    };
+  }
+
+  if (previous.satId !== current.satId) {
+    return {
+      kind: 'inter-satellite-handover',
+      sourceSatId: previous.satId,
+      sourceBeamId: previous.beamId,
+      targetSatId: current.satId,
+      targetBeamId: current.beamId,
+    };
+  }
+
+  if (previous.beamId !== current.beamId) {
+    return {
+      kind: 'same-satellite-beam-switch',
+      sourceSatId: previous.satId,
+      sourceBeamId: previous.beamId,
+      targetSatId: current.satId,
+      targetBeamId: current.beamId,
+    };
+  }
+
+  return {
+    kind: 'none',
+    sourceSatId: previous.satId,
+    sourceBeamId: previous.beamId,
+    targetSatId: current.satId,
+    targetBeamId: current.beamId,
+  };
 }
 
 function extractPolicyOverride(state: SimEngineState): HandoverPolicyOverride | undefined {
@@ -55,6 +109,7 @@ export function runHandoverStep(
   const tickHoLog: HoLogEntry[] = [];
   const PRIMARY_UE_ID = 'ue-0';
   const policyOverride = extractPolicyOverride(state);
+  const publishedServingTransitions: Record<string, PublishedServingTransition> = {};
 
   let representativeServing: { satId: string; beamId: string } | null = null;
 
@@ -62,7 +117,10 @@ export function runHandoverStep(
     // Phase B: multi-UE independent handover
     for (const ue of uePositions) {
       const ueHoManager = hoManagers.get(ue.id);
-      if (!ueHoManager) continue;
+      if (!ueHoManager) {
+        publishedServingTransitions[ue.id] = buildPublishedServingTransition(null, null);
+        continue;
+      }
 
       const candidates: HandoverCandidate[] = buildSortedUeCandidates(state, ue, satSinrs).map((candidate) => ({
         satId: candidate.satId,
@@ -73,9 +131,11 @@ export function runHandoverStep(
       }));
 
       const servingState = ueHoManager.getState().serving;
+      const previousServing = cloneServingEndpoint(servingState);
       // Match by satId only: candidates have one entry per satellite (best beam).
-      // When the satellite's best beam changes, this is an implicit intra-satellite
-      // beam switch — update serving beamId silently.
+      // Preserve the current manager behavior, but publish an explicit
+      // same-satellite beam-switch annotation later so this is no longer a
+      // silent external side effect.
       const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
       if (servingEntry && servingState && servingEntry.beamId !== servingState.beamId) {
         (servingState as { beamId: string }).beamId = servingEntry.beamId;
@@ -91,6 +151,11 @@ export function runHandoverStep(
         propagationDelayMs: (servingEntry && servingEntry.rangeKm) ? (servingEntry.rangeKm / 299.792) : undefined,
         policyOverride: ue.id === PRIMARY_UE_ID ? policyOverride : undefined,
       });
+
+      publishedServingTransitions[ue.id] = buildPublishedServingTransition(
+        previousServing,
+        cloneServingEndpoint(ueHoManager.getState().serving),
+      );
 
       if (ue.id === PRIMARY_UE_ID) {
         representativeServing = ueHoManager.getState().serving;
@@ -109,9 +174,11 @@ export function runHandoverStep(
     }));
 
     const servingState = hoManager.getState().serving;
+    const previousServing = cloneServingEndpoint(servingState);
     // Match by satId only: candidates have one entry per satellite (best beam).
-    // When the satellite's best beam changes, this is an implicit intra-satellite
-    // beam switch — update serving beamId silently.
+    // Preserve the current manager behavior, but publish an explicit
+    // same-satellite beam-switch annotation later so this is no longer a
+    // silent external side effect.
     const servingEntry = servingState ? candidates.find(c => c.satId === servingState.satId) : null;
     if (servingEntry && servingState && servingEntry.beamId !== servingState.beamId) {
       (servingState as { beamId: string }).beamId = servingEntry.beamId;
@@ -128,7 +195,17 @@ export function runHandoverStep(
       policyOverride,
     });
     representativeServing = hoManager.getState().serving;
+
+    const sharedTransition = buildPublishedServingTransition(
+      previousServing,
+      cloneServingEndpoint(hoManager.getState().serving),
+    );
+    for (const ue of uePositions) {
+      publishedServingTransitions[ue.id] = sharedTransition;
+    }
   }
+
+  state.lastPublishedServingTransitions = publishedServingTransitions;
 
   return { tickHoLog, representativeServing };
 }
