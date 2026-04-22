@@ -1,19 +1,19 @@
 # Single-Repo Dual-App Showcase
 
-**Status:** Promoted reintegration companion over the landed
+**Status:** Landed reintegration companion over the landed
 Phase 2A / Phase 2B / Phase 2C / Phase 2D baseline, the landed entrypoint
 handoff record, the landed consumer scene parity record, the landed consumer
-first-screen copy-alignment record, and the newly promoted mainline additive
+first-screen copy-alignment record, and the landed mainline additive
 reintegration follow-on.
 **Restored:** 2026-04-21
 **Updated:** 2026-04-22
-**Authority:** promoted active dual-app reintegration authority:
+**Authority:** landed dual-app reintegration record:
 `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
 
-This pack now remains as the active dual-app continuity companion for the
-promoted mainline additive reintegration line. The landed dual-app record set
-still defines the frozen baseline; if this file and the SDD disagree, the SDD
-wins.
+This pack now remains as the landed dual-app continuity companion for the
+completed current-`main` additive reintegration line. The landed dual-app
+record set still defines the frozen baseline; if this file and the SDD
+disagree, the SDD wins.
 
 ## 1. Current Reconciliation Facts
 
@@ -68,12 +68,14 @@ wins.
    - no truth/profile/default/runtime semantics rewrite, publisher/starter/
      route/entrypoint change, or validation redesign
    - it remains the last landed dual-app micro-slice before the current reopen
-12. The current active unlanded dual-app follow-on is now the mainline
-    additive reintegration record:
+12. The last landed dual-app follow-on is now the mainline additive
+    reintegration record:
+   - it records the completed additive restoration of the showcase-consumer
+     surfaces onto current `main`
    - it does not treat direct history merge/cherry-pick as the execution model
    - it preserves the landed dual-app frozen baseline semantics
    - it preserves the current MODQN / `SceneShell` `main` default surface
-   - it scopes resumed work to additive showcase-consumer reintegration only
+   - the dual-app line is now back to no active unlanded follow-on authority
 
 ## 2. Required Reads
 
@@ -168,10 +170,9 @@ wins.
 
 ## 6. Current Authority State
 
-The current tree now has one active unlanded dual-app follow-on authority:
-`sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`.
+The current tree now has no active unlanded dual-app follow-on authority.
 
-Use the landed record set plus the promoted reintegration record this way:
+Use the landed record set plus the landed reintegration record this way:
 
 1. Treat the query-switched route plus the dedicated packaged entrypoint as the
    landed Phase 2A / 2B / 2C / 2D baseline, not as a planning sketch.
@@ -189,8 +190,9 @@ Use the landed record set plus the promoted reintegration record this way:
    lead-copy role-wording correction inside `ShowcaseConsumerApp`.
 6. Treat
    `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
-   as the active current-`main` additive reintegration authority rather than
-   as a landed record or a direct branch-merge instruction.
+   as the landed current-`main` additive reintegration record for restoring the
+   already-landed dual-viewer surfaces onto `main` without rewriting the
+   frozen baseline semantics.
 7. Preserve the frozen baseline around `showcase-consumer.html` canonical /
    `?app=showcase-consumer` compatibility, `ShowcaseConsumerHost` sole
    publisher / `ShowcaseConsumerApp` consumer-only, frozen
@@ -206,6 +208,7 @@ Use the landed record set plus the promoted reintegration record this way:
    historical landed handoff artifact for the completed scene-parity run, not
    as current active authority.
 10. Treat direct history merge / cherry-pick of the detached dual-app closure
-    chain onto current `main` as out of scope for this line; resumed work must
-    be additive current-`main` reintegration unless a future SDD explicitly
-    authorizes broader contract rewrite.
+    chain onto current `main` as a resolved historical constraint for this
+    landed slice, not as the starting point for future work.
+11. If dual-app work resumes again from here, first promote a newly scoped
+    follow-on SDD before starting implementation.

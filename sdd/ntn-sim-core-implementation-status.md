@@ -1,6 +1,6 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.8.45
+**Version:** 4.8.46
 **Date:** 2026-04-22
 **Status:** Prior hardening/closure program complete; targeted reruns of
 `lint`, `build`, `validate:visual-browser`,
@@ -30,12 +30,14 @@ without a dedicated dual-app `VAL-*` gate. The landed
 closes the last promoted dual-app micro-slice by correcting only the
 native-replay first-screen lead copy inside `ShowcaseConsumerApp` from
 `dedicated second viewer` wording to `continuity showcase viewer` wording,
-with no validator or runtime changes. A newly promoted
+with no validator or runtime changes. The landed
 `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
-is now the only active unlanded dual-app follow-on authority: it reopens the
-dual-app line only as a current-`main` additive reintegration problem, keeping
-the landed dual-app baseline semantics frozen while preserving the current
-MODQN / `SceneShell` `main` default surface.
+now records the completed current-`main` additive reintegration that restored
+the already-landed dual-viewer surfaces onto the MODQN `main` baseline while
+keeping the landed dual-app baseline semantics frozen and preserving the
+current MODQN / `SceneShell` `main` default surface. The dual-app line is
+therefore back to having no active unlanded follow-on authority in the current
+tree.
 
 ---
 
@@ -89,7 +91,7 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | single-repo dual-app showcase entrypoint handoff follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md`; it records `showcase-consumer.html` as the canonical handoff/share surface while keeping `?app=showcase-consumer` as a compatibility path, and now serves as a baseline decision record inside the closed dual-app landed set |
 | single-repo dual-app showcase consumer scene parity follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md`; the current tree now lands denser consumer-side telemetry, consumer-local camera/overlay controls, stronger narrative/readability surfaces, and the minimally expanded targeted browser smoke while preserving canonical handoff semantics, host-owned publisher ownership, frozen allowlist/deterministic IDs/starter family, and the targeted smoke model |
 | single-repo dual-app showcase consumer first-screen copy alignment follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`; it records the narrow copy-only closure that replaced the native-replay first-screen `dedicated second viewer` wording with `continuity showcase viewer` wording inside `ShowcaseConsumerApp`, kept `showcase-consumer.html` canonical / `?app=showcase-consumer` compatibility, kept `ShowcaseConsumerHost` as sole publisher and `ShowcaseConsumerApp` as consumer-only, kept frozen allowlist/deterministic IDs/starter family, `summary.*` secondary, `Primary SINR = snapshot.ues[0].sinrDb`, and `validate:contracts` unchanged as the floor, and returns the dual-app line to no active unlanded follow-on authority |
-| single-repo dual-app showcase mainline additive reintegration follow-on | 🟡 promoted (2026-04-22) | Promoted authority is `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`; it defines the new dual-app reopen as an additive reintegration of the already-landed showcase-consumer surfaces onto the current MODQN `main` baseline, preserving `showcase-consumer.html` canonical / `?app=showcase-consumer` compatibility, `ShowcaseConsumerHost` sole publisher / `ShowcaseConsumerApp` consumer-only, frozen allowlist/deterministic IDs/starter family, `summary.*` secondary, `Primary SINR = snapshot.ues[0].sinrDb`, the existing targeted smoke / contract floor, and `SceneShell` as the current `main` default surface |
+| single-repo dual-app showcase mainline additive reintegration follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`; it records the completed additive reintegration of the already-landed showcase-consumer surfaces onto the current MODQN `main` baseline, preserving `showcase-consumer.html` canonical / `?app=showcase-consumer` compatibility, `ShowcaseConsumerHost` sole publisher / `ShowcaseConsumerApp` consumer-only, frozen allowlist/deterministic IDs/starter family, `summary.*` secondary, `Primary SINR = snapshot.ues[0].sinrDb`, the existing targeted smoke / contract floor, and `SceneShell` as the current `main` default surface, and returns the dual-app line to no active unlanded follow-on authority |
 | real-trace scalability follow-on | ⏸ blocked (`no-go` preflight on 2026-04-01) | Future mixed-orbit `OMNeT++` work may still require larger-catalog planning, but this line stays paused after T1 closure unless it is separately re-promoted; keep `sdd/real-trace-scalability-preflight-note.md` as the blocked decision record |
 | `estnet` consumer path | ⏸ paused | `sdd/estnet-ui-contract-outline.md` remains paused until explicit reopen |
 

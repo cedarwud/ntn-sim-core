@@ -49,17 +49,16 @@ native-replay first-screen lead-copy role wording inside `ShowcaseConsumerApp`
 while keeping the canonical handoff decision, publisher ownership, allowlist,
 deterministic IDs, starter family, `summary.*` secondary,
 `Primary SINR = snapshot.ues[0].sinrDb`, `validate:contracts` unchanged as the
-floor, and the absence of a dedicated dual-app `VAL-*` gate. The newly
-promoted
+floor, and the absence of a dedicated dual-app `VAL-*` gate. The landed
 `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
-is now the only active unlanded dual-app follow-on authority in the current
-tree: it seeks to reintroduce the landed dual-viewer surfaces onto the current
-MODQN `main` baseline as an additive reintegration while preserving
-`showcase-consumer.html` as canonical, `?app=showcase-consumer` as the
-compatibility path, `ShowcaseConsumerHost` as the sole publisher,
-`ShowcaseConsumerApp` as consumer-only, and `SceneShell` as the current `main`
-default surface. `live`, `external-directory`, and `Phase 3` polish remain
-closed.
+now records the completed current-`main` additive reintegration that restored
+the already-landed dual-viewer surfaces onto the current MODQN `main`
+baseline while preserving `showcase-consumer.html` as canonical,
+`?app=showcase-consumer` as the compatibility path, `ShowcaseConsumerHost` as
+the sole publisher, `ShowcaseConsumerApp` as consumer-only, and `SceneShell`
+as the current `main` default surface. The dual-app line is therefore back to
+having no active unlanded follow-on authority in the current tree. `live`,
+`external-directory`, and `Phase 3` polish remain closed.
 The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
@@ -207,6 +206,13 @@ These files remain the shipped downstream authority for the completed baseline s
      secondary, `Primary SINR = snapshot.ues[0].sinrDb`, and the existing
      targeted smoke / contract floor without a dedicated dual-app `VAL-*`
      gate
+25. `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
+   - landed current-`main` additive reintegration record for restoring the
+     already-landed showcase-consumer surfaces onto the MODQN `main` baseline
+     while preserving `SceneShell` as the default `main` surface, preserving
+     the canonical `showcase-consumer.html` / compatibility
+     `?app=showcase-consumer` split, and avoiding direct history merge as the
+     execution model
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
@@ -217,19 +223,13 @@ Any new paper-oriented work beyond these shipped surfaces should still start onl
 
 ## 4. Promoted Downstream Files
 
-1. `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
-   - promoted mainline reintegration record for reintroducing the already
-     landed dual-viewer showcase-consumer surfaces onto the current MODQN
-     `main` baseline additively, while preserving `SceneShell` as the current
-     `main` default surface, preserving the canonical
-     `showcase-consumer.html` / compatibility `?app=showcase-consumer`
-     handoff split, and avoiding direct history-merge as the execution model
+There are currently no promoted downstream files in the dual-app showcase
+line.
 
-Any implementation in the dual-app showcase line must now start from that
-promoted reintegration file plus the matching `todo/` handoff companion after
-re-checking the landed Phase 2A / 2B / 2C / 2D baseline, the landed entrypoint
-handoff record, the landed consumer scene parity record, and the landed
-copy-alignment record.
+Any future widening now requires a newly promoted SDD after re-checking the
+landed Phase 2A / 2B / 2C / 2D baseline, the landed entrypoint handoff
+record, the landed consumer scene parity record, the landed copy-alignment
+record, and the landed current-`main` additive reintegration record.
 
 ## 5. Deferred / Paused Downstream Files
 

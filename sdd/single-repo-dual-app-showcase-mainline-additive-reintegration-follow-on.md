@@ -1,9 +1,10 @@
 # Single-Repo Dual-App Showcase Mainline Additive Reintegration Follow-On
 
-**Status:** Promoted active unlanded authority for mainline additive
-dual-viewer reintegration over the current MODQN `main` baseline.
+**Status:** Landed mainline additive reintegration record for restoring the
+already-landed dual-viewer surfaces onto the current MODQN `main` baseline.
 **Drafted:** 2026-04-22
 **Promoted:** 2026-04-22
+**Landed:** 2026-04-22
 **Proposed path:**
 `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
 **Depends on:**
@@ -26,11 +27,12 @@ as the showcase contract, without replacing the current `main` default app
 surface, without widening truth/source semantics, and without turning this work
 into a branch-history merge exercise.
 
-**Authority note:** This file is now the only active unlanded dual-app
-follow-on authority in the current tree. The landed dual-app record set remains
-the frozen baseline, but resumed work must now read this promoted file as the
-current reintegration surface rather than as a continuation of the already
-closed dual-app closure chain.
+**Authority note:** This file now remains as a landed dual-app record in the
+current tree. The landed dual-app record set remains the frozen baseline, the
+mainline additive reintegration slice is complete, and the current tree again
+has no active unlanded dual-app follow-on authority. Any future dual-viewer
+work must therefore start from a newly promoted follow-on instead of treating
+this file as ongoing implementation authority.
 
 ## 1. Purpose
 
@@ -75,7 +77,7 @@ current `main` contracts.
 
 ## 4. Reintegration Decision
 
-The promoted reintegration model is:
+The landed reintegration model is:
 
 1. preserve the current `main` default application surface;
 2. restore the landed dual-viewer entry surfaces as additive surfaces over that
@@ -144,8 +146,8 @@ current `main`, such as:
 9. `scripts/validate-contracts.mjs`
 10. `scripts/validate-showcase-consumer-browser.ts`
 11. necessary devlogs under `internal/ntn-sim-core/devlogs/*`
-12. the minimum same-change authority/doc sync surfaces if and when this draft
-    is promoted and later landed
+12. the minimum same-change authority/doc sync surfaces that were required to
+    promote and later land this reintegration slice
 
 The purpose of this allowed scope is additive restoration only. It is not a
 license to replay every historical dual-app diff verbatim onto `main`.
@@ -183,8 +185,8 @@ model:
 
 ## 10. Acceptance Criteria
 
-This draft is only fulfilled if the later promoted/implemented slice can
-achieve all of the following at once:
+This landed slice fulfilled the reintegration goal by achieving all of the
+following at once:
 
 1. current `main` keeps its MODQN / `SceneShell` default baseline intact;
 2. `showcase-consumer.html` exists again on `main` as the canonical
@@ -201,12 +203,13 @@ achieve all of the following at once:
 8. the final result is expressed as current-`main` additive authority, not as a
    hidden reliance on the detached historical dual-app branch.
 
-## 11. Implementation Authority State
+## 11. Closure State
 
-Implementation may now proceed only within the scope of this promoted follow-on
-plus matching authority/doc sync. This file does not by itself authorize direct
-history merge, broader contract rewrite, or any reopen beyond the additive
-mainline reintegration boundary defined above.
+This reintegration slice is now landed and is no longer active implementation
+authority by itself. It records that current `main` now carries the additive
+dual-viewer surfaces while preserving the frozen dual-app semantics and the
+current MODQN / `SceneShell` default baseline. Any future dual-viewer reopen
+beyond this landed state requires a newly promoted follow-on SDD.
 
 ## 12. Stop Conditions
 
