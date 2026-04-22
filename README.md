@@ -148,6 +148,8 @@ npm run preview
 - downstream architecture 已完成 Group 2，`src/core/algorithms/`、`src/core/experiments/`、`src/viz/view-models/` 的最小骨架已落地
 - `MODQN` baseline reproduction 已完成 through `M3`
 - `UI` baseline viewer path 已完成 through `U1/U2`
+- single-repo dual-app showcase 目前已經 land `Phase 2A` + `Phase 2B` + `Phase 2C` + `Phase 2D`：landed tree 一方面保留 `AppShell` 的 `?app=showcase-consumer` 路徑，另一方面也保留 dedicated `showcase-consumer.html` + `src/showcase-consumer-main.tsx` packaged viewer；`ShowcaseConsumerHost` 仍是唯一 publisher，依 `showcasePath=native-replay|bundle-sample` 發布 allowlisted starter surface，而 `ShowcaseConsumerApp` 仍只消費 `sceneConsumerStarter`。固定基線 `scene-consumer-starter-v1` 保留為 `native-replay:hobs-multibeam-baseline:continuity-window` 的 Phase 2A record，landed `starter-v2` 只再加上一條 `modqn-bundle:sample-bundle-v1` deterministic path；`live` / `external-directory` / bundle panel migration / `Phase 3` polish 仍然關閉
+- dual-app 最新 landed follow-on records 現在包含 `single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md`、`single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md`、`single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`：三者分別把 `showcase-consumer.html` canonical handoff/share 決策、consumer scene parity、以及 native-replay first-screen lead copy 從 `dedicated second viewer` 對齊成 `continuity showcase viewer` wording 收口成 landed records；在這個 landed baseline 之上，目前也已 promotion `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md` 作為唯一 active unlanded dual-app follow-on authority，用來把 dual viewer 以 additive 方式重新帶回 current MODQN `main`，同時仍不重開 truth/source semantics、route retirement、redirect work、`live`、`external-directory`、bundle panel migration、或 full `Phase 3` polish
 - Phase 03A 的 MODQN bundle replay consumer path 已完成 through Slice B/C/D：`src/adapters/modqn-bundle/` 是唯一跨 repo seam，UI 現在可在 `native-live` / `native-replay` / `modqn-bundle` 間切換真值來源，並以獨立 metadata panel 揭露 assumptions / provenance / training-eval disclosure
 - real-trace truth-path correction (`T1`) 已完成；`real-trace scalability` 仍 blocked
 - `PM1` paper-mode / claim-mode hardening 已完成；`TP1` 也已完成並落地 current-anchor parity bundle 與 `validate:modqn:parity`
@@ -172,6 +174,7 @@ npm run preview
 | `npm run validate:structure` | 驗證 preflight 目錄骨架與舊結構是否已清除 |
 | `npm run validate:trace` | 驗證 SDD / traceability placeholder 文件與目錄是否存在 |
 | `npm run validate:profiles` | 驗證 profile layout（asset/observer/visual 分離）+ Phase 3 VAL-PLAT-006/007（型別 export / no-circular-import / authored-materialization parity） |
+| `npm run validate:showcase-consumer-browser` | 驗證 landed Phase 2A/2B/2C/2D dual-entry showcase-consumer surface：query route + dedicated packaged entrypoint、兩條 allowlisted `showcasePath`、starter publication / ready state / Primary SINR / source disclosure smoke gate |
 | `npm run validate:modqn:bundle` | 驗證 Phase 03A Slice B 的 MODQN replay bundle consumer adapter contract |
 | `npm run validate:modqn:bundle-ui` | 驗證 Phase 03A Slice C/D 的 truth-source mode switch、slot stepping、shared presentation 與 metadata/provenance UI |
 | `npm run validate:stage` | 執行 lint + build + preflight validation scripts |
@@ -183,6 +186,22 @@ http://localhost:4173/?mode=modqn-bundle
 ```
 
 這個 mode 會把 serving / beam / handover presentation 的主要真值切到已凍結的 MODQN bundle，而不是 native simulator runtime。
+
+若要直接進入 landed showcase consumer query route，可用：
+
+```text
+http://localhost:4173/?app=showcase-consumer
+```
+
+若要直接進入 landed dedicated packaged viewer，可用：
+
+```text
+http://localhost:4173/showcase-consumer.html
+```
+
+最新 landed dual-app follow-on records 以這個 packaged entrypoint 作為 canonical handoff/share surface，並把 query route 保留為 compatibility path；current tree 也已 land `single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md` 與 `single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`。在這個 landed baseline 之上，目前唯一 active unlanded dual-app follow-on authority 是 `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`，它把 resumed work 定義為 current-`main` additive reintegration，而不是直接 branch-history merge。
+
+這兩個 entry surface 目前共用同一個窄 scope showcase baseline：`ShowcaseConsumerHost` 擁有 allowlisted producer 發布，`ShowcaseConsumerApp` 只讀 starter seam；browser-visible acceptance 現在透過 targeted smoke `validate:showcase-consumer-browser` + `validate:contracts` 落地，但仍不是新的 `VAL-*` gate。
 
 ## 專案結構
 

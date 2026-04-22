@@ -1,8 +1,41 @@
 # NTN Sim Core — Implementation Status
 
-**Version:** 4.8.32
-**Date:** 2026-04-19
-**Status:** Prior hardening/closure program complete; historical targeted reruns of `validate:visual-browser`, `validate:profiles`, `validate:contracts`, `validate:bundle`, `validate:runtime`, `validate:modqn:bundle`, and `validate:modqn:bundle-ui` passed in the tree, though browser-sensitive evidence should still be treated as transient-sensitive rather than permanently de-flaked. The 2026-04-15 truth-preserving showcase realignment remains landed, and the 2026-04-16 consumer-only MODQN follow-on chain now lands Slice 2 external bundle loading, Slice 3 story dashboard / dynamic charts, Slice 4 replay-truth hardening / showcase acceptance, and Slice 5 producer diagnostics / explainability without reopening producer or native-runtime contracts. `useModqnBundleReplay.ts` remains source-aware (`sample` vs `external-directory`), browser-selected directories still load through `loadModqnReplayBundle(reader)` plus `assertBundleReplayPresentationReady(bundle)`, failed external loads keep the prior valid bundle active, `Reset To Sample` restores the shipped baseline, and browser-selected directories no longer synthesize required contract directories that the browser file tree did not actually prove. On top of that landed source path, `ModqnBundleReplayViewModel` now exposes additive replay-trend/dashboard projectors, a shared replay-truth projection for slot / serving-satellite / serving-beam / cumulative-handover proof, and a producer-owned explainability projection for row-level `policyDiagnostics` without recomputing ranking or scores in the frontend; multi-user slots now stay anchored to the first exported replay row instead of a frontend-sorted user order. `SceneShell` continues to route both sample and external bundles through the same bundle-mode surface; `ModqnBaselineCompactPanel` keeps its first-screen story wording tied to exported replay truth while adding a separate collapsible explainability surface for producer-exported selected-vs-runner-up, margin, and compact top-candidate disclosure; `ModqnBundleMetadataPanel` remains the metadata/provenance/disclosure surface and keeps `optionalPolicyDiagnostics` disclosure separate from row-level explainability truth; `BundleTruthHud` remains the read-only bundle-mode HUD proof surface; and `ValidationProbe` / bundle runtime summaries continue to publish serving-beam, cumulative-handover, and handover-kind markers from raw replay truth snapshots while scene-only transient hold stays confined to view-layer presentation. The newly landed first Phase 2 scene-consumer-contract slice now adds a read-only facade over the current controller / truth-source / presentation seam, keeps `scene-consumed` versus `published/raw` snapshot access explicit, keeps native runtime transition truth distinct from bundle replay producer handover kind, and lets the reference viewer dogfood that facade without promoting `SceneShell.tsx` or shell helpers into external API. The current starter-consumer adoption follow-on is now code-landed and targeted-browser-clean in current-thread evidence: `lint`, `build`, `validate:contracts`, and repeated `validate:visual-browser` pass after validator-side atomic native-replay scene-consumer snapshot reads, while `validate:modqn:bundle-ui` remains green on the bundle-sample path. The next narrow export-stabilization slice now also lands in the current tree: `SceneConsumerStarterSurface.tsx` consumes the same `SceneConsumerStarterExport` instance passed through `SceneShell.tsx` instead of rebuilding from the facade independently, while `scene-consumer-starter-consumer.ts` gives both the hidden starter surface and visible starter panel one shared repo-internal projection for deterministic-path attrs and starter summary lines. The real-trace/replay line remains the landed OMM/TLE ingest plus SGP4-sampled real-trace cache/replay path, with SatRec-backed SGP4 truth during cache construction rather than generic runtime-only showcase wording. `scripts/validate-modqn-bundle-adapter.ts` now carries `VAL-MODQN-BUNDLE-001A` through `001G`, including the landed legacy decision-mask compatibility guard for older valid bundles plus additive Slice 5 diagnostics checks, while `scripts/validate-modqn-bundle-ui.ts` now carries landed `VAL-MODQN-BUNDLE-002`, `003`, `004`, and `005`, preserving truth-source switching, source/error/reset semantics, first-screen obligations, bundle-backed charts, disclosure separation, shared sample/external dashboard parity, stronger dashboard/HUD/probe alignment proof, shared beam/link replay-truth proof, and producer-owned diagnostics proof across sample, external, older-without-diagnostics, partial-coverage, and multi-user-slot bundle variants. `validate:stage` now includes both bundle validators, carrying `VAL-MODQN-BUNDLE-001` through `005`. The producer-side Phase 03B diagnostics export slice remains landed in `modqn-paper-reproduction` commit `13fca4707a9f7a6690d335e351bd8d1805d9f10b`, and `ntn-sim-core` now lands the paired Slice 5 consumer adoption over that fixed contract surface. Simulator Platform Refactor remains complete through Phase 5 Group 3 (2026-03-31), downstream architecture remains complete through Group 2 (2026-03-31; authority/docs synchronized 2026-04-01), MODQN baseline reproduction remains complete through M3 Group 1 plus the Phase 03A consumer replay handoff, and `estnet` remains paused. The broader real-trace scalability line stays blocked/paused for any mixed-orbit or larger-catalog follow-on until it is separately re-promoted. PM1, TP1, and EP1 remain shipped narrow paper-oriented surfaces rather than reopen instructions for larger backend/protocol or algorithm work.
+**Version:** 4.8.45
+**Date:** 2026-04-22
+**Status:** Prior hardening/closure program complete; targeted reruns of
+`lint`, `build`, `validate:visual-browser`,
+`validate:showcase-consumer-browser`, `validate:profiles`,
+`validate:contracts`, `validate:bundle`, `validate:runtime`,
+`validate:modqn:bundle`, and `validate:modqn:bundle-ui` pass in the current
+tree, though browser-sensitive evidence should still be treated as
+transient-sensitive rather than permanently de-flaked. The 2026-04-15
+truth-preserving showcase realignment remains landed, and the 2026-04-16
+consumer-only MODQN follow-on chain still lands Slice 2 external bundle
+loading, Slice 3 story dashboard / dynamic charts, Slice 4 replay-truth
+hardening / showcase acceptance, and Slice 5 producer diagnostics /
+explainability without reopening producer or native-runtime contracts. The
+dual-app showcase line also still lands `Phase 2A`, `Phase 2B`, `Phase 2C`,
+`Phase 2D`, the landed entrypoint handoff decision, the landed consumer scene
+parity follow-on, and the landed consumer first-screen copy-alignment
+follow-on. The frozen dual-app baseline remains unchanged:
+`showcase-consumer.html` stays canonical while `?app=showcase-consumer`
+remains the compatibility path; `ShowcaseConsumerHost` remains the sole
+publisher; `ShowcaseConsumerApp` remains consumer-only; the allowlist,
+deterministic IDs, and starter family remain frozen; `summary.*` remains
+secondary; `Primary SINR` remains `snapshot.ues[0].sinrDb`;
+`validate:contracts` remains the unchanged floor; and browser-visible dual-app
+acceptance still runs through targeted `validate:showcase-consumer-browser`
+without a dedicated dual-app `VAL-*` gate. The landed
+`sdd/single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`
+closes the last promoted dual-app micro-slice by correcting only the
+native-replay first-screen lead copy inside `ShowcaseConsumerApp` from
+`dedicated second viewer` wording to `continuity showcase viewer` wording,
+with no validator or runtime changes. A newly promoted
+`sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
+is now the only active unlanded dual-app follow-on authority: it reopens the
+dual-app line only as a current-`main` additive reintegration problem, keeping
+the landed dual-app baseline semantics frozen while preserving the current
+MODQN / `SceneShell` `main` default surface.
 
 ---
 
@@ -52,239 +85,13 @@ Closure note: this table tracks the now-complete hardening/closure program. As o
 | MODQN replay-truth hardening (`Slice 4`) | ✅ complete (2026-04-16) | Authority is `sdd/modqn-replay-truth-hardening-follow-on.md`; the landed slice now adds browser-visible dashboard/HUD/probe truth alignment markers, keeps dashboard/HUD wording tied to exported replay truth while leaving scene-only continuity hold view-only, proves shared beam/link presentation against exported serving-beam truth, and lands `VAL-MODQN-BUNDLE-004` with a non-trivial external bundle variant over the same bundle-mode path |
 | MODQN producer diagnostics + explainability (`Slice 5`) | ✅ landed | Producer-side `Phase 03B` remains fixed in `/home/u24/papers/modqn-paper-reproduction` commit `13fca4707a9f7a6690d335e351bd8d1805d9f10b`; `sdd/modqn-producer-diagnostics-consumer-follow-on.md` is now the landed consumer record, kickoff/boundary context remains in `sdd/modqn-producer-diagnostics-and-explainability-follow-on.md`, row-level `policyDiagnostics` drives bundle-mode explainability, `optionalPolicyDiagnostics` stays metadata/disclosure-only, and `VAL-MODQN-BUNDLE-005` now passes alongside `002` / `003` / `004` |
 | truth-preserving showcase visual realignment follow-on | ✅ complete first landing (2026-04-15) | `sdd/truth-preserving-showcase-visual-realignment-follow-on.md` is now the active narrow authority for the landed shared `BeamPresentationFrame` scene grammar, the dedicated `case9-daps-showcase` default, and the accompanying browser readability/truth gates |
+| single-repo dual-app showcase baseline (`Phase 2A` + `Phase 2B` + `Phase 2C` + `Phase 2D` landed) | ✅ landed in current tree (2026-04-21) | Landed authority is now the four-record baseline `sdd/single-repo-dual-app-showcase-follow-on.md` + `sdd/single-repo-dual-app-showcase-phase2b-follow-on.md` + `sdd/single-repo-dual-app-showcase-phase2c-packaging-follow-on.md` + `sdd/single-repo-dual-app-showcase-phase2d-presentation-follow-on.md`. The current tree keeps `AppShell` query-switching `?app=showcase-consumer`, preserves the dedicated `showcase-consumer.html` plus `src/showcase-consumer-main.tsx` packaged entrypoint, preserves `ShowcaseConsumerHost` as the only publisher and `ShowcaseConsumerApp` as consumer-only, keeps frozen `scene-consumer-starter-v1` and `scene-consumer-starter-v2`, keeps `showcasePath=native-replay|bundle-sample` over `native-replay:hobs-multibeam-baseline:continuity-window` plus `modqn-bundle:sample-bundle-v1`, and keeps targeted smoke at `validate:contracts` + `validate:showcase-consumer-browser`; `SceneShell.tsx`, `SceneConsumerStarterPanel.tsx`, `scene-consumer-starter-consumer.ts`, `live`, `external-directory`, per-beam HOBS SINR, `useModqnBundleReplay.ts`, bundle-panel migration, and `Phase 3` polish remain closed |
+| single-repo dual-app showcase entrypoint handoff follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md`; it records `showcase-consumer.html` as the canonical handoff/share surface while keeping `?app=showcase-consumer` as a compatibility path, and now serves as a baseline decision record inside the closed dual-app landed set |
+| single-repo dual-app showcase consumer scene parity follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md`; the current tree now lands denser consumer-side telemetry, consumer-local camera/overlay controls, stronger narrative/readability surfaces, and the minimally expanded targeted browser smoke while preserving canonical handoff semantics, host-owned publisher ownership, frozen allowlist/deterministic IDs/starter family, and the targeted smoke model |
+| single-repo dual-app showcase consumer first-screen copy alignment follow-on | ✅ landed (2026-04-22) | Landed authority is `sdd/single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`; it records the narrow copy-only closure that replaced the native-replay first-screen `dedicated second viewer` wording with `continuity showcase viewer` wording inside `ShowcaseConsumerApp`, kept `showcase-consumer.html` canonical / `?app=showcase-consumer` compatibility, kept `ShowcaseConsumerHost` as sole publisher and `ShowcaseConsumerApp` as consumer-only, kept frozen allowlist/deterministic IDs/starter family, `summary.*` secondary, `Primary SINR = snapshot.ues[0].sinrDb`, and `validate:contracts` unchanged as the floor, and returns the dual-app line to no active unlanded follow-on authority |
+| single-repo dual-app showcase mainline additive reintegration follow-on | 🟡 promoted (2026-04-22) | Promoted authority is `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`; it defines the new dual-app reopen as an additive reintegration of the already-landed showcase-consumer surfaces onto the current MODQN `main` baseline, preserving `showcase-consumer.html` canonical / `?app=showcase-consumer` compatibility, `ShowcaseConsumerHost` sole publisher / `ShowcaseConsumerApp` consumer-only, frozen allowlist/deterministic IDs/starter family, `summary.*` secondary, `Primary SINR = snapshot.ues[0].sinrDb`, the existing targeted smoke / contract floor, and `SceneShell` as the current `main` default surface |
 | real-trace scalability follow-on | ⏸ blocked (`no-go` preflight on 2026-04-01) | Future mixed-orbit `OMNeT++` work may still require larger-catalog planning, but this line stays paused after T1 closure unless it is separately re-promoted; keep `sdd/real-trace-scalability-preflight-note.md` as the blocked decision record |
 | `estnet` consumer path | ⏸ paused | `sdd/estnet-ui-contract-outline.md` remains paused until explicit reopen |
-
----
-
-## 1d. Narrow Handover Published-Semantics State
-
-The narrow Task 4 handover published-semantics slice is landed in the current
-tree and should now be treated as active repo authority rather than an open
-clarification item:
-
-1. `UeState.servingTransition.kind` now publishes
-   `same-satellite-beam-switch` versus `inter-satellite-handover`, so external
-   consumers no longer need to infer that distinction from raw beam-ID drift.
-2. `UeState.serviceState` now publishes `serving` versus `no-service`, with
-   `reason='out-of-reach'` when no service-eligible candidate exists and
-   `reason='no-eligible-service'` when service-eligible candidates exist but
-   the UE remains currently unserved.
-3. `ContinuityNarrativeState` and `HandoverLinkOverlay` remain consumer-side
-   presentation readers over that truth plus short readability pacing; they are
-   not the primary source for handover-family semantics.
-4. This narrow semantics landing is separate from any
-   `validate:visual-browser`, `validate-orbit-parity`, or other validator /
-   browser-readiness investigation, and it does not by itself promote the
-   broader deferred earth-moving beam-tracking follow-on.
-
----
-
-## 1e. Phase 2 Contract-Extraction Entry State
-
-The repo now has enough current-tree closure evidence to promote Phase 2
-contract extraction as the active downstream implementation-authority surface,
-and the first minimal code-extraction slice now lands without claiming the
-broader external-consumer proof path is complete:
-
-1. the current tree already carries the narrow Phase 1 closure baseline through
-   the scene-mode controller seam, `TruthSourceLayer` /
-   `PresentationLayers` split, `SceneShell` shrinkage, and shell-side control
-   surface shaping;
-2. the promoted active downstream surface is now
-   `sdd/scene-consumer-contract-extraction-follow-on.md`, which defines
-   integration-friendly contract extraction for future external scene consumers
-   without reopening `src/core/**` or reference-shell-only semantics, paired
-   with `todo/scene-consumer-contract-extraction/README.md`;
-3. the current tree now adds `src/viz/scene/scene-consumer-facade.ts` as a
-   read-only seam-adjacent contract surface that:
-   - preserves `SimulationSnapshot` as the canonical truth payload;
-   - preserves `BeamPresentationFrame` as the shared projection contract;
-   - exposes both `sceneConsumedSnapshot` and `publishedTruthSnapshot`, with
-     aliasing in native modes and distinct raw-truth publication retained for
-     bundle replay;
-   - keeps native runtime continuity truth under `truth.nativeRuntime.*` while
-     keeping bundle replay producer handover kind under
-     `truth.bundleReplay.producerHandoverKind` rather than silently flattening
-     them into one generic handover label;
-4. `SceneShell.tsx`, `useSceneControlSurface.ts`, and
-   `useBundleReplayShellState.ts` remain reference-viewer shell surfaces rather
-   than external consumer API, even though the reference viewer now dogfoods
-   the facade for shell-side read paths;
-5. validation wording should remain conservative: current-tree evidence now
-   includes targeted reruns of `lint`, `build`, `validate:contracts`,
-   `validate:orbit-parity`, `validate:visual-browser`, and
-   `validate:modqn:bundle-ui`, but a fresh full `npm run validate:stage` is
-   still recommended before making a new single-line global-green claim in a
-   later thread.
-6. the current tree now also lands a first deterministic Milestone C proof
-   slice through:
-   - `src/viz/scene/scene-consumer-proof.ts`, which builds a pure read-only
-     proof model from facade `source` / `truth` / `presentation`;
-   - `src/viz/scene/SceneConsumerProofSurface.tsx`, which dogfoods that proof
-     model in reference-viewer validation mode without promoting shell-only
-     helpers into contract surface;
-   - targeted `validate:contracts` proof that the same read model preserves
-     bundle-sample distinct snapshot semantics and `native-replay`
-     alias-like/same-reference semantics without importing `SceneShell.tsx`;
-   - targeted `validate:visual-browser` proof that `native-replay` can read
-     facade source metadata, truth snapshots, and shared presentation
-     projection through that same read-only model.
-7. the current tree now also lands the next narrow stub/external-consumer
-   harness slice through:
-   - `src/viz/scene/scene-consumer-harness.ts`, which projects a minimal
-     stub-consumer model from the proof read model rather than from shell-only
-     helpers;
-   - `src/viz/scene/SceneConsumerHarnessSurface.tsx`, which mounts that stub
-     in validation mode only as a non-`SceneShell.tsx` consumer;
-   - targeted `validate:contracts` proof that the harness preserves
-     bundle-sample distinct-snapshot semantics and `native-replay`
-     same-reference semantics through deterministic read-only summaries;
-   - targeted `validate:visual-browser` / `validate:modqn:bundle-ui` proof that
-     the harness can read `native-replay` and bundle-sample deterministic paths
-     without importing reference-shell surfaces.
-8. the current tree now also lands the next narrow starter/export slice
-   through:
-   - `src/viz/scene/scene-consumer-starter.ts`, which names one explicit
-     `SceneConsumerStarterExport` over the landed facade/proof/harness chain
-     instead of treating the stub harness itself as the final entry surface;
-   - `src/viz/scene/SceneConsumerStarterSurface.tsx`, which mounts that starter
-     export in validation mode only as an internal dogfood target;
-   - targeted `validate:contracts` proof that the starter/export entry preserves
-     bundle-sample and `native-replay` deterministic path identity without
-     importing shell surfaces;
-   - targeted `validate:visual-browser` / `validate:modqn:bundle-ui` proof that
-     the same starter/export entry stays aligned with native-replay and
-     bundle-sample truth/presentation summaries while `live` remains out of
-     scope.
-9. the current tree now also lands the next narrow starter-consumer adoption
-   slice through:
-   - `src/viz/scene/SceneConsumerStarterPanel.tsx`, which consumes
-     `SceneConsumerStarterExport` directly as a repo-internal visible panel
-     rather than as another hidden validation surface;
-   - `src/viz/scene/SceneShell.tsx`, which dogfoods that panel by building the
-     starter/export entry internally without promoting `SceneShell.tsx`,
-     `useSceneControlSurface.ts`, or `useBundleReplayShellState.ts` into
-     external contract surfaces;
-   - targeted `validate:visual-browser` proof that the visible starter
-     consumer now stays aligned with native-replay deterministic
-     source/truth/presentation summaries once the validator reads proof /
-     harness / starter / panel state atomically inside one replay-ready
-     window;
-   - targeted `validate:modqn:bundle-ui` proof that the same visible starter
-     consumer stays aligned with bundle-sample deterministic source/truth/
-     presentation summaries while `live` remains out of scope.
-10. the current tree now also lands the next narrow export-stabilization slice
-   through:
-   - `src/viz/scene/scene-consumer-starter-consumer.ts`, which builds one
-     shared repo-internal starter-consumer projection from the landed
-     `SceneConsumerStarterExport` instead of letting starter consumers re-shape
-     attrs and summary wording independently;
-   - `src/viz/scene/SceneConsumerStarterSurface.tsx`, which now consumes the
-     same `SceneConsumerStarterExport` instance that `SceneShell.tsx` passes to
-     the visible starter panel rather than rebuilding starter/export state from
-     the facade;
-   - targeted `validate:contracts`, `validate:visual-browser`, and
-     `validate:modqn:bundle-ui` proof that the hidden starter surface and
-     visible starter consumer stay aligned on the same deterministic path
-     identity and starter summary lines for bundle-sample and
-     `native-replay`, while `live` remains out of scope.
-11. the current tree now has enough deterministic Phase 2 entry-state evidence
-    to open a separate Phase 3 planning surface for sibling external-scene
-    integration:
-    - `sdd/external-scene-integration-follow-on.md` now exists as a drafted,
-      promotion-pending planning surface rather than implementation authority;
-    - `todo/external-scene-integration/README.md` now exists as the matching
-      planning-baseline handoff pack;
-    - the recommended first integration order is now planning-first,
-      deterministic-first, and shell-boundary-preserving rather than a further
-      default expansion of repo-internal proof slices or a `live`-first reopen.
-
-## 1f. Phase 3 External Scene Integration Planning Entry State
-
-The next recommended planning move is now explicit:
-
-1. keep `sdd/scene-consumer-contract-extraction-follow-on.md` as the owner of
-   the Phase 2 contract-extraction boundary and landed repo-internal starter
-   entry;
-2. use `sdd/external-scene-integration-follow-on.md` plus
-   `todo/external-scene-integration/README.md` as the promoted Phase 3
-   implementation-authority surface for the first sibling external-scene
-   integration path;
-3. keep `live`, package extraction, and fresh full-stage claims outside the
-   current planning boundary until a later explicit reopen.
-
-The current promoted implementation recommendation is now explicit:
-
-1. first target repo: `scenario-globe-handover-demo`
-2. first deterministic source path: `native-replay`
-3. second target repo: `scenario-globe-viewer`
-4. second deterministic source path: `bundle-sample`
-5. first executable slice: consume `SceneConsumerStarterExport` in
-   `scenario-globe-handover-demo` while leaving the demo repo's global orbit
-   layer synthetic and keeping same-page camera/local-stage ownership in the
-   demo repo.
-6. the current tree now contains that first executable slice in code:
-   - a deterministic starter fixture now exists under
-     `ntn-sim-core/fixtures/scene-consumer-starter/`;
-   - `scenario-globe-handover-demo` now imports it through a narrow local
-     starter bridge and uses it only to override local handover-focus truth
-     inputs plus panel datasets;
-   - the demo repo still owns camera, proxy-stage, beam/link/cone, and
-     toolbar/Home behavior.
-7. current-thread evidence for that slice remains blocker-aware rather than
-   closure-level:
-   - `ntn-sim-core` targeted gates were reported green;
-   - `scenario-globe-handover-demo` `build`, `npm test`, and `test:phase1` were
-     later reported green;
-   - the earlier browser-side WebGL viewer bootstrap blocker at
-     `createViewer(...)` was reported as no longer reproducing in the current
-     tree, so the slice is best described as code-landed and currently
-     targeted-smoke-clean per execution-thread report rather than broader
-     closure-level evidence.
-8. the current tree now also contains the second deterministic external-scene
-   slice in code:
-   - an additive `bundle-sample` starter fixture now exists under
-     `ntn-sim-core/fixtures/scene-consumer-starter/`;
-   - `scenario-globe-viewer` now imports that fixture through a narrow local
-     bootstrap source/controller path and publishes it into a repo-owned HUD
-     panel plus capture seam;
-   - the viewer repo still owns its site/prerecorded bootstrap frame, broader
-     scenario shell, and replay-clock framing rather than surrendering those
-     seams to `ntn-sim-core`.
-9. current-thread evidence for that second slice should remain conservative:
-   - per execution-thread report, `ntn-sim-core` reran `lint`, `build`,
-     `validate:contracts`, `validate:orbit-parity`, `validate:visual-browser`,
-     and `validate:modqn:bundle-ui`;
-   - the first `validate:visual-browser` run reported an unrelated
-     `case9-daps-showcase` timeout before a clean rerun;
-   - `scenario-globe-viewer` `build`, `npm test`, and `test:phase6.7` were
-     reported green;
-   - the slice is therefore best treated as code-landed and currently
-     targeted-green per execution-thread report rather than broader closure or
-     full-stage evidence.
-10. with both deterministic sibling-consumer slices now present in code, the
-    next recommended move is planning/reconciliation for any deeper
-    `scenario-globe-viewer` adoption rather than an immediate `live` reopen,
-    package extraction, or cross-source normalization push.
-11. that planning/reconciliation pass now lands a conservative gate decision:
-    - `scenario-globe-viewer`'s broader `scenario` and `replay-clock` seams
-      remain repo-owned authority;
-    - the current HUD/bootstrap-only starter-consumer slice is sufficient proof
-      for the second deterministic path;
-    - deeper viewer-owned adoption remains deferred until a later planning
-      thread names a narrower next contract question instead of reopening the
-      broader scenario seam by default.
-12. that means the current external-scene integration line can now be treated
-    as a closed deterministic tranche rather than an in-flight refactor:
-    - the Phase 2 contract-extraction ladder is landed;
-    - the first sibling consumer path (`scenario-globe-handover-demo` plus
-      `native-replay`) is landed;
-    - the second sibling consumer path (`scenario-globe-viewer` plus
-      `bundle-sample`) is landed;
-    - `live`, package extraction, deeper viewer-owned adoption, and cross-source
-      normalization remain deferred new-theme questions rather than unfinished
-      obligations inside the completed tranche.
 
 ---
 
@@ -428,7 +235,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `presentation` | 3 | `beam-presentation-frame.ts`, `useBeamPresentationFrame.ts`, `index.ts` — shared display/event/beam selection grammar for sky / beam / overlay renderers |
 | `satellite` | 4 | `SatelliteSkyLayer.tsx`, `satellite-display-selection.ts`, `observer-sky-projection.ts`, `index.ts` |
 | `overlays` | 13 | `ControlPanel.tsx`, `SimHud.tsx`, `BeamInfoOverlay.tsx`, `HandoverLinkOverlay.tsx`, `BhExplainabilityPanel.tsx`, `BatchKpiPanel.tsx`, `HoEventLogOverlay.tsx`, `SinrCdfOverlay.tsx`, `SinrElevationScatter.tsx`, `SinrTimeSeriesOverlay.tsx`, `Starfield.tsx`, `ValidationProbe.tsx`, `ModqnBundleMetadataPanel.tsx` |
-| `scene` | 3 | `SceneShell.tsx`, `NTPUScene.tsx`, `CameraRig.tsx` |
+| `scene` | 10 | `SceneShell.tsx`, `SceneDataLayers.tsx`, `scene-consumer-starter.ts`, `scene-consumer-starter-publication.ts`, `NTPUScene.tsx`, `CameraRig.tsx`, `LightingRig.tsx`, `LoaderOverlay.tsx`, `UAV.tsx`, `scene-runtime-summaries.ts` — scene composition plus the fixed Phase 2A starter/publication seam |
 | `validation` | 1 | `store.ts` (browser-side validation probe store) |
 | `view-models` | 5 | `types.ts`, `index.ts`, `kpi-bundle-projectors.ts`, `modqn-view-model.ts`, `modqn-bundle-replay-view-model.ts` — downstream landing zone for KPI/card/chart projection types plus the shipped MODQN M3 result projector and the Phase 03A bundle replay projection surface |
 | root | 1 | `tier1-satellite-selection.ts` — shared continuity-relevant satellite selection for beam and sky renderers |
@@ -437,7 +244,9 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 
 | Subdirectory | Files | Key Modules |
 |---|---|---|
+| `showcase` | 3 | `ShowcaseConsumerHost.tsx`, `ShowcaseConsumerApp.tsx`, `showcase-consumer-window.ts` — query-switched Phase 2A route, host-owned deterministic producer, and consumer-only window seam helpers |
 | `hooks` | 7 | `useSimulation.ts`, `useReplay.ts`, `useBatchKpi.ts` (now uses `RunnerExposureApi`), `useSceneQueryState.ts`, `modqn-bundle-sample.ts`, `useModqnBundleReplay.ts`, `index.ts` |
+| root | 1 | `AppShell.tsx` — app-level route switch for reference shell vs `?app=showcase-consumer` |
 
 ### `scripts/` — current validation + utility scripts
 
@@ -451,6 +260,7 @@ Full gap analysis and remediation plan is preserved in the historical archive:
 | `validate-runtime.mjs` | Runtime smoke checks |
 | `validate-profile-layout.mjs` | Legacy profile layout checks (retained for `validate-structure.mjs` existence check; functionality absorbed into `validate-profiles.mjs`) |
 | `validate-profiles.mjs` | Canonical profile gate: Phase 1 layout checks + VAL-PLAT-006 (types/runtime-materialization export and circular-import checks) + VAL-PLAT-007 (authoring bundle+experiment -> runtime parity, SDD §9 deep-equality) |
+| `validate-contracts.mjs` | Phase 4 contract gate plus the frozen Phase 2A starter seam, query-switched route, host-owned publication, and consumer-only showcase guard |
 | `validate-modqn-baseline.ts`, `validate-modqn-m2.ts`, `validate-modqn-m3.ts`, `validate-modqn-parity.ts`, `validate-modqn-bundle-adapter.ts`, `validate-modqn-bundle-ui.ts` | Dedicated MODQN downstream gates: M1 bridge closure, M2 sampling/training/evaluation/artifact closure, M3 stable result/view-model/disclosure closure, TP1 current-anchor parity bundle / export / claim-ceiling validation, and Phase 03A bundle adapter + UI truth-source validation |
 | `validate-multibeam-gating.ts` | Multi-beam gate |
 | `validate-orbit-parity.ts`, `validate-replay-manifest.ts`, `validate-final.mjs`, `validate-visual-browser.ts` | Orbit / replay / final / browser gates |

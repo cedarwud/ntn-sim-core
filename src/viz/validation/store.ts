@@ -7,6 +7,7 @@ import type {
   BeamPresentationMarkerRole,
   ContinuityNarrativePhase,
 } from '@/viz/presentation';
+import type { PublishedSceneConsumerStarter } from '@/viz/scene/scene-consumer-starter';
 
 export interface ValidationRuntimeSummary {
   mode: 'live' | 'replay' | 'modqn-bundle';
@@ -163,6 +164,7 @@ export interface VisualValidationState {
   orbitParity?: OrbitParitySummary;
   snapshotBeamTruth?: SnapshotBeamTruthSummary;
   beamPresentationFrame?: BeamPresentationFrameSummary;
+  sceneConsumerStarter?: PublishedSceneConsumerStarter | null;
   earthMovingBeamLayer?: EarthMovingLayerSummary;
   earthFixedCellLayer?: EarthFixedLayerSummary;
   beamInfoOverlay?: BeamInfoOverlaySummary;

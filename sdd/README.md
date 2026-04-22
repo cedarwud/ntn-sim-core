@@ -2,7 +2,65 @@
 
 This folder contains the active design authority for `ntn-sim-core`.
 
-As of 2026-04-16, the project has completed the simulator-platform refactor, the downstream-architecture Group 2 landing, the MODQN M3 result-handoff stabilization, the UI baseline viewer path through U2, the real-trace truth-path correction (`T1`), the paper-mode / claim-mode governance hardening (`PM1`), the current-anchor MODQN targeted parity package (`TP1`), the `EE / power` realism hardening line (`EP1`), the first landing of the truth-preserving showcase visual realignment follow-on, the consumer-only MODQN external bundle loading follow-on, the consumer-only MODQN story dashboard / dynamic-chart follow-on, the consumer-only MODQN replay-truth hardening / showcase acceptance follow-on, and the consumer-only MODQN producer diagnostics / explainability follow-on (`Slice 5`). The producer-side Phase 03B diagnostics export slice in `modqn-paper-reproduction` is now consumed by a landed `ntn-sim-core` Slice 5 implementation, so there is no remaining promoted-but-unlanded MODQN bundle follow-on in the current tree. The SDD set is therefore split into:
+As of 2026-04-22, the project has completed the simulator-platform refactor,
+the downstream-architecture Group 2 landing, the MODQN M3
+result-handoff stabilization, the UI baseline viewer path through U2, the
+real-trace truth-path correction (`T1`), the paper-mode / claim-mode
+governance hardening (`PM1`), the current-anchor MODQN targeted parity package
+(`TP1`), the `EE / power` realism hardening line (`EP1`), the first landing of
+the truth-preserving showcase visual realignment follow-on, the consumer-only
+MODQN external bundle loading follow-on, the consumer-only MODQN story
+dashboard / dynamic-chart follow-on, the consumer-only MODQN replay-truth
+hardening / showcase acceptance follow-on, and the consumer-only MODQN
+producer diagnostics / explainability follow-on (`Slice 5`). The producer-side
+Phase 03B diagnostics export slice in `modqn-paper-reproduction` is now
+consumed by a landed `ntn-sim-core` Slice 5 implementation, so there is no
+remaining promoted-but-unlanded MODQN bundle follow-on in the current tree.
+The restored `single-repo-dual-app-showcase-follow-on.md` now remains as the
+landed Phase 2A dual-app baseline record, the paired
+`single-repo-dual-app-showcase-phase2b-follow-on.md` now also lands in the
+current tree as the narrow versioned starter-v2 widening from the fixed
+native-replay path to one additional allowlisted bundled-sample path, and
+`single-repo-dual-app-showcase-phase2c-packaging-follow-on.md` now also lands
+as the dedicated showcase-consumer entrypoint packaging record over that same
+already-landed contract family, and
+`single-repo-dual-app-showcase-phase2d-presentation-follow-on.md` now also
+lands as the dedicated showcase-consumer presentation baseline over that same
+frozen truth/publication shape. The landed current tree therefore keeps both
+the query-switched `?app=showcase-consumer` route and the dedicated
+`showcase-consumer.html` entrypoint, while `ShowcaseConsumerHost` remains the
+only publisher and `ShowcaseConsumerApp` remains consumer-only over the starter
+seam. The landed
+`single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md` now records the
+narrow post-Phase-2D handoff decision: `showcase-consumer.html` is the
+canonical handoff/share surface while `?app=showcase-consumer` remains a
+compatibility path, without route retirement, redirect work, truth/source
+widening, `live`, `external-directory`, bundle-panel migration, or `Phase 3`
+polish. The landed
+`single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md` now extends
+that same frozen dual-app baseline with denser consumer-side telemetry,
+consumer-local camera/overlay controls, stronger narrative/readability
+surfaces, and the minimally expanded targeted browser smoke while keeping the
+canonical handoff decision, publisher ownership, allowlist, deterministic IDs,
+starter family, and targeted smoke model unchanged. The landed
+`single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`
+now closes the last promoted dual-app micro-slice by correcting only the
+native-replay first-screen lead-copy role wording inside `ShowcaseConsumerApp`
+while keeping the canonical handoff decision, publisher ownership, allowlist,
+deterministic IDs, starter family, `summary.*` secondary,
+`Primary SINR = snapshot.ues[0].sinrDb`, `validate:contracts` unchanged as the
+floor, and the absence of a dedicated dual-app `VAL-*` gate. The newly
+promoted
+`single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
+is now the only active unlanded dual-app follow-on authority in the current
+tree: it seeks to reintroduce the landed dual-viewer surfaces onto the current
+MODQN `main` baseline as an additive reintegration while preserving
+`showcase-consumer.html` as canonical, `?app=showcase-consumer` as the
+compatibility path, `ShowcaseConsumerHost` as the sole publisher,
+`ShowcaseConsumerApp` as consumer-only, and `SceneShell` as the current `main`
+default surface. `live`, `external-directory`, and `Phase 3` polish remain
+closed.
+The SDD set is therefore split into:
 
 1. **Core authority files** that remain normative across all programs
 2. **Completed platform-program files** that define the frozen closure baseline
@@ -99,6 +157,56 @@ These files remain the shipped downstream authority for the completed baseline s
    - landed Slice 4 consumer-only replay-truth hardening / showcase acceptance record for dashboard/HUD/probe truth alignment, scene beam/link replay-truth proof, non-trivial external bundle acceptance, and the passing `VAL-MODQN-BUNDLE-004` browser gate
 17. `modqn-producer-diagnostics-consumer-follow-on.md`
    - landed Slice 5 consumer-only producer diagnostics / explainability record for additive `policyDiagnostics` / `optionalPolicyDiagnostics` consumption, older-bundle compatibility, bundle-mode explainability disclosure, and the passing `VAL-MODQN-BUNDLE-005` browser gate
+18. `single-repo-dual-app-showcase-follow-on.md`
+   - landed Phase 2A dual-app record for the query-switched
+     `?app=showcase-consumer` route, the fixed
+     `native-replay:hobs-multibeam-baseline:continuity-window` deterministic
+     path, the host-owned publisher rule, and the consumer-only showcase-app
+     seam over `SceneConsumerStarterExport`
+19. `single-repo-dual-app-showcase-phase2b-follow-on.md`
+   - landed Phase 2B dual-app record for the versioned
+     `scene-consumer-starter-v2` seam, the
+     `showcasePath=native-replay|bundle-sample` allowlist, the second
+     deterministic path `modqn-bundle:sample-bundle-v1`, and the passing
+     `validate:contracts` plus `validate:showcase-consumer-browser` dual-path
+     coverage while keeping `live`, `external-directory`,
+     `useModqnBundleReplay.ts`, second-entrypoint packaging, and `Phase 3`
+     polish closed
+20. `single-repo-dual-app-showcase-phase2c-packaging-follow-on.md`
+   - landed Phase 2C dual-app record for the dedicated
+     `showcase-consumer.html` entrypoint, `src/showcase-consumer-main.tsx`
+     bootstrap, preserved query-route compatibility, and the passing
+     dual-entry `validate:contracts` plus `validate:showcase-consumer-browser`
+     coverage while keeping truth semantics, `live`, `external-directory`,
+     bundle-panel migration, and `Phase 3` polish closed
+21. `single-repo-dual-app-showcase-phase2d-presentation-follow-on.md`
+   - landed Phase 2D dual-app record for the dedicated showcase-consumer
+     presentation baseline, stable first-screen viewer identity/disclosure, and
+     packaged-viewer desktop/mobile evidence capture while preserving the same
+     host-owned publisher rule, consumer-only ownership, two-path allowlist,
+     and targeted smoke / contract gates without reopening `live`,
+     `external-directory`, bundle-panel migration, or full `Phase 3` polish
+22. `single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md`
+   - landed narrow post-Phase-2D handoff decision record that names
+     `showcase-consumer.html` as the canonical handoff/share surface while
+     keeping `?app=showcase-consumer` as a compatibility path, without route
+     retirement, redirect work, truth/source widening, `live`,
+     `external-directory`, bundle-panel migration, or full `Phase 3` polish
+23. `single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md`
+   - landed consumer-only scene/rendering parity record for the denser
+     showcase telemetry shell, consumer-local camera/overlay controls,
+     stronger narrative/readability surfaces, and the minimally expanded
+     targeted `validate:showcase-consumer-browser` coverage over the same
+     frozen starter seam and canonical handoff decision
+24. `single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`
+   - landed narrow copy-alignment record for correcting the native-replay
+     first-screen lead copy inside `ShowcaseConsumerApp` from `second viewer`
+     wording to `continuity showcase viewer` wording while preserving the
+     canonical handoff decision, host-owned publisher rule, consumer-only app,
+     frozen allowlist/deterministic IDs/starter family, `summary.*`
+     secondary, `Primary SINR = snapshot.ues[0].sinrDb`, and the existing
+     targeted smoke / contract floor without a dedicated dual-app `VAL-*`
+     gate
 
 Any resumed MODQN/UI follow-on work must start from this surface plus a freshly promoted `todo/` handoff surface, not from older outline-only wording or archived prompt packs.
 
@@ -109,17 +217,19 @@ Any new paper-oriented work beyond these shipped surfaces should still start onl
 
 ## 4. Promoted Downstream Files
 
-1. `scene-consumer-contract-extraction-follow-on.md`
-   - active Phase 2 implementation authority for integration-friendly external
-     scene contract extraction over the current scene controller /
-     truth-source / presentation seam, paired with
-     `todo/scene-consumer-contract-extraction/README.md`
-2. `external-scene-integration-follow-on.md`
-   - active Phase 3 implementation authority for the first deterministic
-     external-scene integration path, with
-     `scenario-globe-handover-demo` / `native-replay` first and
-     `scenario-globe-viewer` / `bundle-sample` second, paired with
-     `todo/external-scene-integration/README.md`
+1. `single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
+   - promoted mainline reintegration record for reintroducing the already
+     landed dual-viewer showcase-consumer surfaces onto the current MODQN
+     `main` baseline additively, while preserving `SceneShell` as the current
+     `main` default surface, preserving the canonical
+     `showcase-consumer.html` / compatibility `?app=showcase-consumer`
+     handoff split, and avoiding direct history-merge as the execution model
+
+Any implementation in the dual-app showcase line must now start from that
+promoted reintegration file plus the matching `todo/` handoff companion after
+re-checking the landed Phase 2A / 2B / 2C / 2D baseline, the landed entrypoint
+handoff record, the landed consumer scene parity record, and the landed
+copy-alignment record.
 
 ## 5. Deferred / Paused Downstream Files
 
@@ -133,12 +243,11 @@ These files are not valid implementation authority for the current baseline entr
    - completed preflight decision record for the promoted T1 truth-path correction surface; not implementation authority itself
 4. `real-trace-scalability-preflight-note.md`
    - blocked preflight decision record for future mixed-orbit / larger-catalog work; remains paused after T1 closure unless it is separately re-promoted
-5. `scene-coordination-decoupling-follow-on.md`
-   - drafted reconciliation / closure-baseline companion for the current-tree `SceneShell` / `SceneDataLayers` seam landing; not implementation authority until explicitly rewritten and promoted
-6. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
+5. `earth-moving-beam-tracking-and-handover-candidate-follow-on.md`
    - proposed narrow beam / serving semantics correction surface; not implementation authority until explicitly promoted with matching `todo/` handoff docs
-7. `modqn-producer-diagnostics-and-explainability-follow-on.md`
+6. `modqn-producer-diagnostics-and-explainability-follow-on.md`
    - cross-repo kickoff / boundary record for producer-owned policy diagnostics / explainability; useful context, but not the direct consumer implementation surface now that the paired consumer SDD is promoted
+
 Each deferred file must explicitly state its frozen-platform assumptions, required preflight evidence, and promotion boundary before it can become active authority.
 
 ## 6. Archived Historical Documents

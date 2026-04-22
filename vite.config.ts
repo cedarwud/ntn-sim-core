@@ -18,6 +18,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        'showcase-consumer': path.resolve(__dirname, 'showcase-consumer.html'),
+      },
       output: {
         manualChunks: {
           react: ['react', 'react-dom'],

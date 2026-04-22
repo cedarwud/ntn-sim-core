@@ -1,3 +1,6 @@
+import type { SimulationSnapshot } from '@/core/contracts/runtime-v1';
+import type { BeamPresentationFrame } from '@/viz/presentation';
+
 import type { SceneConsumerFacade } from './scene-consumer-facade';
 import {
   buildSceneConsumerHarnessViewModel,
@@ -20,6 +23,41 @@ export interface SceneConsumerStarterExport {
   readonly presentation: SceneConsumerHarnessViewModel['presentation'];
   readonly summary: SceneConsumerHarnessViewModel['render'];
 }
+
+interface BuildSceneConsumerStarterExportV2Options {
+  readonly deterministicPathId: string | null;
+  readonly mode: 'native-replay' | 'modqn-bundle';
+  readonly profileId: string | null;
+  readonly replaySelection: string | null;
+  readonly sourceLabel: string | null;
+  readonly sceneConsumedSnapshot: SimulationSnapshot | null;
+  readonly beamPresentationFrame: BeamPresentationFrame | null;
+}
+
+export interface SceneConsumerStarterExportV2 {
+  readonly entry: {
+    readonly surfaceId: 'scene-consumer-starter-v2';
+    readonly contractKind: 'starter-export';
+    readonly deterministicPathId: string | null;
+    readonly deterministicPathReady: boolean;
+  };
+  readonly source: {
+    readonly mode: 'native-replay' | 'modqn-bundle';
+    readonly profileId: string | null;
+    readonly replaySelection: string | null;
+    readonly sourceLabel: string | null;
+  };
+  readonly truth: {
+    readonly sceneConsumedSnapshot: SimulationSnapshot | null;
+  };
+  readonly presentation: {
+    readonly beamPresentationFrame: BeamPresentationFrame | null;
+  };
+}
+
+export type PublishedSceneConsumerStarter =
+  | SceneConsumerStarterExport
+  | SceneConsumerStarterExportV2;
 
 function buildDeterministicPathId(
   source: SceneConsumerHarnessViewModel['source'],
@@ -69,5 +107,33 @@ export function buildSceneConsumerStarterExport(
     truth: harness.truth,
     presentation: harness.presentation,
     summary: harness.render,
+  };
+}
+
+export function buildSceneConsumerStarterExportV2(
+  options: BuildSceneConsumerStarterExportV2Options,
+): SceneConsumerStarterExportV2 {
+  return {
+    entry: {
+      surfaceId: 'scene-consumer-starter-v2',
+      contractKind: 'starter-export',
+      deterministicPathId: options.deterministicPathId,
+      deterministicPathReady: Boolean(
+        options.deterministicPathId
+        && options.sceneConsumedSnapshot,
+      ),
+    },
+    source: {
+      mode: options.mode,
+      profileId: options.profileId,
+      replaySelection: options.replaySelection,
+      sourceLabel: options.sourceLabel,
+    },
+    truth: {
+      sceneConsumedSnapshot: options.sceneConsumedSnapshot,
+    },
+    presentation: {
+      beamPresentationFrame: options.beamPresentationFrame,
+    },
   };
 }
