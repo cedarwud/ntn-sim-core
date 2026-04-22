@@ -8,17 +8,11 @@ already-landed dual-viewer surfaces onto the current MODQN `main` baseline.
 **Proposed path:**
 `sdd/single-repo-dual-app-showcase-mainline-additive-reintegration-follow-on.md`
 **Depends on:**
-1. `sdd/single-repo-dual-app-showcase-follow-on.md`
-2. `sdd/single-repo-dual-app-showcase-phase2b-follow-on.md`
-3. `sdd/single-repo-dual-app-showcase-phase2c-packaging-follow-on.md`
-4. `sdd/single-repo-dual-app-showcase-phase2d-presentation-follow-on.md`
-5. `sdd/single-repo-dual-app-showcase-entrypoint-handoff-follow-on.md`
-6. `sdd/single-repo-dual-app-showcase-consumer-scene-parity-follow-on.md`
-7. `sdd/single-repo-dual-app-showcase-consumer-first-screen-copy-alignment-follow-on.md`
-8. `sdd/README.md`
-9. `sdd/ntn-sim-core-implementation-status.md`
-10. `sdd/ntn-sim-core-validation-matrix.md`
-11. `todo/single-repo-dual-app-showcase/README.md`
+1. `sdd/single-repo-dual-app-showcase-authority-chain-repair-follow-on.md`
+2. `sdd/README.md`
+3. `sdd/ntn-sim-core-implementation-status.md`
+4. `sdd/ntn-sim-core-validation-matrix.md`
+5. `todo/single-repo-dual-app-showcase/README.md`
 
 **Scope gate:** define the minimum new downstream authority for bringing the
 already-landed dual-app showcase viewer surfaces back onto the current MODQN
@@ -28,11 +22,11 @@ surface, without widening truth/source semantics, and without turning this work
 into a branch-history merge exercise.
 
 **Authority note:** This file now remains as a landed dual-app record in the
-current tree. The landed dual-app record set remains the frozen baseline, the
-mainline additive reintegration slice is complete, and the current tree again
-has no active unlanded dual-app follow-on authority. Any future dual-viewer
-work must therefore start from a newly promoted follow-on instead of treating
-this file as ongoing implementation authority.
+current tree. After the landed authority-chain repair, this reintegration
+record remains part of the frozen dual-app baseline but is no longer the only
+surviving dual-app authority surface. Any future dual-viewer work must start
+from the repaired current-tree chain plus a newly promoted follow-on instead of
+treating this file as standalone ongoing implementation authority.
 
 ## 1. Purpose
 
@@ -57,6 +51,12 @@ At drafting time, the current reality is:
    work;
 4. resumed dual-viewer work must be phrased as a new mainline reintegration
    slice, not as implicit continuation of the already-closed dual-app authority.
+
+The earlier per-phase dual-app SDD set that this file originally depended on is
+not present in the current repo tree anymore. The landed
+`single-repo-dual-app-showcase-authority-chain-repair-follow-on.md` therefore
+now serves as the surviving current-tree summary of that missing phase history
+for active reads.
 
 ## 3. Problem Statement
 
