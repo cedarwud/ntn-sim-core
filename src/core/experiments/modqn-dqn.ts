@@ -1,3 +1,9 @@
+import type {
+  ModqnDenseLayerCheckpoint,
+  ModqnMlpNetworkCheckpoint,
+  ModqnObjectiveDqnCheckpoint,
+} from './modqn-reproduction-types';
+
 interface DqnBatchSample {
   readonly input: readonly number[];
   readonly actionIndex: number;
@@ -55,6 +61,25 @@ function weightIndex(layer: DenseLayer, outputIndex: number, inputIndex: number)
   return outputIndex * layer.inputSize + inputIndex;
 }
 
+function toNumberArray(values: Float64Array): number[] {
+  return Array.from(values);
+}
+
+function restoreDenseLayer(layer: DenseLayer, snapshot: ModqnDenseLayerCheckpoint): void {
+  if (layer.inputSize !== snapshot.inputSize || layer.outputSize !== snapshot.outputSize) {
+    throw new Error(
+      `[restoreDenseLayer] layer shape mismatch: `
+      + `${layer.inputSize}x${layer.outputSize} vs ${snapshot.inputSize}x${snapshot.outputSize}`,
+    );
+  }
+  layer.weights.set(snapshot.weights);
+  layer.biases.set(snapshot.biases);
+  layer.mWeights.set(snapshot.mWeights);
+  layer.vWeights.set(snapshot.vWeights);
+  layer.mBiases.set(snapshot.mBiases);
+  layer.vBiases.set(snapshot.vBiases);
+}
+
 class MlpNetwork {
   private readonly layers: DenseLayer[];
   private readonly learningRate: number;
@@ -79,6 +104,35 @@ class MlpNetwork {
   public predict(input: readonly number[]): number[] {
     const activations = this.forward(input).activations;
     return Array.from(activations[activations.length - 1] ?? []);
+  }
+
+  public snapshot(): ModqnMlpNetworkCheckpoint {
+    return {
+      optimizationStep: this.optimizationStep,
+      layers: this.layers.map((layer) => ({
+        inputSize: layer.inputSize,
+        outputSize: layer.outputSize,
+        weights: toNumberArray(layer.weights),
+        biases: toNumberArray(layer.biases),
+        mWeights: toNumberArray(layer.mWeights),
+        vWeights: toNumberArray(layer.vWeights),
+        mBiases: toNumberArray(layer.mBiases),
+        vBiases: toNumberArray(layer.vBiases),
+      })),
+    };
+  }
+
+  public restore(snapshot: ModqnMlpNetworkCheckpoint): void {
+    if (this.layers.length !== snapshot.layers.length) {
+      throw new Error(
+        `[MlpNetwork.restore] layer count mismatch: `
+        + `${this.layers.length} vs ${snapshot.layers.length}`,
+      );
+    }
+    snapshot.layers.forEach((layerSnapshot, layerIndex) => {
+      restoreDenseLayer(this.layers[layerIndex], layerSnapshot);
+    });
+    this.optimizationStep = snapshot.optimizationStep;
   }
 
   public trainBatch(samples: readonly DqnBatchSample[]): number {
@@ -227,6 +281,27 @@ export class ObjectiveDqn {
 
   public predictTarget(input: readonly number[]): number[] {
     return this.target.predict(input);
+  }
+
+  public snapshot(): ModqnObjectiveDqnCheckpoint {
+    return {
+      syncEveryUpdates: this.syncEveryUpdates,
+      updateCount: this.updateCount,
+      online: this.online.snapshot(),
+      target: this.target.snapshot(),
+    };
+  }
+
+  public restore(snapshot: ModqnObjectiveDqnCheckpoint): void {
+    if (snapshot.syncEveryUpdates !== this.syncEveryUpdates) {
+      throw new Error(
+        `[ObjectiveDqn.restore] sync cadence mismatch: `
+        + `${this.syncEveryUpdates} vs ${snapshot.syncEveryUpdates}`,
+      );
+    }
+    this.online.restore(snapshot.online);
+    this.target.restore(snapshot.target);
+    this.updateCount = snapshot.updateCount;
   }
 
   public trainBatch(samples: readonly DqnBatchSample[]): number {

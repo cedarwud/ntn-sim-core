@@ -142,6 +142,46 @@ export interface ModqnTrainingMetrics {
   readonly replaySize: number[];
 }
 
+export interface ModqnDenseLayerCheckpoint {
+  readonly inputSize: number;
+  readonly outputSize: number;
+  readonly weights: readonly number[];
+  readonly biases: readonly number[];
+  readonly mWeights: readonly number[];
+  readonly vWeights: readonly number[];
+  readonly mBiases: readonly number[];
+  readonly vBiases: readonly number[];
+}
+
+export interface ModqnMlpNetworkCheckpoint {
+  readonly optimizationStep: number;
+  readonly layers: readonly ModqnDenseLayerCheckpoint[];
+}
+
+export interface ModqnObjectiveDqnCheckpoint {
+  readonly syncEveryUpdates: number;
+  readonly updateCount: number;
+  readonly online: ModqnMlpNetworkCheckpoint;
+  readonly target: ModqnMlpNetworkCheckpoint;
+}
+
+export interface ModqnTrainerCheckpoint {
+  readonly formatVersion: 1;
+  readonly algorithmId: 'modqn-baseline';
+  readonly seed: number;
+  readonly rngState: number;
+  readonly epsilon: number;
+  readonly totalUpdates: number;
+  readonly protocol: ModqnTrainingProtocol;
+  readonly metrics: ModqnTrainingMetrics;
+  readonly replayBuffer: readonly ModqnExperience[];
+  readonly objectives: {
+    readonly throughput: ModqnObjectiveDqnCheckpoint;
+    readonly handover: ModqnObjectiveDqnCheckpoint;
+    readonly loadBalance: ModqnObjectiveDqnCheckpoint;
+  };
+}
+
 /**
  * One held-out replay/evaluation window plus its artifact bundle.
  */
@@ -191,4 +231,5 @@ export interface ModqnReproductionResult extends ExperimentResult {
     readonly constraints: readonly string[];
     readonly reproductionTimestamp: string;
   };
+  readonly trainerCheckpoint?: ModqnTrainerCheckpoint;
 }

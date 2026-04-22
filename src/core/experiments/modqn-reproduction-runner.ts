@@ -43,6 +43,7 @@ export interface RunModqnBaselineReproductionOptions {
   readonly trainingEpisodeLimit?: number;
   readonly heldOutEpisodeLimit?: number;
   readonly profileOverrides?: ModqnProfileOverrides;
+  readonly captureTrainerCheckpoint?: boolean;
 }
 
 interface EpisodeExecution {
@@ -527,5 +528,6 @@ export function runModqnBaselineReproduction(
       constraints,
       reproductionTimestamp: completedAt,
     },
+    trainerCheckpoint: options.captureTrainerCheckpoint ? trainer.createCheckpoint() : undefined,
   };
 }

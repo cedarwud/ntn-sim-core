@@ -15,6 +15,7 @@ import { ObjectiveDqn } from './modqn-dqn';
 import type {
   ModqnEpisodeSummary,
   ModqnExperience,
+  ModqnTrainerCheckpoint,
   ModqnTrainingMetrics,
 } from './modqn-reproduction-types';
 import { scalarizeReward } from './modqn-runtime-bridge';
@@ -46,7 +47,8 @@ export class ModqnTrainer {
   private readonly throughputDqn: ObjectiveDqn;
   private readonly handoverDqn: ObjectiveDqn;
   private readonly loadBalanceDqn: ObjectiveDqn;
-  private readonly rng;
+  private readonly seed: number;
+  private rng;
   private epsilon = 1.0;
   private readonly minEpsilon = 0.01;
   private readonly epsilonDecay = 0.995;
@@ -63,6 +65,7 @@ export class ModqnTrainer {
   constructor(config: ModqnTrainerConfig) {
     this.protocol = config.protocol;
     this.weights = config.protocol.weights ?? MODQN_BASELINE_OBJECTIVE_WEIGHTS;
+    this.seed = config.seed;
     this.adapter = new ModqnBaselineAdapter({
       weights: this.weights,
       intraSatellitePenalty: MODQN_DEFAULT_HANDOVER_PENALTIES.intraSatellite,
@@ -109,6 +112,72 @@ export class ModqnTrainer {
 
   public getTotalUpdates(): number {
     return this.totalUpdates;
+  }
+
+  public createCheckpoint(): ModqnTrainerCheckpoint {
+    return {
+      formatVersion: 1,
+      algorithmId: 'modqn-baseline',
+      seed: this.seed,
+      rngState: this.rng.state(),
+      epsilon: this.epsilon,
+      totalUpdates: this.totalUpdates,
+      protocol: JSON.parse(JSON.stringify(this.protocol)),
+      metrics: JSON.parse(JSON.stringify(this.metrics)),
+      replayBuffer: JSON.parse(JSON.stringify(this.replayBuffer)),
+      objectives: {
+        throughput: this.throughputDqn.snapshot(),
+        handover: this.handoverDqn.snapshot(),
+        loadBalance: this.loadBalanceDqn.snapshot(),
+      },
+    };
+  }
+
+  public restoreCheckpoint(checkpoint: ModqnTrainerCheckpoint): void {
+    if (checkpoint.algorithmId !== 'modqn-baseline') {
+      throw new Error(
+        `[ModqnTrainer.restoreCheckpoint] unsupported algorithm id ${checkpoint.algorithmId}`,
+      );
+    }
+    if (checkpoint.formatVersion !== 1) {
+      throw new Error(
+        `[ModqnTrainer.restoreCheckpoint] unsupported checkpoint version ${checkpoint.formatVersion}`,
+      );
+    }
+    if (JSON.stringify(checkpoint.protocol) !== JSON.stringify(this.protocol)) {
+      throw new Error('[ModqnTrainer.restoreCheckpoint] protocol mismatch');
+    }
+
+    this.throughputDqn.restore(checkpoint.objectives.throughput);
+    this.handoverDqn.restore(checkpoint.objectives.handover);
+    this.loadBalanceDqn.restore(checkpoint.objectives.loadBalance);
+    this.epsilon = checkpoint.epsilon;
+    this.totalUpdates = checkpoint.totalUpdates;
+    this.rng = createRng(checkpoint.rngState);
+
+    this.replayBuffer.length = 0;
+    this.replayBuffer.push(...JSON.parse(JSON.stringify(checkpoint.replayBuffer)));
+
+    this.metrics.episodes.length = 0;
+    this.metrics.episodes.push(...checkpoint.metrics.episodes);
+    this.metrics.loss.throughput.length = 0;
+    this.metrics.loss.throughput.push(...checkpoint.metrics.loss.throughput);
+    this.metrics.loss.handover.length = 0;
+    this.metrics.loss.handover.push(...checkpoint.metrics.loss.handover);
+    this.metrics.loss.loadBalance.length = 0;
+    this.metrics.loss.loadBalance.push(...checkpoint.metrics.loss.loadBalance);
+    this.metrics.reward.throughput.length = 0;
+    this.metrics.reward.throughput.push(...checkpoint.metrics.reward.throughput);
+    this.metrics.reward.handover.length = 0;
+    this.metrics.reward.handover.push(...checkpoint.metrics.reward.handover);
+    this.metrics.reward.loadBalance.length = 0;
+    this.metrics.reward.loadBalance.push(...checkpoint.metrics.reward.loadBalance);
+    this.metrics.reward.scalar.length = 0;
+    this.metrics.reward.scalar.push(...checkpoint.metrics.reward.scalar);
+    this.metrics.epsilon.length = 0;
+    this.metrics.epsilon.push(...checkpoint.metrics.epsilon);
+    this.metrics.replaySize.length = 0;
+    this.metrics.replaySize.push(...checkpoint.metrics.replaySize);
   }
 
   public selectAction(args: {

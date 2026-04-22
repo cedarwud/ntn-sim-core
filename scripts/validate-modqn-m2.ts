@@ -9,6 +9,7 @@ import { MODQN_REPRODUCTION_MANIFEST } from '../src/core/experiments/modqn-repro
 import { runModqnBaselineReproduction } from '../src/core/experiments/modqn-reproduction-runner';
 import { ModqnTrainer } from '../src/core/experiments/modqn-trainer';
 import type { ModqnBaselineObservation } from '../src/core/contracts/modqn-contracts';
+import type { ModqnExperience } from '../src/core/experiments/modqn-reproduction-types';
 
 const rootDir = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const failures: string[] = [];
@@ -65,6 +66,54 @@ function makeBaselineObservation(): ModqnBaselineObservation {
         beamThroughputMbps: 9,
       },
     ],
+  };
+}
+
+function makeSyntheticExperience(): ModqnExperience {
+  const observation = makeBaselineObservation();
+  return {
+    observation,
+    state: {
+      accessVector: [1, 0],
+      channelGainsLinear: [1.2, 2.4],
+      beamLocationsKm: [
+        { eastKm: 0, northKm: 0 },
+        { eastKm: 8, northKm: -4 },
+      ],
+      usersPerBeam: [6, 2],
+    },
+    encodedState: [1, 0, 1.2, 2.4, 0, 0, 8, -4, 0.75, 0.25],
+    action: {
+      selectedIndex: 1,
+      satId: 'sat-a',
+      beamId: 'sat-a-b1',
+      oneHot: [0, 1],
+    },
+    actionCatalogIndex: 1,
+    validActionCatalogIndices: [0, 1],
+    rewardVector: {
+      throughput: 9,
+      handoverPenalty: -1,
+      loadBalance: -0.5,
+    },
+    nextObservation: {
+      ...observation,
+      tick: 4,
+      timeSec: 4,
+      currentBeamId: 'sat-a-b1',
+    },
+    nextState: {
+      accessVector: [0, 1],
+      channelGainsLinear: [1.3, 2.1],
+      beamLocationsKm: [
+        { eastKm: 1, northKm: 0 },
+        { eastKm: 9, northKm: -3 },
+      ],
+      usersPerBeam: [5, 3],
+    },
+    nextEncodedState: [0, 1, 1.3, 2.1, 1, 0, 9, -3, 0.625, 0.375],
+    nextValidActionCatalogIndices: [0, 1],
+    isDone: false,
   };
 }
 
@@ -149,6 +198,7 @@ function validateRuntimeClosure() {
   const result = runModqnBaselineReproduction({
     trainingEpisodeLimit: MODQN_REPRODUCTION_MANIFEST.sampling.trainEpisodesForSmoke,
     heldOutEpisodeLimit: 1,
+    captureTrainerCheckpoint: true,
   });
   const lastTrainingEpisode = result.trainingEpisodes[result.trainingEpisodes.length - 1];
 
@@ -158,6 +208,59 @@ function validateRuntimeClosure() {
   check('artifact bundle exists', result.artifactBundles.length > 0, String(result.artifactBundles.length));
   check('aggregate KPI numeric', Number.isFinite(result.kpiBundle.meanThroughputMbps) && Number.isFinite(result.kpiBundle.meanSinrDb), `tp=${result.kpiBundle.meanThroughputMbps}, sinr=${result.kpiBundle.meanSinrDb}`);
   check('sampling plan limitations disclosed', result.heldOutEvaluation.limitationNotes.length > 0, String(result.heldOutEvaluation.limitationNotes.length));
+  check('trainer checkpoint captured on demand', Boolean(result.trainerCheckpoint), result.trainerCheckpoint ? 'present' : 'missing');
+  check(
+    'trainer checkpoint serializes',
+    Boolean(result.trainerCheckpoint && JSON.parse(JSON.stringify(result.trainerCheckpoint)).formatVersion === 1),
+    result.trainerCheckpoint ? `version=${result.trainerCheckpoint.formatVersion}` : 'missing',
+  );
+}
+
+function validateTrainerCheckpointRoundTrip() {
+  console.log('\n== VAL-MODQN-002E: trainer checkpoint round-trip ==');
+
+  const trainer = new ModqnTrainer({
+    protocol: MODQN_REPRODUCTION_MANIFEST.protocol,
+    actionCatalogSize: 2,
+    seed: 42,
+  });
+  const experience = makeSyntheticExperience();
+
+  for (let index = 0; index < 130; index += 1) {
+    trainer.trainStep(experience);
+  }
+
+  const checkpoint = trainer.createCheckpoint();
+  const restoredTrainer = new ModqnTrainer({
+    protocol: MODQN_REPRODUCTION_MANIFEST.protocol,
+    actionCatalogSize: 2,
+    seed: 42,
+  });
+  restoredTrainer.restoreCheckpoint(
+    JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint,
+  );
+
+  const originalSelection = trainer.selectAction({
+    observation: experience.observation,
+    encodedState: experience.encodedState,
+    candidateCatalogIndexByObservationIndex: [0, 1],
+    training: false,
+  });
+  const restoredSelection = restoredTrainer.selectAction({
+    observation: experience.observation,
+    encodedState: experience.encodedState,
+    candidateCatalogIndexByObservationIndex: [0, 1],
+    training: false,
+  });
+  const originalNextStep = trainer.trainStep(experience);
+  const restoredNextStep = restoredTrainer.trainStep(experience);
+
+  check('checkpoint preserves epsilon', restoredTrainer.getEpsilon() === trainer.getEpsilon(), `${restoredTrainer.getEpsilon()} vs ${trainer.getEpsilon()}`);
+  check('checkpoint preserves replay size', restoredTrainer.getReplaySize() === trainer.getReplaySize(), `${restoredTrainer.getReplaySize()} vs ${trainer.getReplaySize()}`);
+  check('checkpoint preserves total updates', restoredTrainer.getTotalUpdates() === trainer.getTotalUpdates(), `${restoredTrainer.getTotalUpdates()} vs ${trainer.getTotalUpdates()}`);
+  checkJson('checkpoint restores greedy action selection', restoredSelection.action, originalSelection.action);
+  checkJson('checkpoint restores objective q-values', restoredSelection.qValues, originalSelection.qValues);
+  checkJson('checkpoint preserves next-step training summary', restoredNextStep, originalNextStep);
 }
 
 function main() {
@@ -165,6 +268,7 @@ function main() {
   validateImportBoundaries();
   validateTrainerHandoffSurface();
   validateRuntimeClosure();
+  validateTrainerCheckpointRoundTrip();
 
   console.log('');
   if (failures.length > 0) {

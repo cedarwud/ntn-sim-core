@@ -39,6 +39,7 @@
     "validate:modqn:m2": "node --import tsx scripts/validate-modqn-m2.ts",
     "validate:modqn:m3": "node --import tsx scripts/validate-modqn-m3.ts",
     "validate:modqn:parity": "node --import tsx scripts/validate-modqn-parity.ts",
+    "export:modqn:m2:checkpoint": "node --import tsx scripts/export-modqn-m2-checkpoint.ts",
     "sync:modqn:fixture": "node scripts/sync-modqn-producer-fixture.mjs sync",
     "validate:modqn:fixture-sync": "node scripts/sync-modqn-producer-fixture.mjs check",
     "validate:modqn:bundle": "npm run validate:modqn:fixture-sync && node --import tsx scripts/validate-modqn-bundle-adapter.ts",

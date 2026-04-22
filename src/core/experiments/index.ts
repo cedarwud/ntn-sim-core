@@ -20,11 +20,15 @@
 
 export type { ExperimentManifest, ExperimentResult } from './types';
 export type {
+  ModqnDenseLayerCheckpoint,
   ModqnExperience,
+  ModqnMlpNetworkCheckpoint,
+  ModqnObjectiveDqnCheckpoint,
   ModqnProfileOverrides,
   ModqnSamplingConfig,
   ModqnSamplingPlan,
   ModqnSamplingWindow,
+  ModqnTrainerCheckpoint,
   ModqnTrainingManifest,
   ModqnTrainingMetrics,
   ModqnHeldOutEvaluation,
